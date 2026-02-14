@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "Next.js: Chrome",
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}",
+      "runtimeArgs": ["--disable-extensions"]
+    },
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "Next.js: Chrome (No Extensions)",
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}",
+      "runtimeArgs": ["--disable-extensions", "--disable-plugins"]
+    }
+  ]
+}

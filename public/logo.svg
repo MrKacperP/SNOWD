@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="snowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2F80ED;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0052CC;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- 8 snowflake arms -->
+  <g fill="url(#snowGrad)">
+    <!-- Top arm -->
+    <path d="M 96 20 L 104 20 L 104 75 L 96 75 Z" />
+    <path d="M 90 20 L 110 20 L 105 35 L 95 35 Z" />
+    
+    <!-- Top-right arm -->
+    <g transform="rotate(45 100 100)">
+      <path d="M 96 20 L 104 20 L 104 75 L 96 75 Z" />
+      <path d="M 90 20 L 110 20 L 105 35 L 95 35 Z" />
+    </g>
+    
+    <!-- Right arm -->
+    <g transform="rotate(90 100 100)">
+      <path d="M 96 20 L 104 20 L 104 75 L 96 75 Z" />
+      <path d="M 90 20 L 110 20 L 105 35 L 95 35 Z" />
+    </g>
+    
+    <!-- Bottom-right arm -->
+    <g transform="rotate(135 100 100)">
+      <path d="M 96 20 L 104 20 L 104 75 L 96 75 Z" />
+      <path d="M 90 20 L 110 20 L 105 35 L 95 35 Z" />
+    </g>
+    
+    <!-- Bottom arm -->
+    <g transform="rotate(180 100 100)">
+      <path d="M 96 20 L 104 20 L 104 75 L 96 75 Z" />
+      <path d="M 90 20 L 110 20 L 105 35 L 95 35 Z" />
+    </g>
+    
+    <!-- Bottom-left arm -->
+    <g transform="rotate(225 100 100)">
+      <path d="M 96 20 L 104 20 L 104 75 L 96 75 Z" />
+      <path d="M 90 20 L 110 20 L 105 35 L 95 35 Z" />
+    </g>
+    
+    <!-- Left arm -->
+    <g transform="rotate(270 100 100)">
+      <path d="M 96 20 L 104 20 L 104 75 L 96 75 Z" />
+      <path d="M 90 20 L 110 20 L 105 35 L 95 35 Z" />
+    </g>
+    
+    <!-- Top-left arm -->
+    <g transform="rotate(315 100 100)">
+      <path d="M 96 20 L 104 20 L 104 75 L 96 75 Z" />
+      <path d="M 90 20 L 110 20 L 105 35 L 95 35 Z" />
+    </g>
+  </g>
+  
+  <!-- Center hexagon -->
+  <circle cx="100" cy="100" r="22" fill="#2F80ED" />
+  <circle cx="100" cy="100" r="16" fill="#56CCF2" opacity="0.6" />
+  <circle cx="100" cy="100" r="10" fill="#0052CC" />
+</svg>
