@@ -139,6 +139,7 @@ export interface Job {
   chatId: string;
   createdAt: Date;
   updatedAt: Date;
+  cancelledAt?: Date;
 }
 
 // -- Messaging --

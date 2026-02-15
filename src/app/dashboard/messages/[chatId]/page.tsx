@@ -381,11 +381,11 @@ export default function ChatPage() {
   // Check if within 5-min reopen window
   const [reopenTimeLeft, setReopenTimeLeft] = useState<number | null>(null);
   useEffect(() => {
-    if (job?.status !== "cancelled" || !(job as Record<string, unknown>)?.cancelledAt) {
+    if (job?.status !== "cancelled" || !job?.cancelledAt) {
       setReopenTimeLeft(null);
       return;
     }
-    const cancelledAt = (job as Record<string, unknown>).cancelledAt;
+    const cancelledAt = job.cancelledAt;
     const cancelledDate = cancelledAt && typeof cancelledAt === "object" && "toDate" in (cancelledAt as object)
       ? (cancelledAt as Timestamp).toDate()
       : new Date(cancelledAt as string);
@@ -404,7 +404,7 @@ export default function ChatPage() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [job?.status, (job as Record<string, unknown>)?.cancelledAt]);
+  }, [job?.status, job?.cancelledAt]);
 
   const sendEtaUpdate = async (minutes: number) => {
     await sendMessage(`Estimated arrival: ${minutes} minutes`, "eta-update", {
