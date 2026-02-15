@@ -386,9 +386,11 @@ export default function ChatPage() {
       return;
     }
     const cancelledAt = job.cancelledAt;
-    const cancelledDate = cancelledAt && typeof cancelledAt === "object" && "toDate" in (cancelledAt as object)
-      ? (cancelledAt as Timestamp).toDate()
-      : new Date(cancelledAt as string);
+    const cancelledDate = cancelledAt instanceof Date
+      ? cancelledAt
+      : typeof cancelledAt === "object" && cancelledAt !== null && "toDate" in cancelledAt
+      ? (cancelledAt as unknown as Timestamp).toDate()
+      : new Date(cancelledAt as unknown as string);
     
     const calcRemaining = () => {
       const elapsed = Date.now() - cancelledDate.getTime();
