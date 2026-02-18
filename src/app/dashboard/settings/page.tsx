@@ -8,6 +8,7 @@ import Link from "next/link";
 import { doc, updateDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "@/lib/firebase";
+import { sendAdminNotif } from "@/lib/adminNotifications";
 import {
   UserProfile,
   ClientProfile,
@@ -26,7 +27,7 @@ import {
   DollarSign,
   Sun,
   Moon,
-  Monitor,
+  // Monitor removed - no longer needed
   CreditCard,
   Save,
   CheckCircle,
@@ -107,6 +108,12 @@ export default function SettingsPage() {
       await updateDoc(doc(db, "users", profile.uid), { idPhotoUrl: url, idVerified: false });
       setIdPhotoUrl(url);
       await refreshProfile();
+      sendAdminNotif({
+        type: "document_uploaded",
+        message: `ID document uploaded by ${profile.displayName || profile.email}`,
+        uid: profile.uid,
+        meta: { name: profile.displayName || "", email: profile.email || "" },
+      });
     } catch (err) {
       console.error("ID upload error:", err);
     } finally {
@@ -125,6 +132,12 @@ export default function SettingsPage() {
       await updateDoc(doc(db, "users", profile.uid), { studentTranscriptUrl: url });
       setStudentTranscriptUrl(url);
       await refreshProfile();
+      sendAdminNotif({
+        type: "document_uploaded",
+        message: `Student transcript uploaded by ${profile.displayName || profile.email}`,
+        uid: profile.uid,
+        meta: { name: profile.displayName || "", email: profile.email || "" },
+      });
     } catch (err) {
       console.error("Transcript upload error:", err);
     } finally {
@@ -615,11 +628,10 @@ export default function SettingsPage() {
               <Sun className="w-5 h-5 text-[#4361EE]" />
               Theme
             </h3>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               {[
                 { key: "light" as const, label: "Light", icon: Sun, desc: "Bright & clean" },
                 { key: "dark" as const, label: "Dark", icon: Moon, desc: "Easy on eyes" },
-                { key: "system" as const, label: "System", icon: Monitor, desc: "Match device" },
               ].map((opt) => {
                 const Icon = opt.icon;
                 const active = theme === opt.key;

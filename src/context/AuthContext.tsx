@@ -9,10 +9,16 @@ import {
   signOut as firebaseSignOut,
   GoogleAuthProvider,
   signInWithPopup,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+  ConfirmationResult,
+  PhoneAuthProvider,
+  signInWithCredential,
 } from "firebase/auth";
 import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { UserProfile, ClientProfile, OperatorProfile } from "@/lib/types";
+import { sendAdminNotif } from "@/lib/adminNotifications";
 
 interface AuthContextType {
   user: User | null;
@@ -21,6 +27,8 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<User>;
   signInWithGoogle: () => Promise<User>;
+  sendPhoneCode: (phoneNumber: string) => Promise<ConfirmationResult>;
+  confirmPhoneCode: (confirmationResult: ConfirmationResult, code: string) => Promise<User>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -93,13 +101,72 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string) => {
     const cred = await createUserWithEmailAndPassword(auth, email, password);
+    // Notify admin of new signup
+    sendAdminNotif({
+      type: "signup",
+      message: `New signup: ${email}`,
+      uid: cred.user.uid,
+      meta: { email },
+    });
     return cred.user;
   };
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     const cred = await signInWithPopup(auth, provider);
+    // Notify admin if this is a first-time Google signup
+    if (cred.user.metadata.creationTime === cred.user.metadata.lastSignInTime) {
+      sendAdminNotif({
+        type: "signup",
+        message: `New Google signup: ${cred.user.email}`,
+        uid: cred.user.uid,
+        meta: { email: cred.user.email ?? "" },
+      });
+    }
     return cred.user;
+  };
+
+  const sendPhoneCode = async (phoneNumber: string): Promise<ConfirmationResult> => {
+    const w = window as unknown as Record<string, unknown>;
+
+    // Fully destroy any existing verifier
+    if (w.recaptchaVerifier) {
+      try {
+        (w.recaptchaVerifier as RecaptchaVerifier).clear();
+      } catch {}
+      w.recaptchaVerifier = undefined;
+    }
+
+    // Reset the grecaptcha widget if it exists
+    if (typeof (window as unknown as { grecaptcha?: { reset: (id?: number) => void } }).grecaptcha?.reset === "function") {
+      try {
+        (window as unknown as { grecaptcha: { reset: (id?: number) => void } }).grecaptcha.reset();
+      } catch {}
+    }
+
+    // Clear the container so a fresh widget can mount
+    const container = document.getElementById("recaptcha-container");
+    if (container) container.innerHTML = "";
+
+    const recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
+      size: "invisible",
+      callback: () => {},
+      "expired-callback": () => {
+        w.recaptchaVerifier = undefined;
+      },
+    });
+    w.recaptchaVerifier = recaptchaVerifier;
+
+    // Render explicitly so it's ready before signInWithPhoneNumber
+    await recaptchaVerifier.render();
+
+    const confirmation = await signInWithPhoneNumber(auth, phoneNumber, recaptchaVerifier);
+    return confirmation;
+  };
+
+  const confirmPhoneCode = async (confirmationResult: ConfirmationResult, code: string): Promise<User> => {
+    const result = await confirmationResult.confirm(code);
+    return result.user;
   };
 
   const signOut = async () => {
@@ -115,7 +182,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, profile, loading, signIn, signUp, signInWithGoogle, signOut, refreshProfile }}
+      value={{ user, profile, loading, signIn, signUp, signInWithGoogle, sendPhoneCode, confirmPhoneCode, signOut, refreshProfile }}
     >
       {children}
     </AuthContext.Provider>

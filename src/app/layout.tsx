@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
+import PageVisitTracker from "@/components/PageVisitTracker";
 
 export const metadata: Metadata = {
   title: "snowd.ca — Snow Removal Marketplace",
@@ -21,10 +22,20 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+        {/* Prevent flash of wrong theme on page load */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          try {
+            var t = localStorage.getItem('snowd-theme');
+            if (t === 'dark') { document.documentElement.classList.add('dark'); }
+          } catch(e) {}
+        ` }} />
       </head>
       <body className="antialiased">
         <AuthProvider>
-          <ThemeProvider>{children}</ThemeProvider>
+          <ThemeProvider>
+            <PageVisitTracker />
+            {children}
+          </ThemeProvider>
         </AuthProvider>
       </body>
     </html>

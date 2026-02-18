@@ -16,6 +16,7 @@ import { Job, OperatorProfile, UserProfile } from "@/lib/types";
 import StatusBadge from "@/components/StatusBadge";
 import ProgressTracker from "@/components/ProgressTracker";
 import CelebrationOverlay from "@/components/CelebrationOverlay";
+import CancellationPopup from "@/components/CancellationPopup";
 import { WeatherCard } from "@/context/WeatherContext";
 import { motion } from "framer-motion";
 import {
@@ -58,20 +59,20 @@ function OperatorMiniCalendar() {
   const days = eachDayOfInterval({ start: calStart, end: calEnd });
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5">
+    <div className="bg-[var(--bg-card-solid)] rounded-2xl border border-[var(--border-color)] p-5">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="font-bold text-sm">{format(currentMonth, "MMMM yyyy")}</h3>
+        <h3 className="font-bold text-sm text-[var(--text-primary)]">{format(currentMonth, "MMMM yyyy")}</h3>
         <div className="flex gap-1">
-          <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))} className="p-1 hover:bg-gray-100 rounded text-gray-500 text-xs">◀</button>
-          <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))} className="p-1 hover:bg-gray-100 rounded text-gray-500 text-xs">▶</button>
+          <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))} className="p-1 hover:bg-[var(--bg-secondary)] rounded text-[var(--text-secondary)] text-xs">◀</button>
+          <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))} className="p-1 hover:bg-[var(--bg-secondary)] rounded text-[var(--text-secondary)] text-xs">▶</button>
         </div>
       </div>
       <div className="grid grid-cols-7 gap-0.5 text-center text-xs">
-        {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d => <div key={d} className="py-1 text-gray-400 font-medium">{d}</div>)}
+        {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d => <div key={d} className="py-1 text-[var(--text-muted)] font-medium">{d}</div>)}
         {days.map((day, i) => (
           <div key={i} className={`py-1.5 rounded-lg text-xs ${
             isToday(day) ? "bg-[#4361EE] text-white font-bold" :
-            isSameMonth(day, currentMonth) ? "text-gray-900" : "text-gray-300"
+            isSameMonth(day, currentMonth) ? "text-[var(--text-primary)]" : "text-[var(--text-muted)]"
           }`}>
             {format(day, "d")}
           </div>
@@ -93,6 +94,8 @@ export default function OperatorDashboard() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [isAvailable, setIsAvailable] = useState(operatorProfile?.isAvailable ?? true);
   const [celebration, setCelebration] = useState<{ show: boolean; type: "accepted" | "completion" }>({ show: false, type: "accepted" });
+  const [declineJobId, setDeclineJobId] = useState<string | null>(null);
+  const [declining, setDeclining] = useState(false);
 
   useEffect(() => {
     const fetchJobs = async () => {
@@ -235,18 +238,24 @@ export default function OperatorDashboard() {
   };
 
   const handleDeclineJob = async (jobId: string) => {
-    if (!confirm("Decline this job request?")) return;
-    setActionLoading(jobId);
+    setDeclineJobId(jobId);
+  };
+
+  const confirmDeclineJob = async () => {
+    if (!declineJobId) return;
+    setDeclining(true);
     try {
-      await updateDoc(doc(db, "jobs", jobId), {
+      await updateDoc(doc(db, "jobs", declineJobId), {
         status: "cancelled",
+        cancelledBy: profile?.uid,
         updatedAt: new Date(),
       });
-      setPendingJobs(pendingJobs.filter((j) => j.id !== jobId));
+      setPendingJobs(pendingJobs.filter((j) => j.id !== declineJobId));
     } catch {
       alert("Failed to decline job.");
     } finally {
-      setActionLoading(null);
+      setDeclining(false);
+      setDeclineJobId(null);
     }
   };
 
@@ -265,6 +274,16 @@ export default function OperatorDashboard() {
         type={celebration.type}
         show={celebration.show}
         onComplete={() => setCelebration({ ...celebration, show: false })}
+      />
+      <CancellationPopup
+        isOpen={!!declineJobId}
+        onConfirm={confirmDeclineJob}
+        onCancel={() => setDeclineJobId(null)}
+        title="Decline this job?"
+        message="The client will be notified that their request was declined. This cannot be undone."
+        confirmLabel="Yes, Decline"
+        cancelLabel="Keep It"
+        loading={declining}
       />
 
       {/* Welcome Header */}
@@ -308,6 +327,34 @@ export default function OperatorDashboard() {
         </div>
       </motion.div>
 
+      {/* Stripe Requirement Banner */}
+      {!((operatorProfile as OperatorProfile & { stripeConnectAccountId?: string })?.stripeConnectAccountId) && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl border border-amber-200 p-5"
+        >
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
+              <DollarSign className="w-5 h-5 text-amber-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-bold text-amber-900">Set Up Stripe to Start Earning</h3>
+              <p className="text-sm text-amber-700 mt-1">
+                You need a verified Stripe account before you can receive payments and go public. This includes ID verification for everyone&apos;s safety.
+              </p>
+              <Link
+                href="/dashboard/settings?tab=payment"
+                className="inline-flex items-center gap-2 mt-3 px-4 py-2 bg-amber-500 text-white rounded-xl text-sm font-semibold hover:bg-amber-600 transition"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Set Up Stripe Account
+              </Link>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* Weather + Calendar Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <WeatherCard />
@@ -328,12 +375,12 @@ export default function OperatorDashboard() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 + i * 0.05 }}
           >
-            <Link href={stat.href} className="block bg-white rounded-xl p-4 border border-gray-100 hover-lift interactive-card">
+            <Link href={stat.href} className="block bg-[var(--bg-card-solid)] rounded-xl p-4 border border-[var(--border-subtle)] hover-lift interactive-card">
               <div className={`w-8 h-8 ${stat.bg} rounded-lg flex items-center justify-center mb-2`}>
                 <stat.icon className={`w-4 h-4 ${stat.color}`} />
               </div>
               <p className="text-2xl font-bold">{stat.value}</p>
-              <p className="text-xs text-gray-500">{stat.label}</p>
+              <p className="text-xs text-[var(--text-secondary)]">{stat.label}</p>
             </Link>
           </motion.div>
         ))}
@@ -343,31 +390,31 @@ export default function OperatorDashboard() {
       <div className="grid grid-cols-3 gap-3">
         <Link
           href="/dashboard/calendar"
-          className="flex flex-col items-center gap-2 p-4 bg-white rounded-xl border border-gray-100 hover-lift interactive-card"
+          className="flex flex-col items-center gap-2 p-4 bg-[var(--bg-card-solid)] rounded-xl border border-[var(--border-subtle)] hover-lift interactive-card"
         >
           <CalendarDays className="w-5 h-5 text-[#4361EE]" />
-          <p className="text-xs font-medium text-gray-600">Calendar</p>
+          <p className="text-xs font-medium text-[var(--text-secondary)]">Calendar</p>
         </Link>
         <Link
           href="/dashboard/log"
-          className="flex flex-col items-center gap-2 p-4 bg-white rounded-xl border border-gray-100 hover-lift interactive-card"
+          className="flex flex-col items-center gap-2 p-4 bg-[var(--bg-card-solid)] rounded-xl border border-[var(--border-subtle)] hover-lift interactive-card"
         >
           <ClipboardList className="w-5 h-5 text-purple-600" />
-          <p className="text-xs font-medium text-gray-600">Job Log</p>
+          <p className="text-xs font-medium text-[var(--text-secondary)]">Job Log</p>
         </Link>
         <Link
           href="/dashboard/analytics"
-          className="flex flex-col items-center gap-2 p-4 bg-white rounded-xl border border-gray-100 hover-lift interactive-card"
+          className="flex flex-col items-center gap-2 p-4 bg-[var(--bg-card-solid)] rounded-xl border border-[var(--border-subtle)] hover-lift interactive-card"
         >
           <BarChart3 className="w-5 h-5 text-green-600" />
-          <p className="text-xs font-medium text-gray-600">Analytics</p>
+          <p className="text-xs font-medium text-[var(--text-secondary)]">Analytics</p>
         </Link>
       </div>
 
       {/* Pending Requests */}
       {pendingJobs.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div className="bg-[var(--bg-card-solid)] rounded-2xl border border-[var(--border-subtle)] overflow-hidden">
+          <div className="px-6 py-4 border-b border-[var(--border-subtle)] flex items-center justify-between">
             <div className="flex items-center gap-2">
               <h2 className="font-semibold text-lg">New Requests</h2>
               <span className="bg-[#4361EE] text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center">
@@ -385,11 +432,11 @@ export default function OperatorDashboard() {
                   <Link href={`/dashboard/u/${job.clientId}`} className="flex-1 group">
                     <div className="flex items-center gap-2 mb-0.5">
                       <User className="w-4 h-4 text-[#4361EE]" />
-                      <p className="font-semibold text-gray-900">{clientNames[job.clientId] || "Client"}</p>
+                      <p className="font-semibold text-[var(--text-primary)]">{clientNames[job.clientId] || "Client"}</p>
                       <ExternalLink className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition" />
                     </div>
-                    <p className="text-sm text-gray-700">{job.serviceTypes?.map((s) => s.replace("-", " ")).join(", ")}</p>
-                    <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
+                    <p className="text-sm text-[var(--text-secondary)]">{job.serviceTypes?.map((s) => s.replace("-", " ")).join(", ")}</p>
+                    <div className="flex items-center gap-4 mt-1 text-sm text-[var(--text-muted)]">
                       <span className="flex items-center gap-1">
                         <Calendar className="w-3.5 h-3.5" />
                         {job.scheduledDate && isValidDate(job.scheduledDate)
@@ -397,7 +444,7 @@ export default function OperatorDashboard() {
                           : "TBD"}
                         {job.scheduledTime && ` at ${job.scheduledTime}`}
                       </span>
-                      <span className="font-semibold text-gray-700">${job.price}</span>
+                      <span className="font-semibold text-[var(--text-primary)]">${job.price}</span>
                     </div>
                   </Link>
                   <div className="flex gap-2 shrink-0">
@@ -424,22 +471,22 @@ export default function OperatorDashboard() {
       )}
 
       {/* Active Jobs */}
-      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+      <div className="bg-[var(--bg-card-solid)] rounded-2xl border border-[var(--border-subtle)] overflow-hidden">
+        <div className="px-6 py-4 border-b border-[var(--border-subtle)] flex items-center justify-between">
           <h2 className="font-semibold text-lg">Active Jobs</h2>
           <Link href="/dashboard/log" className="text-sm text-[#4361EE] hover:underline font-medium">
             View All
           </Link>
         </div>
         {loading ? (
-          <div className="p-8 text-center text-gray-400">Loading jobs...</div>
+          <div className="p-8 text-center text-[var(--text-muted)]">Loading jobs...</div>
         ) : activeJobs.length === 0 && pendingJobs.length === 0 ? (
           <div className="p-8 text-center">
-            <Snowflake className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">No active jobs right now</p>
+            <Snowflake className="w-10 h-10 text-[var(--text-muted)] mx-auto mb-3" />
+            <p className="text-[var(--text-secondary)]">No active jobs right now</p>
           </div>
         ) : activeJobs.length === 0 ? (
-          <div className="p-8 text-center text-gray-400 text-sm">No accepted jobs yet. Check your requests above!</div>
+          <div className="p-8 text-center text-[var(--text-muted)] text-sm">No accepted jobs yet. Check your requests above!</div>
         ) : (
           <div className="divide-y divide-gray-50">
             {activeJobs.map((job) => (
@@ -447,7 +494,7 @@ export default function OperatorDashboard() {
                 <div className="flex items-center justify-between mb-3">
                   <Link href={`/dashboard/u/${job.clientId}`} className="flex items-center gap-2 group">
                     <User className="w-4 h-4 text-[#4361EE]" />
-                    <span className="font-semibold text-gray-900">{clientNames[job.clientId] || "Client"}</span>
+                    <span className="font-semibold text-[var(--text-primary)]">{clientNames[job.clientId] || "Client"}</span>
                     <ExternalLink className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition" />
                   </Link>
                   <div className="flex items-center gap-3">
@@ -466,7 +513,7 @@ export default function OperatorDashboard() {
                   </div>
                 )}
                 <div className="flex items-center justify-between mt-3">
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-[var(--text-muted)]">
                     {job.serviceTypes?.map((s) => s.replace("-", " ")).join(", ")}
                   </p>
                   <Link
@@ -484,7 +531,7 @@ export default function OperatorDashboard() {
       </div>
 
       {/* Performance Card */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-6">
+      <div className="bg-[var(--bg-card-solid)] rounded-2xl border border-[var(--border-subtle)] p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold text-lg">Performance</h2>
           <Link href="/dashboard/analytics" className="text-sm text-[#4361EE] hover:underline font-medium flex items-center gap-1">
@@ -497,19 +544,19 @@ export default function OperatorDashboard() {
             <p className="text-2xl font-bold text-[#4361EE]">
               {operatorProfile?.totalJobsCompleted || 0}
             </p>
-            <p className="text-xs text-gray-500 mt-1">Jobs Done</p>
+            <p className="text-xs text-[var(--text-muted)] mt-1">Jobs Done</p>
           </div>
           <div className="text-center p-4 bg-yellow-50 rounded-xl">
             <p className="text-2xl font-bold text-yellow-600">
               {operatorProfile?.rating?.toFixed(1) || "—"}
             </p>
-            <p className="text-xs text-gray-500 mt-1">Avg Rating</p>
+            <p className="text-xs text-[var(--text-muted)] mt-1">Avg Rating</p>
           </div>
           <div className="text-center p-4 bg-green-50 rounded-xl">
             <p className="text-2xl font-bold text-green-600">
               ${totalEarnings}
             </p>
-            <p className="text-xs text-gray-500 mt-1">Earned</p>
+            <p className="text-xs text-[var(--text-muted)] mt-1">Earned</p>
           </div>
         </div>
       </div>

@@ -421,6 +421,20 @@ export default function MessagesPage() {
                     if (selectMode) {
                       e.preventDefault();
                       toggleSelect(chat.id);
+                      return;
+                    }
+                    // Optimistically zero out unread count immediately on tap
+                    if (unread > 0 && user?.uid) {
+                      setChats((prev) =>
+                        prev.map((c) =>
+                          c.id === chat.id
+                            ? { ...c, unreadCount: { ...c.unreadCount, [user.uid]: 0 } }
+                            : c
+                        )
+                      );
+                      updateDoc(doc(db, "chats", chat.id), {
+                        [`unreadCount.${user.uid}`]: 0,
+                      }).catch(() => {});
                     }
                   }}
                   className={`flex items-center gap-4 py-4 hover:bg-[#F7FAFC] transition ${isPinned ? "bg-[#4361EE]/10/50" : ""} ${selectMode ? "pl-10 pr-5" : "px-5"}`}

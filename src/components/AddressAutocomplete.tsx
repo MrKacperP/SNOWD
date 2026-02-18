@@ -25,22 +25,22 @@ export default function AddressAutocomplete({
   });
 
   const inputRef = useRef<HTMLInputElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+  // Keep a ref to the callbacks so the listener always has the latest
+  const onPlaceSelectedRef = useRef(onPlaceSelected);
+  const onChangeRef = useRef(onChange);
 
-  const handlePlaceChanged = useCallback(() => {
-    if (!autocompleteRef.current) return;
-    const place = autocompleteRef.current.getPlace();
-    if (place && place.formatted_address) {
-      onChange(place.formatted_address);
-      if (onPlaceSelected) {
-        onPlaceSelected(place);
-      }
-    }
-  }, [onChange, onPlaceSelected]);
+  useEffect(() => { onPlaceSelectedRef.current = onPlaceSelected; }, [onPlaceSelected]);
+  useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
 
   useEffect(() => {
-    if (!isLoaded || !inputRef.current || autocompleteRef.current) return;
+    if (!isLoaded || !inputRef.current) return;
+
+    // Destroy existing autocomplete if already initialized and re-init
+    if (autocompleteRef.current) {
+      google.maps.event.clearInstanceListeners(autocompleteRef.current);
+      autocompleteRef.current = null;
+    }
 
     try {
       const autocomplete = new google.maps.places.Autocomplete(inputRef.current, {
@@ -51,26 +51,41 @@ export default function AddressAutocomplete({
 
       autocompleteRef.current = autocomplete;
 
-      const listener = autocomplete.addListener("place_changed", handlePlaceChanged);
-
-      return () => {
-        google.maps.event.removeListener(listener);
-      };
+      autocomplete.addListener("place_changed", () => {
+        const place = autocomplete.getPlace();
+        if (place && place.formatted_address) {
+          onChangeRef.current(place.formatted_address);
+          onPlaceSelectedRef.current?.(place);
+        }
+      });
     } catch (error) {
       console.error("Error initializing autocomplete:", error);
     }
-  }, [isLoaded, handlePlaceChanged]);
+
+    return () => {
+      if (autocompleteRef.current) {
+        google.maps.event.clearInstanceListeners(autocompleteRef.current);
+        autocompleteRef.current = null;
+      }
+    };
+  // Re-initialize only when isLoaded changes (not on every render)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded]);
+
+  // Sync the input value (controlled input) while also allowing Google to update it
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onChange(e.target.value);
+  };
 
   return (
-    <div ref={containerRef}>
-      <input
-        ref={inputRef}
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className={className}
-      />
-    </div>
+    <input
+      ref={inputRef}
+      type="text"
+      value={value}
+      onChange={handleChange}
+      placeholder={placeholder}
+      className={className}
+      autoComplete="off"
+    />
   );
 }

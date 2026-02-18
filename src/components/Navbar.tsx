@@ -105,8 +105,8 @@ export default function Navbar() {
   return (
     <>
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col w-64 bg-white/80 backdrop-blur-xl border-r border-[rgba(67,97,238,0.08)] min-h-screen fixed left-0 top-0 z-30">
-        <div className="p-6 border-b border-[rgba(67,97,238,0.08)]">
+      <aside className="hidden md:flex flex-col w-64 bg-[var(--bg-card-solid)]/90 backdrop-blur-xl border-r border-[var(--border-color)] min-h-screen fixed left-0 top-0 z-30">
+        <div className="p-6 border-b border-[var(--border-color)]">
           <Link href="/dashboard" className="flex items-center gap-1">
             <span className="text-2xl font-extrabold text-[#4361EE]">
               snowd
@@ -139,7 +139,7 @@ export default function Navbar() {
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-semibold tracking-wide relative ${
                   active
                     ? "bg-[#4361EE]/10 text-[#4361EE] shadow-sm"
-                    : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
+                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]"
                 }`}
               >
                 <Icon className="w-5 h-5" />
@@ -155,15 +155,15 @@ export default function Navbar() {
         </nav>
 
         {/* Profile Section */}
-        <div className="p-4 border-t border-[rgba(67,97,238,0.08)] relative" ref={menuRef}>
+        <div className="p-4 border-t border-[var(--border-color)] relative" ref={menuRef}>
           {profileMenuOpen && (
-            <div className="absolute bottom-full left-4 right-4 mb-2 bg-white/90 backdrop-blur-xl rounded-xl border border-[rgba(67,97,238,0.08)] shadow-lg overflow-hidden z-50">
+            <div className="absolute bottom-full left-4 right-4 mb-2 bg-[var(--bg-card-solid)] backdrop-blur-xl rounded-xl border border-[var(--border-color)] shadow-lg overflow-hidden z-50">
               <button
                 onClick={toggleOnlineStatus}
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition text-left"
+                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)] transition text-left"
               >
                 <div className={`status-dot ${isOnline ? "online" : "offline"}`} />
-                <span className="text-sm font-medium text-gray-900">
+                <span className="text-sm font-medium text-[var(--text-primary)]">
                   {isOnline ? "Online" : "Offline"}
                 </span>
                 <span className="text-xs text-gray-500 ml-auto">
@@ -174,18 +174,18 @@ export default function Navbar() {
               <Link
                 href={`/dashboard/u/${profile?.uid}`}
                 onClick={() => setProfileMenuOpen(false)}
-                className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition"
+                className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)] transition"
               >
-                <User className="w-4 h-4 text-gray-500" />
-                <span className="text-sm font-medium text-gray-900">View Profile</span>
+                <User className="w-4 h-4 text-[var(--text-secondary)]" />
+                <span className="text-sm font-medium text-[var(--text-primary)]">View Profile</span>
               </Link>
               <Link
                 href="/dashboard/settings"
                 onClick={() => setProfileMenuOpen(false)}
-                className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition"
+                className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)] transition"
               >
-                <Settings className="w-4 h-4 text-gray-500" />
-                <span className="text-sm font-medium text-gray-900">Settings</span>
+                <Settings className="w-4 h-4 text-[var(--text-secondary)]" />
+                <span className="text-sm font-medium text-[var(--text-primary)]">Settings</span>
               </Link>
               <div className="border-t border-gray-100" />
               <button
@@ -209,10 +209,10 @@ export default function Navbar() {
               <div className={`absolute -bottom-0.5 -right-0.5 status-dot ${isOnline ? "online" : "offline"}`} />
             </div>
             <div className="flex-1 min-w-0 text-left">
-              <p className="text-sm font-medium text-gray-900 truncate">
+              <p className="text-sm font-medium text-[var(--text-primary)] truncate">
                 {profile?.displayName || "User"}
               </p>
-              <p className="text-xs text-gray-500 capitalize">{profile?.role || "user"}</p>
+              <p className="text-xs text-[var(--text-secondary)] capitalize">{profile?.role || "user"}</p>
             </div>
             <ChevronUp className={`w-4 h-4 text-gray-400 transition-transform ${profileMenuOpen ? "" : "rotate-180"}`} />
           </button>
@@ -220,18 +220,18 @@ export default function Navbar() {
       </aside>
 
       {/* Mobile top bar */}
-      <header className="md:hidden fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-b border-[rgba(67,97,238,0.08)] z-30 px-4 py-3 flex items-center justify-between">
+      <header className="md:hidden fixed top-0 left-0 right-0 bg-[var(--bg-card-solid)]/90 backdrop-blur-xl border-b border-[var(--border-color)] z-30 px-4 py-3 flex items-center justify-between">
         <Link href="/dashboard" className="flex items-center gap-1">
           <span className="text-xl font-extrabold text-[#4361EE]">
             snowd
           </span>
-          <span className="text-xl font-light text-gray-400">.ca</span>
+          <span className="text-xl font-light text-[var(--text-muted)]">.ca</span>
         </Link>
         <div className="flex items-center gap-2">
           {weather && (
             <div className="flex items-center gap-1 px-2 py-1 bg-[#4361EE]/10 rounded-lg text-xs">
               <span>{weather.icon}</span>
-              <span className="font-bold text-gray-900">{weather.temp}°</span>
+              <span className="font-bold text-[var(--text-primary)]">{weather.temp}°</span>
             </div>
           )}
           <Link href={`/dashboard/u/${profile?.uid}`} className="relative">
@@ -250,7 +250,7 @@ export default function Navbar() {
       {mobileOpen && (
         <div className="md:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={() => setMobileOpen(false)}>
           <div
-            className="absolute right-0 top-0 bottom-0 w-72 bg-white/95 backdrop-blur-xl shadow-xl p-6"
+            className="absolute right-0 top-0 bottom-0 w-72 bg-[var(--bg-card-solid)] backdrop-blur-xl shadow-xl p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-end mb-4">
@@ -266,17 +266,17 @@ export default function Navbar() {
                 <div className={`absolute -bottom-0.5 -right-0.5 status-dot ${isOnline ? "online" : "offline"}`} />
               </div>
               <div>
-                <p className="text-sm font-semibold text-gray-900">{profile?.displayName || "User"}</p>
-                <p className="text-xs text-gray-500 capitalize">{profile?.role || "user"}</p>
+                <p className="text-sm font-semibold text-[var(--text-primary)]">{profile?.displayName || "User"}</p>
+                <p className="text-xs text-[var(--text-secondary)] capitalize">{profile?.role || "user"}</p>
               </div>
             </div>
 
             <button
               onClick={toggleOnlineStatus}
-              className="w-full flex items-center gap-3 px-4 py-2.5 mb-4 rounded-xl hover:bg-gray-50 transition"
+              className="w-full flex items-center gap-3 px-4 py-2.5 mb-4 rounded-xl hover:bg-[var(--bg-secondary)] transition"
             >
               <div className={`status-dot ${isOnline ? "online" : "offline"}`} />
-              <span className="text-sm font-medium text-gray-900">{isOnline ? "Online" : "Offline"}</span>
+              <span className="text-sm font-medium text-[var(--text-primary)]">{isOnline ? "Online" : "Offline"}</span>
             </button>
 
             <nav className="space-y-1">
@@ -292,7 +292,7 @@ export default function Navbar() {
                     className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-semibold tracking-wide relative ${
                       active
                         ? "bg-[#4361EE]/10 text-[#4361EE]"
-                        : "text-gray-500 hover:bg-gray-50"
+                        : "text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
                     }`}
                   >
                     <Icon className="w-5 h-5" />
@@ -311,7 +311,7 @@ export default function Navbar() {
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-semibold tracking-wide ${
                   pathname === "/dashboard/settings"
                     ? "bg-[#4361EE]/10 text-[#4361EE]"
-                    : "text-gray-500 hover:bg-gray-50"
+                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
                 }`}
               >
                 <Settings className="w-5 h-5" />
@@ -319,7 +319,7 @@ export default function Navbar() {
               </Link>
             </nav>
 
-            <div className="mt-6 pt-4 border-t border-gray-100">
+              <div className="mt-6 pt-4 border-t border-[var(--border-color)]">
               <button
                 onClick={handleSignOut}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 transition font-semibold"
@@ -333,7 +333,7 @@ export default function Navbar() {
       )}
 
       {/* Mobile bottom tab bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-[rgba(67,97,238,0.08)] z-30 flex safe-area-bottom">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[var(--bg-card-solid)]/90 backdrop-blur-xl border-t border-[var(--border-color)] z-30 flex safe-area-bottom">
         {navItems.slice(0, 5).map((item) => {
           const Icon = item.icon;
           const active = pathname === item.href;

@@ -45,10 +45,12 @@ import {
   Star,
   Flag,
   AlertTriangle,
+  Briefcase,
 } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
 import CelebrationOverlay from "@/components/CelebrationOverlay";
+import CancellationPopup from "@/components/CancellationPopup";
 
 // Haversine distance between two coords
 function getDistanceKm(
@@ -98,6 +100,13 @@ export default function ChatPage() {
 
   // Celebration overlay
   const [celebration, setCelebration] = useState<{ show: boolean; type: "booking" | "completion" | "accepted" | "payment" }>({ show: false, type: "booking" });
+
+  // Rehire state
+  const [rehiring, setRehiring] = useState(false);
+
+  // Cancellation popup state
+  const [showCancelPopup, setShowCancelPopup] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   // Report / claim state
   const [showReportModal, setShowReportModal] = useState(false);
@@ -213,26 +222,49 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Mark messages as read
+  // Mark messages as read — runs when new messages arrive while chat is open.
+  // Uses a ref to avoid clearing the other user's freshly-incremented counter.
+  const pendingMarkRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     if (!chatId || !user?.uid || messages.length === 0) return;
 
-    const unreadMessages = messages.filter(
-      (m) => m.senderId !== user.uid && !m.read
-    );
-
-    unreadMessages.forEach(async (msg) => {
+    // Debounce: batch all marks within 300 ms so rapid incoming messages
+    // don't flood Firestore with individual writes.
+    if (pendingMarkRef.current) clearTimeout(pendingMarkRef.current);
+    pendingMarkRef.current = setTimeout(async () => {
       try {
-        await updateDoc(doc(db, "messages", msg.id), { read: true });
-      } catch {}
-    });
+        // 1. Reset our unread counter
+        await updateDoc(doc(db, "chats", chatId), {
+          [`unreadCount.${user.uid}`]: 0,
+        });
 
-    if (unreadMessages.length > 0) {
-      updateDoc(doc(db, "chats", chatId), {
-        [`unreadCount.${user.uid}`]: 0,
-      }).catch(() => {});
-    }
+        // 2. Mark each unread (from other) message as read
+        const unread = messages.filter(
+          (m) => m.senderId !== user.uid && !m.read
+        );
+        await Promise.all(
+          unread.map((msg) =>
+            updateDoc(doc(db, "messages", msg.id), { read: true }).catch(() => {})
+          )
+        );
+      } catch {
+        // Silently swallow permission errors during sign-out transitions
+      }
+    }, 300);
+
+    return () => {
+      if (pendingMarkRef.current) clearTimeout(pendingMarkRef.current);
+    };
   }, [chatId, user?.uid, messages]);
+
+  // Also clear unread immediately when the chat page mounts (before any messages load)
+  useEffect(() => {
+    if (!chatId || !user?.uid) return;
+    updateDoc(doc(db, "chats", chatId), {
+      [`unreadCount.${user.uid}`]: 0,
+    }).catch(() => {});
+  }, [chatId, user?.uid]);
 
   // Send a message
   const sendMessage = useCallback(
@@ -335,9 +367,13 @@ export default function ChatPage() {
 
   const cancelJob = async () => {
     if (!job?.id) return;
+    setShowCancelPopup(true);
+  };
+
+  const confirmCancelJob = async () => {
+    if (!job?.id) return;
+    setCancelling(true);
     const userRole = isOperator ? "operator" : "client";
-    if (!confirm(`Are you sure you want to cancel this job?`)) return;
-    
     try {
       await updateDoc(doc(db, "jobs", job.id), {
         status: "cancelled",
@@ -351,9 +387,62 @@ export default function ChatPage() {
         { newStatus: "cancelled" }
       );
       setShowActions(false);
+      setShowCancelPopup(false);
     } catch (error) {
       console.error("Error cancelling job:", error);
       alert("Failed to cancel job. Please try again.");
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  // Rehire operator from a completed/cancelled chat
+  const rehireOperator = async () => {
+    if (!job || !user?.uid || !otherUser?.uid || rehiring) return;
+    setRehiring(true);
+    try {
+      const { addDoc: ad, collection: col, Timestamp: Ts } = await import("firebase/firestore");
+      // Create a new job with the same details
+      const newJobRef = await ad(col(db, "jobs"), {
+        clientId: isOperator ? otherUser.uid : user.uid,
+        operatorId: isOperator ? user.uid : otherUser.uid,
+        status: "pending",
+        serviceTypes: job.serviceTypes || [],
+        propertySize: job.propertySize || "medium",
+        address: job.address || "",
+        city: job.city || "",
+        province: job.province || "",
+        postalCode: job.postalCode || "",
+        specialInstructions: job.specialInstructions || "",
+        scheduledDate: Ts.now(),
+        scheduledTime: "ASAP",
+        estimatedDuration: job.estimatedDuration || 60,
+        price: job.price || 0,
+        paymentMethod: "credit",
+        paymentStatus: "pending",
+        chatId: chatId,
+        createdAt: Ts.now(),
+        updatedAt: Ts.now(),
+      });
+
+      // Update chat to reference new job
+      await updateDoc(doc(db, "chats", chatId), {
+        jobId: newJobRef.id,
+        lastMessage: "New job request created",
+        lastMessageTime: Ts.now(),
+      });
+
+      await sendMessage(
+        `${profile?.displayName} has requested a new job! Same service, same location.`,
+        "system"
+      );
+
+      setCelebration({ show: true, type: "booking" });
+    } catch (error) {
+      console.error("Error rehiring:", error);
+      alert("Failed to create new job. Please try again.");
+    } finally {
+      setRehiring(false);
     }
   };
 
@@ -853,7 +942,7 @@ export default function ChatPage() {
           className={`max-w-[70%] px-4 py-2.5 rounded-2xl ${
             isOwn
               ? "bg-[#4361EE] text-white rounded-br-md"
-              : "bg-white border border-[#E6EEF6] text-[#0B1F33] rounded-bl-md"
+              : "bg-[var(--bg-card-solid)] border border-[var(--border-color)] text-[var(--text-primary)] rounded-bl-md"
           }`}
         >
           {!isOwn && (
@@ -893,7 +982,7 @@ export default function ChatPage() {
       {/* Chat Column */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Chat Header */}
-        <div className="bg-white rounded-t-2xl border border-[#E6EEF6] px-4 py-3 flex items-center gap-3 shrink-0">
+        <div className="bg-[var(--bg-card-solid)] rounded-t-2xl border border-[var(--border-color)] px-4 py-3 flex items-center gap-3 shrink-0">
           <Link
             href="/dashboard/messages"
             className="p-1.5 text-[#6B7C8F] hover:text-[#0B1F33] rounded-lg hover:bg-[#F7FAFC]"
@@ -939,7 +1028,7 @@ export default function ChatPage() {
 
         {/* Address bar for operator — show client address */}
         {isOperator && job && (
-          <div className="bg-[#F7FAFC] border-x border-[#E6EEF6] px-4 py-2 flex items-center gap-2 text-xs">
+          <div className="bg-[var(--bg-secondary)] border-x border-[var(--border-color)] px-4 py-2 flex items-center gap-2 text-xs">
             <MapPin className="w-3.5 h-3.5 text-[#4361EE] shrink-0" />
             <span className="text-[#0B1F33] font-medium truncate">{job.address}</span>
             <span className="text-[#6B7C8F]">{job.city}, {job.province}</span>
@@ -953,7 +1042,7 @@ export default function ChatPage() {
 
         {/* Client address bar — for client to see their own address */}
         {!isOperator && job && (
-          <div className="bg-[#F7FAFC] border-x border-[#E6EEF6] px-4 py-2 flex items-center gap-2 text-xs">
+          <div className="bg-[var(--bg-secondary)] border-x border-[var(--border-color)] px-4 py-2 flex items-center gap-2 text-xs">
             <MapPin className="w-3.5 h-3.5 text-[#4361EE] shrink-0" />
             <span className="text-[#0B1F33] font-medium truncate">{job.address}</span>
             <span className="text-[#6B7C8F]">{job.city}, {job.province}</span>
@@ -1027,7 +1116,7 @@ export default function ChatPage() {
         )}
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 bg-[#F7FAFC] border-x border-[#E6EEF6] space-y-1">
+        <div className="flex-1 overflow-y-auto px-4 py-4 bg-[var(--bg-secondary)] border-x border-[var(--border-color)] space-y-1">
           {messages.length === 0 && (
             <div className="text-center py-8 text-[#6B7C8F]">
               <p>No messages yet. Start the conversation!</p>
@@ -1261,10 +1350,31 @@ export default function ChatPage() {
           </div>
         )}
 
-        {/* Cancelled Job — Reopen or Contact Support */}
+        {/* Completed Job — Rehire option */}
+        {job?.status === "completed" && reviewSubmitted && (
+          <div className="bg-[#4361EE]/5 border-x border-[#4361EE]/10 px-4 py-3 border-t border-[#4361EE]/20">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-900">Job Complete</p>
+                <p className="text-xs text-gray-500">Need this service again?</p>
+              </div>
+              <button
+                onClick={rehireOperator}
+                disabled={rehiring}
+                className="px-4 py-2 bg-[#4361EE] text-white rounded-lg font-semibold text-sm hover:bg-[#3651D4] transition flex items-center gap-2 disabled:opacity-50"
+              >
+                <Briefcase className="w-4 h-4" />
+                {rehiring ? "Creating..." : "Rehire"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Cancelled Job — Clients can reopen within 5 min, or either side can rehire. Operators cannot reopen. */}
         {job?.status === "cancelled" && (
           <div className="bg-red-50 border-x border-red-100 px-4 py-3 border-t border-red-200">
-            {reopenTimeLeft !== null && reopenTimeLeft > 0 ? (
+            {/* Only clients can reopen within 5-minute window */}
+            {!isOperator && reopenTimeLeft !== null && reopenTimeLeft > 0 ? (
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-red-800">Job Cancelled</p>
@@ -1284,22 +1394,25 @@ export default function ChatPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-red-800">Job Cancelled</p>
-                  <p className="text-xs text-red-600">Reopen window expired</p>
+                  <p className="text-xs text-red-600">
+                    {isOperator ? "Need to book this client again?" : "Want to start a new job?"}
+                  </p>
                 </div>
-                <Link
-                  href="/dashboard/messages"
-                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-semibold text-sm hover:bg-gray-200 transition flex items-center gap-2"
+                <button
+                  onClick={rehireOperator}
+                  disabled={rehiring}
+                  className="px-4 py-2 bg-[#4361EE] text-white rounded-lg font-semibold text-sm hover:bg-[#3651D4] transition flex items-center gap-2 disabled:opacity-50"
                 >
-                  <AlertTriangle className="w-4 h-4" />
-                  Contact Support
-                </Link>
+                  <Briefcase className="w-4 h-4" />
+                  {rehiring ? "Creating..." : isOperator ? "Re-Book" : "Rehire"}
+                </button>
               </div>
             )}
           </div>
         )}
 
         {/* Message Input */}
-        <div className="bg-white rounded-b-2xl border border-[#E6EEF6] px-4 py-3 shrink-0">
+        <div className="bg-[var(--bg-card-solid)] rounded-b-2xl border border-[var(--border-color)] px-4 py-3 shrink-0">
           <form onSubmit={handleSubmit} className="flex items-center gap-2">
             {isOperator && (
               <button
@@ -1335,7 +1448,7 @@ export default function ChatPage() {
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               placeholder="Type a message..."
-              className="flex-1 px-4 py-2.5 bg-[#F7FAFC] rounded-xl outline-none focus:ring-2 focus:ring-[#4361EE] text-sm border border-[#E6EEF6]"
+              className="flex-1 px-4 py-2.5 bg-[var(--bg-secondary)] rounded-xl outline-none focus:ring-2 focus:ring-[#4361EE] text-sm border border-[var(--border-color)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
             />
             <button
               type="submit"
@@ -1351,7 +1464,7 @@ export default function ChatPage() {
       {/* Desktop Right Panel — Progress Tracker */}
       {job && (
         <div className="hidden md:flex flex-col w-80 shrink-0 space-y-4">
-          <div className="bg-white dark:bg-[#151c24] rounded-2xl border border-[#E6EEF6] dark:border-[#1e2d3d] p-5 sticky top-4">
+          <div className="bg-[var(--bg-card-solid)] dark:bg-[#151c24] rounded-2xl border border-[var(--border-color)] dark:border-[#1e2d3d] p-5 sticky top-4">
             <h3 className="text-sm font-semibold text-[#6B7C8F] uppercase tracking-wide mb-4">Job Progress</h3>
             <ProgressTracker
               status={job.status}
@@ -1501,6 +1614,16 @@ export default function ChatPage() {
         </div>
       )}
 
+
+      {/* Cancellation Popup */}
+      <CancellationPopup
+        isOpen={showCancelPopup}
+        onCancel={() => setShowCancelPopup(false)}
+        onConfirm={confirmCancelJob}
+        loading={cancelling}
+        title="Cancel this job?"
+        message={`This will cancel the ${job?.serviceTypes?.map(s => s.replace("-", " ")).join(", ") || "snow removal"} job at ${job?.address || "this address"}. Any held payment of $${job?.price || 0} will be refunded.`}
+      />
 
       {/* Report / Claim Modal */}
       {showReportModal && (

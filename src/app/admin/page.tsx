@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { collection, getDocs } from "firebase/firestore";
+import React, { useState, useEffect, useRef } from "react";
+import { collection, getDocs, onSnapshot, query, orderBy, limit, updateDoc, doc, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { UserProfile, Transaction, Job } from "@/lib/types";
 import {
@@ -18,6 +18,12 @@ import {
   BarChart3,
   ArrowUpRight,
   RefreshCw,
+  Bell,
+  X,
+  Globe,
+  UserPlus,
+  FileText,
+  CheckCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { format, subDays } from "date-fns";
@@ -59,6 +65,75 @@ export default function AdminOverviewPage() {
   const [activeJobsList, setActiveJobsList] = useState<(Job & { clientName?: string; operatorName?: string })[]>([]);
   const [revenueData, setRevenueData] = useState<{ date: string; revenue: number }[]>([]);
   const [roleData, setRoleData] = useState<{ name: string; value: number }[]>([]);
+
+  // ── Admin Notifications ─────────────────────────────────────────────────
+  type AdminNotif = {
+    id: string;
+    type: "signup" | "visit" | "document_uploaded";
+    message: string;
+    uid?: string | null;
+    meta?: Record<string, string | number | boolean | null>;
+    createdAt: { seconds: number } | null;
+    read: boolean;
+  };
+  const [notifs, setNotifs] = useState<AdminNotif[]>([]);
+  const [showNotifs, setShowNotifs] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+
+  const unreadCount = notifs.filter((n) => !n.read).length;
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setShowNotifs(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  // Real-time listener for the latest 40 notifications
+  useEffect(() => {
+    const q = query(
+      collection(db, "adminNotifications"),
+      orderBy("createdAt", "desc"),
+      limit(40)
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      setNotifs(
+        snap.docs.map((d) => ({ id: d.id, ...d.data() } as AdminNotif))
+      );
+    });
+    return () => unsub();
+  }, []);
+
+  const markAllNotifsRead = async () => {
+    const unread = notifs.filter((n) => !n.read);
+    if (!unread.length) return;
+    const batch = writeBatch(db);
+    unread.forEach((n) => batch.update(doc(db, "adminNotifications", n.id), { read: true }));
+    await batch.commit();
+  };
+
+  const markNotifRead = async (id: string) => {
+    await updateDoc(doc(db, "adminNotifications", id), { read: true });
+  };
+
+  const notifIcon = (type: AdminNotif["type"]) => {
+    if (type === "signup") return <UserPlus className="w-3.5 h-3.5" />;
+    if (type === "document_uploaded") return <FileText className="w-3.5 h-3.5" />;
+    return <Globe className="w-3.5 h-3.5" />;
+  };
+  const notifColor = (type: AdminNotif["type"]) => {
+    if (type === "signup") return "text-green-600 bg-green-50";
+    if (type === "document_uploaded") return "text-purple-600 bg-purple-50";
+    return "text-blue-500 bg-blue-50";
+  };
+  const notifTime = (n: AdminNotif) => {
+    if (!n.createdAt?.seconds) return "";
+    return format(new Date(n.createdAt.seconds * 1000), "MMM d, h:mm a");
+  };
 
   const toMs = (t: unknown) =>
     typeof t === "object" && t !== null && "seconds" in t
@@ -184,7 +259,66 @@ export default function AdminOverviewPage() {
             <p className="text-xs text-gray-500">Full platform oversight • {stats.onlineUsers} users online • {format(new Date(), "EEEE, MMM d, yyyy")}</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          {/* Notifications Bell */}
+          <div className="relative" ref={notifRef}>
+            <button
+              onClick={() => { setShowNotifs((v) => !v); if (!showNotifs) markAllNotifsRead(); }}
+              className="relative p-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition"
+              aria-label="Notifications"
+            >
+              <Bell className="w-5 h-5 text-gray-600" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4.5 h-4.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none px-0.5">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </button>
+
+            {showNotifs && (
+              <div className="absolute right-0 top-full mt-2 w-[340px] bg-white rounded-2xl shadow-xl border border-gray-100 z-50 overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                  <span className="font-semibold text-gray-900 text-sm">Notifications</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={markAllNotifsRead}
+                      className="text-[11px] text-[#4361EE] hover:underline flex items-center gap-1"
+                    >
+                      <CheckCheck className="w-3.5 h-3.5" /> Mark all read
+                    </button>
+                    <button onClick={() => setShowNotifs(false)}>
+                      <X className="w-4 h-4 text-gray-400 hover:text-gray-700" />
+                    </button>
+                  </div>
+                </div>
+                <div className="max-h-[400px] overflow-y-auto divide-y divide-gray-50">
+                  {notifs.length === 0 && (
+                    <p className="text-sm text-gray-400 text-center py-8">No notifications yet</p>
+                  )}
+                  {notifs.map((n) => (
+                    <div
+                      key={n.id}
+                      className={`flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition cursor-default ${!n.read ? "bg-blue-50/40" : ""}`}
+                      onClick={() => markNotifRead(n.id)}
+                    >
+                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${notifColor(n.type)}`}>
+                        {notifIcon(n.type)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm truncate ${!n.read ? "font-semibold text-gray-900" : "text-gray-700"}`}>{n.message}</p>
+                        {n.meta?.path && (
+                          <p className="text-[10px] text-gray-400 truncate">{String(n.meta.path)}</p>
+                        )}
+                        <p className="text-[10px] text-gray-400 mt-0.5">{notifTime(n)}</p>
+                      </div>
+                      {!n.read && <span className="w-2 h-2 bg-blue-500 rounded-full mt-1.5 shrink-0" />}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           <Link href="/admin/users" className="px-4 py-2 bg-[#4361EE] text-white rounded-xl text-sm font-medium hover:bg-[#3651D4] transition flex items-center gap-2"><Users className="w-4 h-4" /> Manage Users</Link>
           <Link href="/admin/analytics" className="px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 transition flex items-center gap-2"><BarChart3 className="w-4 h-4" /> Analytics</Link>
         </div>

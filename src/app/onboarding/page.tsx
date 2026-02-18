@@ -16,6 +16,7 @@ import {
   EQUIPMENT_OPTIONS,
 } from "@/lib/types";
 import Image from "next/image";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronRight,
   ChevronLeft,
@@ -29,6 +30,7 @@ import {
   Building,
   Footprints,
   TreePine,
+  SkipForward,
 } from "lucide-react";
 
 // Suggested presets for faster onboarding
@@ -67,6 +69,7 @@ const OPERATOR_PRESETS = [
 export default function OnboardingPage() {
   const { user, profile, refreshProfile } = useAuth();
   const router = useRouter();
+  const [showIntro, setShowIntro] = useState(true);
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
@@ -175,15 +178,17 @@ export default function OnboardingPage() {
       if (types.includes("postal_code")) postalCodeValue = component.long_name;
     });
 
-    if (locality) setCity(locality);
-    if (provinceCode) setProvince(provinceCode);
-    if (postalCodeValue) setPostalCode(postalCodeValue.replace(/\s/g, ""));
-    // Save the full formatted address from Google, not what the user typed
-    if (place.formatted_address) {
-      setAddress(place.formatted_address);
-    } else if (streetNumber && route) {
-      setAddress(`${streetNumber} ${route}`);
-    }
+    // Set all fields synchronously
+    const resolvedCity = locality || city;
+    const resolvedProvince = provinceCode || province;
+    const resolvedPostal = postalCodeValue.replace(/\s/g, "") || postalCode;
+    const resolvedAddress = place.formatted_address ||
+      (streetNumber && route ? `${streetNumber} ${route}` : address);
+
+    setCity(resolvedCity);
+    setProvince(resolvedProvince);
+    setPostalCode(resolvedPostal);
+    setAddress(resolvedAddress);
 
     // Extract lat/lng from place geometry
     if (place.geometry?.location) {
@@ -215,7 +220,7 @@ export default function OnboardingPage() {
         postalCode,
         address,
         isOnline: true,
-        themePreference: "system" as const,
+        themePreference: "light" as const,
         lat: lat || null,
         lng: lng || null,
       };
@@ -285,7 +290,8 @@ export default function OnboardingPage() {
       case 1:
         return role !== null;
       case 2:
-        return phone && province && city && postalCode && address;
+        // Require phone + address at minimum; city/province/postal can be filled manually
+        return !!(phone && address);
       case 3:
         if (role === "client") return serviceTypes.length > 0;
         return bio.length > 0 && equipment.length > 0;
@@ -298,6 +304,99 @@ export default function OnboardingPage() {
 
   if (profile?.onboardingComplete) return null;
 
+  // Animated intro screen
+  if (showIntro) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#0B1F33] via-[#1a2f4a] to-[#0B1F33] flex items-center justify-center relative overflow-hidden">
+        {/* Animated snowflakes background */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {Array.from({ length: 20 }).map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute text-white/10"
+              initial={{
+                x: `${Math.random() * 100}vw`,
+                y: -20,
+                rotate: 0,
+                scale: 0.5 + Math.random() * 1,
+              }}
+              animate={{
+                y: "105vh",
+                rotate: 360,
+                x: `${Math.random() * 100}vw`,
+              }}
+              transition={{
+                duration: 6 + Math.random() * 8,
+                repeat: Infinity,
+                delay: Math.random() * 5,
+                ease: "linear",
+              }}
+            >
+              <Snowflake className="w-5 h-5" />
+            </motion.div>
+          ))}
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="text-center z-10 px-6 max-w-md"
+        >
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 15 }}
+          >
+            <Image src="/logo.svg" alt="snowd.ca" width={80} height={80} className="mx-auto mb-6 drop-shadow-2xl" />
+          </motion.div>
+
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.6 }}
+            className="text-4xl font-bold text-white mb-3"
+          >
+            Welcome to snowd.ca
+          </motion.h1>
+
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7, duration: 0.6 }}
+            className="text-lg text-white/60 mb-10"
+          >
+            Canada&apos;s snow removal marketplace.
+            <br />
+            Let&apos;s get you set up in under 2 minutes.
+          </motion.p>
+
+          <motion.button
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1, duration: 0.5 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => setShowIntro(false)}
+            className="px-10 py-4 bg-[#4361EE] hover:bg-[#3249D6] text-white rounded-2xl font-semibold text-lg shadow-xl shadow-[#4361EE]/30 transition-colors"
+          >
+            Get Started
+          </motion.button>
+
+          <motion.button
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1.5, duration: 0.5 }}
+            onClick={() => setShowIntro(false)}
+            className="block mx-auto mt-4 text-sm text-white/40 hover:text-white/60 transition"
+          >
+            Skip intro
+          </motion.button>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#F7FAFC] px-4 py-8">
       <div className="max-w-lg mx-auto">
@@ -307,7 +406,17 @@ export default function OnboardingPage() {
           <h1 className="text-2xl font-bold mt-3 text-[#0B1F33]">
             {step === 1 ? "Welcome to snowd.ca" : "Set Up Your Account"}
           </h1>
-          <p className="text-[#6B7C8F] mt-1">Step {step} of {totalSteps}</p>
+          <div className="flex items-center justify-center gap-3 mt-1">
+            <p className="text-[#6B7C8F]">Step {step} of {totalSteps}</p>
+            {step < totalSteps && (
+              <button
+                onClick={() => setStep(totalSteps)}
+                className="flex items-center gap-1 text-xs text-[#4361EE]/60 hover:text-[#4361EE] transition"
+              >
+                <SkipForward className="w-3 h-3" /> Skip
+              </button>
+            )}
+          </div>
           <div className="mt-4 h-2 bg-[#E6EEF6] rounded-full overflow-hidden">
             <div
               className="h-full bg-[#4361EE] rounded-full transition-all duration-500"
@@ -317,6 +426,14 @@ export default function OnboardingPage() {
         </div>
 
         <div className="bg-white rounded-2xl shadow-lg border border-[#E6EEF6] p-6 md:p-8">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={step}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.25 }}
+            >
           {/* Step 1: Choose Role */}
           {step === 1 && (
             <div className="space-y-6">
@@ -378,15 +495,22 @@ export default function OnboardingPage() {
                 <label className="block text-sm font-medium text-[#0B1F33] mb-1.5">
                   Start typing your address
                 </label>
-                <AddressAutocomplete
-                  value={address}
-                  onChange={setAddress}
-                  onPlaceSelected={handleAddressSelected}
-                  placeholder="123 Main Street, Toronto, ON"
-                  className="w-full px-4 py-3.5 border border-[#E6EEF6] rounded-xl focus:ring-2 focus:ring-[#4361EE]/25 focus:border-[#4361EE] outline-none transition text-[#0B1F33]"
-                />
+                <div className="relative">
+                  <AddressAutocomplete
+                    value={address}
+                    onChange={setAddress}
+                    onPlaceSelected={handleAddressSelected}
+                    placeholder="123 Main Street, Toronto, ON"
+                    className="w-full px-4 py-3.5 border border-[#E6EEF6] rounded-xl focus:ring-2 focus:ring-[#4361EE]/25 focus:border-[#4361EE] outline-none transition text-[#0B1F33]"
+                  />
+                  {lat && lng && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs text-green-600 font-medium">
+                      <CheckCircle className="w-4 h-4" /> Found
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-[#6B7C8F] mt-1.5">
-                  We&apos;ll auto-fill the rest from your selection
+                  Select your address from the dropdown — we&apos;ll auto-fill the rest
                 </p>
               </div>
 
@@ -694,6 +818,8 @@ export default function OnboardingPage() {
           )}
 
           {/* Navigation */}
+            </motion.div>
+          </AnimatePresence>
           <div className="flex justify-between mt-8">
             {step > 1 ? (
               <button

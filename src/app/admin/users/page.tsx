@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { collection, getDocs, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { UserProfile } from "@/lib/types";
-import { Users, Search, Edit3, Trash2, Shield, Eye, X, Save } from "lucide-react";
+import { Users, Search, Edit3, Trash2, Shield, Eye, X, Save, ExternalLink } from "lucide-react";
 import Link from "next/link";
 
 export default function AdminUsersPage() {
@@ -132,10 +132,13 @@ export default function AdminUsersPage() {
                 </div>
               </div>
               <div className="flex gap-1.5 shrink-0">
-                <Link href={`/dashboard/u/${user.uid}`} className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg transition" title="View profile">
+                <Link href={`/dashboard/u/${user.uid}`} className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg transition" title="View public profile">
                   <Eye className="w-4 h-4" />
                 </Link>
-                <button onClick={() => handleEdit(user)} className="p-2 text-[#4361EE] hover:bg-[#4361EE]/10 rounded-lg transition" title="Edit">
+                <Link href={`/admin/users/${user.uid}`} className="p-2 text-[#4361EE] hover:bg-[#4361EE]/10 rounded-lg transition" title="Full edit mode">
+                  <ExternalLink className="w-4 h-4" />
+                </Link>
+                <button onClick={() => handleEdit(user)} className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition" title="Quick edit">
                   <Edit3 className="w-4 h-4" />
                 </button>
                 {user.role !== "admin" && (

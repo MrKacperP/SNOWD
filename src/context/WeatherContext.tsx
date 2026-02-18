@@ -83,6 +83,8 @@ function mapWeatherCode(code: number): { condition: string; icon: string } {
 export function WeatherProvider({ children }: { children: React.ReactNode }) {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showLocationPopup, setShowLocationPopup] = useState(false);
+  const [locationGranted, setLocationGranted] = useState(false);
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -90,14 +92,41 @@ export function WeatherProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // Check if permission was already granted/denied
+    if (navigator.permissions) {
+      navigator.permissions.query({ name: "geolocation" }).then((result) => {
+        if (result.state === "granted") {
+          requestLocation();
+        } else if (result.state === "denied") {
+          // Fallback to Toronto
+          fetchWeather(43.65, -79.38).then((data) => {
+            setWeather(data);
+            setLoading(false);
+          });
+        } else {
+          // Show our custom popup first
+          setShowLocationPopup(true);
+          setLoading(false);
+        }
+      }).catch(() => {
+        setShowLocationPopup(true);
+        setLoading(false);
+      });
+    } else {
+      setShowLocationPopup(true);
+      setLoading(false);
+    }
+  }, []);
+
+  const requestLocation = () => {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const data = await fetchWeather(pos.coords.latitude, pos.coords.longitude);
         setWeather(data);
         setLoading(false);
+        setLocationGranted(true);
       },
       () => {
-        // Default to Toronto if geolocation denied
         fetchWeather(43.65, -79.38).then((data) => {
           setWeather(data);
           setLoading(false);
@@ -105,12 +134,43 @@ export function WeatherProvider({ children }: { children: React.ReactNode }) {
       },
       { timeout: 5000 }
     );
-  }, []);
+  };
+
+  const handleAllowLocation = () => {
+    setShowLocationPopup(false);
+    setLoading(true);
+    requestLocation();
+  };
+
+  const handleDenyLocation = () => {
+    setShowLocationPopup(false);
+    fetchWeather(43.65, -79.38).then((data) => {
+      setWeather(data);
+      setLoading(false);
+    });
+  };
 
   return (
     <WeatherContext.Provider value={{ weather, loading }}>
       {children}
+      {/* Lazy-load the location popup */}
+      {showLocationPopup && (
+        <LocationPermissionPopupWrapper
+          onAllow={handleAllowLocation}
+          onDeny={handleDenyLocation}
+        />
+      )}
     </WeatherContext.Provider>
+  );
+}
+
+// Wrapper to lazy import the popup component
+function LocationPermissionPopupWrapper({ onAllow, onDeny }: { onAllow: () => void; onDeny: () => void }) {
+  const LocationPermissionPopup = React.lazy(() => import("@/components/LocationPermissionPopup"));
+  return (
+    <React.Suspense fallback={null}>
+      <LocationPermissionPopup isOpen={true} onAllow={onAllow} onDeny={onDeny} />
+    </React.Suspense>
   );
 }
 

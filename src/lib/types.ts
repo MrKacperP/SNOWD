@@ -2,7 +2,9 @@
 // snowd.ca — Type Definitions
 // ============================================
 
-export type UserRole = "client" | "operator" | "admin";
+export type UserRole = "client" | "operator" | "admin" | "employee";
+
+export type EmployeePermission = "users" | "chats" | "transactions" | "claims" | "analytics" | "calls";
 
 export type PaymentMethod = "cash" | "credit" | "e-transfer";
 
@@ -24,7 +26,7 @@ export type ServiceType =
 
 export type PropertySize = "small" | "medium" | "large" | "commercial";
 
-export type ThemePreference = "light" | "dark" | "system";
+export type ThemePreference = "light" | "dark";
 
 export type ClaimStatus = "open" | "under-review" | "resolved" | "dismissed";
 export type ClaimType = "property-damage" | "incomplete-job" | "misconduct" | "other";
@@ -65,6 +67,11 @@ export interface UserProfile {
   // ID Verification
   idPhotoUrl?: string;
   idVerified?: boolean;
+  // Student verification
+  studentVerified?: boolean;
+  // Employee-specific
+  employeePermissions?: EmployeePermission[];
+  addedByAdmin?: string;
 }
 
 export interface ClientProfile extends UserProfile {

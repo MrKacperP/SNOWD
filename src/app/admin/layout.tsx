@@ -17,6 +17,8 @@ import {
   Settings,
   LogOut,
   Home,
+  Phone,
+  UserCog,
 } from "lucide-react";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -28,24 +30,33 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (!loading) {
       if (!user) {
         router.push("/login");
-      } else if (profile?.role !== "admin") {
+      } else if (profile?.role !== "admin" && profile?.role !== "employee") {
         router.push("/dashboard");
       }
     }
   }, [user, profile, loading, router]);
 
-  if (loading || !user || !profile || profile.role !== "admin") {
+  if (loading || !user || !profile || (profile.role !== "admin" && profile.role !== "employee")) {
     return <LoadingScreen />;
   }
 
-  const navItems = [
-    { href: "/admin", label: "Overview", icon: Home },
-    { href: "/admin/users", label: "Users", icon: Users },
-    { href: "/admin/chats", label: "Chats", icon: MessageSquare },
-    { href: "/admin/transactions", label: "Transactions", icon: DollarSign },
-    { href: "/admin/claims", label: "Claims", icon: AlertTriangle },
-    { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+  const isAdmin = profile.role === "admin";
+  const employeePermissions = (profile as unknown as { employeePermissions?: string[] }).employeePermissions || [];
+
+  const allNavItems = [
+    { href: "/admin", label: "Overview", icon: Home, permission: null },
+    { href: "/admin/users", label: "Users", icon: Users, permission: "users" },
+    { href: "/admin/chats", label: "Chats", icon: MessageSquare, permission: "chats" },
+    { href: "/admin/calls", label: "Calls", icon: Phone, permission: "calls" },
+    { href: "/admin/transactions", label: "Transactions", icon: DollarSign, permission: "transactions" },
+    { href: "/admin/claims", label: "Claims", icon: AlertTriangle, permission: "claims" },
+    { href: "/admin/analytics", label: "Analytics", icon: BarChart3, permission: "analytics" },
+    ...(isAdmin ? [{ href: "/admin/employees", label: "Employees", icon: UserCog, permission: null }] : []),
   ];
+
+  const navItems = allNavItems.filter(item =>
+    isAdmin || item.permission === null || employeePermissions.includes(item.permission)
+  );
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
@@ -55,7 +66,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div className="flex items-center gap-2">
             <Shield className="w-6 h-6 text-[#4361EE]" />
             <span className="text-xl font-bold text-[#4361EE]">snowd</span>
-            <span className="text-xs font-medium bg-red-100 text-red-600 px-2 py-0.5 rounded-full">ADMIN</span>
+            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isAdmin ? "bg-red-100 text-red-600" : "bg-orange-100 text-orange-600"}`}>
+              {isAdmin ? "ADMIN" : "STAFF"}
+            </span>
           </div>
         </div>
         <nav className="flex-1 p-4 space-y-1">
@@ -92,7 +105,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="flex items-center gap-2">
           <Shield className="w-5 h-5 text-[#4361EE]" />
           <span className="font-bold text-[#4361EE]">snowd</span>
-          <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-medium">ADMIN</span>
+          <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${isAdmin ? "bg-red-100 text-red-600" : "bg-orange-100 text-orange-600"}`}>
+            {isAdmin ? "ADMIN" : "STAFF"}
+          </span>
         </div>
       </header>
 

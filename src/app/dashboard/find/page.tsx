@@ -27,13 +27,16 @@ import {
   MessageSquare,
   ChevronDown,
   ChevronUp,
-  RefreshCw,
   X,
   Heart,
   ArrowLeft,
+  CalendarDays,
+  Clock,
+  Zap,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { format, addDays } from "date-fns";
 
 const SERVICE_LABELS: Record<ServiceType, string> = {
   driveway: "Driveway",
@@ -60,12 +63,13 @@ export default function FindOperatorsPage() {
   const [sortBy, setSortBy] = useState<"rating" | "price" | "distance">("rating");
   const [expandedOperator, setExpandedOperator] = useState<string | null>(null);
   const [booking, setBooking] = useState(false);
-  const [existingChatModal, setExistingChatModal] = useState<{
-    operator: OperatorProfile;
-    chatId: string;
-  } | null>(null);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [favoriteOperatorId, setFavoriteOperatorId] = useState<string | null>(null);
+  // Scheduling modal state
+  const [schedulingOperator, setSchedulingOperator] = useState<OperatorProfile | null>(null);
+  const [scheduleType, setScheduleType] = useState<"asap" | "scheduled">("asap");
+  const [scheduledDate, setScheduledDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
+  const [scheduledTime, setScheduledTime] = useState<string>("09:00");
 
   // Fetch operators
   useEffect(() => {
@@ -100,6 +104,15 @@ export default function FindOperatorsPage() {
   // Filter and sort
   useEffect(() => {
     let results = [...operators];
+
+    // Hide operators without Stripe accounts (they can't receive payments)
+    results = results.filter((op) => {
+      const opWithStripe = op as OperatorProfile & { stripeConnectAccountId?: string };
+      return !!opWithStripe.stripeConnectAccountId;
+    });
+
+    // Hide operators with incomplete profiles (must have avatar, phone, and address)
+    results = results.filter((op) => !!(op.avatar && op.phone && op.address));
 
     // Text search
     if (searchTerm) {
@@ -159,9 +172,20 @@ export default function FindOperatorsPage() {
     setFilteredOperators(results);
   }, [operators, searchTerm, filterService, filterStudents, filterVerified, filterEquipment, sortBy, favoriteOperatorId]);
 
-  // Book an operator — check for existing chat first
+  // Book an operator — show scheduling modal first
   const bookOperator = async (operator: OperatorProfile) => {
     if (!user?.uid || !profile) return;
+    setSchedulingOperator(operator);
+    setScheduleType("asap");
+    setScheduledDate(format(new Date(), "yyyy-MM-dd"));
+    setScheduledTime("09:00");
+  };
+
+  // Confirm booking after schedule selection
+  const confirmBooking = async () => {
+    if (!schedulingOperator || !user?.uid || !profile) return;
+    const operator = schedulingOperator;
+    setSchedulingOperator(null);
     setBooking(true);
 
     try {
@@ -177,12 +201,9 @@ export default function FindOperatorsPage() {
       });
 
       if (existingChat) {
-        // Show modal to reuse chat or create new request
-        setExistingChatModal({
-          operator,
-          chatId: existingChat.id,
-        });
+        // Navigate directly to existing chat — re-hire/re-book options are inside the chat
         setBooking(false);
+        router.push(`/dashboard/messages/${existingChat.id}`);
         return;
       }
 
@@ -211,8 +232,8 @@ export default function FindOperatorsPage() {
         province: clientProfile?.province || "",
         postalCode: clientProfile?.postalCode || "",
         specialInstructions: clientProfile?.propertyDetails?.specialInstructions || "",
-        scheduledDate: null,
-        scheduledTime: "ASAP",
+        scheduledDate: scheduleType === "scheduled" ? Timestamp.fromDate(new Date(scheduledDate + "T" + scheduledTime)) : null,
+        scheduledTime: scheduleType === "scheduled" ? scheduledTime : "ASAP",
         estimatedDuration: 45,
         price:
           operator.pricing?.driveway?.[
@@ -236,12 +257,16 @@ export default function FindOperatorsPage() {
       const { updateDoc, doc } = await import("firebase/firestore");
       await updateDoc(doc(db, "jobs", jobRef.id), { chatId: chatRef.id });
 
+      const scheduleInfo = scheduleType === "scheduled"
+        ? ` Scheduled for ${format(new Date(scheduledDate), "MMM d")} at ${scheduledTime}.`
+        : "";
+
       await addDoc(collection(db, "messages"), {
         chatId: chatRef.id,
         senderId: "system",
         senderName: "snowd.ca",
         type: "system",
-        content: `${clientProfile?.displayName} has requested snow removal service. Please discuss details and confirm the booking.`,
+        content: `${clientProfile?.displayName} has requested snow removal service.${scheduleInfo} Please discuss details and confirm the booking.`,
         read: false,
         createdAt: Timestamp.now(),
       });
@@ -249,70 +274,6 @@ export default function FindOperatorsPage() {
       router.push(`/dashboard/messages/${chatRef.id}`);
     } catch (error) {
       console.error("Error creating job:", error);
-    } finally {
-      setBooking(false);
-    }
-  };
-
-  // Send a new request to the same operator via existing chat
-  const sendNewRequestToExistingChat = async (
-    operator: OperatorProfile,
-    chatId: string
-  ) => {
-    if (!user?.uid || !profile) return;
-    setBooking(true);
-
-    try {
-      // Create a new job linked to existing chat
-      const jobRef = await addDoc(collection(db, "jobs"), {
-        clientId: user.uid,
-        operatorId: operator.uid,
-        status: "pending",
-        serviceTypes: clientProfile?.propertyDetails?.serviceTypes || ["driveway"],
-        propertySize: clientProfile?.propertyDetails?.propertySize || "medium",
-        address: clientProfile?.address || "",
-        city: clientProfile?.city || "",
-        province: clientProfile?.province || "",
-        postalCode: clientProfile?.postalCode || "",
-        specialInstructions: clientProfile?.propertyDetails?.specialInstructions || "",
-        scheduledDate: null,
-        scheduledTime: "ASAP",
-        estimatedDuration: 45,
-        price:
-          operator.pricing?.driveway?.[
-            (clientProfile?.propertyDetails?.propertySize || "medium") as "small" | "medium" | "large"
-          ] || 40,
-        paymentMethod: "cash",
-        paymentStatus: "pending",
-        chatId,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
-      });
-
-      // Update the chat's jobId to the new job
-      const { updateDoc, doc } = await import("firebase/firestore");
-      await updateDoc(doc(db, "chats", chatId), {
-        jobId: jobRef.id,
-        lastMessage: "New job request sent",
-        lastMessageTime: Timestamp.now(),
-        [`unreadCount.${operator.uid}`]: 1,
-      });
-
-      // Send system message about the new request
-      await addDoc(collection(db, "messages"), {
-        chatId,
-        senderId: "system",
-        senderName: "snowd.ca",
-        type: "system",
-        content: `${clientProfile?.displayName} has sent a new snow removal request. Please discuss details and confirm the booking.`,
-        read: false,
-        createdAt: Timestamp.now(),
-      });
-
-      setExistingChatModal(null);
-      router.push(`/dashboard/messages/${chatId}`);
-    } catch (error) {
-      console.error("Error sending new request:", error);
     } finally {
       setBooking(false);
     }
@@ -659,49 +620,105 @@ export default function FindOperatorsPage() {
         </div>
       )}
 
-      {/* Existing Chat Modal */}
-      {existingChatModal && (
+      {/* Scheduling Modal */}
+      {schedulingOperator && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden">
-            <div className="bg-[#4361EE] p-5 text-white relative">
+            <div className="bg-gradient-to-r from-[#4361EE] to-[#3249D6] p-5 text-white relative">
               <button
-                onClick={() => setExistingChatModal(null)}
+                onClick={() => setSchedulingOperator(null)}
                 className="absolute top-3 right-3 p-1 rounded-lg hover:bg-white/20 transition"
               >
                 <X className="w-5 h-5" />
               </button>
-              <h2 className="font-bold text-lg">Existing Conversation</h2>
-              <p className="text-white/90 text-sm mt-1">
-                You already have a chat with {existingChatModal.operator.businessName || existingChatModal.operator.displayName}
+              <h2 className="font-bold text-lg">When do you need it?</h2>
+              <p className="text-white/80 text-sm mt-1">
+                Booking {schedulingOperator.businessName || schedulingOperator.displayName}
               </p>
             </div>
-            <div className="p-5 space-y-3">
+            <div className="p-5 space-y-4">
+              {/* ASAP or Scheduled toggle */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setScheduleType("asap")}
+                  className={`flex flex-col items-center gap-1.5 p-4 rounded-xl border-2 transition ${
+                    scheduleType === "asap"
+                      ? "border-[#4361EE] bg-[#4361EE]/5"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  <Zap className={`w-5 h-5 ${scheduleType === "asap" ? "text-[#4361EE]" : "text-gray-400"}`} />
+                  <span className={`text-sm font-semibold ${scheduleType === "asap" ? "text-[#4361EE]" : "text-gray-600"}`}>
+                    ASAP
+                  </span>
+                  <span className="text-[10px] text-gray-400">As soon as possible</span>
+                </button>
+                <button
+                  onClick={() => setScheduleType("scheduled")}
+                  className={`flex flex-col items-center gap-1.5 p-4 rounded-xl border-2 transition ${
+                    scheduleType === "scheduled"
+                      ? "border-[#4361EE] bg-[#4361EE]/5"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  <CalendarDays className={`w-5 h-5 ${scheduleType === "scheduled" ? "text-[#4361EE]" : "text-gray-400"}`} />
+                  <span className={`text-sm font-semibold ${scheduleType === "scheduled" ? "text-[#4361EE]" : "text-gray-600"}`}>
+                    Schedule
+                  </span>
+                  <span className="text-[10px] text-gray-400">Pick date & time</span>
+                </button>
+              </div>
+
+              {/* Date & time pickers (only if scheduled) */}
+              {scheduleType === "scheduled" && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Date</label>
+                    <input
+                      type="date"
+                      value={scheduledDate}
+                      min={format(new Date(), "yyyy-MM-dd")}
+                      max={format(addDays(new Date(), 30), "yyyy-MM-dd")}
+                      onChange={(e) => setScheduledDate(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4361EE]/20 focus:border-[#4361EE]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Preferred Time</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {["07:00", "09:00", "12:00", "14:00", "16:00", "18:00"].map((t) => (
+                        <button
+                          key={t}
+                          onClick={() => setScheduledTime(t)}
+                          className={`flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg border text-xs font-medium transition ${
+                            scheduledTime === t
+                              ? "border-[#4361EE] bg-[#4361EE]/5 text-[#4361EE]"
+                              : "border-gray-200 text-gray-500 hover:border-gray-300"
+                          }`}
+                        >
+                          <Clock className="w-3 h-3" />
+                          {t.replace(":00", "")}:00
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-gray-400 text-center">
+                    Scheduled for {format(new Date(scheduledDate + "T12:00:00"), "EEEE, MMM d")} at {scheduledTime}
+                  </p>
+                </div>
+              )}
+
               <button
-                onClick={() =>
-                  sendNewRequestToExistingChat(
-                    existingChatModal.operator,
-                    existingChatModal.chatId
-                  )
-                }
+                onClick={confirmBooking}
                 disabled={booking}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#4361EE] hover:bg-[#3651D4] text-white rounded-xl font-semibold transition disabled:opacity-50"
-              >
-                <RefreshCw className="w-4 h-4" />
-                {booking ? "Sending..." : "Hey, I need help again!"}
-              </button>
-              <button
-                onClick={() => {
-                  setExistingChatModal(null);
-                  router.push(`/dashboard/messages/${existingChatModal.chatId}`);
-                }}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-[#4361EE] hover:bg-[#3651D4] text-white rounded-xl font-semibold transition disabled:opacity-50 shadow-sm"
               >
                 <MessageSquare className="w-4 h-4" />
-                Open Existing Chat
+                {booking ? "Booking..." : scheduleType === "asap" ? "Request Now" : "Schedule & Chat"}
               </button>
               <button
-                onClick={() => setExistingChatModal(null)}
-                className="w-full text-sm text-gray-500 hover:text-gray-700 py-2 transition"
+                onClick={() => setSchedulingOperator(null)}
+                className="w-full text-sm text-gray-500 hover:text-gray-700 py-1 transition"
               >
                 Cancel
               </button>
