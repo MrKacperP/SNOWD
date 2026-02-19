@@ -14,6 +14,7 @@ import TutorialOverlay from "@/components/TutorialOverlay";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage, db } from "@/lib/firebase";
 import { doc, updateDoc } from "firebase/firestore";
+import { sendAdminNotif } from "@/lib/adminNotifications";
 
 function isProfileComplete(profile: { avatar?: string; phone?: string; address?: string; email?: string } | null | undefined) {
   if (!profile) return false;
@@ -48,6 +49,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       await updateDoc(doc(db, "users", user.uid), {
         idPhotoUrl: downloadURL,
         updatedAt: new Date(),
+      });
+      sendAdminNotif({
+        type: "document_uploaded",
+        message: `ID document uploaded by ${profile?.displayName || user.email}`,
+        uid: user.uid,
+        meta: { name: profile?.displayName || "", email: user.email || "" },
       });
       await refreshProfile();
     } catch (error) {

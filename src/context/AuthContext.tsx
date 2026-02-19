@@ -170,8 +170,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    await firebaseSignOut(auth);
+    // Clear state immediately so UI responds before the async call finishes
+    setUser(null);
     setProfile(null);
+    await firebaseSignOut(auth);
   };
 
   const refreshProfile = async () => {

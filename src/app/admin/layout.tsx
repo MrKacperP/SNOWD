@@ -21,6 +21,7 @@ import {
   UserCog,
   Briefcase,
   ExternalLink,
+  Headphones,
 } from "lucide-react";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -50,6 +51,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: "/admin/users", label: "Users", icon: Users, permission: "users" },
     { href: "/admin/jobs", label: "Jobs", icon: Briefcase, permission: null },
     { href: "/admin/chats", label: "Chats", icon: MessageSquare, permission: "chats" },
+    { href: "/admin/support-chats", label: "Support", icon: Headphones, permission: "chats" },
     { href: "/admin/calls", label: "Calls", icon: Phone, permission: "calls" },
     { href: "/admin/transactions", label: "Transactions", icon: DollarSign, permission: "transactions" },
     { href: "/admin/claims", label: "Claims", icon: AlertTriangle, permission: "claims" },
@@ -104,7 +106,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             View Live App
           </Link>
           <button
-            onClick={async () => { await signOut(); router.push("/login"); }}
+            onClick={async () => { try { await signOut(); } catch {} router.push("/login"); }}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 transition font-medium"
           >
             <LogOut className="w-5 h-5" />

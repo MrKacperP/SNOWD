@@ -106,14 +106,16 @@ export default function Navbar() {
   };
 
   const handleSignOut = async () => {
+    // Fire-and-forget the isOnline update so it never blocks logout
+    if (profile?.uid) {
+      updateDoc(doc(db, "users", profile.uid), { isOnline: false }).catch(() => {});
+    }
     try {
-      if (profile?.uid) {
-        await updateDoc(doc(db, "users", profile.uid), { isOnline: false });
-      }
       await signOut();
-      router.push("/login");
     } catch (error) {
       console.error("Error signing out:", error);
+    } finally {
+      router.push("/login");
     }
   };
 
