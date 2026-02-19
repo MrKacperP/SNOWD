@@ -25,6 +25,11 @@ import {
   FileText,
   BadgeCheck,
   ExternalLink,
+  ZoomIn,
+  ZoomOut,
+  X,
+  RotateCw,
+  Image as ImageIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
@@ -39,6 +44,10 @@ export default function AdminEditUserPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [tab, setTab] = useState<"profile" | "jobs" | "transactions" | "documents">("profile");
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [lightboxZoom, setLightboxZoom] = useState(1);
+  const [lightboxRotate, setLightboxRotate] = useState(0);
+  const [idLoadError, setIdLoadError] = useState(false);
 
   // Editable fields
   const [fields, setFields] = useState<Record<string, unknown>>({});
@@ -69,6 +78,10 @@ export default function AdminEditUserPage() {
             serviceRadius: (data as unknown as Record<string, unknown>).serviceRadius || 0,
             rating: (data as unknown as Record<string, unknown>).rating || 0,
           });
+          // Auto-open documents tab if user is pending approval
+          if ((data as unknown as Record<string, unknown>).accountApproved === false) {
+            setTab("documents");
+          }
         }
       } catch (e) {
         console.error(e);
@@ -389,23 +402,128 @@ export default function AdminEditUserPage() {
         const transcript = raw.studentTranscriptUrl as string | undefined;
         const isStudent = raw.isStudent as boolean | undefined;
         const isVerified = fields.idVerified as boolean;
+        const isApproved = fields.accountApproved as boolean;
 
         return (
           <div className="space-y-4">
-            {/* ID Photo */}
+            {/* Verification Summary Card */}
+            <div className={`rounded-2xl border-2 p-5 ${
+              isVerified && isApproved
+                ? "bg-green-50 border-green-200"
+                : !idPhoto
+                  ? "bg-red-50 border-red-200"
+                  : "bg-amber-50 border-amber-200"
+            }`}>
+              <div className="flex items-center gap-4">
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${
+                  isVerified && isApproved ? "bg-green-100" : !idPhoto ? "bg-red-100" : "bg-amber-100"
+                }`}>
+                  {isVerified && isApproved ? (
+                    <BadgeCheck className="w-7 h-7 text-green-600" />
+                  ) : !idPhoto ? (
+                    <AlertTriangle className="w-7 h-7 text-red-500" />
+                  ) : (
+                    <Shield className="w-7 h-7 text-amber-600" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <h3 className={`font-bold text-lg ${
+                    isVerified && isApproved ? "text-green-900" : !idPhoto ? "text-red-900" : "text-amber-900"
+                  }`}>
+                    {isVerified && isApproved
+                      ? "Account Verified & Approved"
+                      : !idPhoto
+                        ? "No ID Uploaded — Cannot Verify"
+                        : "Awaiting Your Verification"}
+                  </h3>
+                  <p className={`text-sm mt-0.5 ${
+                    isVerified && isApproved ? "text-green-700" : !idPhoto ? "text-red-600" : "text-amber-700"
+                  }`}>
+                    {isVerified && isApproved
+                      ? `${user.displayName} is verified and live on the platform.`
+                      : !idPhoto
+                        ? `${user.displayName} hasn't uploaded their government ID yet. They cannot go live until verified.`
+                        : `${user.displayName} uploaded their ID. Review it below and approve or reject.`}
+                  </p>
+                </div>
+                {idPhoto && !isVerified && (
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => {
+                        setFields({ ...fields, idVerified: true, accountApproved: true });
+                        setTimeout(handleSave, 100);
+                      }}
+                      className="flex items-center gap-2 px-5 py-3 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 transition shadow-sm"
+                    >
+                      <CheckCircle className="w-5 h-5" /> Approve & Go Live
+                    </button>
+                    <button
+                      onClick={() => {
+                        setFields({ ...fields, idVerified: false, accountApproved: false });
+                        setTimeout(handleSave, 100);
+                      }}
+                      className="flex items-center gap-2 px-5 py-3 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition shadow-sm"
+                    >
+                      <XCircle className="w-5 h-5" /> Reject
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* User Info Summary for quick reference while reviewing */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-5">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">User Details for Cross-Check</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <p className="text-xs text-gray-500">Full Name</p>
+                  <p className="font-semibold text-gray-900">{user.displayName}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Email</p>
+                  <p className="font-semibold text-gray-900">{user.email}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Role</p>
+                  <p className="font-semibold text-gray-900 capitalize">{user.role}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Location</p>
+                  <p className="font-semibold text-gray-900">{user.city}, {user.province}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Address</p>
+                  <p className="font-semibold text-gray-900">{user.address || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Phone</p>
+                  <p className="font-semibold text-gray-900">{user.phone || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Account Created</p>
+                  <p className="font-semibold text-gray-900">{toDate(user.createdAt)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">UID</p>
+                  <p className="font-mono text-xs text-gray-600 break-all">{user.uid}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* ID Photo — Large View */}
             <div className="bg-white rounded-2xl border border-gray-100 p-5">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-[#4361EE]" /> Government ID
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2 text-lg">
+                  <FileText className="w-5 h-5 text-[#4361EE]" /> Government ID
                 </h3>
                 <div className="flex items-center gap-2">
                   {isVerified ? (
-                    <span className="flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-50 px-3 py-1 rounded-full">
-                      <BadgeCheck className="w-3.5 h-3.5" /> Verified
+                    <span className="flex items-center gap-1.5 text-xs font-bold text-green-700 bg-green-100 px-3 py-1.5 rounded-full">
+                      <BadgeCheck className="w-4 h-4" /> Verified
                     </span>
                   ) : (
-                    <span className="flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 px-3 py-1 rounded-full">
-                      <AlertTriangle className="w-3.5 h-3.5" /> Not Verified
+                    <span className="flex items-center gap-1.5 text-xs font-bold text-amber-700 bg-amber-100 px-3 py-1.5 rounded-full">
+                      <AlertTriangle className="w-4 h-4" /> Not Verified
                     </span>
                   )}
                 </div>
@@ -413,39 +531,73 @@ export default function AdminEditUserPage() {
 
               {idPhoto ? (
                 <>
-                  <div className="relative rounded-xl overflow-hidden border border-gray-100 bg-gray-50 mb-4" style={{ maxHeight: 340 }}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={idPhoto}
-                      alt="Government ID"
-                      className="w-full object-contain max-h-80"
-                    />
-                  </div>
+                  {idLoadError ? (
+                    <div className="text-center py-12 bg-gray-50 rounded-xl border border-gray-200 mb-4">
+                      <ImageIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                      <p className="text-sm font-medium text-gray-600 mb-1">Image failed to load</p>
+                      <p className="text-xs text-gray-400 mb-3">CORS or storage issue — try opening directly</p>
+                      <a
+                        href={idPhoto}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#4361EE] text-white rounded-xl text-sm font-medium hover:bg-[#3249D6] transition"
+                      >
+                        <ExternalLink className="w-4 h-4" /> Open in New Tab
+                      </a>
+                    </div>
+                  ) : (
+                    <div
+                      className="relative rounded-xl overflow-hidden border-2 border-gray-200 bg-gray-50 mb-4 cursor-zoom-in group"
+                      onClick={() => { setLightboxUrl(idPhoto); setLightboxZoom(1); setLightboxRotate(0); }}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={idPhoto}
+                        alt="Government ID"
+                        className="w-full object-contain"
+                        style={{ maxHeight: 500 }}
+                        onError={() => setIdLoadError(true)}
+                      />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition flex items-center justify-center opacity-0 group-hover:opacity-100">
+                        <div className="bg-white/90 backdrop-blur px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-sm font-medium text-gray-700 shadow-lg">
+                          <ZoomIn className="w-4 h-4" /> Click to zoom & inspect
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   <div className="flex items-center gap-3">
                     <a
                       href={idPhoto}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 text-xs text-[#4361EE] hover:underline"
+                      className="flex items-center gap-1.5 text-sm text-[#4361EE] hover:underline font-medium"
                     >
-                      <ExternalLink className="w-3.5 h-3.5" /> Open full size
+                      <ExternalLink className="w-4 h-4" /> Open full size
                     </a>
+                    {!idLoadError && (
+                      <button
+                        onClick={() => { setLightboxUrl(idPhoto); setLightboxZoom(1); setLightboxRotate(0); }}
+                        className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 transition"
+                      >
+                        <ZoomIn className="w-4 h-4" /> Zoom & inspect
+                      </button>
+                    )}
                     <div className="flex items-center gap-2 ml-auto">
                       <button
                         onClick={() => {
                           setFields({ ...fields, idVerified: true, accountApproved: true });
                           setTimeout(handleSave, 100);
                         }}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 transition"
+                        className="flex items-center gap-1.5 px-5 py-2.5 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 transition shadow-sm"
                       >
                         <CheckCircle className="w-4 h-4" /> Approve ID & Account
                       </button>
                       <button
                         onClick={() => {
-                          setFields({ ...fields, idVerified: false });
+                          setFields({ ...fields, idVerified: false, accountApproved: false });
                           setTimeout(handleSave, 100);
                         }}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm font-medium hover:bg-red-100 transition"
+                        className="flex items-center gap-1.5 px-5 py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm font-bold hover:bg-red-100 transition"
                       >
                         <XCircle className="w-4 h-4" /> Reject
                       </button>
@@ -453,10 +605,11 @@ export default function AdminEditUserPage() {
                   </div>
                 </>
               ) : (
-                <div className="text-center py-10 text-gray-400">
-                  <FileText className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                  <p className="text-sm">No ID document uploaded yet.</p>
-                  <p className="text-xs mt-1">The user has not submitted their government ID.</p>
+                <div className="text-center py-14 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                  <FileText className="w-14 h-14 text-gray-300 mx-auto mb-3" />
+                  <p className="text-base font-medium text-gray-600">No ID document uploaded</p>
+                  <p className="text-sm text-gray-400 mt-1">This user has not submitted their government ID yet.</p>
+                  <p className="text-xs text-gray-400 mt-2">They will be prompted to upload it in their dashboard.</p>
                 </div>
               )}
             </div>
@@ -465,40 +618,48 @@ export default function AdminEditUserPage() {
             {(isStudent || transcript) && (
               <div className="bg-white rounded-2xl border border-gray-100 p-5">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                    <Star className="w-4 h-4 text-purple-500" /> Student Transcript
+                  <h3 className="font-semibold text-gray-900 flex items-center gap-2 text-lg">
+                    <Star className="w-5 h-5 text-purple-500" /> Student Transcript
                   </h3>
                   {(raw.studentVerified as boolean) ? (
-                    <span className="flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-50 px-3 py-1 rounded-full">
-                      <BadgeCheck className="w-3.5 h-3.5" /> Verified Student
+                    <span className="flex items-center gap-1.5 text-xs font-bold text-green-700 bg-green-100 px-3 py-1.5 rounded-full">
+                      <BadgeCheck className="w-4 h-4" /> Verified Student
                     </span>
                   ) : (
-                    <span className="flex items-center gap-1 text-xs text-amber-700 bg-amber-50 px-3 py-1 rounded-full">
-                      <AlertTriangle className="w-3.5 h-3.5" /> Pending
+                    <span className="flex items-center gap-1.5 text-xs font-bold text-amber-700 bg-amber-100 px-3 py-1.5 rounded-full">
+                      <AlertTriangle className="w-4 h-4" /> Pending
                     </span>
                   )}
                 </div>
 
                 {transcript ? (
                   <>
-                    <div className="relative rounded-xl overflow-hidden border border-gray-100 bg-gray-50 mb-4" style={{ maxHeight: 340 }}>
-                      {/* Try as image first; if it's a PDF the link below handles it */}
+                    <div
+                      className="relative rounded-xl overflow-hidden border-2 border-gray-200 bg-gray-50 mb-4 cursor-zoom-in group"
+                      onClick={() => { setLightboxUrl(transcript); setLightboxZoom(1); setLightboxRotate(0); }}
+                    >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={transcript}
                         alt="Student Transcript"
-                        className="w-full object-contain max-h-80"
+                        className="w-full object-contain"
+                        style={{ maxHeight: 500 }}
                         onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                       />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition flex items-center justify-center opacity-0 group-hover:opacity-100">
+                        <div className="bg-white/90 backdrop-blur px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-sm font-medium text-gray-700 shadow-lg">
+                          <ZoomIn className="w-4 h-4" /> Click to zoom
+                        </div>
+                      </div>
                     </div>
                     <div className="flex items-center gap-3">
                       <a
                         href={transcript}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 text-xs text-[#4361EE] hover:underline"
+                        className="flex items-center gap-1.5 text-sm text-[#4361EE] hover:underline font-medium"
                       >
-                        <ExternalLink className="w-3.5 h-3.5" /> View document
+                        <ExternalLink className="w-4 h-4" /> View document
                       </a>
                       <div className="flex items-center gap-2 ml-auto">
                         <button
@@ -506,7 +667,7 @@ export default function AdminEditUserPage() {
                             await updateDoc(doc(db, "users", uid), { studentVerified: true });
                             setUser(prev => prev ? { ...prev, studentVerified: true } as unknown as UserProfile : prev);
                           }}
-                          className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 text-white rounded-xl text-sm font-medium hover:bg-purple-700 transition"
+                          className="flex items-center gap-1.5 px-5 py-2.5 bg-purple-600 text-white rounded-xl text-sm font-bold hover:bg-purple-700 transition shadow-sm"
                         >
                           <BadgeCheck className="w-4 h-4" /> Verify Student
                         </button>
@@ -515,7 +676,7 @@ export default function AdminEditUserPage() {
                             await updateDoc(doc(db, "users", uid), { studentVerified: false });
                             setUser(prev => prev ? { ...prev, studentVerified: false } as unknown as UserProfile : prev);
                           }}
-                          className="flex items-center gap-1.5 px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm font-medium hover:bg-red-100 transition"
+                          className="flex items-center gap-1.5 px-5 py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm font-bold hover:bg-red-100 transition"
                         >
                           <XCircle className="w-4 h-4" /> Reject
                         </button>
@@ -523,22 +684,83 @@ export default function AdminEditUserPage() {
                     </div>
                   </>
                 ) : (
-                  <div className="text-center py-10 text-gray-400">
-                    <Star className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                    <p className="text-sm">User marked as student but no transcript uploaded yet.</p>
+                  <div className="text-center py-14 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                    <Star className="w-14 h-14 text-gray-300 mx-auto mb-3" />
+                    <p className="text-base font-medium text-gray-600">No transcript uploaded</p>
+                    <p className="text-sm text-gray-400 mt-1">User marked as student but transcript not yet submitted.</p>
                   </div>
                 )}
               </div>
             )}
 
             {!idPhoto && !transcript && !isStudent && (
-              <div className="text-center py-8 text-gray-400 text-sm bg-white rounded-2xl border border-gray-100">
+              <div className="text-center py-12 text-gray-400 text-sm bg-white rounded-2xl border border-gray-100">
+                <FileText className="w-10 h-10 mx-auto mb-2 opacity-30" />
                 No documents to review for this user.
               </div>
             )}
           </div>
         );
       })()}
+
+      {/* Lightbox / Full-Screen Image Viewer */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center"
+          onClick={() => setLightboxUrl(null)}
+        >
+          {/* Controls */}
+          <div className="absolute top-4 right-4 flex items-center gap-2 z-50" onClick={e => e.stopPropagation()}>
+            <button
+              onClick={() => setLightboxZoom(z => Math.min(z + 0.5, 4))}
+              className="w-10 h-10 bg-white/20 hover:bg-white/30 text-white rounded-xl flex items-center justify-center transition backdrop-blur"
+              title="Zoom in"
+            >
+              <ZoomIn className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setLightboxZoom(z => Math.max(z - 0.5, 0.5))}
+              className="w-10 h-10 bg-white/20 hover:bg-white/30 text-white rounded-xl flex items-center justify-center transition backdrop-blur"
+              title="Zoom out"
+            >
+              <ZoomOut className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setLightboxRotate(r => r + 90)}
+              className="w-10 h-10 bg-white/20 hover:bg-white/30 text-white rounded-xl flex items-center justify-center transition backdrop-blur"
+              title="Rotate"
+            >
+              <RotateCw className="w-5 h-5" />
+            </button>
+            <span className="text-white/60 text-sm font-mono mx-2">{Math.round(lightboxZoom * 100)}%</span>
+            <button
+              onClick={() => setLightboxUrl(null)}
+              className="w-10 h-10 bg-red-500/80 hover:bg-red-600 text-white rounded-xl flex items-center justify-center transition"
+              title="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          {/* Image */}
+          <div className="overflow-auto max-w-full max-h-full p-8" onClick={e => e.stopPropagation()}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={lightboxUrl}
+              alt="Document"
+              className="max-w-none transition-transform duration-200"
+              style={{
+                transform: `scale(${lightboxZoom}) rotate(${lightboxRotate}deg)`,
+                transformOrigin: "center center",
+              }}
+              draggable={false}
+            />
+          </div>
+          {/* Zoom hint */}
+          <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/50 text-xs">
+            Click backdrop to close • Use controls to zoom & rotate
+          </p>
+        </div>
+      )}
 
       {/* Transactions Tab */}
       {tab === "transactions" && (

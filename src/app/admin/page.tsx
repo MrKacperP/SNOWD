@@ -24,6 +24,8 @@ import {
   UserPlus,
   FileText,
   CheckCheck,
+  Headphones,
+  Clock,
 } from "lucide-react";
 import Link from "next/link";
 import { format, subDays } from "date-fns";
@@ -82,6 +84,19 @@ export default function AdminOverviewPage() {
   const [showNotifs, setShowNotifs] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
 
+  // Support chats - live inbox
+  type SupportChat = {
+    id: string;
+    userId: string;
+    userName: string;
+    userRole: string;
+    lastMessage: string;
+    status: string;
+    updatedAt: { seconds: number } | Date | null;
+    problemCategory?: string;
+  };
+  const [supportChats, setSupportChats] = useState<SupportChat[]>([]);
+
   const unreadCount = notifs.filter((n) => !n.read).length;
 
   // Close dropdown on outside click
@@ -107,6 +122,32 @@ export default function AdminOverviewPage() {
         snap.docs.map((d) => ({ id: d.id, ...d.data() } as AdminNotif))
       );
     });
+    return () => unsub();
+  }, []);
+
+  // Real-time listener for support chats
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "supportChats"), (snap) => {
+      const chats = snap.docs.map((d) => {
+        const data = d.data();
+        return {
+          id: d.id,
+          userId: data.userId || "",
+          userName: data.userName || "Unknown",
+          userRole: data.userRole || "client",
+          lastMessage: data.lastMessage || "",
+          status: data.status || "open",
+          updatedAt: data.updatedAt || data.lastMessageTime || null,
+          problemCategory: data.problemCategory || "",
+        } as SupportChat;
+      });
+      chats.sort((a, b) => {
+        const aMs = a.updatedAt && typeof a.updatedAt === "object" && "seconds" in a.updatedAt ? a.updatedAt.seconds * 1000 : 0;
+        const bMs = b.updatedAt && typeof b.updatedAt === "object" && "seconds" in b.updatedAt ? b.updatedAt.seconds * 1000 : 0;
+        return bMs - aMs;
+      });
+      setSupportChats(chats);
+    }, () => {});
     return () => unsub();
   }, []);
 
@@ -164,10 +205,10 @@ export default function AdminOverviewPage() {
         const now = Date.now();
         const weekAgo = subDays(new Date(), 7);
 
-        const realUsers = users.filter((u) => u.role !== "employee");
+        const realUsers = users.filter((u) => u.role !== "employee" && u.role !== "admin");
 
-        // Pending approvals
-        const pending = users.filter((u) => (u as unknown as Record<string, unknown>).accountApproved === false);
+        // Pending approvals (exclude admin and employees)
+        const pending = users.filter((u) => u.role !== "admin" && u.role !== "employee" && (u as unknown as Record<string, unknown>).accountApproved === false);
         setPendingUsers(pending);
 
         const onlineUsers = realUsers.filter((u) => {
@@ -200,9 +241,9 @@ export default function AdminOverviewPage() {
         });
         setRevenueData(Object.entries(revDays).map(([date, revenue]) => ({ date, revenue: Math.round(revenue * 100) / 100 })));
 
-        // Role breakdown (exclude employees)
-        const counts: Record<string, number> = { Client: 0, Operator: 0, Admin: 0 };
-        realUsers.forEach((u) => { const key = u.role.charAt(0).toUpperCase() + u.role.slice(1); counts[key] = (counts[key] || 0) + 1; });
+        // Role breakdown (exclude employees and admin)
+        const counts: Record<string, number> = { Client: 0, Operator: 0 };
+        realUsers.forEach((u) => { const key = u.role.charAt(0).toUpperCase() + u.role.slice(1); if (counts[key] !== undefined) counts[key] = (counts[key] || 0) + 1; });
         setRoleData(Object.entries(counts).filter(([, v]) => v > 0).map(([name, value]) => ({ name, value })));
 
         // Active jobs with names
@@ -327,8 +368,9 @@ export default function AdminOverviewPage() {
             )}
           </div>
 
-          <Link href="/admin/users" className="px-4 py-2 bg-[#4361EE] text-white rounded-xl text-sm font-medium hover:bg-[#3651D4] transition flex items-center gap-2"><Users className="w-4 h-4" /> Manage Users</Link>
-          <Link href="/admin/analytics" className="px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 transition flex items-center gap-2"><BarChart3 className="w-4 h-4" /> Analytics</Link>
+          <Link href="/admin/users" className="px-4 py-2 bg-[#4361EE] text-white rounded-xl text-sm font-medium hover:bg-[#3651D4] transition flex items-center gap-2"><Users className="w-4 h-4" /> Users</Link>
+          <Link href="/admin/jobs" className="px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 transition flex items-center gap-2"><Briefcase className="w-4 h-4" /> Jobs</Link>
+          <Link href="/admin/settings" className="px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 transition flex items-center gap-2"><Shield className="w-4 h-4" /> Settings</Link>
         </div>
       </div>
 
@@ -355,6 +397,34 @@ export default function AdminOverviewPage() {
             <div><p className="text-lg font-bold text-gray-900">{card.value}</p><p className="text-[10px] text-gray-500">{card.label}</p></div>
           </Link>
         ))}
+      </div>
+
+      {/* Quick Actions */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5">
+        <h2 className="font-bold text-gray-900 flex items-center gap-2 mb-4">
+          <Zap className="w-4 h-4 text-[#4361EE]" /> Quick Actions
+        </h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2">
+          {[
+            { href: "/admin/users", label: "Manage Users", icon: Users, color: "text-[#4361EE]", bg: "bg-[#4361EE]/10" },
+            { href: "/admin/jobs", label: "Manage Jobs", icon: Briefcase, color: "text-orange-600", bg: "bg-orange-50" },
+            { href: "/admin/chats", label: "Support Chats", icon: Headphones, color: "text-purple-600", bg: "bg-purple-50" },
+            { href: "/admin/transactions", label: "Transactions", icon: DollarSign, color: "text-green-600", bg: "bg-green-50" },
+            { href: "/admin/claims", label: "Claims", icon: AlertTriangle, color: "text-red-600", bg: "bg-red-50" },
+            { href: "/admin/settings", label: "Settings", icon: Shield, color: "text-gray-600", bg: "bg-gray-100" },
+          ].map(action => (
+            <Link
+              key={action.href}
+              href={action.href}
+              className="flex flex-col items-center gap-2 p-4 rounded-xl border border-gray-100 hover:border-[#4361EE]/20 hover:shadow-sm transition text-center"
+            >
+              <div className={`w-10 h-10 ${action.bg} rounded-xl flex items-center justify-center`}>
+                <action.icon className={`w-5 h-5 ${action.color}`} />
+              </div>
+              <span className="text-xs font-medium text-gray-700">{action.label}</span>
+            </Link>
+          ))}
+        </div>
       </div>
 
       {/* Pending Approvals Section */}
@@ -386,6 +456,60 @@ export default function AdminOverviewPage() {
                     </div>
                   </div>
                   <ArrowUpRight className="w-4 h-4 text-orange-400 shrink-0" />
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Support Inbox ────────────────────────────────────────────────── */}
+      {supportChats.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-bold text-gray-900 flex items-center gap-2">
+              <Headphones className="w-4 h-4 text-[#4361EE]" /> Support Inbox
+              {supportChats.filter((c) => c.status === "open").length > 0 && (
+                <span className="ml-1 px-2 py-0.5 bg-red-100 text-red-600 text-[10px] rounded-full font-bold">
+                  {supportChats.filter((c) => c.status === "open").length} open
+                </span>
+              )}
+            </h2>
+            <Link href="/admin/chats" className="text-xs text-[#4361EE] hover:underline">View all chats →</Link>
+          </div>
+          <div className="space-y-2 max-h-[300px] overflow-y-auto">
+            {supportChats.slice(0, 8).map((chat) => {
+              const ts = chat.updatedAt && typeof chat.updatedAt === "object" && "seconds" in chat.updatedAt
+                ? format(new Date(chat.updatedAt.seconds * 1000), "MMM d, h:mm a")
+                : "—";
+              return (
+                <Link
+                  key={chat.id}
+                  href="/admin/chats"
+                  className="flex items-center gap-3 p-3 rounded-xl border border-gray-50 hover:border-[#4361EE]/20 hover:shadow-sm transition"
+                >
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
+                    chat.status === "open" ? "bg-red-50 text-red-600" : "bg-green-50 text-green-600"
+                  }`}>
+                    {chat.userName?.charAt(0)?.toUpperCase() || "?"}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-gray-900 truncate">{chat.userName}</p>
+                      {chat.problemCategory && (
+                        <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full">{chat.problemCategory}</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 truncate">{chat.lastMessage || "No messages yet"}</p>
+                  </div>
+                  <div className="flex flex-col items-end shrink-0">
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium capitalize ${
+                      chat.status === "open" ? "bg-red-100 text-red-600" : chat.status === "resolved" ? "bg-green-100 text-green-600" : "bg-gray-100 text-gray-500"
+                    }`}>
+                      {chat.status}
+                    </span>
+                    <span className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-0.5"><Clock className="w-3 h-3" />{ts}</span>
+                  </div>
                 </Link>
               );
             })}
@@ -477,7 +601,7 @@ export default function AdminOverviewPage() {
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {recentUsers.map((u) => (
-            <Link key={u.uid} href={`/dashboard/u/${u.uid}`} className="flex items-center gap-3 p-3 rounded-xl border border-gray-50 hover:border-[#4361EE]/20 hover:shadow-sm transition">
+            <Link key={u.uid} href={`/admin/users/${u.uid}`} className="flex items-center gap-3 p-3 rounded-xl border border-gray-50 hover:border-[#4361EE]/20 hover:shadow-sm transition">
               <div className="w-9 h-9 bg-[#4361EE]/10 rounded-full flex items-center justify-center text-[#4361EE] font-bold text-sm shrink-0">{u.displayName?.charAt(0)?.toUpperCase() || "?"}</div>
               <div className="min-w-0"><p className="text-sm font-medium text-gray-900 truncate">{u.displayName}</p><p className="text-[10px] text-gray-400 capitalize">{u.role} • {u.city || "—"}</p></div>
             </Link>

@@ -78,8 +78,12 @@ function Counter({ target, suffix = "" }: { target: number; suffix?: string }) {
 
 /* ── Subtle snowflakes ─────────────────────────────────────────────── */
 function SnowBG() {
-  const flakes = useMemo(
-    () =>
+  const [flakes, setFlakes] = useState<
+    { id: number; left: number; delay: number; dur: number; size: number; op: number }[]
+  >([]);
+
+  useEffect(() => {
+    setFlakes(
       Array.from({ length: 18 }, (_, i) => ({
         id: i,
         left: Math.random() * 100,
@@ -87,9 +91,11 @@ function SnowBG() {
         dur: 8 + Math.random() * 12,
         size: 6 + Math.random() * 10,
         op: 0.04 + Math.random() * 0.08,
-      })),
-    []
-  );
+      }))
+    );
+  }, []);
+
+  if (flakes.length === 0) return null;
 
   return (
     <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">

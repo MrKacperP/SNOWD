@@ -354,6 +354,48 @@ export default function AdminChatsPage() {
                     {selectedTicket.status}
                   </span>
                 </div>
+                {/* Status Change Actions */}
+                <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100">
+                  {selectedTicket.status !== "resolved" && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          await updateDoc(doc(db, "supportChats", selectedTicket.id), { status: "resolved", updatedAt: new Date() });
+                          setSelectedTicket({ ...selectedTicket, status: "resolved" });
+                        } catch (e) { console.error(e); }
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 transition"
+                    >
+                      <CheckCircle className="w-3.5 h-3.5" /> Mark Resolved
+                    </button>
+                  )}
+                  {selectedTicket.status !== "in-progress" && selectedTicket.status !== "resolved" && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          await updateDoc(doc(db, "supportChats", selectedTicket.id), { status: "in-progress", updatedAt: new Date() });
+                          setSelectedTicket({ ...selectedTicket, status: "in-progress" });
+                        } catch (e) { console.error(e); }
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 text-white text-xs font-semibold rounded-lg hover:bg-amber-600 transition"
+                    >
+                      <Clock className="w-3.5 h-3.5" /> Mark In Progress
+                    </button>
+                  )}
+                  {selectedTicket.status === "resolved" && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          await updateDoc(doc(db, "supportChats", selectedTicket.id), { status: "open", updatedAt: new Date() });
+                          setSelectedTicket({ ...selectedTicket, status: "open" });
+                        } catch (e) { console.error(e); }
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-600 text-white text-xs font-semibold rounded-lg hover:bg-gray-700 transition"
+                    >
+                      <AlertTriangle className="w-3.5 h-3.5" /> Reopen
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Support messages */}

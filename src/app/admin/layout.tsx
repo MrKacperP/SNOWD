@@ -19,6 +19,8 @@ import {
   Home,
   Phone,
   UserCog,
+  Briefcase,
+  ExternalLink,
 } from "lucide-react";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -46,12 +48,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const allNavItems = [
     { href: "/admin", label: "Overview", icon: Home, permission: null },
     { href: "/admin/users", label: "Users", icon: Users, permission: "users" },
+    { href: "/admin/jobs", label: "Jobs", icon: Briefcase, permission: null },
     { href: "/admin/chats", label: "Chats", icon: MessageSquare, permission: "chats" },
     { href: "/admin/calls", label: "Calls", icon: Phone, permission: "calls" },
     { href: "/admin/transactions", label: "Transactions", icon: DollarSign, permission: "transactions" },
     { href: "/admin/claims", label: "Claims", icon: AlertTriangle, permission: "claims" },
     { href: "/admin/analytics", label: "Analytics", icon: BarChart3, permission: "analytics" },
-    ...(isAdmin ? [{ href: "/admin/employees", label: "Employees", icon: UserCog, permission: null }] : []),
+    ...(isAdmin ? [
+      { href: "/admin/employees", label: "Employees", icon: UserCog, permission: null },
+      { href: "/admin/settings", label: "Settings", icon: Settings, permission: null },
+    ] : []),
   ];
 
   const navItems = allNavItems.filter(item =>
@@ -89,7 +95,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             );
           })}
         </nav>
-        <div className="p-4 border-t border-gray-100">
+        <div className="p-4 border-t border-gray-100 space-y-2">
+          <Link
+            href="/dashboard"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#4361EE] hover:bg-[#4361EE]/5 transition font-medium"
+          >
+            <ExternalLink className="w-5 h-5" />
+            View Live App
+          </Link>
           <button
             onClick={async () => { await signOut(); router.push("/login"); }}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 transition font-medium"
