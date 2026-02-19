@@ -6,6 +6,7 @@ import { db } from "@/lib/firebase";
 import { UserProfile } from "@/lib/types";
 import { Users, Search, Edit3, Trash2, Shield, Eye, X, Save, ExternalLink } from "lucide-react";
 import Link from "next/link";
+import DeleteConfirmPopup from "@/components/DeleteConfirmPopup";
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -14,6 +15,8 @@ export default function AdminUsersPage() {
   const [roleFilter, setRoleFilter] = useState<"all" | "client" | "operator" | "admin">("all");
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [editFields, setEditFields] = useState<Record<string, unknown>>({});
+  const [deletingUser, setDeletingUser] = useState<UserProfile | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -48,6 +51,7 @@ export default function AdminUsersPage() {
       city: user.city,
       province: user.province,
       idVerified: (user as unknown as Record<string, unknown>).idVerified || false,
+      accountApproved: (user as unknown as Record<string, unknown>).accountApproved || false,
     });
   };
 
@@ -63,13 +67,17 @@ export default function AdminUsersPage() {
     }
   };
 
-  const handleDelete = async (uid: string) => {
-    if (!confirm("Delete this user? This cannot be undone.")) return;
+  const handleDelete = async () => {
+    if (!deletingUser) return;
+    setDeleteLoading(true);
     try {
-      await deleteDoc(doc(db, "users", uid));
-      setUsers(users.filter(u => u.uid !== uid));
+      await deleteDoc(doc(db, "users", deletingUser.uid));
+      setUsers(users.filter(u => u.uid !== deletingUser.uid));
+      setDeletingUser(null);
     } catch (error) {
       console.error("Error deleting user:", error);
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -126,6 +134,9 @@ export default function AdminUsersPage() {
                     "bg-[#4361EE]/10 text-[#4361EE]"
                   }`}>{user.role}</span>
                   <span className="text-xs text-gray-400">{user.city}, {user.province}</span>
+                  {(user as unknown as Record<string, unknown>).accountApproved === false && (
+                    <span className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-medium">Pending Approval</span>
+                  )}
                   {(user as unknown as Record<string, unknown>).idVerified === true && (
                     <span className="text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full font-medium">ID Verified</span>
                   )}
@@ -142,7 +153,7 @@ export default function AdminUsersPage() {
                   <Edit3 className="w-4 h-4" />
                 </button>
                 {user.role !== "admin" && (
-                  <button onClick={() => handleDelete(user.uid)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition" title="Delete">
+                  <button onClick={() => setDeletingUser(user)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition" title="Delete">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 )}
@@ -151,6 +162,17 @@ export default function AdminUsersPage() {
           ))}
         </div>
       )}
+
+      {/* Delete Confirmation */}
+      <DeleteConfirmPopup
+        isOpen={!!deletingUser}
+        onConfirm={handleDelete}
+        onCancel={() => setDeletingUser(null)}
+        title="Delete this user?"
+        itemName={deletingUser ? `${deletingUser.displayName} (${deletingUser.email})` : undefined}
+        message="This will permanently remove this user and all their associated data from the platform."
+        loading={deleteLoading}
+      />
 
       {/* Edit Modal */}
       {editingUser && (
@@ -188,6 +210,15 @@ export default function AdminUsersPage() {
                 <option value="admin">Admin</option>
               </select>
             </div>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={Boolean(editFields.accountApproved)}
+                onChange={e => setEditFields({ ...editFields, accountApproved: e.target.checked })}
+                className="rounded"
+              />
+              <span className="text-sm text-gray-700">Account Approved</span>
+            </label>
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"

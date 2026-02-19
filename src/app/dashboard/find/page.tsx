@@ -189,6 +189,20 @@ export default function FindOperatorsPage() {
     setBooking(true);
 
     try {
+      // Check if client already has an active job (one at a time limit)
+      const activeJobsQuery = query(
+        collection(db, "jobs"),
+        where("clientId", "==", user.uid)
+      );
+      const activeJobsSnap = await getDocs(activeJobsQuery);
+      const activeStatuses = ["pending", "accepted", "en-route", "in-progress"];
+      const hasActiveJob = activeJobsSnap.docs.some(d => activeStatuses.includes(d.data().status));
+      if (hasActiveJob) {
+        alert("You already have an active job. Please complete or cancel your current job before requesting a new one.");
+        setBooking(false);
+        return;
+      }
+
       // Check if there's an existing chat with this operator
       const chatsQuery = query(
         collection(db, "chats"),

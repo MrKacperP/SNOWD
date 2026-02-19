@@ -62,6 +62,7 @@ export default function AdminEditUserPage() {
             postalCode: data.postalCode || "",
             address: data.address || "",
             idVerified: (data as unknown as Record<string, unknown>).idVerified || false,
+            accountApproved: (data as unknown as Record<string, unknown>).accountApproved || false,
             isOnline: data.isOnline || false,
             bio: (data as unknown as Record<string, unknown>).bio || "",
             businessName: (data as unknown as Record<string, unknown>).businessName || "",
@@ -316,6 +317,7 @@ export default function AdminEditUserPage() {
           {/* Toggles */}
           <div className="border-t border-gray-100 pt-4 space-y-3">
             {[
+              { key: "accountApproved", label: "Account Approved", desc: "Allow this user to access the platform" },
               { key: "idVerified", label: "ID Verified", desc: "Mark this user as identity-verified" },
               { key: "isOnline", label: "Online", desc: "Force online/offline status" },
             ].map(({ key, label, desc }) => (
@@ -431,12 +433,12 @@ export default function AdminEditUserPage() {
                     <div className="flex items-center gap-2 ml-auto">
                       <button
                         onClick={() => {
-                          setFields({ ...fields, idVerified: true });
+                          setFields({ ...fields, idVerified: true, accountApproved: true });
                           setTimeout(handleSave, 100);
                         }}
                         className="flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 transition"
                       >
-                        <CheckCircle className="w-4 h-4" /> Approve ID
+                        <CheckCircle className="w-4 h-4" /> Approve ID & Account
                       </button>
                       <button
                         onClick={() => {

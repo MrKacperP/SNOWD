@@ -31,6 +31,7 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [pendingJobCount, setPendingJobCount] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
   const { weather } = useWeather();
 
@@ -80,6 +81,20 @@ export default function Navbar() {
     });
     return () => unsubscribe();
   }, [profile?.uid]);
+
+  // Listen for pending job notifications (operators)
+  useEffect(() => {
+    if (!profile?.uid || isClient) return;
+    const q = query(
+      collection(db, "jobs"),
+      where("operatorId", "==", profile.uid),
+      where("status", "==", "pending")
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setPendingJobCount(snapshot.docs.length);
+    });
+    return () => unsubscribe();
+  }, [profile?.uid, isClient]);
 
   const toggleOnlineStatus = async () => {
     if (!profile?.uid) return;
@@ -132,6 +147,7 @@ export default function Navbar() {
             const Icon = item.icon;
             const active = pathname === item.href;
             const isMessages = item.href.includes("messages");
+            const isJobs = item.href.includes("jobs");
             return (
               <Link
                 key={item.href}
@@ -147,6 +163,11 @@ export default function Navbar() {
                 {isMessages && unreadCount > 0 && (
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 unread-badge">
                     {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+                {isJobs && pendingJobCount > 0 && (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 bg-orange-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] px-[5px] rounded-[9px] flex items-center justify-center shadow-md shadow-orange-500/30">
+                    {pendingJobCount > 9 ? "9+" : pendingJobCount}
                   </span>
                 )}
               </Link>
@@ -284,6 +305,7 @@ export default function Navbar() {
                 const Icon = item.icon;
                 const active = pathname === item.href;
                 const isMessages = item.href.includes("messages");
+                const isJobs = item.href.includes("jobs");
                 return (
                   <Link
                     key={item.href}
@@ -300,6 +322,11 @@ export default function Navbar() {
                     {isMessages && unreadCount > 0 && (
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 unread-badge">
                         {unreadCount > 9 ? "9+" : unreadCount}
+                      </span>
+                    )}
+                    {isJobs && pendingJobCount > 0 && (
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 bg-orange-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] px-[5px] rounded-[9px] flex items-center justify-center shadow-md shadow-orange-500/30">
+                        {pendingJobCount > 9 ? "9+" : pendingJobCount}
                       </span>
                     )}
                   </Link>
@@ -338,6 +365,7 @@ export default function Navbar() {
           const Icon = item.icon;
           const active = pathname === item.href;
           const isMessages = item.href.includes("messages");
+          const isJobs = item.href.includes("jobs");
           return (
             <Link
               key={item.href}
@@ -351,6 +379,11 @@ export default function Navbar() {
               {isMessages && unreadCount > 0 && (
                 <span className="absolute top-0.5 left-1/2 translate-x-1 unread-badge" style={{ fontSize: '9px', minWidth: '16px', height: '16px' }}>
                   {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+              {isJobs && pendingJobCount > 0 && (
+                <span className="absolute top-0.5 left-1/2 translate-x-1 bg-orange-500 text-white font-bold rounded-full flex items-center justify-center shadow-md shadow-orange-500/30" style={{ fontSize: '9px', minWidth: '16px', height: '16px', padding: '0 4px' }}>
+                  {pendingJobCount > 9 ? "9+" : pendingJobCount}
                 </span>
               )}
               {active && (

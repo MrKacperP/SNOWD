@@ -6,7 +6,18 @@
    ======================================== */
 
 * {
+  font-family: 'Roboto', -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+}
+
+/* Ensure form elements inherit fonts (browsers reset these) */
+button, input, select, textarea {
+  font-family: inherit;
+}
+
+h1, h2, h3, h4, h5, h6,
+.font-headline {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
 :root {

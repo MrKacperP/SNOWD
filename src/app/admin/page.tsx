@@ -56,6 +56,7 @@ export default function AdminOverviewPage() {
     totalChats: 0,
     onlineUsers: 0,
     newUsersWeek: 0,
+    pendingApprovals: 0,
   });
   const [loading, setLoading] = useState(true);
   const [recentActivity, setRecentActivity] = useState<
@@ -63,6 +64,7 @@ export default function AdminOverviewPage() {
   >([]);
   const [recentUsers, setRecentUsers] = useState<UserProfile[]>([]);
   const [activeJobsList, setActiveJobsList] = useState<(Job & { clientName?: string; operatorName?: string })[]>([]);
+  const [pendingUsers, setPendingUsers] = useState<UserProfile[]>([]);
   const [revenueData, setRevenueData] = useState<{ date: string; revenue: number }[]>([]);
   const [roleData, setRoleData] = useState<{ name: string; value: number }[]>([]);
 
@@ -162,13 +164,19 @@ export default function AdminOverviewPage() {
         const now = Date.now();
         const weekAgo = subDays(new Date(), 7);
 
-        const onlineUsers = users.filter((u) => {
+        const realUsers = users.filter((u) => u.role !== "employee");
+
+        // Pending approvals
+        const pending = users.filter((u) => (u as unknown as Record<string, unknown>).accountApproved === false);
+        setPendingUsers(pending);
+
+        const onlineUsers = realUsers.filter((u) => {
           if (u.isOnline) return true;
           const lastSeen = toMs(u.lastSeen);
           return lastSeen > 0 && now - lastSeen < 5 * 60 * 1000;
         }).length;
 
-        const newUsersWeek = users.filter((u) => {
+        const newUsersWeek = realUsers.filter((u) => {
           const created = toMs(u.createdAt);
           return created >= weekAgo.getTime();
         }).length;
@@ -192,9 +200,9 @@ export default function AdminOverviewPage() {
         });
         setRevenueData(Object.entries(revDays).map(([date, revenue]) => ({ date, revenue: Math.round(revenue * 100) / 100 })));
 
-        // Role breakdown
+        // Role breakdown (exclude employees)
         const counts: Record<string, number> = { Client: 0, Operator: 0, Admin: 0 };
-        users.forEach((u) => { const key = u.role.charAt(0).toUpperCase() + u.role.slice(1); counts[key] = (counts[key] || 0) + 1; });
+        realUsers.forEach((u) => { const key = u.role.charAt(0).toUpperCase() + u.role.slice(1); counts[key] = (counts[key] || 0) + 1; });
         setRoleData(Object.entries(counts).filter(([, v]) => v > 0).map(([name, value]) => ({ name, value })));
 
         // Active jobs with names
@@ -217,9 +225,9 @@ export default function AdminOverviewPage() {
         setRecentActivity(activities.slice(0, 12));
 
         setStats({
-          totalUsers: users.length, totalClients: users.filter((u) => u.role === "client").length, totalOperators: users.filter((u) => u.role === "operator").length,
+          totalUsers: realUsers.length, totalClients: realUsers.filter((u) => u.role === "client").length, totalOperators: realUsers.filter((u) => u.role === "operator").length,
           totalJobs: jobs.length, activeJobs: active.length, completedJobs: jobs.filter((j) => j.status === "completed").length,
-          totalTransactions: txnSnap.docs.length, totalRevenue, openClaims: openClaims.length, totalChats: chatsSnap.docs.length, onlineUsers, newUsersWeek,
+          totalTransactions: txnSnap.docs.length, totalRevenue, openClaims: openClaims.length, totalChats: chatsSnap.docs.length, onlineUsers, newUsersWeek, pendingApprovals: pending.length,
         });
       } catch (error) {
         console.error("Error fetching admin stats:", error);
@@ -348,6 +356,42 @@ export default function AdminOverviewPage() {
           </Link>
         ))}
       </div>
+
+      {/* Pending Approvals Section */}
+      {pendingUsers.length > 0 && (
+        <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl border border-orange-200 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-bold text-orange-900 flex items-center gap-2">
+              <Shield className="w-4 h-4 text-orange-600" /> Pending Approvals
+              <span className="px-2 py-0.5 bg-orange-200 text-orange-800 text-xs rounded-full font-bold">{pendingUsers.length}</span>
+            </h2>
+            <Link href="/admin/users" className="text-xs text-orange-600 hover:underline">View all users →</Link>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {pendingUsers.slice(0, 6).map((u) => {
+              const raw = u as unknown as Record<string, unknown>;
+              const hasId = !!raw.idPhotoUrl;
+              return (
+                <Link key={u.uid} href={`/admin/users/${u.uid}`} className="flex items-center gap-3 p-3 bg-white rounded-xl border border-orange-100 hover:border-orange-300 hover:shadow-sm transition">
+                  <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center text-orange-600 font-bold text-sm shrink-0">{u.displayName?.charAt(0)?.toUpperCase() || "?"}</div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-gray-900 truncate">{u.displayName}</p>
+                    <p className="text-[10px] text-gray-500 capitalize truncate">{u.role} • {u.email}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      {hasId ? (
+                        <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">ID Uploaded</span>
+                      ) : (
+                        <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-medium">No ID</span>
+                      )}
+                    </div>
+                  </div>
+                  <ArrowUpRight className="w-4 h-4 text-orange-400 shrink-0" />
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Revenue Chart */}

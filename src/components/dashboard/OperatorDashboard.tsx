@@ -184,16 +184,22 @@ export default function OperatorDashboard() {
   const handleAcceptJob = async (jobId: string) => {
     setActionLoading(jobId);
     try {
-      // Check if there's already an in-progress job — queue this one instead
-      const inProgressJob = activeJobs.find((j) => j.status === "in-progress");
-      const newStatus = inProgressJob ? "accepted" : "accepted";
-      const queuePosition = inProgressJob
-        ? activeJobs.filter((j) => j.status === "accepted").length + 1
-        : 0;
+      // Enforce one active job at a time
+      const inProgressJob = activeJobs.find((j) => ["in-progress", "en-route"].includes(j.status));
+      if (inProgressJob) {
+        alert("You already have an active job in progress. Please complete it before accepting a new one.");
+        setActionLoading(null);
+        return;
+      }
+      const acceptedJob = activeJobs.find((j) => j.status === "accepted");
+      if (acceptedJob) {
+        alert("You already have an accepted job. Please complete or start it before accepting another.");
+        setActionLoading(null);
+        return;
+      }
 
       await updateDoc(doc(db, "jobs", jobId), {
-        status: newStatus,
-        queuePosition: queuePosition,
+        status: "accepted",
         updatedAt: new Date(),
       });
 
@@ -201,9 +207,7 @@ export default function OperatorDashboard() {
       const job = pendingJobs.find((j) => j.id === jobId);
       if (job?.chatId) {
         const { addDoc, collection: fbCollection, Timestamp } = await import("firebase/firestore");
-        const systemMessage = inProgressJob
-          ? `${operatorProfile?.displayName || "Operator"} accepted your job! They're currently completing another job and yours is next in the queue (Position #${queuePosition}). You'll be notified when they're on their way.`
-          : `${operatorProfile?.displayName || "Operator"} accepted your job!`;
+        const systemMessage = `${operatorProfile?.displayName || "Operator"} accepted your job!`;
 
         await addDoc(fbCollection(db, "messages"), {
           chatId: job.chatId,

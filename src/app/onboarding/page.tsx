@@ -223,6 +223,8 @@ export default function OnboardingPage() {
         themePreference: "light" as const,
         lat: lat || null,
         lng: lng || null,
+        accountApproved: false, // Requires admin approval before going live
+        idVerified: false,
       };
 
       if (role === "client") {
