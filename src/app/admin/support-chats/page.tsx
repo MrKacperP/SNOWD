@@ -128,6 +128,34 @@ export default function AdminSupportChatsPage() {
         status,
         updatedAt: new Date(),
       });
+
+      // Post a system message so the user sees the status change in their chat
+      const systemContent =
+        status === "resolved"
+          ? "✅ Your support request has been resolved. If you still need help, please reply below."
+          : status === "in-progress"
+          ? "👀 Our team is now reviewing your request. We\'ll get back to you shortly."
+          : status === "open"
+          ? "🔄 Your support request has been reopened. We will be in touch."
+          : `Status updated to ${status}`;
+
+      await addDoc(
+        collection(db, "supportChats", selectedTicket.id, "messages"),
+        {
+          senderId: "SNOWD_ADMIN",
+          senderName: "SNOWD Support",
+          type: "status-update",
+          statusValue: status,
+          content: systemContent,
+          createdAt: new Date(),
+          read: false,
+        }
+      );
+      await updateDoc(doc(db, "supportChats", selectedTicket.id), {
+        lastMessage: systemContent,
+        lastMessageTime: new Date(),
+      });
+
       setSelectedTicket((prev) => prev ? { ...prev, status: status as SupportTicket["status"] } : prev);
     } catch (e) { console.error(e); }
   };
@@ -156,7 +184,7 @@ export default function AdminSupportChatsPage() {
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Headphones className="w-6 h-6 text-[#4361EE]" />
+        <Headphones className="w-6 h-6 text-[#246EB9]" />
         <h1 className="text-2xl font-bold">Support Chats</h1>
         {counts.open > 0 && (
           <span className="bg-green-100 text-green-700 text-xs font-semibold px-2.5 py-1 rounded-full">
@@ -192,7 +220,7 @@ export default function AdminSupportChatsPage() {
                   {selectedTicket.userId.replace("support_", "")}
                 </p>
                 {(selectedTicket as EnrichedTicket & { problemCategory?: string }).problemCategory && (
-                  <p className="text-xs text-[#4361EE] mt-1 font-medium capitalize">
+                  <p className="text-xs text-[#246EB9] mt-1 font-medium capitalize">
                     Category: {(selectedTicket as EnrichedTicket & { problemCategory?: string }).problemCategory}
                   </p>
                 )}
@@ -245,13 +273,13 @@ export default function AdminSupportChatsPage() {
                     <div
                       className={`max-w-[75%] px-4 py-2.5 rounded-2xl ${
                         isAdmin
-                          ? "bg-[#4361EE] text-white rounded-br-md"
+                          ? "bg-[#246EB9] text-white rounded-br-md"
                           : "bg-gray-100 text-gray-900 rounded-bl-md"
                       }`}
                     >
                       <p
                         className={`text-xs font-medium mb-0.5 ${
-                          isAdmin ? "text-white/70" : "text-[#4361EE]"
+                          isAdmin ? "text-white/70" : "text-[#246EB9]"
                         }`}
                       >
                         {msg.senderName}
@@ -282,12 +310,12 @@ export default function AdminSupportChatsPage() {
                   e.key === "Enter" && !e.shiftKey && handleReply()
                 }
                 placeholder="Reply as SNOWD Support..."
-                className="flex-1 px-4 py-2.5 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4361EE]/20"
+                className="flex-1 px-4 py-2.5 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#246EB9]/20"
               />
               <button
                 onClick={handleReply}
                 disabled={!adminReply.trim() || replying}
-                className="w-10 h-10 bg-[#4361EE] hover:bg-[#3249D6] disabled:opacity-50 text-white rounded-xl flex items-center justify-center transition"
+                className="w-10 h-10 bg-[#246EB9] hover:bg-[#1B5A9A] disabled:opacity-50 text-white rounded-xl flex items-center justify-center transition"
               >
                 {replying ? (
                   <RefreshCw className="w-4 h-4 animate-spin" />
@@ -308,7 +336,7 @@ export default function AdminSupportChatsPage() {
                 onClick={() => setFilter(f)}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
                   filter === f
-                    ? "bg-white text-[#4361EE] shadow-sm"
+                    ? "bg-white text-[#246EB9] shadow-sm"
                     : "text-gray-500 hover:text-gray-800"
                 }`}
               >
@@ -316,7 +344,7 @@ export default function AdminSupportChatsPage() {
                 <span
                   className={`px-1.5 py-0.5 rounded-full text-[10px] ${
                     filter === f
-                      ? "bg-[#4361EE]/10 text-[#4361EE]"
+                      ? "bg-[#246EB9]/10 text-[#246EB9]"
                       : "bg-gray-200 text-gray-500"
                   }`}
                 >
@@ -329,7 +357,7 @@ export default function AdminSupportChatsPage() {
           {/* Ticket list */}
           {loading ? (
             <div className="flex items-center justify-center py-16">
-              <RefreshCw className="w-6 h-6 text-[#4361EE] animate-spin" />
+              <RefreshCw className="w-6 h-6 text-[#246EB9] animate-spin" />
             </div>
           ) : filtered.length === 0 ? (
             <div className="text-center py-16">

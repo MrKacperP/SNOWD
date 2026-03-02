@@ -9,7 +9,16 @@
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-export type AdminNotifType = "signup" | "visit" | "document_uploaded";
+export type AdminNotifType =
+  | "signup"
+  | "visit"
+  | "document_uploaded"
+  | "job_created"
+  | "payment"
+  | "login"
+  | "profile_saved"
+  | "job_status_change"
+  | "account_approved";
 
 export interface AdminNotifPayload {
   type: AdminNotifType;

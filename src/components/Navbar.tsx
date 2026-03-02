@@ -125,19 +125,19 @@ export default function Navbar() {
       <aside className="hidden md:flex flex-col w-64 bg-[var(--bg-card-solid)]/90 backdrop-blur-xl border-r border-[var(--border-color)] min-h-screen fixed left-0 top-0 z-30">
         <div className="p-6 border-b border-[var(--border-color)]">
           <Link href="/dashboard" className="flex items-center gap-1">
-            <span className="text-2xl font-extrabold text-[#4361EE]">
+            <span className="text-2xl font-extrabold text-[#246EB9]">
               snowd
             </span>
             <span className="text-2xl font-light text-gray-400">.ca</span>
           </Link>
           {weather && (
-            <div className="flex items-center gap-2 mt-3 px-3 py-2 bg-[#4361EE]/5 rounded-xl text-xs">
+            <div className="flex items-center gap-2 mt-3 px-3 py-2 bg-[#246EB9]/5 rounded-xl text-xs">
               <span className="text-lg">{weather.icon}</span>
               <div>
                 <span className="font-bold text-gray-900">{weather.temp}°C</span>
                 <span className="text-gray-500 ml-1">{weather.condition}</span>
                 {weather.snowChance > 0 && (
-                  <span className="ml-1.5 text-[#4361EE] font-semibold">❄️{weather.snowChance}%</span>
+                  <span className="ml-1.5 text-[#246EB9] font-semibold">❄️{weather.snowChance}%</span>
                 )}
               </div>
             </div>
@@ -156,7 +156,7 @@ export default function Navbar() {
                 href={item.href}
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-semibold tracking-wide relative ${
                   active
-                    ? "bg-[#4361EE]/10 text-[#4361EE] shadow-sm"
+                    ? "bg-[#246EB9]/10 text-[#246EB9] shadow-sm"
                     : "text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]"
                 }`}
               >
@@ -226,7 +226,7 @@ export default function Navbar() {
             className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-gray-50 transition"
           >
             <div className="relative">
-              <div className="w-9 h-9 bg-[#4361EE] rounded-full flex items-center justify-center text-white font-semibold text-sm">
+              <div className="w-9 h-9 bg-[#246EB9] rounded-full flex items-center justify-center text-white font-semibold text-sm">
                 {profile?.displayName?.charAt(0)?.toUpperCase() || "U"}
               </div>
               <div className={`absolute -bottom-0.5 -right-0.5 status-dot ${isOnline ? "online" : "offline"}`} />
@@ -245,20 +245,20 @@ export default function Navbar() {
       {/* Mobile top bar */}
       <header className="md:hidden fixed top-0 left-0 right-0 bg-[var(--bg-card-solid)]/90 backdrop-blur-xl border-b border-[var(--border-color)] z-30 px-4 py-3 flex items-center justify-between">
         <Link href="/dashboard" className="flex items-center gap-1">
-          <span className="text-xl font-extrabold text-[#4361EE]">
+          <span className="text-xl font-extrabold text-[#246EB9]">
             snowd
           </span>
           <span className="text-xl font-light text-[var(--text-muted)]">.ca</span>
         </Link>
         <div className="flex items-center gap-2">
           {weather && (
-            <div className="flex items-center gap-1 px-2 py-1 bg-[#4361EE]/10 rounded-lg text-xs">
+            <div className="flex items-center gap-1 px-2 py-1 bg-[#246EB9]/10 rounded-lg text-xs">
               <span>{weather.icon}</span>
               <span className="font-bold text-[var(--text-primary)]">{weather.temp}°</span>
             </div>
           )}
           <Link href={`/dashboard/u/${profile?.uid}`} className="relative">
-            <div className="w-8 h-8 bg-[#4361EE] rounded-full flex items-center justify-center text-white font-semibold text-xs">
+            <div className="w-8 h-8 bg-[#246EB9] rounded-full flex items-center justify-center text-white font-semibold text-xs">
               {profile?.displayName?.charAt(0)?.toUpperCase() || "U"}
             </div>
             <div className={`absolute -bottom-0.5 -right-0.5 status-dot ${isOnline ? "online" : "offline"}`} style={{ width: 8, height: 8 }} />
@@ -281,9 +281,9 @@ export default function Navbar() {
                 <X className="w-6 h-6" />
               </button>
             </div>
-            <div className="flex items-center gap-3 px-4 py-3 mb-2 bg-[#4361EE]/5 rounded-xl">
+            <div className="flex items-center gap-3 px-4 py-3 mb-2 bg-[#246EB9]/5 rounded-xl">
               <div className="relative">
-                <div className="w-10 h-10 bg-[#4361EE] rounded-full flex items-center justify-center text-white font-semibold">
+                <div className="w-10 h-10 bg-[#246EB9] rounded-full flex items-center justify-center text-white font-semibold">
                   {profile?.displayName?.charAt(0)?.toUpperCase() || "U"}
                 </div>
                 <div className={`absolute -bottom-0.5 -right-0.5 status-dot ${isOnline ? "online" : "offline"}`} />
@@ -315,7 +315,7 @@ export default function Navbar() {
                     onClick={() => setMobileOpen(false)}
                     className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-semibold tracking-wide relative ${
                       active
-                        ? "bg-[#4361EE]/10 text-[#4361EE]"
+                        ? "bg-[#246EB9]/10 text-[#246EB9]"
                         : "text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
                     }`}
                   >
@@ -339,7 +339,7 @@ export default function Navbar() {
                 onClick={() => setMobileOpen(false)}
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-semibold tracking-wide ${
                   pathname === "/dashboard/settings"
-                    ? "bg-[#4361EE]/10 text-[#4361EE]"
+                    ? "bg-[#246EB9]/10 text-[#246EB9]"
                     : "text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
                 }`}
               >
@@ -373,7 +373,7 @@ export default function Navbar() {
               key={item.href}
               href={item.href}
               className={`flex-1 flex flex-col items-center py-2 text-xs font-semibold transition-all duration-200 relative ${
-                active ? "text-[#4361EE]" : "text-gray-400"
+                active ? "text-[#246EB9]" : "text-gray-400"
               }`}
             >
               <Icon className="w-5 h-5 mb-0.5" />
@@ -389,7 +389,7 @@ export default function Navbar() {
                 </span>
               )}
               {active && (
-                <span className="absolute -bottom-0 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-[#4361EE] rounded-full" />
+                <span className="absolute -bottom-0 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-[#246EB9] rounded-full" />
               )}
             </Link>
           );

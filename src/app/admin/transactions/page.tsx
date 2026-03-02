@@ -107,7 +107,7 @@ export default function AdminTransactionsPage() {
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
-        <DollarSign className="w-6 h-6 text-[#4361EE]" />
+        <DollarSign className="w-6 h-6 text-[#246EB9]" />
         <h1 className="text-2xl font-bold">All Transactions</h1>
         <span className="text-sm text-gray-400">({transactions.length} total)</span>
       </div>
@@ -120,7 +120,7 @@ export default function AdminTransactionsPage() {
             placeholder="Search by client, operator, or ID..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4361EE]/20"
+            className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#246EB9]/20"
           />
         </div>
         <select
@@ -178,7 +178,7 @@ export default function AdminTransactionsPage() {
                   </div>
                   <div className="flex gap-2 justify-end">
                     <button onClick={() => setEditingId(null)} className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700"><X className="w-4 h-4" /></button>
-                    <button onClick={() => handleSave(tx.id)} className="px-4 py-1.5 bg-[#4361EE] text-white text-sm rounded-lg hover:bg-[#3651DE]"><Check className="w-4 h-4" /></button>
+                    <button onClick={() => handleSave(tx.id)} className="px-4 py-1.5 bg-[#246EB9] text-white text-sm rounded-lg hover:bg-[#3651DE]"><Check className="w-4 h-4" /></button>
                   </div>
                 </div>
               ) : (
@@ -196,7 +196,7 @@ export default function AdminTransactionsPage() {
                     <p className="text-xs text-gray-400 mt-0.5">{formatTime(tx.createdAt)} · ID: {tx.id.slice(0, 8)}…</p>
                   </div>
                   <div className="flex gap-1 shrink-0">
-                    <button onClick={() => handleEdit(tx)} className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-[#4361EE] transition"><Pencil className="w-4 h-4" /></button>
+                    <button onClick={() => handleEdit(tx)} className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-[#246EB9] transition"><Pencil className="w-4 h-4" /></button>
                     <button onClick={() => handleDelete(tx.id)} className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-red-500 transition"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>

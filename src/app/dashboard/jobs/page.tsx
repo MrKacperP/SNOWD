@@ -171,40 +171,40 @@ export default function JobsPage() {
           <ArrowLeft className="w-5 h-5 text-gray-600" />
         </button>
         <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Briefcase className="w-6 h-6 text-[#4361EE]" />
+          <Briefcase className="w-6 h-6 text-[#246EB9]" />
           My Jobs
         </h1>
       </div>
 
       {/* Stats Row */}
       <div className="grid grid-cols-4 gap-3">
-        <div className="bg-white rounded-xl border border-gray-100 p-3 text-center">
+        <button onClick={() => setFilter("active")} className="bg-white rounded-xl border border-gray-100 p-3 text-center hover:border-orange-200 hover:bg-orange-50 transition">
           <Zap className="w-4 h-4 text-orange-500 mx-auto mb-1" />
           <p className="text-lg font-bold text-gray-900">{activeJob ? 1 : 0}</p>
           <p className="text-[10px] text-gray-500">Active</p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-100 p-3 text-center">
-          <ListOrdered className="w-4 h-4 text-[#4361EE] mx-auto mb-1" />
+        </button>
+        <button onClick={() => setFilter("queue")} className="bg-white rounded-xl border border-gray-100 p-3 text-center hover:border-[#246EB9]/30 hover:bg-[#246EB9]/5 transition">
+          <ListOrdered className="w-4 h-4 text-[#246EB9] mx-auto mb-1" />
           <p className="text-lg font-bold text-gray-900">{queueJobs.length}</p>
           <p className="text-[10px] text-gray-500">In Queue</p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-100 p-3 text-center">
+        </button>
+        <button onClick={() => setFilter("completed")} className="bg-white rounded-xl border border-gray-100 p-3 text-center hover:border-green-200 hover:bg-green-50 transition">
           <CheckCircle className="w-4 h-4 text-green-500 mx-auto mb-1" />
           <p className="text-lg font-bold text-gray-900">{completedJobs.length}</p>
           <p className="text-[10px] text-gray-500">Done</p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-100 p-3 text-center">
+        </button>
+        <Link href="/dashboard/transactions" className="bg-white rounded-xl border border-gray-100 p-3 text-center hover:border-emerald-200 hover:bg-emerald-50 transition">
           <TrendingUp className="w-4 h-4 text-emerald-500 mx-auto mb-1" />
           <p className="text-lg font-bold text-gray-900">${totalEarnings}</p>
           <p className="text-[10px] text-gray-500">Earned</p>
-        </div>
+        </Link>
       </div>
 
       {/* Active Job Banner */}
       {activeJob && (
         <Link
           href={`/dashboard/messages/${activeJob.chatId}`}
-          className="block bg-gradient-to-r from-[#4361EE] to-[#7C3AED] rounded-2xl p-5 text-white shadow-lg hover:shadow-xl transition-all"
+          className="block bg-[#246EB9] rounded-2xl p-5 text-white shadow-lg hover:shadow-xl transition-all"
         >
           <div className="flex items-center gap-2 mb-2">
             <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse" />
@@ -256,7 +256,7 @@ export default function JobsPage() {
             key={f.key}
             onClick={() => setFilter(f.key)}
             className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition ${
-              filter === f.key ? "bg-white text-[#4361EE] shadow-sm" : "text-gray-500 hover:text-gray-700"
+              filter === f.key ? "bg-white text-[#246EB9] shadow-sm" : "text-gray-500 hover:text-gray-700"
             }`}
           >
             {f.label} ({f.count})
@@ -271,7 +271,7 @@ export default function JobsPage() {
           <button
             onClick={() => setQueueSort("time")}
             className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
-              queueSort === "time" ? "bg-[#4361EE] text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              queueSort === "time" ? "bg-[#246EB9] text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
             <Clock className="w-3 h-3 inline mr-1" />
@@ -280,7 +280,7 @@ export default function JobsPage() {
           <button
             onClick={() => setQueueSort("distance")}
             className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
-              queueSort === "distance" ? "bg-[#4361EE] text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              queueSort === "distance" ? "bg-[#246EB9] text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
             <Compass className="w-3 h-3 inline mr-1" />
@@ -319,7 +319,7 @@ export default function JobsPage() {
               >
                 {/* Queue position badge */}
                 {filter === "queue" && isQueued && (
-                  <div className="absolute -top-2 -left-2 w-7 h-7 bg-[#4361EE] rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md">
+                  <div className="absolute -top-2 -left-2 w-7 h-7 bg-[#246EB9] rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md">
                     #{index + 1}
                   </div>
                 )}
@@ -330,7 +330,7 @@ export default function JobsPage() {
                         {clientNames[job.clientId] || "Client"}
                       </p>
                       {dist !== null && (
-                        <span className="px-2 py-0.5 bg-[#4361EE]/10 text-[#4361EE] rounded-full text-[10px] font-bold">
+                        <span className="px-2 py-0.5 bg-[#246EB9]/10 text-[#246EB9] rounded-full text-[10px] font-bold">
                           {dist.toFixed(1)} km
                         </span>
                       )}

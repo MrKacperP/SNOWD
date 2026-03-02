@@ -8,7 +8,7 @@ const TUTORIAL_KEY = "snowd-tutorial-v1";
 
 interface TutorialSlide {
   icon: React.ReactNode;
-  gradient: string;
+  color: string;
   title: string;
   description: string;
   emoji: string;
@@ -17,35 +17,35 @@ interface TutorialSlide {
 const SLIDES: TutorialSlide[] = [
   {
     icon: <Snowflake className="w-10 h-10 text-white" />,
-    gradient: "from-[#4361EE] to-[#3249D6]",
+    color: "bg-[#246EB9]",
     emoji: "❄️",
     title: "Welcome to snowd.ca",
     description: "Your Canadian snow removal marketplace. Connect with trusted local operators and get your property cleared fast — no fuss.",
   },
   {
     icon: <Search className="w-10 h-10 text-white" />,
-    gradient: "from-[#4361EE] to-[#7B2FBE]",
+    color: "bg-[#246EB9]",
     emoji: "🔍",
     title: "Find Local Operators",
     description: "Browse verified snow removal pros near you. Filter by rating, price, equipment, and distance. Book in seconds.",
   },
   {
     icon: <MessageSquare className="w-10 h-10 text-white" />,
-    gradient: "from-[#7B2FBE] to-[#E91E8C]",
+    color: "bg-[#7B2FBE]",
     emoji: "💬",
     title: "Chat & Coordinate",
     description: "Communicate directly with your operator. Get real-time ETA updates, share job photos, and track progress live.",
   },
   {
     icon: <CreditCard className="w-10 h-10 text-white" />,
-    gradient: "from-[#00B4D8] to-[#4361EE]",
+    color: "bg-[#00B4D8]",
     emoji: "💳",
     title: "Pay Securely",
     description: "Pay in-app with Stripe — no cash awkwardness. Funds are held safely and released when the job is done.",
   },
   {
     icon: <Star className="w-10 h-10 text-white" />,
-    gradient: "from-[#F4A261] to-[#E76F51]",
+    color: "bg-[#F4A261]",
     emoji: "⭐",
     title: "Rate & Review",
     description: "Help others by leaving honest reviews after every job. Your feedback builds a trustworthy community.",
@@ -117,8 +117,8 @@ export default function TutorialOverlay() {
             transition={{ type: "spring", stiffness: 300, damping: 28 }}
             className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden"
           >
-            {/* Gradient Header */}
-            <div className={`bg-gradient-to-br ${current.gradient} p-8 relative`}>
+            {/* Solid colour header */}
+            <div className={`${current.color} p-8 relative`}>
               {/* Skip button */}
               <button
                 onClick={dismiss}
@@ -192,7 +192,7 @@ export default function TutorialOverlay() {
                 )}
                 <button
                   onClick={next}
-                  className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-white transition bg-gradient-to-r ${current.gradient} hover:opacity-90`}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-white transition ${current.color} hover:opacity-90`}
                 >
                   {slide < SLIDES.length - 1 ? (
                     <>Next <ChevronRight className="w-4 h-4" /></>

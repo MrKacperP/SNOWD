@@ -159,7 +159,7 @@ export default function EmployeesPage() {
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <UserCog className="w-6 h-6 text-[#4361EE]" />
+          <UserCog className="w-6 h-6 text-[#246EB9]" />
           <div>
             <h1 className="text-2xl font-bold">Employee Accounts</h1>
             <p className="text-sm text-gray-500">Manage staff access to admin sections</p>
@@ -167,16 +167,16 @@ export default function EmployeesPage() {
         </div>
         <button
           onClick={() => { setShowAdd(true); setAddError(""); }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-[#4361EE] text-white rounded-xl font-medium hover:bg-[#3249D6] transition shadow-sm"
+          className="flex items-center gap-2 px-4 py-2.5 bg-[#246EB9] text-white rounded-xl font-medium hover:bg-[#1B5A9A] transition shadow-sm"
         >
           <Plus className="w-4 h-4" /> Add Employee
         </button>
       </div>
 
       {/* Owner card */}
-      <div className="bg-gradient-to-r from-[#4361EE]/10 to-purple-50 rounded-2xl border border-[#4361EE]/20 p-5">
+      <div className="bg-[#246EB9]/10 rounded-2xl border border-[#246EB9]/20 p-5">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-[#4361EE] rounded-full flex items-center justify-center text-white font-bold text-sm">
+          <div className="w-10 h-10 bg-[#246EB9] rounded-full flex items-center justify-center text-white font-bold text-sm">
             K
           </div>
           <div>
@@ -213,7 +213,7 @@ export default function EmployeesPage() {
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
                 placeholder="Jane Smith"
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#4361EE]/20 focus:outline-none"
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#246EB9]/20 focus:outline-none"
               />
             </div>
 
@@ -224,7 +224,7 @@ export default function EmployeesPage() {
                 value={newEmail}
                 onChange={e => setNewEmail(e.target.value)}
                 placeholder="employee@snowd.ca"
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#4361EE]/20 focus:outline-none"
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#246EB9]/20 focus:outline-none"
               />
             </div>
 
@@ -236,7 +236,7 @@ export default function EmployeesPage() {
                   value={newPassword}
                   onChange={e => setNewPassword(e.target.value)}
                   placeholder="Min. 6 characters"
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#4361EE]/20 focus:outline-none pr-10"
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#246EB9]/20 focus:outline-none pr-10"
                 />
                 <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
                   {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -253,7 +253,7 @@ export default function EmployeesPage() {
                       type="checkbox"
                       checked={newPerms.includes(p.key)}
                       onChange={() => togglePerm(p.key, newPerms, setNewPerms)}
-                      className="w-4 h-4 accent-[#4361EE]"
+                      className="w-4 h-4 accent-[#246EB9]"
                     />
                     <div>
                       <p className="text-sm font-medium text-gray-800">{p.label}</p>
@@ -271,7 +271,7 @@ export default function EmployeesPage() {
             <button
               onClick={handleAddEmployee}
               disabled={adding}
-              className="w-full py-2.5 bg-[#4361EE] text-white rounded-xl font-medium hover:bg-[#3249D6] transition flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full py-2.5 bg-[#246EB9] text-white rounded-xl font-medium hover:bg-[#1B5A9A] transition flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {adding ? "Creating Account..." : <><Plus className="w-4 h-4" /> Create Employee Account</>}
             </button>
@@ -315,7 +315,7 @@ export default function EmployeesPage() {
                           type="checkbox"
                           checked={editPerms.includes(p.key)}
                           onChange={() => togglePerm(p.key, editPerms, setEditPerms)}
-                          className="w-4 h-4 accent-[#4361EE]"
+                          className="w-4 h-4 accent-[#246EB9]"
                         />
                         <span className="text-sm text-gray-700">{p.label}</span>
                       </label>
@@ -323,7 +323,7 @@ export default function EmployeesPage() {
                     <div className="flex gap-2 mt-3">
                       <button
                         onClick={() => savePerms(emp.uid)}
-                        className="flex-1 py-2 bg-[#4361EE] text-white rounded-xl text-sm font-medium hover:bg-[#3249D6] transition flex items-center justify-center gap-1.5"
+                        className="flex-1 py-2 bg-[#246EB9] text-white rounded-xl text-sm font-medium hover:bg-[#1B5A9A] transition flex items-center justify-center gap-1.5"
                       >
                         <Save className="w-3.5 h-3.5" /> Save
                       </button>
@@ -341,13 +341,13 @@ export default function EmployeesPage() {
                       {perms.length === 0 ? (
                         <span className="text-xs text-gray-400 italic">No permissions assigned</span>
                       ) : perms.map(p => (
-                        <span key={p} className="text-xs bg-[#4361EE]/10 text-[#4361EE] px-2 py-0.5 rounded-full font-medium capitalize">{p}</span>
+                        <span key={p} className="text-xs bg-[#246EB9]/10 text-[#246EB9] px-2 py-0.5 rounded-full font-medium capitalize">{p}</span>
                       ))}
                     </div>
                     <div className="flex gap-2">
                       <button
                         onClick={() => startEdit(emp)}
-                        className="flex-1 py-2 border border-[#4361EE]/30 text-[#4361EE] rounded-xl text-sm font-medium hover:bg-[#4361EE]/5 transition"
+                        className="flex-1 py-2 border border-[#246EB9]/30 text-[#246EB9] rounded-xl text-sm font-medium hover:bg-[#246EB9]/5 transition"
                       >
                         Edit Permissions
                       </button>

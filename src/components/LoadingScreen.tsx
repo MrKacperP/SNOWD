@@ -5,7 +5,7 @@ import Image from "next/image";
 
 export default function LoadingScreen() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[#4361EE]/10">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#246EB9]/10">
       <div className="animate-spin-slow">
         <Image
           src="/logo.svg"

@@ -108,8 +108,8 @@ export default function CelebrationOverlay({ type, show, onComplete }: Celebrati
               initial={{ scale: 0 }}
               animate={{ scale: [0, 1.3, 1] }}
               transition={{ delay: 0.3, duration: 0.6 }}
-              className="w-20 h-20 mx-auto mb-4 bg-[#4361EE] rounded-full flex items-center justify-center shadow-lg"
-              style={{ boxShadow: "0 0 40px rgba(67, 97, 238, 0.5)" }}
+              className="w-20 h-20 mx-auto mb-4 bg-[#246EB9] rounded-full flex items-center justify-center shadow-lg"
+              style={{ boxShadow: "0 0 40px rgba(36, 110, 185, 0.5)" }}
             >
               <span className="text-3xl">
                 {type === "completion" ? "✅" : type === "booking" ? "📅" : type === "payment" ? "💰" : "🤝"}
@@ -120,7 +120,7 @@ export default function CelebrationOverlay({ type, show, onComplete }: Celebrati
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.5 }}
               className="text-3xl font-extrabold text-white mb-2"
-              style={{ textShadow: "0 0 30px rgba(67, 97, 238, 0.5)" }}
+              style={{ textShadow: "0 0 30px rgba(36, 110, 185, 0.5)" }}
             >
               {titles[type].text}
             </motion.h2>

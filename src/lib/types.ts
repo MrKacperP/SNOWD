@@ -67,11 +67,18 @@ export interface UserProfile {
   // ID Verification
   idPhotoUrl?: string;
   idVerified?: boolean;
+  // Account approval (operators only — clients are auto-approved)
+  accountApproved?: boolean;
+  verificationStatus?: "not-submitted" | "pending" | "approved" | "rejected";
+  verificationNote?: string; // Admin note on rejection
+  approvedAt?: Date;
   // Student verification
   studentVerified?: boolean;
   // Employee-specific
   employeePermissions?: EmployeePermission[];
   addedByAdmin?: string;
+  // Stripe Connect (operators)
+  stripeConnectAccountId?: string;
 }
 
 export interface ClientProfile extends UserProfile {

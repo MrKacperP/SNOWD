@@ -19,9 +19,9 @@ export default function Button({
   const baseStyles = 'font-semibold tracking-wide transition-all duration-150 rounded-[14px] disabled:opacity-50 disabled:cursor-not-allowed btn-lift';
   
   const variants = {
-    primary: 'bg-[#4361EE] hover:bg-[#1e5ba8] text-white shadow-sm',
-    secondary: 'border-2 border-[#0B1F33] text-[#0B1F33] hover:bg-[#E8EDFD] bg-white',
-    ghost: 'text-[#4361EE] hover:bg-[#E8EDFD]',
+    primary: 'bg-[#246EB9] hover:bg-[#1e5ba8] text-white shadow-sm',
+    secondary: 'border-2 border-[#0B1F33] text-[#0B1F33] hover:bg-[#D6E8F5] bg-white',
+    ghost: 'text-[#246EB9] hover:bg-[#D6E8F5]',
     success: 'bg-[#27AE60] hover:bg-[#1e8b4d] text-white',
     danger: 'bg-[#EB5757] hover:bg-[#d64545] text-white',
   };

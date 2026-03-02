@@ -42,7 +42,7 @@ import {
   Cell,
 } from "recharts";
 
-const COLORS = ["#4361EE", "#7C3AED", "#10B981", "#F59E0B", "#EF4444"];
+const COLORS = ["#246EB9", "#7C3AED", "#10B981", "#F59E0B", "#EF4444"];
 
 export default function AdminOverviewPage() {
   const [stats, setStats] = useState({
@@ -280,27 +280,27 @@ export default function AdminOverviewPage() {
   }, []);
 
   const topCards = [
-    { label: "Total Users", value: stats.totalUsers, sub: `${stats.onlineUsers} online now`, icon: Users, color: "text-[#4361EE]", bg: "bg-[#4361EE]/10", href: "/admin/users" },
+    { label: "Total Users", value: stats.totalUsers, sub: `${stats.onlineUsers} online now`, icon: Users, color: "text-[#246EB9]", bg: "bg-[#246EB9]/10", href: "/admin/users" },
     { label: "Active Jobs", value: stats.activeJobs, sub: `${stats.completedJobs} completed`, icon: Briefcase, color: "text-orange-500", bg: "bg-orange-50", href: "/admin/analytics" },
     { label: "Total Revenue", value: `$${stats.totalRevenue.toFixed(2)}`, sub: `${stats.totalTransactions} transactions`, icon: DollarSign, color: "text-green-600", bg: "bg-green-50", href: "/admin/transactions" },
     { label: "Open Claims", value: stats.openClaims, sub: "Needs attention", icon: AlertTriangle, color: stats.openClaims > 0 ? "text-red-500" : "text-gray-400", bg: stats.openClaims > 0 ? "bg-red-50" : "bg-gray-50", href: "/admin/claims" },
   ];
 
   const secondaryCards = [
-    { label: "Clients", value: stats.totalClients, icon: Users, color: "text-[#4361EE]", bg: "bg-[#4361EE]/10", href: "/admin/users" },
+    { label: "Clients", value: stats.totalClients, icon: Users, color: "text-[#246EB9]", bg: "bg-[#246EB9]/10", href: "/admin/users" },
     { label: "Operators", value: stats.totalOperators, icon: Users, color: "text-purple-600", bg: "bg-purple-50", href: "/admin/users" },
-    { label: "Chats", value: stats.totalChats, icon: MessageSquare, color: "text-[#4361EE]", bg: "bg-[#4361EE]/10", href: "/admin/chats" },
+    { label: "Chats", value: stats.totalChats, icon: MessageSquare, color: "text-[#246EB9]", bg: "bg-[#246EB9]/10", href: "/admin/chats" },
     { label: "New This Week", value: stats.newUsersWeek, icon: TrendingUp, color: "text-green-600", bg: "bg-green-50", href: "/admin/users" },
   ];
 
-  if (loading) return <div className="flex items-center justify-center h-96"><div className="flex flex-col items-center gap-3"><RefreshCw className="w-8 h-8 text-[#4361EE] animate-spin" /><p className="text-gray-400 text-sm">Loading admin dashboard...</p></div></div>;
+  if (loading) return <div className="flex items-center justify-center h-96"><div className="flex flex-col items-center gap-3"><RefreshCw className="w-8 h-8 text-[#246EB9] animate-spin" /><p className="text-gray-400 text-sm">Loading admin dashboard...</p></div></div>;
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-[#4361EE] to-[#7C3AED] rounded-xl flex items-center justify-center">
+          <div className="w-10 h-10 bg-[#246EB9] rounded-xl flex items-center justify-center">
             <Shield className="w-5 h-5 text-white" />
           </div>
           <div>
@@ -331,7 +331,7 @@ export default function AdminOverviewPage() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={markAllNotifsRead}
-                      className="text-[11px] text-[#4361EE] hover:underline flex items-center gap-1"
+                      className="text-[11px] text-[#246EB9] hover:underline flex items-center gap-1"
                     >
                       <CheckCheck className="w-3.5 h-3.5" /> Mark all read
                     </button>
@@ -368,7 +368,7 @@ export default function AdminOverviewPage() {
             )}
           </div>
 
-          <Link href="/admin/users" className="px-4 py-2 bg-[#4361EE] text-white rounded-xl text-sm font-medium hover:bg-[#3651D4] transition flex items-center gap-2"><Users className="w-4 h-4" /> Users</Link>
+          <Link href="/admin/users" className="px-4 py-2 bg-[#246EB9] text-white rounded-xl text-sm font-medium hover:bg-[#1B5A9A] transition flex items-center gap-2"><Users className="w-4 h-4" /> Users</Link>
           <Link href="/admin/jobs" className="px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 transition flex items-center gap-2"><Briefcase className="w-4 h-4" /> Jobs</Link>
           <Link href="/admin/settings" className="px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 transition flex items-center gap-2"><Shield className="w-4 h-4" /> Settings</Link>
         </div>
@@ -380,7 +380,7 @@ export default function AdminOverviewPage() {
           <Link key={card.label} href={card.href} className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg transition-all group">
             <div className="flex items-center justify-between mb-3">
               <div className={`w-10 h-10 ${card.bg} rounded-xl flex items-center justify-center`}><card.icon className={`w-5 h-5 ${card.color}`} /></div>
-              <ArrowUpRight className="w-4 h-4 text-gray-300 group-hover:text-[#4361EE] transition" />
+              <ArrowUpRight className="w-4 h-4 text-gray-300 group-hover:text-[#246EB9] transition" />
             </div>
             <p className="text-2xl font-bold text-gray-900">{card.value}</p>
             <p className="text-xs text-gray-500 mt-0.5">{card.label}</p>
@@ -402,11 +402,11 @@ export default function AdminOverviewPage() {
       {/* Quick Actions */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5">
         <h2 className="font-bold text-gray-900 flex items-center gap-2 mb-4">
-          <Zap className="w-4 h-4 text-[#4361EE]" /> Quick Actions
+          <Zap className="w-4 h-4 text-[#246EB9]" /> Quick Actions
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2">
           {[
-            { href: "/admin/users", label: "Manage Users", icon: Users, color: "text-[#4361EE]", bg: "bg-[#4361EE]/10" },
+            { href: "/admin/users", label: "Manage Users", icon: Users, color: "text-[#246EB9]", bg: "bg-[#246EB9]/10" },
             { href: "/admin/jobs", label: "Manage Jobs", icon: Briefcase, color: "text-orange-600", bg: "bg-orange-50" },
             { href: "/admin/chats", label: "Support Chats", icon: Headphones, color: "text-purple-600", bg: "bg-purple-50" },
             { href: "/admin/transactions", label: "Transactions", icon: DollarSign, color: "text-green-600", bg: "bg-green-50" },
@@ -416,7 +416,7 @@ export default function AdminOverviewPage() {
             <Link
               key={action.href}
               href={action.href}
-              className="flex flex-col items-center gap-2 p-4 rounded-xl border border-gray-100 hover:border-[#4361EE]/20 hover:shadow-sm transition text-center"
+              className="flex flex-col items-center gap-2 p-4 rounded-xl border border-gray-100 hover:border-[#246EB9]/20 hover:shadow-sm transition text-center"
             >
               <div className={`w-10 h-10 ${action.bg} rounded-xl flex items-center justify-center`}>
                 <action.icon className={`w-5 h-5 ${action.color}`} />
@@ -429,7 +429,7 @@ export default function AdminOverviewPage() {
 
       {/* Pending Approvals Section */}
       {pendingUsers.length > 0 && (
-        <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl border border-orange-200 p-5">
+        <div className="bg-orange-50 rounded-2xl border border-orange-200 p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-bold text-orange-900 flex items-center gap-2">
               <Shield className="w-4 h-4 text-orange-600" /> Pending Approvals
@@ -468,14 +468,14 @@ export default function AdminOverviewPage() {
         <div className="bg-white rounded-2xl border border-gray-100 p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-bold text-gray-900 flex items-center gap-2">
-              <Headphones className="w-4 h-4 text-[#4361EE]" /> Support Inbox
+              <Headphones className="w-4 h-4 text-[#246EB9]" /> Support Inbox
               {supportChats.filter((c) => c.status === "open").length > 0 && (
                 <span className="ml-1 px-2 py-0.5 bg-red-100 text-red-600 text-[10px] rounded-full font-bold">
                   {supportChats.filter((c) => c.status === "open").length} open
                 </span>
               )}
             </h2>
-            <Link href="/admin/chats" className="text-xs text-[#4361EE] hover:underline">View all chats →</Link>
+            <Link href="/admin/chats" className="text-xs text-[#246EB9] hover:underline">View all chats →</Link>
           </div>
           <div className="space-y-2 max-h-[300px] overflow-y-auto">
             {supportChats.slice(0, 8).map((chat) => {
@@ -486,7 +486,7 @@ export default function AdminOverviewPage() {
                 <Link
                   key={chat.id}
                   href="/admin/chats"
-                  className="flex items-center gap-3 p-3 rounded-xl border border-gray-50 hover:border-[#4361EE]/20 hover:shadow-sm transition"
+                  className="flex items-center gap-3 p-3 rounded-xl border border-gray-50 hover:border-[#246EB9]/20 hover:shadow-sm transition"
                 >
                   <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
                     chat.status === "open" ? "bg-red-50 text-red-600" : "bg-green-50 text-green-600"
@@ -522,7 +522,7 @@ export default function AdminOverviewPage() {
         <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-bold text-gray-900">Revenue (14 days)</h2>
-            <Link href="/admin/analytics" className="text-xs text-[#4361EE] hover:underline">Full analytics →</Link>
+            <Link href="/admin/analytics" className="text-xs text-[#246EB9] hover:underline">Full analytics →</Link>
           </div>
           <ResponsiveContainer width="100%" height={220}>
             <AreaChart data={revenueData}>
@@ -530,7 +530,7 @@ export default function AdminOverviewPage() {
               <XAxis dataKey="date" tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 10 }} />
               <Tooltip />
-              <Area type="monotone" dataKey="revenue" stroke="#4361EE" fill="#4361EE" fillOpacity={0.1} />
+              <Area type="monotone" dataKey="revenue" stroke="#246EB9" fill="#246EB9" fillOpacity={0.1} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -559,7 +559,7 @@ export default function AdminOverviewPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Activity Feed */}
         <div className="bg-white rounded-2xl border border-gray-100 p-5">
-          <h2 className="font-bold text-gray-900 flex items-center gap-2 mb-4"><Activity className="w-4 h-4 text-[#4361EE]" /> Live Activity</h2>
+          <h2 className="font-bold text-gray-900 flex items-center gap-2 mb-4"><Activity className="w-4 h-4 text-[#246EB9]" /> Live Activity</h2>
           <div className="space-y-2.5 max-h-[350px] overflow-y-auto">
             {recentActivity.map((act, i) => (
               <div key={i} className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50 transition">
@@ -579,7 +579,7 @@ export default function AdminOverviewPage() {
           </div>
           <div className="space-y-2 max-h-[350px] overflow-y-auto">
             {activeJobsList.map((job) => (
-              <div key={job.id} className="flex items-center gap-3 p-3 rounded-xl border border-gray-50 hover:border-[#4361EE]/20 hover:shadow-sm transition">
+              <div key={job.id} className="flex items-center gap-3 p-3 rounded-xl border border-gray-50 hover:border-[#246EB9]/20 hover:shadow-sm transition">
                 <div className={`w-2 h-8 rounded-full ${job.status === "in-progress" ? "bg-green-500" : job.status === "en-route" ? "bg-blue-500" : job.status === "accepted" ? "bg-purple-500" : "bg-yellow-500"}`} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{job.clientName} → {job.operatorName}</p>
@@ -597,12 +597,12 @@ export default function AdminOverviewPage() {
       <div className="bg-white rounded-2xl border border-gray-100 p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-bold text-gray-900 flex items-center gap-2"><UserCheck className="w-4 h-4 text-green-600" /> New Users</h2>
-          <Link href="/admin/users" className="text-xs text-[#4361EE] hover:underline">View all →</Link>
+          <Link href="/admin/users" className="text-xs text-[#246EB9] hover:underline">View all →</Link>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {recentUsers.map((u) => (
-            <Link key={u.uid} href={`/admin/users/${u.uid}`} className="flex items-center gap-3 p-3 rounded-xl border border-gray-50 hover:border-[#4361EE]/20 hover:shadow-sm transition">
-              <div className="w-9 h-9 bg-[#4361EE]/10 rounded-full flex items-center justify-center text-[#4361EE] font-bold text-sm shrink-0">{u.displayName?.charAt(0)?.toUpperCase() || "?"}</div>
+            <Link key={u.uid} href={`/admin/users/${u.uid}`} className="flex items-center gap-3 p-3 rounded-xl border border-gray-50 hover:border-[#246EB9]/20 hover:shadow-sm transition">
+              <div className="w-9 h-9 bg-[#246EB9]/10 rounded-full flex items-center justify-center text-[#246EB9] font-bold text-sm shrink-0">{u.displayName?.charAt(0)?.toUpperCase() || "?"}</div>
               <div className="min-w-0"><p className="text-sm font-medium text-gray-900 truncate">{u.displayName}</p><p className="text-[10px] text-gray-400 capitalize">{u.role} • {u.city || "—"}</p></div>
             </Link>
           ))}

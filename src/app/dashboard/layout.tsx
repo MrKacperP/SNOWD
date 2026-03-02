@@ -9,16 +9,20 @@ import SupportChatButton from "@/components/SupportChatButton";
 import { WeatherProvider } from "@/context/WeatherContext";
 import { useEffect } from "react";
 import Link from "next/link";
-import { AlertCircle, Upload, Shield, CheckCircle, Camera } from "lucide-react";
+import { AlertCircle, Upload, Shield, CheckCircle, Camera, ArrowLeft } from "lucide-react";
 import TutorialOverlay from "@/components/TutorialOverlay";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage, db } from "@/lib/firebase";
 import { doc, updateDoc } from "firebase/firestore";
 import { sendAdminNotif } from "@/lib/adminNotifications";
 
-function isProfileComplete(profile: { avatar?: string; phone?: string; address?: string; email?: string } | null | undefined) {
+function isProfileComplete(
+  profile: { avatar?: string; phone?: string; address?: string; email?: string } | null | undefined,
+  authEmail?: string | null
+) {
   if (!profile) return false;
-  return !!(profile.avatar && profile.phone && profile.address && profile.email);
+  const email = profile.email || authEmail;
+  return !!(profile.avatar && profile.phone && profile.address && email);
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -68,7 +72,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (loading) return <LoadingScreen />;
   if (!user || !profile) return <LoadingScreen />;
 
-  const incomplete = !isProfileComplete(profile) && profile.role !== "admin";
+  // Operators have the setup widget in their dashboard — don't show this banner for them
+  const incomplete = !isProfileComplete(profile, user?.email) && profile.role !== "admin" && profile.role !== "operator";
   const onProfilePage = pathname === "/dashboard/profile";
   const accountApproved = (profile as unknown as Record<string, unknown>).accountApproved !== false;
   const hasIdPhoto = !!(profile as unknown as Record<string, unknown>).idPhotoUrl;
@@ -80,9 +85,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <Navbar />
         {/* Main content with sidebar offset */}
         <main className="md:ml-64 pt-16 md:pt-0 pb-20 md:pb-0 min-h-screen">
+        {/* Admin Back Banner */}
+          {isAdmin && (
+            <div className="mx-4 md:mx-8 mt-4 md:mt-6 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3">
+              <Shield className="w-4 h-4 text-red-500 shrink-0" />
+              <p className="flex-1 text-xs font-medium text-red-700">Admin mode — viewing live app</p>
+              <Link
+                href="/admin"
+                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-red-500 text-white rounded-lg text-xs font-semibold hover:bg-red-600 transition"
+              >
+                <ArrowLeft className="w-3 h-3" />
+                Back to Admin
+              </Link>
+            </div>
+          )}
+
           {/* Account Approval Banner */}
           {!accountApproved && !isAdmin && (
-            <div className="mx-4 md:mx-8 mt-4 md:mt-6 p-5 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl">
+            <div className="mx-4 md:mx-8 mt-4 md:mt-6 p-5 bg-blue-50 border border-blue-200 rounded-2xl">
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center shrink-0">
                   <Shield className="w-6 h-6 text-blue-600" />
@@ -126,19 +146,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           )}
 
-          {/* Profile completeness banner */}
-          {incomplete && !onProfilePage && accountApproved && (
-            <div className="mx-4 md:mx-8 mt-4 md:mt-6 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-amber-800">Complete your profile to be visible</p>
-                <p className="text-xs text-amber-600 mt-0.5">Add a profile photo, phone number, email, and address to show up in search results.</p>
-              </div>
-              <Link href="/dashboard/profile" className="shrink-0 px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs font-semibold hover:bg-amber-600 transition">
-                Complete →
-              </Link>
-            </div>
-          )}
+
           <div className="p-4 md:p-8">{children}</div>
         </main>
         <SupportChatButton />

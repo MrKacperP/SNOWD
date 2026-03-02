@@ -18,6 +18,8 @@ interface SupportMessage {
   content: string;
   createdAt: Date;
   read: boolean;
+  type?: string;
+  statusValue?: string;
 }
 
 const PROBLEM_CATEGORIES = [
@@ -143,7 +145,7 @@ export default function SupportChatButton() {
             exit={{ scale: 0, opacity: 0 }}
             transition={{ type: "spring", stiffness: 260, damping: 20 }}
             onClick={() => { setIsOpen(true); if (messages.length === 0) setChatPhase("select"); }}
-            className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[100] w-14 h-14 bg-[#4361EE] hover:bg-[#3249D6] text-white rounded-full shadow-xl shadow-[#4361EE]/30 flex items-center justify-center transition-all duration-200 hover:scale-110 group"
+            className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[100] w-14 h-14 bg-[#246EB9] hover:bg-[#1B5A9A] text-white rounded-full shadow-xl shadow-[#246EB9]/30 flex items-center justify-center transition-all duration-200 hover:scale-110 group"
           >
             <Headphones className="w-6 h-6" />
             {unreadCount > 0 && (
@@ -171,7 +173,7 @@ export default function SupportChatButton() {
             style={{ maxHeight: "80vh", minHeight: 400 }}
           >
             {/* Header */}
-            <div className="bg-gradient-to-r from-[#4361EE] to-[#7C3AED] px-4 py-3.5 flex items-center justify-between shrink-0">
+            <div className="bg-[#246EB9] px-4 py-3.5 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
                 <motion.div
                   animate={{ rotate: [0, -10, 10, -5, 5, 0] }}
@@ -215,13 +217,13 @@ export default function SupportChatButton() {
                     {PROBLEM_CATEGORIES.map((cat, i) => (
                       <motion.button key={cat.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
                         onClick={() => handleSelectProblem(cat.id)}
-                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-[var(--bg-secondary)] hover:bg-[#4361EE]/10 border border-transparent hover:border-[#4361EE]/20 transition text-left group">
+                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-[var(--bg-secondary)] hover:bg-[#246EB9]/10 border border-transparent hover:border-[#246EB9]/20 transition text-left group">
                         <span className="text-xl shrink-0">{cat.emoji}</span>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-[var(--text-primary)] group-hover:text-[#4361EE] transition">{cat.label}</p>
+                          <p className="text-sm font-semibold text-[var(--text-primary)] group-hover:text-[#246EB9] transition">{cat.label}</p>
                           <p className="text-xs text-[var(--text-muted)] truncate">{cat.desc}</p>
                         </div>
-                        <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-[#4361EE] shrink-0 transition" />
+                        <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-[#246EB9] shrink-0 transition" />
                       </motion.button>
                     ))}
                   </div>
@@ -253,7 +255,7 @@ export default function SupportChatButton() {
                   </a>
                   <p className="text-xs text-[var(--text-muted)]">For urgent matters only. For general questions, use the chat below.</p>
                   <button onClick={() => startChatWithProblem(selectedProblem || "other")}
-                    className="flex items-center gap-1.5 text-xs text-[#4361EE] hover:underline transition">
+                    className="flex items-center gap-1.5 text-xs text-[#246EB9] hover:underline transition">
                     <MessageSquare className="w-3.5 h-3.5" /> Continue via chat instead
                   </button>
                 </motion.div>
@@ -267,8 +269,8 @@ export default function SupportChatButton() {
                     {messages.length === 0 && (
                       <div className="text-center py-8">
                         <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 200 }}
-                          className="w-12 h-12 bg-[#4361EE]/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                          <MessageSquare className="w-6 h-6 text-[#4361EE]" />
+                          className="w-12 h-12 bg-[#246EB9]/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                          <MessageSquare className="w-6 h-6 text-[#246EB9]" />
                         </motion.div>
                         <p className="text-sm font-medium text-[var(--text-primary)]">Support is ready to help!</p>
                         <p className="text-xs text-[var(--text-muted)] mt-1">Describe your issue and we&apos;ll get back to you ASAP.</p>
@@ -276,16 +278,46 @@ export default function SupportChatButton() {
                     )}
                     {messages.map((msg, i) => {
                       const isMe = msg.senderId === user?.uid;
+
+                      // Status-update system message widget
+                      if (msg.type === "status-update") {
+                        const isResolved = msg.statusValue === "resolved";
+                        const isInProgress = msg.statusValue === "in-progress";
+                        return (
+                          <motion.div key={msg.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: Math.min(i * 0.02, 0.3) }} className="flex justify-center my-1">
+                            <div className={`flex items-start gap-2.5 px-4 py-3 rounded-2xl max-w-[90%] border text-sm ${
+                              isResolved
+                                ? "bg-green-50 border-green-200 text-green-800"
+                                : isInProgress
+                                ? "bg-blue-50 border-blue-200 text-blue-800"
+                                : "bg-gray-100 border-gray-200 text-gray-700"
+                            }`}>
+                              <span className="text-base mt-0.5">
+                                {isResolved ? "✅" : isInProgress ? "👀" : "🔄"}
+                              </span>
+                              <div>
+                                <p className="font-semibold text-xs mb-0.5">
+                                  {isResolved ? "Issue Resolved" : isInProgress ? "Under Review" : "Status Updated"}
+                                </p>
+                                <p className="text-xs leading-snug">{msg.content}</p>
+                                <p className="text-[10px] mt-1 opacity-60">{format(msg.createdAt, "h:mm a")}</p>
+                              </div>
+                            </div>
+                          </motion.div>
+                        );
+                      }
+
                       return (
                         <motion.div key={msg.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: Math.min(i * 0.02, 0.3) }} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
                           {!isMe && (
-                            <div className="w-6 h-6 bg-[#4361EE] rounded-full flex items-center justify-center text-white text-xs font-bold mr-2 mt-auto shrink-0">
+                            <div className="w-6 h-6 bg-[#246EB9] rounded-full flex items-center justify-center text-white text-xs font-bold mr-2 mt-auto shrink-0">
                               S
                             </div>
                           )}
                           <div className={`max-w-[78%] px-3.5 py-2.5 rounded-2xl text-sm ${
-                            isMe ? "bg-[#4361EE] text-white rounded-br-md" : "bg-[var(--bg-secondary)] text-[var(--text-primary)] rounded-bl-md"
+                            isMe ? "bg-[#246EB9] text-white rounded-br-md" : "bg-[var(--bg-secondary)] text-[var(--text-primary)] rounded-bl-md"
                           }`}>
                             <p className="break-words">{msg.content}</p>
                             <p className={`text-[10px] mt-1 ${isMe ? "text-white/50" : "text-[var(--text-muted)]"}`}>
@@ -302,9 +334,9 @@ export default function SupportChatButton() {
                       <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
                         placeholder="Type a message..."
-                        className="flex-1 px-3.5 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none focus:border-[#4361EE]/30 transition" />
+                        className="flex-1 px-3.5 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none focus:border-[#246EB9]/30 transition" />
                       <motion.button whileTap={{ scale: 0.9 }} onClick={handleSend} disabled={!newMessage.trim() || sending}
-                        className="p-2.5 bg-[#4361EE] hover:bg-[#3249D6] text-white rounded-xl transition disabled:opacity-40">
+                        className="p-2.5 bg-[#246EB9] hover:bg-[#1B5A9A] text-white rounded-xl transition disabled:opacity-40">
                         <Send className="w-4 h-4" />
                       </motion.button>
                     </div>

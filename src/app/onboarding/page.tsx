@@ -223,13 +223,15 @@ export default function OnboardingPage() {
         themePreference: "light" as const,
         lat: lat || null,
         lng: lng || null,
-        accountApproved: false, // Requires admin approval before going live
-        idVerified: false,
       };
 
       if (role === "client") {
+        // Clients get immediate access — no verification needed
         await setDoc(doc(db, "users", user.uid), {
           ...baseProfile,
+          accountApproved: true,
+          idVerified: true,
+          verificationStatus: "approved",
           propertyDetails: {
             propertySize,
             serviceTypes,
@@ -239,8 +241,12 @@ export default function OnboardingPage() {
           jobHistory: [],
         });
       } else {
+        // Operators must be verified by admin before going public
         await setDoc(doc(db, "users", user.uid), {
           ...baseProfile,
+          accountApproved: false,
+          idVerified: false,
+          verificationStatus: "not-submitted",
           businessName,
           isStudent,
           age: age || null,
@@ -309,7 +315,7 @@ export default function OnboardingPage() {
   // Animated intro screen
   if (showIntro) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#0B1F33] via-[#1a2f4a] to-[#0B1F33] flex items-center justify-center relative overflow-hidden">
+      <div className="min-h-screen bg-[#0B1F33] flex items-center justify-center relative overflow-hidden">
         {/* Animated snowflakes background */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           {Array.from({ length: 20 }).map((_, i) => (
@@ -380,7 +386,7 @@ export default function OnboardingPage() {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.97 }}
             onClick={() => setShowIntro(false)}
-            className="px-10 py-4 bg-[#4361EE] hover:bg-[#3249D6] text-white rounded-2xl font-semibold text-lg shadow-xl shadow-[#4361EE]/30 transition-colors"
+            className="px-10 py-4 bg-[#246EB9] hover:bg-[#1B5A9A] text-white rounded-2xl font-semibold text-lg shadow-xl shadow-[#246EB9]/30 transition-colors"
           >
             Get Started
           </motion.button>
@@ -413,7 +419,7 @@ export default function OnboardingPage() {
             {step < totalSteps && (
               <button
                 onClick={() => setStep(totalSteps)}
-                className="flex items-center gap-1 text-xs text-[#4361EE]/60 hover:text-[#4361EE] transition"
+                className="flex items-center gap-1 text-xs text-[#246EB9]/60 hover:text-[#246EB9] transition"
               >
                 <SkipForward className="w-3 h-3" /> Skip
               </button>
@@ -421,7 +427,7 @@ export default function OnboardingPage() {
           </div>
           <div className="mt-4 h-2 bg-[#E6EEF6] rounded-full overflow-hidden">
             <div
-              className="h-full bg-[#4361EE] rounded-full transition-all duration-500"
+              className="h-full bg-[#246EB9] rounded-full transition-all duration-500"
               style={{ width: `${(step / totalSteps) * 100}%` }}
             />
           </div>
@@ -445,11 +451,11 @@ export default function OnboardingPage() {
                   onClick={() => setRole("client")}
                   className={`p-6 rounded-xl border-2 transition-all duration-150 text-left ${
                     role === "client"
-                      ? "border-[#4361EE] bg-[#E8EDFD] shadow-md"
-                      : "border-[#E6EEF6] hover:border-[#4361EE]/50 hover:bg-[#F7FAFC]"
+                      ? "border-[#246EB9] bg-[#D6E8F5] shadow-md"
+                      : "border-[#E6EEF6] hover:border-[#246EB9]/50 hover:bg-[#F7FAFC]"
                   }`}
                 >
-                  <Home className="w-8 h-8 text-[#4361EE] mb-3" />
+                  <Home className="w-8 h-8 text-[#246EB9] mb-3" />
                   <h3 className="font-semibold text-lg text-[#0B1F33]">I Need Snow Removed</h3>
                   <p className="text-sm text-[#6B7C8F] mt-1">
                     Find someone to clear your property fast.
@@ -459,11 +465,11 @@ export default function OnboardingPage() {
                   onClick={() => setRole("operator")}
                   className={`p-6 rounded-xl border-2 transition-all duration-150 text-left ${
                     role === "operator"
-                      ? "border-[#4361EE] bg-[#E8EDFD] shadow-md"
-                      : "border-[#E6EEF6] hover:border-[#4361EE]/50 hover:bg-[#F7FAFC]"
+                      ? "border-[#246EB9] bg-[#D6E8F5] shadow-md"
+                      : "border-[#E6EEF6] hover:border-[#246EB9]/50 hover:bg-[#F7FAFC]"
                   }`}
                 >
-                  <Truck className="w-8 h-8 text-[#4361EE] mb-3" />
+                  <Truck className="w-8 h-8 text-[#246EB9] mb-3" />
                   <h3 className="font-semibold text-lg text-[#0B1F33]">I Remove Snow</h3>
                   <p className="text-sm text-[#6B7C8F] mt-1">
                     Earn money clearing snow for others.
@@ -477,7 +483,7 @@ export default function OnboardingPage() {
           {step === 2 && (
             <div className="space-y-5">
               <div className="flex items-center gap-2 mb-2">
-                <MapPin className="w-5 h-5 text-[#4361EE]" />
+                <MapPin className="w-5 h-5 text-[#246EB9]" />
                 <h2 className="text-xl font-semibold text-[#0B1F33]">Where are you located?</h2>
               </div>
 
@@ -489,7 +495,7 @@ export default function OnboardingPage() {
                   onChange={handlePhoneChange}
                   placeholder="(555) 123-4567"
                   maxLength={14}
-                  className="w-full px-4 py-3.5 border border-[#E6EEF6] rounded-xl focus:ring-2 focus:ring-[#4361EE]/25 focus:border-[#4361EE] outline-none transition text-[#0B1F33]"
+                  className="w-full px-4 py-3.5 border border-[#E6EEF6] rounded-xl focus:ring-2 focus:ring-[#246EB9]/25 focus:border-[#246EB9] outline-none transition text-[#0B1F33]"
                 />
               </div>
 
@@ -503,7 +509,7 @@ export default function OnboardingPage() {
                     onChange={setAddress}
                     onPlaceSelected={handleAddressSelected}
                     placeholder="123 Main Street, Toronto, ON"
-                    className="w-full px-4 py-3.5 border border-[#E6EEF6] rounded-xl focus:ring-2 focus:ring-[#4361EE]/25 focus:border-[#4361EE] outline-none transition text-[#0B1F33]"
+                    className="w-full px-4 py-3.5 border border-[#E6EEF6] rounded-xl focus:ring-2 focus:ring-[#246EB9]/25 focus:border-[#246EB9] outline-none transition text-[#0B1F33]"
                   />
                   {lat && lng && (
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs text-green-600 font-medium">
@@ -526,7 +532,7 @@ export default function OnboardingPage() {
                       <select
                         value={province}
                         onChange={(e) => setProvince(e.target.value)}
-                        className="w-full px-3 py-2.5 border border-[#E6EEF6] rounded-lg focus:ring-2 focus:ring-[#4361EE]/25 outline-none bg-white text-sm text-[#0B1F33]"
+                        className="w-full px-3 py-2.5 border border-[#E6EEF6] rounded-lg focus:ring-2 focus:ring-[#246EB9]/25 outline-none bg-white text-sm text-[#0B1F33]"
                       >
                         <option value="">Select</option>
                         {CANADIAN_PROVINCES.map((p) => (
@@ -540,7 +546,7 @@ export default function OnboardingPage() {
                         type="text"
                         value={city}
                         onChange={(e) => setCity(e.target.value)}
-                        className="w-full px-3 py-2.5 border border-[#E6EEF6] rounded-lg focus:ring-2 focus:ring-[#4361EE]/25 outline-none text-sm text-[#0B1F33]"
+                        className="w-full px-3 py-2.5 border border-[#E6EEF6] rounded-lg focus:ring-2 focus:ring-[#246EB9]/25 outline-none text-sm text-[#0B1F33]"
                       />
                     </div>
                     <div>
@@ -550,7 +556,7 @@ export default function OnboardingPage() {
                         value={postalCode}
                         onChange={(e) => setPostalCode(e.target.value.toUpperCase())}
                         maxLength={7}
-                        className="w-full px-3 py-2.5 border border-[#E6EEF6] rounded-lg focus:ring-2 focus:ring-[#4361EE]/25 outline-none text-sm text-[#0B1F33]"
+                        className="w-full px-3 py-2.5 border border-[#E6EEF6] rounded-lg focus:ring-2 focus:ring-[#246EB9]/25 outline-none text-sm text-[#0B1F33]"
                       />
                     </div>
                   </div>
@@ -570,7 +576,7 @@ export default function OnboardingPage() {
           {step === 3 && role === "client" && (
             <div className="space-y-5">
               <div className="flex items-center gap-2 mb-1">
-                <Home className="w-5 h-5 text-[#4361EE]" />
+                <Home className="w-5 h-5 text-[#246EB9]" />
                 <h2 className="text-xl font-semibold text-[#0B1F33]">Tell us about your property</h2>
               </div>
               <p className="text-sm text-[#6B7C8F]">Pick the closest match — you can always change this later.</p>
@@ -583,8 +589,8 @@ export default function OnboardingPage() {
                     onClick={() => applyClientPreset(preset)}
                     className={`p-4 rounded-xl border-2 transition-all duration-150 text-left ${
                       propertySize === preset.size
-                        ? "border-[#4361EE] bg-[#E8EDFD] shadow-sm"
-                        : "border-[#E6EEF6] hover:border-[#4361EE]/50"
+                        ? "border-[#246EB9] bg-[#D6E8F5] shadow-sm"
+                        : "border-[#E6EEF6] hover:border-[#246EB9]/50"
                     }`}
                   >
                     <span className="text-2xl">{preset.emoji}</span>
@@ -607,8 +613,8 @@ export default function OnboardingPage() {
                         onClick={() => toggleServiceType(key)}
                         className={`flex items-center gap-1.5 px-4 py-2.5 rounded-full border-2 transition-all duration-150 text-sm font-medium ${
                           serviceTypes.includes(key)
-                            ? "border-[#4361EE] bg-[#E8EDFD] text-[#4361EE]"
-                            : "border-[#E6EEF6] text-[#6B7C8F] hover:border-[#4361EE]/50"
+                            ? "border-[#246EB9] bg-[#D6E8F5] text-[#246EB9]"
+                            : "border-[#E6EEF6] text-[#6B7C8F] hover:border-[#246EB9]/50"
                         }`}
                       >
                         {SERVICE_ICONS[key]}
@@ -628,7 +634,7 @@ export default function OnboardingPage() {
                   onChange={(e) => setSpecialInstructions(e.target.value)}
                   placeholder="e.g., Please avoid the garden bed, gate code is 1234..."
                   rows={2}
-                  className="w-full px-4 py-3 border border-[#E6EEF6] rounded-xl focus:ring-2 focus:ring-[#4361EE]/25 focus:border-[#4361EE] outline-none resize-none text-sm text-[#0B1F33]"
+                  className="w-full px-4 py-3 border border-[#E6EEF6] rounded-xl focus:ring-2 focus:ring-[#246EB9]/25 focus:border-[#246EB9] outline-none resize-none text-sm text-[#0B1F33]"
                 />
               </div>
             </div>
@@ -638,7 +644,7 @@ export default function OnboardingPage() {
           {step === 3 && role === "operator" && (
             <div className="space-y-5">
               <div className="flex items-center gap-2 mb-1">
-                <Wrench className="w-5 h-5 text-[#4361EE]" />
+                <Wrench className="w-5 h-5 text-[#246EB9]" />
                 <h2 className="text-xl font-semibold text-[#0B1F33]">What kind of operator are you?</h2>
               </div>
               <p className="text-sm text-[#6B7C8F]">Pick a starting template — you can customize everything after.</p>
@@ -651,8 +657,8 @@ export default function OnboardingPage() {
                     onClick={() => applyOperatorPreset(preset)}
                     className={`p-4 rounded-xl border-2 transition-all duration-150 text-left ${
                       equipment.length > 0 && JSON.stringify(equipment.sort()) === JSON.stringify([...preset.equipment].sort())
-                        ? "border-[#4361EE] bg-[#E8EDFD] shadow-sm"
-                        : "border-[#E6EEF6] hover:border-[#4361EE]/50"
+                        ? "border-[#246EB9] bg-[#D6E8F5] shadow-sm"
+                        : "border-[#E6EEF6] hover:border-[#246EB9]/50"
                     }`}
                   >
                     <span className="text-2xl">{preset.emoji}</span>
@@ -672,7 +678,7 @@ export default function OnboardingPage() {
                   value={businessName}
                   onChange={(e) => setBusinessName(e.target.value)}
                   placeholder="e.g., Jake's Snow Services"
-                  className="w-full px-4 py-3.5 border border-[#E6EEF6] rounded-xl focus:ring-2 focus:ring-[#4361EE]/25 focus:border-[#4361EE] outline-none text-sm text-[#0B1F33]"
+                  className="w-full px-4 py-3.5 border border-[#E6EEF6] rounded-xl focus:ring-2 focus:ring-[#246EB9]/25 focus:border-[#246EB9] outline-none text-sm text-[#0B1F33]"
                 />
               </div>
 
@@ -686,7 +692,7 @@ export default function OnboardingPage() {
                   onChange={(e) => setBio(e.target.value)}
                   placeholder="e.g., 3 years of snow removal experience..."
                   rows={2}
-                  className="w-full px-4 py-3 border border-[#E6EEF6] rounded-xl focus:ring-2 focus:ring-[#4361EE]/25 focus:border-[#4361EE] outline-none resize-none text-sm text-[#0B1F33]"
+                  className="w-full px-4 py-3 border border-[#E6EEF6] rounded-xl focus:ring-2 focus:ring-[#246EB9]/25 focus:border-[#246EB9] outline-none resize-none text-sm text-[#0B1F33]"
                 />
               </div>
 
@@ -702,8 +708,8 @@ export default function OnboardingPage() {
                       onClick={() => toggleEquipment(item)}
                       className={`px-3 py-2 rounded-full border-2 transition-all duration-150 text-sm font-medium ${
                         equipment.includes(item)
-                          ? "border-[#4361EE] bg-[#E8EDFD] text-[#4361EE]"
-                          : "border-[#E6EEF6] text-[#6B7C8F] hover:border-[#4361EE]/50"
+                          ? "border-[#246EB9] bg-[#D6E8F5] text-[#246EB9]"
+                          : "border-[#E6EEF6] text-[#6B7C8F] hover:border-[#246EB9]/50"
                       }`}
                     >
                       {item}
@@ -715,7 +721,7 @@ export default function OnboardingPage() {
               {/* Service Radius */}
               <div>
                 <label className="block text-sm font-medium text-[#0B1F33] mb-1.5">
-                  Service Radius: <span className="text-[#4361EE] font-bold">{serviceRadius} km</span>
+                  Service Radius: <span className="text-[#246EB9] font-bold">{serviceRadius} km</span>
                 </label>
                 <input
                   type="range"
@@ -723,7 +729,7 @@ export default function OnboardingPage() {
                   max={50}
                   value={serviceRadius}
                   onChange={(e) => setServiceRadius(parseInt(e.target.value))}
-                  className="w-full accent-[#4361EE]"
+                  className="w-full accent-[#246EB9]"
                 />
                 <div className="flex justify-between text-xs text-[#6B7C8F]">
                   <span>1 km</span>
@@ -747,7 +753,7 @@ export default function OnboardingPage() {
           {step === 4 && role === "operator" && (
             <div className="space-y-5">
               <div className="flex items-center gap-2 mb-1">
-                <Snowflake className="w-5 h-5 text-[#4361EE]" />
+                <Snowflake className="w-5 h-5 text-[#246EB9]" />
                 <h2 className="text-xl font-semibold text-[#0B1F33]">Set your prices (CAD)</h2>
               </div>
               <p className="text-sm text-[#6B7C8F]">Suggested prices are pre-filled. Adjust to your preference.</p>
@@ -762,8 +768,8 @@ export default function OnboardingPage() {
                       onClick={() => toggleOperatorServiceType(key)}
                       className={`flex items-center gap-1.5 px-4 py-2.5 rounded-full border-2 transition-all duration-150 text-sm font-medium ${
                         operatorServiceTypes.includes(key)
-                          ? "border-[#4361EE] bg-[#E8EDFD] text-[#4361EE]"
-                          : "border-[#E6EEF6] text-[#6B7C8F] hover:border-[#4361EE]/50"
+                          ? "border-[#246EB9] bg-[#D6E8F5] text-[#246EB9]"
+                          : "border-[#E6EEF6] text-[#6B7C8F] hover:border-[#246EB9]/50"
                       }`}
                     >
                       {SERVICE_ICONS[key]}
@@ -790,7 +796,7 @@ export default function OnboardingPage() {
                           type="number"
                           value={item.value}
                           onChange={(e) => item.set(parseInt(e.target.value) || 0)}
-                          className="w-full pl-7 pr-2 py-2.5 border border-[#E6EEF6] rounded-lg focus:ring-2 focus:ring-[#4361EE]/25 outline-none text-sm bg-white text-[#0B1F33]"
+                          className="w-full pl-7 pr-2 py-2.5 border border-[#E6EEF6] rounded-lg focus:ring-2 focus:ring-[#246EB9]/25 outline-none text-sm bg-white text-[#0B1F33]"
                         />
                       </div>
                     </div>
@@ -809,7 +815,7 @@ export default function OnboardingPage() {
                           type="number"
                           value={item.value}
                           onChange={(e) => item.set(parseInt(e.target.value) || 0)}
-                          className="w-full pl-7 pr-2 py-2.5 border border-[#E6EEF6] rounded-lg focus:ring-2 focus:ring-[#4361EE]/25 outline-none text-sm bg-white text-[#0B1F33]"
+                          className="w-full pl-7 pr-2 py-2.5 border border-[#E6EEF6] rounded-lg focus:ring-2 focus:ring-[#246EB9]/25 outline-none text-sm bg-white text-[#0B1F33]"
                         />
                       </div>
                     </div>
@@ -847,7 +853,7 @@ export default function OnboardingPage() {
               <button
                 onClick={() => setStep((s) => s + 1)}
                 disabled={!canProceed()}
-                className="flex items-center gap-1 px-6 py-3 bg-[#4361EE] text-white rounded-xl font-semibold hover:bg-[#1e5ba8] transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed btn-lift shadow-sm"
+                className="flex items-center gap-1 px-6 py-3 bg-[#246EB9] text-white rounded-xl font-semibold hover:bg-[#1e5ba8] transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed btn-lift shadow-sm"
               >
                 Next <ChevronRight className="w-4 h-4" />
               </button>

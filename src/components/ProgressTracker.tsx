@@ -2,12 +2,11 @@
 
 import React from "react";
 import {
-  MapPin,
   CheckCircle,
   Truck,
   PlayCircle,
   Camera,
-  CreditCard,
+  CheckCircle2,
   Circle,
 } from "lucide-react";
 import { JobStatus } from "@/lib/types";
@@ -24,7 +23,7 @@ const STEPS = [
   { key: "en-route", label: "En Route", icon: Truck, description: "On the way" },
   { key: "in-progress", label: "In Progress", icon: PlayCircle, description: "Working now" },
   { key: "photo-proof", label: "Photo Proof", icon: Camera, description: "Completion photo" },
-  { key: "completed", label: "Completed", icon: CreditCard, description: "Job done" },
+  { key: "completed", label: "Completed", icon: CheckCircle2, description: "Job complete" },
 ];
 
 const STATUS_ORDER: Record<string, number> = {
@@ -68,7 +67,7 @@ export default function ProgressTracker({
                   isComplete
                     ? "bg-green-100 text-green-700"
                     : isCurrent
-                    ? "bg-[#4361EE]/15 text-[#4361EE] ring-2 ring-[#4361EE]/30"
+                    ? "bg-[#246EB9]/15 text-[#246EB9] ring-2 ring-[#246EB9]/30"
                     : "bg-gray-100 text-gray-400"
                 }`}
               >
@@ -120,7 +119,7 @@ export default function ProgressTracker({
         {/* Progress line */}
         <div className="absolute left-[15px] top-0 bottom-0 w-0.5 bg-gray-200" />
         <div
-          className="absolute left-[15px] top-0 w-0.5 bg-[#4361EE] transition-all duration-500"
+          className="absolute left-[15px] top-0 w-0.5 bg-[#246EB9] transition-all duration-500"
           style={{
             height: `${Math.min(100, (currentIndex / (STEPS.length - 1)) * 100)}%`,
           }}
@@ -140,7 +139,7 @@ export default function ProgressTracker({
                     isComplete
                       ? "bg-green-500 text-white"
                       : isCurrent
-                      ? "bg-[#4361EE] text-white ring-4 ring-[#4361EE]/15"
+                      ? "bg-[#246EB9] text-white ring-4 ring-[#246EB9]/15"
                       : "bg-gray-100 text-gray-400"
                   }`}
                 >
@@ -152,7 +151,7 @@ export default function ProgressTracker({
                       isComplete
                         ? "text-green-700"
                         : isCurrent
-                        ? "text-[#4361EE]"
+                        ? "text-[#246EB9]"
                         : "text-gray-400"
                     }`}
                   >
@@ -160,7 +159,7 @@ export default function ProgressTracker({
                   </p>
                   <p
                     className={`text-xs ${
-                      isCurrent ? "text-[#4361EE]" : "text-gray-400"
+                      isCurrent ? "text-[#246EB9]" : "text-gray-400"
                     }`}
                   >
                     {step.description}

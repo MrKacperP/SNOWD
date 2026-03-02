@@ -54,7 +54,7 @@ export default function DeleteConfirmPopup({
             transition={{ type: "spring", duration: 0.5, bounce: 0.2 }}
           >
             {/* Red gradient accent */}
-            <div className="h-1.5 bg-gradient-to-r from-red-500 via-red-400 to-orange-400" />
+            <div className="h-1.5 bg-red-500" />
 
             {/* Close button */}
             <button
@@ -67,7 +67,7 @@ export default function DeleteConfirmPopup({
             <div className="p-7 pt-8">
               {/* Animated trash icon */}
               <motion.div
-                className="w-20 h-20 bg-gradient-to-br from-red-50 to-red-100 dark:from-red-500/10 dark:to-red-500/5 rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-lg shadow-red-100/50 dark:shadow-red-500/10"
+                className="w-20 h-20 bg-red-50 dark:bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-lg shadow-red-100/50 dark:shadow-red-500/10"
                 initial={{ scale: 0, rotate: -20 }}
                 animate={{ scale: 1, rotate: 0 }}
                 transition={{ type: "spring", delay: 0.1, bounce: 0.4 }}
@@ -129,7 +129,7 @@ export default function DeleteConfirmPopup({
                 <motion.button
                   onClick={onConfirm}
                   disabled={loading}
-                  className="flex-1 py-3.5 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl font-semibold text-sm transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-red-500/25 active:scale-[0.98]"
+                  className="flex-1 py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold text-sm transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-red-500/25 active:scale-[0.98]"
                   whileTap={{ scale: 0.98 }}
                 >
                   {loading ? (

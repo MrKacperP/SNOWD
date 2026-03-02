@@ -301,7 +301,7 @@ export default function MessagesPage() {
       </button>
       
       <h1 className="text-2xl font-bold mb-4 flex items-center gap-2">
-        <MessageSquare className="w-6 h-6 text-[#4361EE]" />
+        <MessageSquare className="w-6 h-6 text-[#246EB9]" />
         Messages
       </h1>
 
@@ -314,7 +314,7 @@ export default function MessagesPage() {
             placeholder="Search by name..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4361EE]/20 focus:border-[#4361EE]"
+            className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#246EB9]/20 focus:border-[#246EB9]"
           />
           {searchTerm && (
             <button onClick={() => setSearchTerm("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -324,14 +324,14 @@ export default function MessagesPage() {
         </div>
         <button
           onClick={() => { setSelectMode(!selectMode); setSelectedChats(new Set()); }}
-          className={`p-2.5 rounded-xl border transition ${selectMode ? "bg-[#4361EE] text-white border-[#4361EE]" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+          className={`p-2.5 rounded-xl border transition ${selectMode ? "bg-[#246EB9] text-white border-[#246EB9]" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
           title={selectMode ? "Cancel selection" : "Select messages"}
         >
           {selectMode ? <X className="w-4 h-4" /> : <MailOpen className="w-4 h-4" />}
         </button>
         <button
           onClick={() => setShowArchived(!showArchived)}
-          className={`p-2.5 rounded-xl border transition ${showArchived ? "bg-[#4361EE] text-white border-[#4361EE]" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+          className={`p-2.5 rounded-xl border transition ${showArchived ? "bg-[#246EB9] text-white border-[#246EB9]" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
           title={showArchived ? "Show active chats" : "Show archived chats"}
         >
           <Archive className="w-4 h-4" />
@@ -340,7 +340,7 @@ export default function MessagesPage() {
 
       {/* Bulk Actions Bar */}
       {selectMode && (
-        <div className="flex items-center gap-2 mb-4 p-3 bg-[#4361EE]/5 rounded-xl border border-[#4361EE]/20">
+        <div className="flex items-center gap-2 mb-4 p-3 bg-[#246EB9]/5 rounded-xl border border-[#246EB9]/20">
           <button
             onClick={selectAll}
             className="px-3 py-1.5 text-xs font-medium bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition"
@@ -406,8 +406,8 @@ export default function MessagesPage() {
                     onClick={() => toggleSelect(chat.id)}
                     className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-5 h-5 rounded border-2 flex items-center justify-center transition"
                     style={{
-                      borderColor: selectedChats.has(chat.id) ? "#4361EE" : "#D1D5DB",
-                      backgroundColor: selectedChats.has(chat.id) ? "#4361EE" : "transparent",
+                      borderColor: selectedChats.has(chat.id) ? "#246EB9" : "#D1D5DB",
+                      backgroundColor: selectedChats.has(chat.id) ? "#246EB9" : "transparent",
                     }}
                   >
                     {selectedChats.has(chat.id) && (
@@ -437,13 +437,13 @@ export default function MessagesPage() {
                       }).catch(() => {});
                     }
                   }}
-                  className={`flex items-center gap-4 py-4 hover:bg-[#F7FAFC] transition ${isPinned ? "bg-[#4361EE]/10/50" : ""} ${selectMode ? "pl-10 pr-5" : "px-5"}`}
+                  className={`flex items-center gap-4 py-4 hover:bg-[#F7FAFC] transition ${isPinned ? "bg-[#246EB9]/10/50" : ""} ${selectMode ? "pl-10 pr-5" : "px-5"}`}
                 >
                   {/* Avatar */}
-                  <div className="w-12 h-12 bg-[#4361EE]/15 rounded-full flex items-center justify-center text-[#4361EE] font-semibold shrink-0 relative">
+                  <div className="w-12 h-12 bg-[#246EB9]/15 rounded-full flex items-center justify-center text-[#246EB9] font-semibold shrink-0 relative">
                     {chat.otherUser?.displayName?.charAt(0)?.toUpperCase() || "?"}
                     {isPinned && (
-                      <Pin className="w-3 h-3 text-[#4361EE] absolute -top-1 -right-1 fill-[#4361EE]" />
+                      <Pin className="w-3 h-3 text-[#246EB9] absolute -top-1 -right-1 fill-[#246EB9]" />
                     )}
                   </div>
 
@@ -464,7 +464,7 @@ export default function MessagesPage() {
                     {chat.jobData && (
                       <div className="flex flex-wrap items-center gap-1.5 mt-1">
                         {chat.jobData.serviceTypes && chat.jobData.serviceTypes.length > 0 && chat.jobData.serviceTypes.map(s => (
-                          <span key={s} className="px-2 py-0.5 bg-[#4361EE]/10 text-[#4361EE] rounded-full text-[10px] font-semibold capitalize">
+                          <span key={s} className="px-2 py-0.5 bg-[#246EB9]/10 text-[#246EB9] rounded-full text-[10px] font-semibold capitalize">
                             {s.replace("-", " ")}
                           </span>
                         ))}
@@ -477,7 +477,7 @@ export default function MessagesPage() {
                         {chat.jobData.status && (
                           <span className={`capitalize px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                             chat.jobData.status === "completed" ? "bg-green-100 text-green-700" :
-                            chat.jobData.status === "in-progress" ? "bg-[#4361EE]/15 text-[#4361EE]" :
+                            chat.jobData.status === "in-progress" ? "bg-[#246EB9]/15 text-[#246EB9]" :
                             chat.jobData.status === "pending" ? "bg-yellow-100 text-yellow-700" :
                             chat.jobData.status === "cancelled" ? "bg-red-100 text-red-700" :
                             "bg-gray-100 text-gray-700"
@@ -493,7 +493,7 @@ export default function MessagesPage() {
                         {chat.lastMessage || "No messages yet"}
                       </p>
                       {unread > 0 && (
-                        <span className="bg-[#4361EE] text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center shrink-0 ml-2">
+                        <span className="bg-[#246EB9] text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center shrink-0 ml-2">
                           {unread}
                         </span>
                       )}

@@ -18,9 +18,9 @@ interface ModalProps {
 
 const variantStyles = {
   default: {
-    iconBg: "bg-[#4361EE]/10",
-    iconColor: "text-[#4361EE]",
-    accentGlow: "rgba(67, 97, 238, 0.15)",
+    iconBg: "bg-[#246EB9]/10",
+    iconColor: "text-[#246EB9]",
+    accentGlow: "rgba(36, 110, 185, 0.15)",
   },
   danger: {
     iconBg: "bg-red-50 dark:bg-red-500/10",
@@ -106,14 +106,13 @@ export default function Modal({
           >
             {/* Top accent line */}
             <div
-              className="absolute top-0 left-0 right-0 h-1"
-              style={{
-                background: variant === "danger"
-                  ? "linear-gradient(90deg, #EF4444, #F87171)"
+              className={`absolute top-0 left-0 right-0 h-1 ${
+                variant === "danger"
+                  ? "bg-red-500"
                   : variant === "success"
-                  ? "linear-gradient(90deg, #10B981, #34D399)"
-                  : "linear-gradient(90deg, #4361EE, #6B83F2)",
-              }}
+                  ? "bg-emerald-500"
+                  : "bg-[#246EB9]"
+              }`}
             />
 
             {/* Close button */}

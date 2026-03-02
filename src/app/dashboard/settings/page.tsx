@@ -39,6 +39,7 @@ import {
   ExternalLink,
   Loader2,
   ArrowLeft,
+  RefreshCw,
   Camera,
   ShieldCheck,
   GraduationCap,
@@ -50,7 +51,7 @@ import {
 } from "lucide-react";
 
 export default function SettingsPage() {
-  const { user, profile, signOut, refreshProfile } = useAuth();
+  const { user, profile, signOut, refreshProfile, deleteAccount } = useAuth();
   const { theme, setTheme } = useTheme();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -105,7 +106,11 @@ export default function SettingsPage() {
       const storageRef = ref(storage, `verification/${profile.uid}/id-photo`);
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
-      await updateDoc(doc(db, "users", profile.uid), { idPhotoUrl: url, idVerified: false });
+      await updateDoc(doc(db, "users", profile.uid), {
+        idPhotoUrl: url,
+        idVerified: false,
+        verificationStatus: "pending",
+      });
       setIdPhotoUrl(url);
       await refreshProfile();
       sendAdminNotif({
@@ -259,6 +264,10 @@ export default function SettingsPage() {
         const data = await res.json();
         if (!data.error) {
           setStripeStatus(data);
+          // If Stripe is fully ready, mark the profile
+          if (data.fullyReady && profile?.uid) {
+            updateDoc(doc(db, "users", profile.uid), { stripeReady: true }).catch(() => {});
+          }
         }
       } catch (e) {
         console.error("Stripe status check error:", e);
@@ -372,6 +381,28 @@ export default function SettingsPage() {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete your account? This is permanent and cannot be undone. All your data will be lost."
+    );
+    if (!confirmed) return;
+    const doubleConfirmed = window.confirm(
+      "Final confirmation: your account and all data will be permanently deleted. Are you absolutely sure?"
+    );
+    if (!doubleConfirmed) return;
+    try {
+      await deleteAccount();
+      router.push("/login");
+    } catch (error) {
+      console.error("Delete account error:", error);
+      if ((error as { code?: string }).code === "auth/requires-recent-login") {
+        alert("For security, please sign out and sign back in before deleting your account.");
+      } else {
+        alert("Failed to delete account. Please try again.");
+      }
+    }
+  };
+
   const handleThemeChange = async (newTheme: ThemePreference) => {
     setTheme(newTheme);
     if (profile?.uid) {
@@ -423,7 +454,7 @@ export default function SettingsPage() {
               onClick={() => setActiveTab(tab.key)}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
                 activeTab === tab.key
-                  ? "bg-white text-[#4361EE] shadow-sm"
+                  ? "bg-white text-[#246EB9] shadow-sm"
                   : "text-[#6B7C8F] hover:text-[#0B1F33]"
               }`}
             >
@@ -440,7 +471,7 @@ export default function SettingsPage() {
           {/* Profile Info */}
           <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
             <h3 className="text-lg font-semibold text-[#0B1F33] mb-4 flex items-center gap-2">
-              <User className="w-5 h-5 text-[#4361EE]" />
+              <User className="w-5 h-5 text-[#246EB9]" />
               Profile Information
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -450,7 +481,7 @@ export default function SettingsPage() {
                   type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#4361EE] focus:border-transparent outline-none"
+                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#246EB9] focus:border-transparent outline-none"
                 />
               </div>
               <div>
@@ -468,7 +499,7 @@ export default function SettingsPage() {
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#4361EE] focus:border-transparent outline-none"
+                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#246EB9] focus:border-transparent outline-none"
                 />
               </div>
               {isOperator && (
@@ -478,7 +509,7 @@ export default function SettingsPage() {
                     type="text"
                     value={businessName}
                     onChange={(e) => setBusinessName(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#4361EE] focus:border-transparent outline-none"
+                    className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#246EB9] focus:border-transparent outline-none"
                   />
                 </div>
               )}
@@ -490,7 +521,7 @@ export default function SettingsPage() {
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
                   rows={3}
-                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#4361EE] focus:border-transparent outline-none resize-none"
+                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#246EB9] focus:border-transparent outline-none resize-none"
                 />
               </div>
             )}
@@ -499,7 +530,7 @@ export default function SettingsPage() {
           {/* Location */}
           <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
             <h3 className="text-lg font-semibold text-[#0B1F33] mb-4 flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-[#4361EE]" />
+              <MapPin className="w-5 h-5 text-[#246EB9]" />
               Location
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
@@ -509,7 +540,7 @@ export default function SettingsPage() {
                   type="text"
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#4361EE] focus:border-transparent outline-none"
+                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#246EB9] focus:border-transparent outline-none"
                 />
               </div>
               <div>
@@ -518,7 +549,7 @@ export default function SettingsPage() {
                   type="text"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#4361EE] focus:border-transparent outline-none"
+                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#246EB9] focus:border-transparent outline-none"
                 />
               </div>
               <div>
@@ -526,7 +557,7 @@ export default function SettingsPage() {
                 <select
                   value={province}
                   onChange={(e) => setProvince(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm bg-white focus:ring-2 focus:ring-[#4361EE] focus:border-transparent outline-none"
+                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm bg-white focus:ring-2 focus:ring-[#246EB9] focus:border-transparent outline-none"
                 >
                   {CANADIAN_PROVINCES.map((p) => (
                     <option key={p.code} value={p.code}>{p.name}</option>
@@ -540,7 +571,7 @@ export default function SettingsPage() {
                   value={postalCode}
                   onChange={(e) => setPostalCode(e.target.value.toUpperCase())}
                   maxLength={7}
-                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#4361EE] focus:border-transparent outline-none"
+                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#246EB9] focus:border-transparent outline-none"
                 />
               </div>
             </div>
@@ -557,7 +588,7 @@ export default function SettingsPage() {
                   max={50}
                   value={serviceRadius}
                   onChange={(e) => setServiceRadius(parseInt(e.target.value))}
-                  className="w-full accent-[#4361EE] mb-3"
+                  className="w-full accent-[#246EB9] mb-3"
                 />
                 <div className="rounded-xl overflow-hidden border border-[#E6EEF6]">
                   <ServiceRadiusMap
@@ -575,7 +606,7 @@ export default function SettingsPage() {
             {!isOperator && address && city && (
               <div className="mt-4">
                 <label className="text-sm font-medium text-[#6B7C8F] mb-2 block flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-[#4361EE]" />
+                  <MapPin className="w-4 h-4 text-[#246EB9]" />
                   Your Location on Map
                 </label>
                 <div className="rounded-xl overflow-hidden border border-[#E6EEF6]">
@@ -599,7 +630,7 @@ export default function SettingsPage() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="btn-primary w-full flex items-center justify-center gap-2 px-6 py-3 bg-[#4361EE] text-white rounded-xl font-semibold text-sm hover:bg-[#1a6dd4] transition disabled:opacity-50"
+            className="btn-primary w-full flex items-center justify-center gap-2 px-6 py-3 bg-[#246EB9] text-white rounded-xl font-semibold text-sm hover:bg-[#1a6dd4] transition disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
             {saving ? "Saving..." : "Save Changes"}
@@ -614,6 +645,18 @@ export default function SettingsPage() {
             Sign Out
           </button>
 
+          {/* Delete Account */}
+          <div className="border-t border-gray-100 pt-4">
+            <button
+              onClick={handleDeleteAccount}
+              className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm border border-red-200 text-red-600 hover:bg-red-50 transition"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete Account
+            </button>
+            <p className="text-center text-xs text-gray-400 mt-2">Permanently deletes your account and all data</p>
+          </div>
+
           <div className="text-center py-2">
             <p className="text-xs text-[#6B7C8F]">snowd.ca v0.1.0</p>
           </div>
@@ -625,7 +668,7 @@ export default function SettingsPage() {
         <div className="space-y-6">
           <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
             <h3 className="text-lg font-semibold text-[#0B1F33] mb-4 flex items-center gap-2">
-              <Sun className="w-5 h-5 text-[#4361EE]" />
+              <Sun className="w-5 h-5 text-[#246EB9]" />
               Theme
             </h3>
             <div className="grid grid-cols-2 gap-3">
@@ -641,12 +684,12 @@ export default function SettingsPage() {
                     onClick={() => handleThemeChange(opt.key)}
                     className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
                       active
-                        ? "border-[#4361EE] bg-[#E8EDFD]"
-                        : "border-[#E6EEF6] hover:border-[#4361EE]/30"
+                        ? "border-[#246EB9] bg-[#D6E8F5]"
+                        : "border-[#E6EEF6] hover:border-[#246EB9]/30"
                     }`}
                   >
-                    <Icon className={`w-6 h-6 ${active ? "text-[#4361EE]" : "text-[#6B7C8F]"}`} />
-                    <span className={`text-sm font-semibold ${active ? "text-[#4361EE]" : "text-[#0B1F33]"}`}>
+                    <Icon className={`w-6 h-6 ${active ? "text-[#246EB9]" : "text-[#6B7C8F]"}`} />
+                    <span className={`text-sm font-semibold ${active ? "text-[#246EB9]" : "text-[#0B1F33]"}`}>
                       {opt.label}
                     </span>
                     <span className="text-xs text-[#6B7C8F]">{opt.desc}</span>
@@ -663,7 +706,7 @@ export default function SettingsPage() {
         <div className="space-y-6">
           <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
             <h3 className="text-lg font-semibold text-[#0B1F33] mb-4 flex items-center gap-2">
-              <CreditCard className="w-5 h-5 text-[#4361EE]" />
+              <CreditCard className="w-5 h-5 text-[#246EB9]" />
               Payment Methods
             </h3>
 
@@ -673,7 +716,7 @@ export default function SettingsPage() {
                 {(profile as UserProfile & { stripePaymentMethods: { brand: string; last4: string; expMonth: number; expYear: number }[] }).stripePaymentMethods.map((pm, i) => (
                   <div key={i} className="flex items-center justify-between p-3 bg-[#F7FAFC] rounded-xl">
                     <div className="flex items-center gap-3">
-                      <CreditCard className="w-5 h-5 text-[#4361EE]" />
+                      <CreditCard className="w-5 h-5 text-[#246EB9]" />
                       <div>
                         <p className="text-sm font-medium text-[#0B1F33] capitalize">{pm.brand} **** {pm.last4}</p>
                         <p className="text-xs text-[#6B7C8F]">Expires {pm.expMonth}/{pm.expYear}</p>
@@ -702,7 +745,7 @@ export default function SettingsPage() {
           {isOperator && (
             <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
               <h3 className="text-lg font-semibold text-[#0B1F33] mb-4 flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-[#4361EE]" />
+                <Building2 className="w-5 h-5 text-[#246EB9]" />
                 Payout Information
               </h3>
 
@@ -730,7 +773,7 @@ export default function SettingsPage() {
                     <Loader2 className="w-6 h-6 text-yellow-600 animate-spin" />
                     <div>
                       <p className="font-semibold text-yellow-800">Verification Pending</p>
-                      <p className="text-sm text-yellow-600">Stripe is reviewing your account details</p>
+                      <p className="text-sm text-yellow-600">Stripe is reviewing your account details. This can take a few minutes.</p>
                     </div>
                   </div>
                   <button
@@ -741,6 +784,18 @@ export default function SettingsPage() {
                     <ExternalLink className="w-4 h-4" />
                     Check Status
                   </button>
+                  <button
+                    onClick={handleStripeConnect}
+                    disabled={stripeConnecting}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-yellow-200 text-yellow-700 bg-yellow-50 rounded-xl font-medium text-sm hover:bg-yellow-100 transition disabled:opacity-50"
+                  >
+                    {stripeConnecting ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="w-4 h-4" />
+                    )}
+                    Restart Setup
+                  </button>
                 </div>
               ) : (
                 <div className="text-center py-6 text-[#6B7C8F]">
@@ -750,7 +805,7 @@ export default function SettingsPage() {
                   <button
                     onClick={handleStripeConnect}
                     disabled={stripeConnecting}
-                    className="btn-primary px-6 py-2.5 bg-[#4361EE] text-white rounded-xl text-sm font-semibold hover:bg-[#1a6dd4] transition disabled:opacity-50 flex items-center gap-2 mx-auto"
+                    className="btn-primary px-6 py-2.5 bg-[#246EB9] text-white rounded-xl text-sm font-semibold hover:bg-[#1a6dd4] transition disabled:opacity-50 flex items-center gap-2 mx-auto"
                   >
                     {stripeConnecting ? (
                       <>
@@ -776,7 +831,7 @@ export default function SettingsPage() {
         <div className="space-y-6">
           <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
             <h3 className="text-lg font-semibold text-[#0B1F33] mb-4 flex items-center gap-2">
-              <Bell className="w-5 h-5 text-[#4361EE]" />
+              <Bell className="w-5 h-5 text-[#246EB9]" />
               Notification Preferences
             </h3>
             <div className="space-y-4">
@@ -793,7 +848,7 @@ export default function SettingsPage() {
                   </div>
                   <label className="relative inline-block w-11 h-6 cursor-pointer">
                     <input type="checkbox" defaultChecked className="sr-only peer" />
-                    <div className="w-11 h-6 bg-[#E6EEF6] peer-checked:bg-[#4361EE] rounded-full transition-colors" />
+                    <div className="w-11 h-6 bg-[#E6EEF6] peer-checked:bg-[#246EB9] rounded-full transition-colors" />
                     <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow peer-checked:translate-x-5 transition-transform" />
                   </label>
                 </div>
@@ -806,15 +861,54 @@ export default function SettingsPage() {
       {/* Verification */}
       {activeTab === "verification" && (
         <div className="space-y-6">
+          {/* Account Public Status — operators only */}
+          {isOperator && (
+            <div className={`rounded-2xl border p-5 ${
+              (profile as UserProfile & { accountApproved?: boolean })?.accountApproved
+                ? "bg-green-50 border-green-200"
+                : "bg-amber-50 border-amber-200"
+            }`}>
+              <div className="flex items-center gap-3">
+                {(profile as UserProfile & { accountApproved?: boolean })?.accountApproved ? (
+                  <>
+                    <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center shrink-0">
+                      <ShieldCheck className="w-5 h-5 text-green-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-green-900">Account is Public</h3>
+                      <p className="text-sm text-green-700">
+                        Your account is verified and visible to clients. You can receive jobs.
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
+                      <Shield className="w-5 h-5 text-amber-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-amber-900">Account Not Public Yet</h3>
+                      <p className="text-sm text-amber-700">
+                        {!(profile as UserProfile & { idPhotoUrl?: string })?.idPhotoUrl
+                          ? "Upload your government ID below to start the verification process."
+                          : "Your ID is under review. Once approved, your account will go public."}
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* ID Photo Upload */}
           <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
             <h3 className="text-lg font-semibold text-[#0B1F33] mb-1 flex items-center gap-2">
-              <Camera className="w-5 h-5 text-[#4361EE]" />
+              <Camera className="w-5 h-5 text-[#246EB9]" />
               Government ID Photo
             </h3>
             <p className="text-xs text-[#6B7C8F] mb-4">
               Upload a clear photo of your government-issued ID (driver&apos;s license, passport, etc.)
-              to get verified and build trust with other users.
+              {isOperator ? " — required for your account to go public." : " to get verified and build trust with other users."}
             </p>
 
             {/* Current status */}
@@ -842,7 +936,7 @@ export default function SettingsPage() {
             )}
 
             {/* Upload button */}
-            <label className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#4361EE] text-white rounded-xl text-sm font-semibold hover:bg-[#1a6dd4] transition cursor-pointer">
+            <label className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#246EB9] text-white rounded-xl text-sm font-semibold hover:bg-[#1a6dd4] transition cursor-pointer">
               {uploadingId ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" /> Uploading...
@@ -866,7 +960,7 @@ export default function SettingsPage() {
           {isOperator && (
             <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
               <h3 className="text-lg font-semibold text-[#0B1F33] mb-1 flex items-center gap-2">
-                <GraduationCap className="w-5 h-5 text-[#4361EE]" />
+                <GraduationCap className="w-5 h-5 text-[#246EB9]" />
                 Student Transcript / Report Card
               </h3>
               <p className="text-xs text-[#6B7C8F] mb-4">
@@ -895,7 +989,7 @@ export default function SettingsPage() {
                       href={studentTranscriptUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-sm text-[#4361EE] hover:underline"
+                      className="inline-flex items-center gap-2 text-sm text-[#246EB9] hover:underline"
                     >
                       <ExternalLink className="w-4 h-4" /> View uploaded transcript
                     </a>
@@ -908,7 +1002,7 @@ export default function SettingsPage() {
               )}
 
               {/* Upload button */}
-              <label className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#4361EE] text-white rounded-xl text-sm font-semibold hover:bg-[#1a6dd4] transition cursor-pointer">
+              <label className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#246EB9] text-white rounded-xl text-sm font-semibold hover:bg-[#1a6dd4] transition cursor-pointer">
                 {uploadingTranscript ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" /> Uploading...
@@ -937,7 +1031,7 @@ export default function SettingsPage() {
           {/* Business Identity */}
           <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
             <h3 className="text-lg font-semibold text-[#0B1F33] mb-4 flex items-center gap-2">
-              <Briefcase className="w-5 h-5 text-[#4361EE]" />
+              <Briefcase className="w-5 h-5 text-[#246EB9]" />
               Business Identity
             </h3>
 
@@ -953,7 +1047,7 @@ export default function SettingsPage() {
               <div>
                 <p className="text-sm font-medium text-[#0B1F33]">Business Logo</p>
                 <p className="text-xs text-[#6B7C8F] mb-2">Displayed on your profile and invoices</p>
-                <label className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#4361EE]/10 text-[#4361EE] rounded-lg text-xs font-semibold cursor-pointer hover:bg-[#4361EE]/20 transition">
+                <label className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#246EB9]/10 text-[#246EB9] rounded-lg text-xs font-semibold cursor-pointer hover:bg-[#246EB9]/20 transition">
                   {uploadingLogo ? (
                     <><Loader2 className="w-3 h-3 animate-spin" /> Uploading...</>
                   ) : (
@@ -974,7 +1068,7 @@ export default function SettingsPage() {
                   onChange={(e) => setBrandingTagline(e.target.value)}
                   placeholder="e.g. Fast & Reliable Snow Removal"
                   maxLength={80}
-                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl focus:ring-2 focus:ring-[#4361EE]/30 focus:border-[#4361EE] outline-none text-sm"
+                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl focus:ring-2 focus:ring-[#246EB9]/30 focus:border-[#246EB9] outline-none text-sm"
                 />
                 <p className="text-xs text-[#6B7C8F] mt-1">{brandingTagline.length}/80 characters</p>
               </div>
@@ -987,7 +1081,7 @@ export default function SettingsPage() {
                   placeholder="Tell clients about your experience, services, and what makes you stand out..."
                   rows={4}
                   maxLength={500}
-                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl focus:ring-2 focus:ring-[#4361EE]/30 focus:border-[#4361EE] outline-none text-sm resize-none"
+                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl focus:ring-2 focus:ring-[#246EB9]/30 focus:border-[#246EB9] outline-none text-sm resize-none"
                 />
                 <p className="text-xs text-[#6B7C8F] mt-1">{brandingDescription.length}/500 characters</p>
               </div>
@@ -995,7 +1089,7 @@ export default function SettingsPage() {
               <button
                 onClick={saveBranding}
                 disabled={saving}
-                className="flex items-center gap-2 px-5 py-2.5 bg-[#4361EE] text-white rounded-xl text-sm font-semibold hover:bg-[#1a6dd4] transition disabled:opacity-50"
+                className="flex items-center gap-2 px-5 py-2.5 bg-[#246EB9] text-white rounded-xl text-sm font-semibold hover:bg-[#1a6dd4] transition disabled:opacity-50"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Save Changes
@@ -1006,7 +1100,7 @@ export default function SettingsPage() {
           {/* Work Portfolio */}
           <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
             <h3 className="text-lg font-semibold text-[#0B1F33] mb-1 flex items-center gap-2">
-              <ImagePlus className="w-5 h-5 text-[#4361EE]" />
+              <ImagePlus className="w-5 h-5 text-[#246EB9]" />
               Work Portfolio
             </h3>
             <p className="text-xs text-[#6B7C8F] mb-4">
@@ -1026,7 +1120,7 @@ export default function SettingsPage() {
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
-                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/50 to-transparent p-2">
+                    <div className="absolute bottom-0 inset-x-0 bg-black/40 p-2">
                       <span className="text-white text-xs font-medium">Photo {index + 1}</span>
                     </div>
                   </div>
@@ -1042,7 +1136,7 @@ export default function SettingsPage() {
               </div>
             )}
 
-            <label className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#4361EE] text-white rounded-xl text-sm font-semibold hover:bg-[#1a6dd4] transition cursor-pointer disabled:opacity-50">
+            <label className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#246EB9] text-white rounded-xl text-sm font-semibold hover:bg-[#1a6dd4] transition cursor-pointer disabled:opacity-50">
               {uploadingPortfolio ? (
                 <><Loader2 className="w-4 h-4 animate-spin" /> Uploading...</>
               ) : (

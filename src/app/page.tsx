@@ -102,7 +102,7 @@ function SnowBG() {
       {flakes.map((f) => (
         <motion.div
           key={f.id}
-          className="absolute text-[#4361EE]"
+          className="absolute text-[#246EB9]"
           style={{ left: `${f.left}%`, top: -20 }}
           animate={{ y: ["0vh", "110vh"], rotate: [0, 360] }}
           transition={{
@@ -161,7 +161,7 @@ function JobProgressWidget() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="px-2.5 py-0.5 text-[10px] font-semibold bg-[#4361EE]/10 text-[#4361EE] rounded-full"
+              className="px-2.5 py-0.5 text-[10px] font-semibold bg-[#246EB9]/10 text-[#246EB9] rounded-full"
             >
               {steps[active].label}
             </motion.span>
@@ -176,7 +176,7 @@ function JobProgressWidget() {
             <motion.div
               animate={{
                 scale: i === active ? 1.18 : 1,
-                backgroundColor: i <= active ? "#4361EE" : "#f3f4f6",
+                backgroundColor: i <= active ? "#246EB9" : "#f3f4f6",
               }}
               transition={{ type: "spring", stiffness: 500, damping: 30 }}
               className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
@@ -192,7 +192,7 @@ function JobProgressWidget() {
                 <motion.div
                   animate={{ width: i < active ? "100%" : "0%" }}
                   transition={{ duration: 0.4, ease: "easeOut" }}
-                  className="h-full bg-[#4361EE] rounded-full"
+                  className="h-full bg-[#246EB9] rounded-full"
                 />
               </div>
             )}
@@ -254,7 +254,7 @@ function ChatWidget() {
     >
       {/* Header */}
       <div className="flex items-center gap-2.5 px-5 py-3 border-b border-gray-100">
-        <div className="w-8 h-8 bg-[#4361EE] rounded-full flex items-center justify-center text-white text-xs font-bold">
+        <div className="w-8 h-8 bg-[#246EB9] rounded-full flex items-center justify-center text-white text-xs font-bold">
           J
         </div>
         <div>
@@ -283,7 +283,7 @@ function ChatWidget() {
               }`}
             >
               {m.from === "system" ? (
-                <span className="bg-[#4361EE]/8 text-[#4361EE] border border-[#4361EE]/15 px-2.5 py-1 rounded-full text-[10px] font-medium">
+                <span className="bg-[#246EB9]/8 text-[#246EB9] border border-[#246EB9]/15 px-2.5 py-1 rounded-full text-[10px] font-medium">
                   <Clock className="w-3 h-3 inline mr-1" />
                   {m.text}
                 </span>
@@ -291,7 +291,7 @@ function ChatWidget() {
                 <div
                   className={`px-3 py-2 rounded-2xl text-xs max-w-[80%] ${
                     m.from === "client"
-                      ? "bg-[#4361EE] text-white rounded-br-sm"
+                      ? "bg-[#246EB9] text-white rounded-br-sm"
                       : "bg-gray-100 text-gray-800 rounded-bl-sm"
                   }`}
                 >
@@ -319,7 +319,7 @@ function ChatWidget() {
         <div className="flex-1 text-[10px] px-3 py-2 bg-gray-50 rounded-xl border border-gray-200 text-gray-400">
           Message…
         </div>
-        <div className="w-7 h-7 bg-[#4361EE] rounded-xl flex items-center justify-center">
+        <div className="w-7 h-7 bg-[#246EB9] rounded-xl flex items-center justify-center">
           <Send className="w-3 h-3 text-white" />
         </div>
       </div>
@@ -388,7 +388,7 @@ function OperatorWidget() {
             key={i}
             animate={{
               scale: i === selected ? 1.02 : 1,
-              borderColor: i === selected ? "#4361EE" : "#f3f4f6",
+              borderColor: i === selected ? "#246EB9" : "#f3f4f6",
             }}
             transition={{ type: "spring", stiffness: 400, damping: 25 }}
             className="flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer"
@@ -397,8 +397,8 @@ function OperatorWidget() {
             <motion.div
               animate={{
                 backgroundColor:
-                  i === selected ? "#4361EE" : "rgba(67,97,238,0.1)",
-                color: i === selected ? "#ffffff" : "#4361EE",
+                  i === selected ? "#246EB9" : "rgba(36,110,185,0.1)",
+                color: i === selected ? "#ffffff" : "#246EB9",
               }}
               className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shrink-0"
             >
@@ -444,7 +444,7 @@ function OperatorWidget() {
           <motion.button
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
-            className="w-full py-2.5 bg-[#4361EE] text-white text-sm font-semibold rounded-xl"
+            className="w-full py-2.5 bg-[#246EB9] text-white text-sm font-semibold rounded-xl"
           >
             Book {ops[selected].name}
           </motion.button>
@@ -467,8 +467,8 @@ function PaymentWidget() {
       {
         icon: CreditCard,
         label: "Card",
-        color: "text-[#4361EE]",
-        bg: "bg-[#4361EE]/8",
+        color: "text-[#246EB9]",
+        bg: "bg-[#246EB9]/8",
       },
       {
         icon: DollarSign,
@@ -523,7 +523,7 @@ function PaymentWidget() {
             animate={{
               scale: i === selected && !paid ? 1.05 : 1,
               borderColor:
-                i === selected && !paid ? "#4361EE" : "#f3f4f6",
+                i === selected && !paid ? "#246EB9" : "#f3f4f6",
             }}
             transition={{ type: "spring", stiffness: 400, damping: 25 }}
             className="flex-1 p-3 rounded-xl border-2 flex flex-col items-center gap-1.5 cursor-pointer"
@@ -562,7 +562,7 @@ function PaymentWidget() {
             exit={{ opacity: 0 }}
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
-            className="w-full py-2.5 bg-[#4361EE] text-white text-sm font-semibold rounded-xl"
+            className="w-full py-2.5 bg-[#246EB9] text-white text-sm font-semibold rounded-xl"
           >
             Pay now
           </motion.button>
@@ -594,7 +594,7 @@ function Btn({
         href={href}
         className={`inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl font-semibold text-base transition ${
           variant === "primary"
-            ? "bg-[#4361EE] text-white hover:bg-[#3651D4] shadow-lg shadow-[#4361EE]/20"
+            ? "bg-[#246EB9] text-white hover:bg-[#1B5A9A] shadow-lg shadow-[#246EB9]/20"
             : "border-2 border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50"
         } ${className}`}
       >
@@ -625,9 +625,9 @@ export default function LandingPage() {
               whileHover={{ rotate: 180 }}
               transition={{ duration: 0.5 }}
             >
-              <Snowflake className="w-7 h-7 text-[#4361EE]" />
+              <Snowflake className="w-7 h-7 text-[#246EB9]" />
             </motion.div>
-            <span className="text-xl font-bold text-[#4361EE] font-headline">
+            <span className="text-xl font-bold text-[#246EB9] font-headline">
               snowd
             </span>
             <span className="text-xl font-light text-gray-400">.ca</span>
@@ -645,7 +645,7 @@ export default function LandingPage() {
             >
               <Link
                 href="/signup"
-                className="px-5 py-2.5 text-sm font-semibold bg-[#4361EE] text-white rounded-xl hover:bg-[#3651D4] transition shadow-sm shadow-[#4361EE]/20"
+                className="px-5 py-2.5 text-sm font-semibold bg-[#246EB9] text-white rounded-xl hover:bg-[#1B5A9A] transition shadow-sm shadow-[#246EB9]/20"
               >
                 Get Started
               </Link>
@@ -661,7 +661,7 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 bg-[#4361EE]/8 border border-[#4361EE]/20 text-[#4361EE] rounded-full text-sm font-medium mb-8"
+            className="inline-flex items-center gap-2 px-4 py-1.5 bg-[#246EB9]/8 border border-[#246EB9]/20 text-[#246EB9] rounded-full text-sm font-medium mb-8"
           >
             <Snowflake className="w-3.5 h-3.5" /> Built for Canadian winters
           </motion.div>
@@ -674,7 +674,7 @@ export default function LandingPage() {
           >
             Snow removal,
             <br />
-            <span className="text-[#4361EE]">simplified.</span>
+            <span className="text-[#246EB9]">simplified.</span>
           </motion.h1>
 
           <motion.p
@@ -788,7 +788,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── STATS ────────────────────────────────────────────────── */}
-      <section className="py-14 px-5 bg-[#4361EE]">
+      <section className="py-14 px-5 bg-[#246EB9]">
         <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 text-center text-white">
           {[
             { val: 500, sfx: "+", lbl: "Jobs Done" },
@@ -809,7 +809,7 @@ export default function LandingPage() {
       {/* ── CTA ──────────────────────────────────────────────────── */}
       <section className="py-20 md:py-28 px-5">
         <FadeUp className="max-w-4xl mx-auto">
-          <div className="bg-[#4361EE] rounded-3xl p-10 md:p-16 text-center text-white relative overflow-hidden">
+          <div className="bg-[#246EB9] rounded-3xl p-10 md:p-16 text-center text-white relative overflow-hidden">
             <motion.div
               className="absolute top-6 right-10 opacity-10"
               animate={{ rotate: 360 }}
@@ -847,7 +847,7 @@ export default function LandingPage() {
                 >
                   <Link
                     href="/signup"
-                    className="inline-flex items-center gap-2 px-8 py-4 bg-white text-[#4361EE] rounded-xl font-semibold text-lg hover:bg-gray-100 transition shadow-lg"
+                    className="inline-flex items-center gap-2 px-8 py-4 bg-white text-[#246EB9] rounded-xl font-semibold text-lg hover:bg-gray-100 transition shadow-lg"
                   >
                     Sign Up Free <ChevronRight className="w-5 h-5" />
                   </Link>
@@ -873,8 +873,8 @@ export default function LandingPage() {
       <footer className="border-t border-gray-100 py-8 px-5 bg-white relative z-10">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <Snowflake className="w-5 h-5 text-[#4361EE]" />
-            <span className="font-bold text-[#4361EE] font-headline">
+            <Snowflake className="w-5 h-5 text-[#246EB9]" />
+            <span className="font-bold text-[#246EB9] font-headline">
               snowd
             </span>
             <span className="font-light text-gray-400">.ca</span>

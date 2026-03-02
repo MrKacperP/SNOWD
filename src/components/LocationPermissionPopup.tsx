@@ -29,7 +29,7 @@ export default function LocationPermissionPopup({ isOpen, onAllow, onDeny }: Loc
             transition={{ type: "spring", duration: 0.5, bounce: 0.2 }}
           >
             {/* Animated gradient header */}
-            <div className="relative h-40 bg-gradient-to-br from-[#4361EE] via-[#6B83F2] to-[#4361EE] overflow-hidden">
+            <div className="relative h-40 bg-[#246EB9] overflow-hidden">
               {/* Animated circles */}
               <motion.div
                 className="absolute w-24 h-24 bg-white/10 rounded-full -top-6 -right-6"
@@ -123,7 +123,7 @@ export default function LocationPermissionPopup({ isOpen, onAllow, onDeny }: Loc
               <div className="mt-5 space-y-2.5">
                 <button
                   onClick={onAllow}
-                  className="w-full py-3.5 bg-[#4361EE] hover:bg-[#3249D6] text-white rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-[#4361EE]/20"
+                  className="w-full py-3.5 bg-[#246EB9] hover:bg-[#1B5A9A] text-white rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-[#246EB9]/20"
                 >
                   <Navigation className="w-4 h-4" />
                   Allow Location

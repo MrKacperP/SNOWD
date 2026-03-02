@@ -43,7 +43,7 @@ export default function CancellationPopup({
             transition={{ type: "spring", duration: 0.5, bounce: 0.2 }}
           >
             {/* Red accent line */}
-            <div className="h-1 bg-gradient-to-r from-red-400 via-red-500 to-orange-400" />
+            <div className="h-1 bg-red-500" />
 
             {/* Close button */}
             <button

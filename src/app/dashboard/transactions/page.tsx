@@ -14,6 +14,7 @@ import { db } from "@/lib/firebase";
 import { Transaction, ServiceType } from "@/lib/types";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   DollarSign,
   ArrowUpRight,
@@ -60,6 +61,7 @@ import { OperatorProfile } from "@/lib/types";
 
 export default function TransactionsPage() {
   const { profile } = useAuth();
+  const router = useRouter();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterStatus>("all");
@@ -73,8 +75,8 @@ export default function TransactionsPage() {
     try {
       const accountId = (profile as OperatorProfile & { stripeConnectAccountId?: string })?.stripeConnectAccountId;
       if (!accountId) {
-        // Redirect to settings to set up Stripe
-        window.location.href = "/dashboard/settings?tab=payment";
+        // Navigate to settings to set up Stripe (in-app navigation)
+        router.push("/dashboard/settings?tab=payment");
         return;
       }
       const res = await fetch("/api/stripe/account-link", {
@@ -208,7 +210,7 @@ export default function TransactionsPage() {
           <button
             onClick={handleManageStripe}
             disabled={stripeLoading}
-            className="flex items-center gap-2 px-4 py-2 bg-[#4361EE]/10 text-[#4361EE] rounded-xl text-sm font-semibold hover:bg-[#4361EE]/20 transition disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-[#246EB9]/10 text-[#246EB9] rounded-xl text-sm font-semibold hover:bg-[#246EB9]/20 transition disabled:opacity-50"
           >
             {stripeLoading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -219,6 +221,31 @@ export default function TransactionsPage() {
           </button>
         )}
       </div>
+
+      {/* Stripe Setup Banner — shown for operators who haven't connected Stripe */}
+      {isOperator && !(profile as OperatorProfile & { stripeConnectAccountId?: string })?.stripeConnectAccountId && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+          <div className="flex items-start gap-4">
+            <div className="w-11 h-11 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
+              <CreditCard className="w-5 h-5 text-amber-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-bold text-amber-900">Set Up Payments to Get Paid</h3>
+              <p className="text-sm text-amber-700 mt-1 leading-relaxed">
+                Connect your bank account with Stripe so clients can pay you directly — and you can receive payouts.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleManageStripe}
+            disabled={stripeLoading}
+            className="mt-4 w-full flex items-center justify-center gap-2 px-5 py-3 bg-amber-500 text-white rounded-xl font-semibold text-sm hover:bg-amber-600 transition disabled:opacity-50"
+          >
+            {stripeLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
+            {stripeLoading ? "Setting up..." : "Connect Stripe & Get Paid"}
+          </button>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -254,10 +281,10 @@ export default function TransactionsPage() {
             </div>
             <div className="bg-white rounded-2xl border border-[#E6EEF6] p-4">
               <div className="flex items-center gap-2 mb-1">
-                <HandCoins className="w-4 h-4 text-[#4361EE]" />
+                <HandCoins className="w-4 h-4 text-[#246EB9]" />
                 <span className="text-xs font-medium text-[#6B7C8F]">Tips</span>
               </div>
-              <p className="text-xl font-bold text-[#4361EE]">${(totalTips / 100).toFixed(2)}</p>
+              <p className="text-xl font-bold text-[#246EB9]">${(totalTips / 100).toFixed(2)}</p>
             </div>
           </>
         )}
@@ -268,7 +295,7 @@ export default function TransactionsPage() {
         <div className="bg-white rounded-2xl border border-[#E6EEF6] p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-bold text-[#0B1F33] flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-[#4361EE]" />
+              <BarChart3 className="w-4 h-4 text-[#246EB9]" />
               Earnings (14 days)
             </h2>
             <span className="text-xs text-[#6B7C8F]">
@@ -300,7 +327,7 @@ export default function TransactionsPage() {
               <XAxis dataKey="date" tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `$${v}`} />
               <Tooltip formatter={(value) => [`$${Number(value).toFixed(2)}`, "Earnings"]} />
-              <Area type="monotone" dataKey="amount" stroke="#4361EE" fill="#4361EE" fillOpacity={0.1} />
+              <Area type="monotone" dataKey="amount" stroke="#246EB9" fill="#246EB9" fillOpacity={0.1} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -308,11 +335,11 @@ export default function TransactionsPage() {
 
       {/* Stripe Portal Link for Operators */}
       {isOperator && (
-        <div className="bg-gradient-to-r from-[#4361EE]/5 to-purple-50 rounded-2xl border border-[#4361EE]/10 p-4">
+        <div className="bg-[#246EB9]/5 rounded-2xl border border-[#246EB9]/10 p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-[#4361EE]/10 rounded-xl flex items-center justify-center">
-                <CreditCard className="w-5 h-5 text-[#4361EE]" />
+              <div className="w-10 h-10 bg-[#246EB9]/10 rounded-xl flex items-center justify-center">
+                <CreditCard className="w-5 h-5 text-[#246EB9]" />
               </div>
               <div>
                 <p className="font-semibold text-[#0B1F33] text-sm">Stripe Dashboard</p>
@@ -322,7 +349,7 @@ export default function TransactionsPage() {
             <button
               onClick={handleManageStripe}
               disabled={stripeLoading}
-              className="flex items-center gap-2 px-4 py-2 bg-[#4361EE] text-white rounded-xl text-sm font-semibold hover:bg-[#3651D4] transition disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-[#246EB9] text-white rounded-xl text-sm font-semibold hover:bg-[#1B5A9A] transition disabled:opacity-50"
             >
               {stripeLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
               Open Stripe
@@ -340,7 +367,7 @@ export default function TransactionsPage() {
             onClick={() => setFilter(f)}
             className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition ${
               filter === f
-                ? "bg-[#4361EE] text-white"
+                ? "bg-[#246EB9] text-white"
                 : "bg-[#F7FAFC] text-[#6B7C8F] hover:bg-[#E6EEF6]"
             }`}
           >
@@ -434,7 +461,7 @@ export default function TransactionsPage() {
                   {(txn.tipAmount || txn.cashReceived) && (
                     <div className="flex items-center gap-3 text-xs mt-1">
                       {txn.tipAmount ? (
-                        <span className="text-[#4361EE] font-medium">Tip: ${(txn.tipAmount / 100).toFixed(2)}</span>
+                        <span className="text-[#246EB9] font-medium">Tip: ${(txn.tipAmount / 100).toFixed(2)}</span>
                       ) : null}
                       {txn.cashReceived ? (
                         <span className="text-emerald-600 font-medium">Cash: ${(txn.cashReceived / 100).toFixed(2)}</span>

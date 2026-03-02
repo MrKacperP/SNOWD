@@ -28,7 +28,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
               w-full h-[52px] px-4 ${icon ? 'pl-12' : ''}
               bg-white border border-[#E6EEF6] rounded-xl
               text-[#0B1F33] placeholder:text-[#6B7C8F] text-base
-              focus:outline-none focus:ring-2 focus:ring-[#4361EE]/25 focus:border-[#4361EE]
+              focus:outline-none focus:ring-2 focus:ring-[#246EB9]/25 focus:border-[#246EB9]
               transition-all duration-150
               disabled:opacity-50 disabled:cursor-not-allowed
               ${error ? 'border-[#EB5757] focus:ring-[#EB5757]/25 focus:border-[#EB5757]' : ''}

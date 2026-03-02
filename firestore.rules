@@ -100,6 +100,15 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ── User Notifications (approval / rejection notices) ──────────────────
+    match /notifications/{notifId} {
+      // Users can read & update their own notifications; admin can read/write all
+      allow read, update: if request.auth != null &&
+        (request.auth.uid == resource.data.uid || isAdminOrEmployee());
+      allow create: if request.auth != null && isAdminOrEmployee();
+      allow delete: if isAdmin();
+    }
+
     // ── Site Visits ────────────────────────────────────────────────────────
     match /siteVisits/{visitId} {
       allow create: if true;

@@ -188,7 +188,7 @@ export default function AdminChatsPage() {
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
-        <MessageSquare className="w-6 h-6 text-[#4361EE]" />
+        <MessageSquare className="w-6 h-6 text-[#246EB9]" />
         <h1 className="text-2xl font-bold">All Chats</h1>
       </div>
 
@@ -197,7 +197,7 @@ export default function AdminChatsPage() {
         <button
           onClick={() => { setActiveTab("chats"); setSelectedTicket(null); }}
           className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition ${
-            activeTab === "chats" ? "bg-white text-[#4361EE] shadow-sm" : "text-gray-500 hover:text-gray-700"
+            activeTab === "chats" ? "bg-white text-[#246EB9] shadow-sm" : "text-gray-500 hover:text-gray-700"
           }`}
         >
           <MessageSquare className="w-4 h-4" />
@@ -207,7 +207,7 @@ export default function AdminChatsPage() {
         <button
           onClick={() => { setActiveTab("support"); setSelectedChat(null); }}
           className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition ${
-            activeTab === "support" ? "bg-white text-[#4361EE] shadow-sm" : "text-gray-500 hover:text-gray-700"
+            activeTab === "support" ? "bg-white text-[#246EB9] shadow-sm" : "text-gray-500 hover:text-gray-700"
           }`}
         >
           <Headphones className="w-4 h-4" />
@@ -235,7 +235,7 @@ export default function AdminChatsPage() {
                       key={u.uid}
                       onClick={() => setViewingAs(u.uid)}
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                        viewingAs === u.uid ? "bg-[#4361EE] text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        viewingAs === u.uid ? "bg-[#246EB9] text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                       }`}
                     >
                       {u.displayName} ({u.role})
@@ -263,9 +263,9 @@ export default function AdminChatsPage() {
                   return (
                     <div key={msg.id} className={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
                       <div className={`max-w-[70%] px-4 py-2.5 rounded-2xl ${
-                        isOwn ? "bg-[#4361EE] text-white rounded-br-md" : "bg-gray-100 text-gray-900 rounded-bl-md"
+                        isOwn ? "bg-[#246EB9] text-white rounded-br-md" : "bg-gray-100 text-gray-900 rounded-bl-md"
                       }`}>
-                        <p className={`text-xs font-medium mb-0.5 ${isOwn ? "text-white/70" : "text-[#4361EE]"}`}>{msg.senderName}</p>
+                        <p className={`text-xs font-medium mb-0.5 ${isOwn ? "text-white/70" : "text-[#246EB9]"}`}>{msg.senderName}</p>
                         {msg.type === "image" && msg.metadata?.imageUrl ? (
                           <img src={msg.metadata.imageUrl} alt="Photo" className="max-h-40 rounded-lg" />
                         ) : (
@@ -287,7 +287,7 @@ export default function AdminChatsPage() {
                   placeholder="Search chats by user name..."
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4361EE]/20"
+                  className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#246EB9]/20"
                 />
               </div>
 
@@ -303,7 +303,7 @@ export default function AdminChatsPage() {
                       onClick={() => { setSelectedChat(chat.id); setViewingAs(chat.participants[0] || ""); }}
                       className="w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition text-left"
                     >
-                      <div className="w-10 h-10 bg-[#4361EE]/10 rounded-full flex items-center justify-center text-[#4361EE] font-bold shrink-0">
+                      <div className="w-10 h-10 bg-[#246EB9]/10 rounded-full flex items-center justify-center text-[#246EB9] font-bold shrink-0">
                         <MessageSquare className="w-5 h-5" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -407,9 +407,9 @@ export default function AdminChatsPage() {
                   return (
                     <div key={msg.id} className={`flex ${isAdmin ? "justify-end" : "justify-start"}`}>
                       <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl ${
-                        isAdmin ? "bg-[#4361EE] text-white rounded-br-md" : "bg-gray-100 text-gray-900 rounded-bl-md"
+                        isAdmin ? "bg-[#246EB9] text-white rounded-br-md" : "bg-gray-100 text-gray-900 rounded-bl-md"
                       }`}>
-                        <p className={`text-xs font-medium mb-0.5 ${isAdmin ? "text-white/70" : "text-[#4361EE]"}`}>
+                        <p className={`text-xs font-medium mb-0.5 ${isAdmin ? "text-white/70" : "text-[#246EB9]"}`}>
                           {msg.senderName}
                         </p>
                         <p className="text-sm">{msg.content}</p>
@@ -431,12 +431,12 @@ export default function AdminChatsPage() {
                     onChange={e => setAdminReply(e.target.value)}
                     onKeyDown={e => e.key === "Enter" && !e.shiftKey && handleAdminReply()}
                     placeholder="Type a reply as SNOWD Support..."
-                    className="flex-1 px-4 py-2.5 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4361EE]/20"
+                    className="flex-1 px-4 py-2.5 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#246EB9]/20"
                   />
                   <button
                     onClick={handleAdminReply}
                     disabled={!adminReply.trim() || replying}
-                    className="w-10 h-10 bg-[#4361EE] hover:bg-[#3249D6] disabled:opacity-50 text-white rounded-xl flex items-center justify-center transition"
+                    className="w-10 h-10 bg-[#246EB9] hover:bg-[#1B5A9A] disabled:opacity-50 text-white rounded-xl flex items-center justify-center transition"
                   >
                     <Send className="w-4 h-4" />
                   </button>

@@ -170,7 +170,7 @@ export default function AdminJobsPage() {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="flex flex-col items-center gap-3">
-          <RefreshCw className="w-8 h-8 text-[#4361EE] animate-spin" />
+          <RefreshCw className="w-8 h-8 text-[#246EB9] animate-spin" />
           <p className="text-sm text-gray-400">Loading jobs...</p>
         </div>
       </div>
@@ -182,7 +182,7 @@ export default function AdminJobsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Briefcase className="w-6 h-6 text-[#4361EE]" />
+          <Briefcase className="w-6 h-6 text-[#246EB9]" />
           <h1 className="text-2xl font-bold">Job Management</h1>
           <span className="text-sm text-gray-400">{jobs.length} total</span>
         </div>
@@ -198,7 +198,7 @@ export default function AdminJobsPage() {
             key={key}
             onClick={() => setStatusFilter(statusFilter === key ? "all" : key)}
             className={`p-3 rounded-xl border transition text-center ${
-              statusFilter === key ? "border-[#4361EE] bg-[#4361EE]/5" : "border-gray-100 bg-white hover:border-gray-200"
+              statusFilter === key ? "border-[#246EB9] bg-[#246EB9]/5" : "border-gray-100 bg-white hover:border-gray-200"
             }`}
           >
             <div className={`text-xl font-bold ${cfg.color}`}>{statusCounts[key] || 0}</div>
@@ -215,7 +215,7 @@ export default function AdminJobsPage() {
           placeholder="Search by client, operator, address, city, or job ID..."
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
-          className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4361EE]/20"
+          className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#246EB9]/20"
         />
       </div>
 
@@ -236,12 +236,12 @@ export default function AdminJobsPage() {
             <div className="p-4 bg-gray-50 rounded-xl">
               <p className="text-xs text-gray-500 mb-1 font-medium">Client</p>
               <p className="font-semibold text-gray-900">{selectedJob.clientName}</p>
-              <Link href={`/admin/users/${selectedJob.clientId}`} className="text-xs text-[#4361EE] hover:underline">View profile →</Link>
+              <Link href={`/admin/users/${selectedJob.clientId}`} className="text-xs text-[#246EB9] hover:underline">View profile →</Link>
             </div>
             <div className="p-4 bg-gray-50 rounded-xl">
               <p className="text-xs text-gray-500 mb-1 font-medium">Operator</p>
               <p className="font-semibold text-gray-900">{selectedJob.operatorName}</p>
-              <Link href={`/admin/users/${selectedJob.operatorId}`} className="text-xs text-[#4361EE] hover:underline">View profile →</Link>
+              <Link href={`/admin/users/${selectedJob.operatorId}`} className="text-xs text-[#246EB9] hover:underline">View profile →</Link>
             </div>
             <div className="p-4 bg-gray-50 rounded-xl">
               <p className="text-xs text-gray-500 mb-1 font-medium">Price</p>
@@ -257,7 +257,7 @@ export default function AdminJobsPage() {
               <p className="text-xs text-gray-500 mb-1 font-medium">Services</p>
               <div className="flex flex-wrap gap-1 mt-1">
                 {selectedJob.serviceTypes?.map(s => (
-                  <span key={s} className="px-2 py-0.5 bg-[#4361EE]/10 text-[#4361EE] text-xs rounded-full capitalize">{s.replace("-", " ")}</span>
+                  <span key={s} className="px-2 py-0.5 bg-[#246EB9]/10 text-[#246EB9] text-xs rounded-full capitalize">{s.replace("-", " ")}</span>
                 ))}
               </div>
             </div>
@@ -281,7 +281,7 @@ export default function AdminJobsPage() {
           <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
             <button
               onClick={() => { setStatusChangeModal(true); setNewStatus(selectedJob.status); }}
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#4361EE] text-white rounded-xl text-sm font-semibold hover:bg-[#3249D6] transition"
+              className="flex items-center gap-2 px-4 py-2.5 bg-[#246EB9] text-white rounded-xl text-sm font-semibold hover:bg-[#1B5A9A] transition"
             >
               <ArrowRight className="w-4 h-4" /> Change Status
             </button>
@@ -323,7 +323,7 @@ export default function AdminJobsPage() {
                   key={key}
                   onClick={() => setNewStatus(key)}
                   className={`w-full flex items-center gap-3 p-3 rounded-xl border transition text-left ${
-                    newStatus === key ? "border-[#4361EE] bg-[#4361EE]/5" : "border-gray-100 hover:border-gray-200"
+                    newStatus === key ? "border-[#246EB9] bg-[#246EB9]/5" : "border-gray-100 hover:border-gray-200"
                   }`}
                 >
                   <span className={`w-7 h-7 rounded-lg flex items-center justify-center ${cfg.bg} ${cfg.color}`}>{cfg.icon}</span>
@@ -341,7 +341,7 @@ export default function AdminJobsPage() {
               <button
                 onClick={() => handleStatusChange(selectedJob.id, newStatus)}
                 disabled={newStatus === selectedJob.status || actionLoading}
-                className="flex-1 px-4 py-2.5 bg-[#4361EE] text-white rounded-xl text-sm font-semibold hover:bg-[#3249D6] transition disabled:opacity-50"
+                className="flex-1 px-4 py-2.5 bg-[#246EB9] text-white rounded-xl text-sm font-semibold hover:bg-[#1B5A9A] transition disabled:opacity-50"
               >
                 {actionLoading ? "Updating..." : "Update Status"}
               </button>
@@ -362,7 +362,7 @@ export default function AdminJobsPage() {
                 placeholder="Search operators..."
                 value={reassignSearch}
                 onChange={e => setReassignSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4361EE]/20"
+                className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#246EB9]/20"
               />
             </div>
             <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -374,7 +374,7 @@ export default function AdminJobsPage() {
                     onClick={() => handleReassign(selectedJob.id, op.uid, op.displayName)}
                     disabled={op.uid === selectedJob.operatorId || actionLoading}
                     className={`w-full flex items-center gap-3 p-3 rounded-xl border transition text-left ${
-                      op.uid === selectedJob.operatorId ? "border-green-200 bg-green-50 opacity-50" : "border-gray-100 hover:border-[#4361EE]/20 hover:shadow-sm"
+                      op.uid === selectedJob.operatorId ? "border-green-200 bg-green-50 opacity-50" : "border-gray-100 hover:border-[#246EB9]/20 hover:shadow-sm"
                     }`}
                   >
                     <div className="w-9 h-9 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 font-bold text-sm shrink-0">

@@ -10,6 +10,9 @@ import {
   doc,
   getDoc,
   updateDoc,
+  onSnapshot,
+  orderBy,
+  limit,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Job, OperatorProfile, UserProfile } from "@/lib/types";
@@ -18,7 +21,7 @@ import ProgressTracker from "@/components/ProgressTracker";
 import CelebrationOverlay from "@/components/CelebrationOverlay";
 import CancellationPopup from "@/components/CancellationPopup";
 import { WeatherCard } from "@/context/WeatherContext";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Snowflake,
   CheckCircle2,
@@ -36,6 +39,15 @@ import {
   ClipboardList,
   MessageCircle,
   ExternalLink,
+  Shield,
+  Camera,
+  CreditCard,
+  FileText,
+  Briefcase,
+  CheckCircle,
+  AlertCircle,
+  Bell,
+  BadgeCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOfWeek, isSameMonth, isToday } from "date-fns";
@@ -71,14 +83,14 @@ function OperatorMiniCalendar() {
         {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d => <div key={d} className="py-1 text-[var(--text-muted)] font-medium">{d}</div>)}
         {days.map((day, i) => (
           <div key={i} className={`py-1.5 rounded-lg text-xs ${
-            isToday(day) ? "bg-[#4361EE] text-white font-bold" :
+            isToday(day) ? "bg-[#246EB9] text-white font-bold" :
             isSameMonth(day, currentMonth) ? "text-[var(--text-primary)]" : "text-[var(--text-muted)]"
           }`}>
             {format(day, "d")}
           </div>
         ))}
       </div>
-      <Link href="/dashboard/calendar" className="block text-center text-xs text-[#4361EE] font-medium mt-2 hover:underline">View Full Calendar</Link>
+      <Link href="/dashboard/calendar" className="block text-center text-xs text-[#246EB9] font-medium mt-2 hover:underline">View Full Calendar</Link>
     </div>
   );
 }
@@ -96,6 +108,141 @@ export default function OperatorDashboard() {
   const [celebration, setCelebration] = useState<{ show: boolean; type: "accepted" | "completion" }>({ show: false, type: "accepted" });
   const [declineJobId, setDeclineJobId] = useState<string | null>(null);
   const [declining, setDeclining] = useState(false);
+  const [stripeStatus, setStripeStatus] = useState<{
+    chargesEnabled?: boolean;
+    payoutsEnabled?: boolean;
+    detailsSubmitted?: boolean;
+    fullyReady?: boolean;
+  } | null>(null);
+  const [notifications, setNotifications] = useState<{
+    id: string;
+    type: string;
+    title: string;
+    message: string;
+    read: boolean;
+    createdAt: unknown;
+  }[]>([]);
+  const [showNotifBanner, setShowNotifBanner] = useState(false);
+
+  // Check Stripe status
+  useEffect(() => {
+    const checkStripe = async () => {
+      const accountId = (operatorProfile as OperatorProfile & { stripeConnectAccountId?: string })?.stripeConnectAccountId;
+      if (!accountId) return;
+      try {
+        const res = await fetch("/api/stripe/account-status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ accountId }),
+        });
+        const data = await res.json();
+        if (!data.error) setStripeStatus(data);
+      } catch {}
+    };
+    checkStripe();
+  }, [operatorProfile]);
+
+  // Listen for notifications
+  useEffect(() => {
+    if (!profile?.uid) return;
+    const q = query(
+      collection(db, "notifications"),
+      where("uid", "==", profile.uid),
+      orderBy("createdAt", "desc"),
+      limit(5)
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      const notifs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as typeof notifications[0]));
+      setNotifications(notifs);
+      // Show banner if there are unread notifications
+      if (notifs.some((n) => !n.read)) {
+        setShowNotifBanner(true);
+      }
+    }, (error) => {
+      // Index may still be building — suppress error and retry silently
+      if (error.code === "failed-precondition") {
+        console.warn("Notifications index not ready yet, will retry when available.");
+      } else {
+        console.error("Notifications listener error:", error);
+      }
+    });
+    return () => unsub();
+  }, [profile?.uid]);
+
+  // Compute setup steps for dynamic widget
+  const setupSteps = React.useMemo(() => {
+    if (!operatorProfile) return [];
+    const extProfile = operatorProfile as OperatorProfile & {
+      stripeConnectAccountId?: string;
+      idPhotoUrl?: string;
+      accountApproved?: boolean;
+      verificationStatus?: string;
+      bio?: string;
+      portfolioPhotos?: string[];
+      tagline?: string;
+      logoUrl?: string;
+    };
+
+    const steps: { key: string; label: string; done: boolean; icon: React.ReactNode; href: string; description: string }[] = [
+      {
+        key: "id",
+        label: "Upload Government ID",
+        done: !!extProfile.idPhotoUrl,
+        icon: <Camera className="w-4 h-4" />,
+        href: "/dashboard/settings?tab=verification",
+        description: "Required for account verification",
+      },
+      {
+        key: "approval",
+        label: "Account Verification",
+        done: extProfile.verificationStatus === "approved" || (!!extProfile.accountApproved && !!extProfile.idVerified),
+        icon: <Shield className="w-4 h-4" />,
+        href: "/dashboard/settings?tab=verification",
+        description: extProfile.verificationStatus === "approved"
+          ? "Verified & approved"
+          : extProfile.verificationStatus === "rejected"
+          ? "Verification rejected — re-submit ID"
+          : extProfile.verificationStatus === "pending" || (extProfile.idPhotoUrl && !extProfile.accountApproved)
+          ? "Pending admin review"
+          : !extProfile.idPhotoUrl
+          ? "Upload ID first"
+          : "Verified & approved",
+      },
+      {
+        key: "stripe",
+        label: "Set Up Stripe Payments",
+        done: !!(stripeStatus?.fullyReady || (stripeStatus?.chargesEnabled && stripeStatus?.payoutsEnabled)),
+        icon: <CreditCard className="w-4 h-4" />,
+        href: "/dashboard/settings?tab=payment",
+        description: extProfile.stripeConnectAccountId
+          ? stripeStatus?.fullyReady ? "Ready to receive payments" : "Finish Stripe setup"
+          : "Connect your bank account",
+      },
+      {
+        key: "bio",
+        label: "Complete Your Profile",
+        done: !!(extProfile.bio && extProfile.bio.length > 10),
+        icon: <FileText className="w-4 h-4" />,
+        href: "/dashboard/profile",
+        description: "Add a detailed bio for clients",
+      },
+      {
+        key: "branding",
+        label: "Add Business Branding",
+        done: !!((extProfile.portfolioPhotos && extProfile.portfolioPhotos.length > 0) || extProfile.logoUrl),
+        icon: <Briefcase className="w-4 h-4" />,
+        href: "/dashboard/settings?tab=branding",
+        description: "Logo & portfolio photos",
+      },
+    ];
+    return steps;
+  }, [operatorProfile, stripeStatus]);
+
+  const completedSetupCount = setupSteps.filter((s) => s.done).length;
+  const totalSetupSteps = setupSteps.length;
+  const allSetupComplete = completedSetupCount === totalSetupSteps;
+  const isAccountPublic = !!(operatorProfile as OperatorProfile & { accountApproved?: boolean })?.accountApproved &&
+    !!(operatorProfile as OperatorProfile & { idVerified?: boolean })?.idVerified;
 
   useEffect(() => {
     const fetchJobs = async () => {
@@ -294,7 +441,7 @@ export default function OperatorDashboard() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-[#4361EE] rounded-2xl p-6 md:p-8 text-white relative overflow-hidden shadow-lg"
+        className="bg-[#246EB9] rounded-2xl p-6 md:p-8 text-white relative overflow-hidden shadow-lg"
       >
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-4 right-8 text-6xl">❄️</div>
@@ -306,10 +453,22 @@ export default function OperatorDashboard() {
               <h1 className="text-2xl md:text-3xl font-extrabold drop-shadow-sm">
                 {greeting()}, {operatorProfile?.displayName?.split(" ")[0] || "there"}!
               </h1>
-              <p className="mt-1 text-white/80 flex items-center gap-1">
-                <MapPin className="w-4 h-4" />
-                {operatorProfile?.city}, {operatorProfile?.province}
-              </p>
+              <div className="mt-1 flex items-center gap-3 flex-wrap">
+                <p className="text-white/80 flex items-center gap-1">
+                  <MapPin className="w-4 h-4" />
+                  {operatorProfile?.city}, {operatorProfile?.province}
+                </p>
+                {/* Account Status Badge */}
+                {isAccountPublic ? (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-green-400/20 text-green-200 rounded-full text-xs font-semibold">
+                    <BadgeCheck className="w-3.5 h-3.5" /> Public
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-400/20 text-amber-200 rounded-full text-xs font-semibold">
+                    <AlertCircle className="w-3.5 h-3.5" /> Not Public
+                  </span>
+                )}
+              </div>
             </div>
             <Snowflake className="w-10 h-10 text-white/20" />
           </div>
@@ -331,30 +490,126 @@ export default function OperatorDashboard() {
         </div>
       </motion.div>
 
-      {/* Stripe Requirement Banner */}
-      {!((operatorProfile as OperatorProfile & { stripeConnectAccountId?: string })?.stripeConnectAccountId) && (
+      {/* Notification Banner — shows when account is approved */}
+      <AnimatePresence>
+        {showNotifBanner && notifications.filter((n) => !n.read).length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -10, height: 0 }}
+            animate={{ opacity: 1, y: 0, height: "auto" }}
+            exit={{ opacity: 0, y: -10, height: 0 }}
+            className="overflow-hidden"
+          >
+            {notifications.filter((n) => !n.read).map((notif) => (
+              <div
+                key={notif.id}
+                className={`rounded-2xl border p-4 mb-2 flex items-start gap-3 ${
+                  notif.type === "account_approved"
+                    ? "bg-green-50 border-green-200"
+                    : notif.type === "account_rejected"
+                    ? "bg-red-50 border-red-200"
+                    : "bg-blue-50 border-blue-200"
+                }`}
+              >
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                  notif.type === "account_approved" ? "bg-green-100" : notif.type === "account_rejected" ? "bg-red-100" : "bg-blue-100"
+                }`}>
+                  {notif.type === "account_approved" ? (
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                  ) : notif.type === "account_rejected" ? (
+                    <AlertCircle className="w-5 h-5 text-red-600" />
+                  ) : (
+                    <Bell className="w-5 h-5 text-blue-600" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={`font-bold text-sm ${
+                    notif.type === "account_approved" ? "text-green-900" : notif.type === "account_rejected" ? "text-red-900" : "text-blue-900"
+                  }`}>
+                    {notif.title}
+                  </p>
+                  <p className={`text-xs mt-0.5 ${
+                    notif.type === "account_approved" ? "text-green-700" : notif.type === "account_rejected" ? "text-red-700" : "text-blue-700"
+                  }`}>
+                    {notif.message}
+                  </p>
+                </div>
+                <button
+                  onClick={async () => {
+                    // Mark as read
+                    try {
+                      await updateDoc(doc(db, "notifications", notif.id), { read: true });
+                    } catch {}
+                  }}
+                  className="p-1 hover:bg-black/5 rounded-lg transition shrink-0"
+                >
+                  <X className="w-4 h-4 text-gray-400" />
+                </button>
+              </div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Dynamic Setup Widget — disappears once all steps are complete */}
+      {!allSetupComplete && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl border border-amber-200 p-5"
+          className="bg-[var(--bg-card-solid)] rounded-2xl border border-[var(--border-color)] overflow-hidden"
         >
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
-              <DollarSign className="w-5 h-5 text-amber-600" />
+          <div className="px-5 py-4 border-b border-[var(--border-color)]">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-[var(--text-primary)]">Complete Your Setup</h3>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                  {completedSetupCount} of {totalSetupSteps} steps done — {!isAccountPublic ? "complete all steps to go public" : "finish remaining steps"}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-[#246EB9]">
+                  {Math.round((completedSetupCount / totalSetupSteps) * 100)}%
+                </span>
+              </div>
             </div>
-            <div className="flex-1">
-              <h3 className="font-bold text-amber-900">Set Up Stripe to Start Earning</h3>
-              <p className="text-sm text-amber-700 mt-1">
-                You need a verified Stripe account before you can receive payments and go public. This includes ID verification for everyone&apos;s safety.
-              </p>
+            {/* Progress bar */}
+            <div className="mt-3 h-2 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
+              <motion.div
+                className="h-full bg-[#246EB9] rounded-full"
+                initial={{ width: 0 }}
+                animate={{ width: `${(completedSetupCount / totalSetupSteps) * 100}%` }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+              />
+            </div>
+          </div>
+          <div className="divide-y divide-[var(--border-color)]">
+            {setupSteps.map((step) => (
               <Link
-                href="/dashboard/settings?tab=payment"
-                className="inline-flex items-center gap-2 mt-3 px-4 py-2 bg-amber-500 text-white rounded-xl text-sm font-semibold hover:bg-amber-600 transition"
+                key={step.key}
+                href={step.href}
+                className={`flex items-center gap-3 px-5 py-3 transition hover:bg-[var(--bg-secondary)]/50 ${
+                  step.done ? "opacity-60" : ""
+                }`}
               >
-                <ExternalLink className="w-4 h-4" />
-                Set Up Stripe Account
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                  step.done
+                    ? "bg-green-100 text-green-600"
+                    : step.key === "approval" && (operatorProfile as OperatorProfile & { idPhotoUrl?: string })?.idPhotoUrl && !isAccountPublic
+                    ? "bg-amber-100 text-amber-600"
+                    : "bg-[#246EB9]/10 text-[#246EB9]"
+                }`}>
+                  {step.done ? <CheckCircle className="w-4 h-4" /> : step.icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-semibold ${step.done ? "line-through text-[var(--text-muted)]" : "text-[var(--text-primary)]"}`}>
+                    {step.label}
+                  </p>
+                  <p className="text-xs text-[var(--text-muted)]">{step.description}</p>
+                </div>
+                {!step.done && (
+                  <ExternalLink className="w-4 h-4 text-[var(--text-muted)] shrink-0" />
+                )}
               </Link>
-            </div>
+            ))}
           </div>
         </motion.div>
       )}
@@ -368,7 +623,7 @@ export default function OperatorDashboard() {
       {/* Stats Grid — Clickable */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { icon: Clock, label: "Pending", value: pendingJobs.length, color: "text-[#4361EE]", bg: "bg-[#4361EE]/10", href: "/dashboard/jobs" },
+          { icon: Clock, label: "Pending", value: pendingJobs.length, color: "text-[#246EB9]", bg: "bg-[#246EB9]/10", href: "/dashboard/jobs" },
           { icon: CheckCircle2, label: "Active", value: activeJobs.length, color: "text-green-600", bg: "bg-green-50", href: "/dashboard/log" },
           { icon: DollarSign, label: "Earnings", value: `$${totalEarnings}`, color: "text-orange-500", bg: "bg-orange-50", href: "/dashboard/transactions" },
           { icon: Star, label: "Rating", value: operatorProfile?.rating?.toFixed(1) || "—", color: "text-yellow-500", bg: "bg-yellow-50", href: "/dashboard/analytics" },
@@ -396,7 +651,7 @@ export default function OperatorDashboard() {
           href="/dashboard/calendar"
           className="flex flex-col items-center gap-2 p-4 bg-[var(--bg-card-solid)] rounded-xl border border-[var(--border-subtle)] hover-lift interactive-card"
         >
-          <CalendarDays className="w-5 h-5 text-[#4361EE]" />
+          <CalendarDays className="w-5 h-5 text-[#246EB9]" />
           <p className="text-xs font-medium text-[var(--text-secondary)]">Calendar</p>
         </Link>
         <Link
@@ -421,11 +676,11 @@ export default function OperatorDashboard() {
           <div className="px-6 py-4 border-b border-[var(--border-subtle)] flex items-center justify-between">
             <div className="flex items-center gap-2">
               <h2 className="font-semibold text-lg">New Requests</h2>
-              <span className="bg-[#4361EE] text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center">
+              <span className="bg-[#246EB9] text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center">
                 {pendingJobs.length}
               </span>
             </div>
-            <Link href="/dashboard/jobs" className="text-sm text-[#4361EE] hover:underline font-medium">
+            <Link href="/dashboard/jobs" className="text-sm text-[#246EB9] hover:underline font-medium">
               View All
             </Link>
           </div>
@@ -435,7 +690,7 @@ export default function OperatorDashboard() {
                 <div className="flex items-start justify-between gap-4">
                   <Link href={`/dashboard/u/${job.clientId}`} className="flex-1 group">
                     <div className="flex items-center gap-2 mb-0.5">
-                      <User className="w-4 h-4 text-[#4361EE]" />
+                      <User className="w-4 h-4 text-[#246EB9]" />
                       <p className="font-semibold text-[var(--text-primary)]">{clientNames[job.clientId] || "Client"}</p>
                       <ExternalLink className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition" />
                     </div>
@@ -478,7 +733,7 @@ export default function OperatorDashboard() {
       <div className="bg-[var(--bg-card-solid)] rounded-2xl border border-[var(--border-subtle)] overflow-hidden">
         <div className="px-6 py-4 border-b border-[var(--border-subtle)] flex items-center justify-between">
           <h2 className="font-semibold text-lg">Active Jobs</h2>
-          <Link href="/dashboard/log" className="text-sm text-[#4361EE] hover:underline font-medium">
+          <Link href="/dashboard/log" className="text-sm text-[#246EB9] hover:underline font-medium">
             View All
           </Link>
         </div>
@@ -497,7 +752,7 @@ export default function OperatorDashboard() {
               <div key={job.id} className="px-6 py-4">
                 <div className="flex items-center justify-between mb-3">
                   <Link href={`/dashboard/u/${job.clientId}`} className="flex items-center gap-2 group">
-                    <User className="w-4 h-4 text-[#4361EE]" />
+                    <User className="w-4 h-4 text-[#246EB9]" />
                     <span className="font-semibold text-[var(--text-primary)]">{clientNames[job.clientId] || "Client"}</span>
                     <ExternalLink className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition" />
                   </Link>
@@ -522,7 +777,7 @@ export default function OperatorDashboard() {
                   </p>
                   <Link
                     href={`/dashboard/messages/${job.chatId}`}
-                    className="flex items-center gap-1 text-sm text-[#4361EE] hover:underline"
+                    className="flex items-center gap-1 text-sm text-[#246EB9] hover:underline"
                   >
                     <MessageCircle className="w-4 h-4" />
                     Chat
@@ -538,14 +793,14 @@ export default function OperatorDashboard() {
       <div className="bg-[var(--bg-card-solid)] rounded-2xl border border-[var(--border-subtle)] p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold text-lg">Performance</h2>
-          <Link href="/dashboard/analytics" className="text-sm text-[#4361EE] hover:underline font-medium flex items-center gap-1">
+          <Link href="/dashboard/analytics" className="text-sm text-[#246EB9] hover:underline font-medium flex items-center gap-1">
             <TrendingUp className="w-4 h-4" />
             Full Analytics
           </Link>
         </div>
         <div className="grid grid-cols-3 gap-4">
-          <div className="text-center p-4 bg-[#4361EE]/10 rounded-xl">
-            <p className="text-2xl font-bold text-[#4361EE]">
+          <div className="text-center p-4 bg-[#246EB9]/10 rounded-xl">
+            <p className="text-2xl font-bold text-[#246EB9]">
               {operatorProfile?.totalJobsCompleted || 0}
             </p>
             <p className="text-xs text-[var(--text-muted)] mt-1">Jobs Done</p>

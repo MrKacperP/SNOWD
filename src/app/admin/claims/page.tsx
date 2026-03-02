@@ -116,7 +116,7 @@ export default function AdminClaimsPage() {
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
-        <Shield className="w-6 h-6 text-[#4361EE]" />
+        <Shield className="w-6 h-6 text-[#246EB9]" />
         <h1 className="text-2xl font-bold">Claims & Disputes</h1>
         <span className="text-sm text-gray-400">({claims.length} total)</span>
       </div>
@@ -139,7 +139,7 @@ export default function AdminClaimsPage() {
             placeholder="Search claims..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4361EE]/20"
+            className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#246EB9]/20"
           />
         </div>
         <select
@@ -175,13 +175,13 @@ export default function AdminClaimsPage() {
                     Filed by <span className="font-medium text-gray-600">{claim.reporterName}</span> against{" "}
                     <span className="font-medium text-gray-600">{claim.reportedName}</span>
                   </p>
-                  {claim.adminNotes && <p className="text-xs text-[#4361EE] mt-1">Admin notes: {claim.adminNotes}</p>}
+                  {claim.adminNotes && <p className="text-xs text-[#246EB9] mt-1">Admin notes: {claim.adminNotes}</p>}
                   <p className="text-xs text-gray-400 mt-1">{formatTime(claim.createdAt)}</p>
                 </div>
                 <div className="flex gap-1 shrink-0">
                   <button
                     onClick={() => { setSelectedClaim(claim); setAdminNotes(claim.adminNotes || ""); setNewStatus(claim.status); }}
-                    className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-[#4361EE] transition"
+                    className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-[#246EB9] transition"
                   >
                     <Eye className="w-4 h-4" />
                   </button>
@@ -241,7 +241,7 @@ export default function AdminClaimsPage() {
             </div>
             <button
               onClick={handleUpdateClaim}
-              className="w-full py-2.5 bg-[#4361EE] text-white rounded-xl text-sm font-medium hover:bg-[#3651DE] transition"
+              className="w-full py-2.5 bg-[#246EB9] text-white rounded-xl text-sm font-medium hover:bg-[#3651DE] transition"
             >
               Update Claim
             </button>

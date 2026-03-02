@@ -120,7 +120,7 @@ export default function JobLogPage() {
   const filters: { key: LogFilter; label: string; color: string }[] = [
     { key: "all", label: "All", color: "text-gray-600" },
     { key: "pending", label: "Pending", color: "text-yellow-600" },
-    { key: "accepted", label: "Accepted", color: "text-[#4361EE]" },
+    { key: "accepted", label: "Accepted", color: "text-[#246EB9]" },
     { key: "active", label: "Active", color: "text-green-600" },
     { key: "completed", label: "Completed", color: "text-emerald-600" },
     { key: "cancelled", label: "Cancelled", color: "text-red-500" },
@@ -131,7 +131,7 @@ export default function JobLogPage() {
       <div className="flex items-center gap-3">
         <BackButton href="/dashboard" />
         <h1 className="text-2xl font-bold flex items-center gap-2">
-          <ClipboardList className="w-6 h-6 text-[#4361EE]" />
+          <ClipboardList className="w-6 h-6 text-[#246EB9]" />
           Job Log
         </h1>
       </div>
@@ -144,7 +144,7 @@ export default function JobLogPage() {
             onClick={() => setFilter(f.key)}
             className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition capitalize whitespace-nowrap ${
               filter === f.key
-                ? "bg-white text-[#4361EE] shadow-sm"
+                ? "bg-white text-[#246EB9] shadow-sm"
                 : "text-gray-500 hover:text-gray-700"
             }`}
           >
@@ -182,8 +182,8 @@ export default function JobLogPage() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <User className="w-4 h-4 text-[#4361EE]" />
-                        <Link href={`/dashboard/u/${otherId}`} className="font-semibold text-gray-900 hover:text-[#4361EE] transition">
+                        <User className="w-4 h-4 text-[#246EB9]" />
+                        <Link href={`/dashboard/u/${otherId}`} className="font-semibold text-gray-900 hover:text-[#246EB9] transition">
                           {userNames[otherId] || (isOperator ? "Client" : "Operator")}
                         </Link>
                         <StatusBadge status={job.status} />
@@ -206,7 +206,7 @@ export default function JobLogPage() {
                         {job.chatId && (
                           <Link
                             href={`/dashboard/messages/${job.chatId}`}
-                            className="p-1.5 text-[#4361EE] hover:bg-[#4361EE]/10 rounded-lg transition"
+                            className="p-1.5 text-[#246EB9] hover:bg-[#246EB9]/10 rounded-lg transition"
                             title="Open chat"
                           >
                             <MessageCircle className="w-4 h-4" />
@@ -223,7 +223,7 @@ export default function JobLogPage() {
                           <button
                             onClick={() => reactivateJob(job.id)}
                             disabled={reactivating === job.id}
-                            className="p-1.5 text-[#4361EE] hover:bg-[#4361EE]/10 rounded-lg transition disabled:opacity-50"
+                            className="p-1.5 text-[#246EB9] hover:bg-[#246EB9]/10 rounded-lg transition disabled:opacity-50"
                             title="Reactivate Job"
                           >
                             <RotateCcw className={`w-4 h-4 ${reactivating === job.id ? "animate-spin" : ""}`} />

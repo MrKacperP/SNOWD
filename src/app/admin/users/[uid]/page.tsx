@@ -181,7 +181,7 @@ export default function AdminEditUserPage() {
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div className="flex items-center gap-3 flex-1">
-          <div className="w-12 h-12 bg-[#4361EE]/10 rounded-full flex items-center justify-center text-[#4361EE] font-bold text-xl">
+          <div className="w-12 h-12 bg-[#246EB9]/10 rounded-full flex items-center justify-center text-[#246EB9] font-bold text-xl">
             {user.displayName?.charAt(0)?.toUpperCase() || "?"}
           </div>
           <div>
@@ -190,7 +190,7 @@ export default function AdminEditUserPage() {
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                 user.role === "operator" ? "bg-purple-100 text-purple-600" :
                 user.role === "admin" ? "bg-red-100 text-red-600" :
-                "bg-[#4361EE]/10 text-[#4361EE]"
+                "bg-[#246EB9]/10 text-[#246EB9]"
               }`}>{user.role}</span>
               <span className="text-xs text-gray-400">{user.email}</span>
             </div>
@@ -212,7 +212,7 @@ export default function AdminEditUserPage() {
           className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition ${
             saved
               ? "bg-green-100 text-green-700"
-              : "bg-[#4361EE] text-white hover:bg-[#3249D6]"
+              : "bg-[#246EB9] text-white hover:bg-[#1B5A9A]"
           }`}
         >
           {saved ? <><CheckCircle className="w-4 h-4" /> Saved</> : saving ? "Saving..." : <><Save className="w-4 h-4" /> Save Changes</>}
@@ -231,7 +231,7 @@ export default function AdminEditUserPage() {
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`flex-1 py-2 text-sm font-medium rounded-lg capitalize transition ${tab === t ? "bg-white text-[#4361EE] shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+            className={`flex-1 py-2 text-sm font-medium rounded-lg capitalize transition ${tab === t ? "bg-white text-[#246EB9] shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
           >
             {t}
           </button>
@@ -259,7 +259,7 @@ export default function AdminEditUserPage() {
                   type="text"
                   value={(fields[key] as string) || ""}
                   onChange={e => setFields({ ...fields, [key]: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#4361EE]/20 focus:outline-none"
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#246EB9]/20 focus:outline-none"
                 />
               </div>
             ))}
@@ -271,7 +271,7 @@ export default function AdminEditUserPage() {
               <select
                 value={(fields.role as string) || "client"}
                 onChange={e => setFields({ ...fields, role: e.target.value })}
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#4361EE]/20 focus:outline-none"
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#246EB9]/20 focus:outline-none"
               >
                 <option value="client">Client</option>
                 <option value="operator">Operator</option>
@@ -298,7 +298,7 @@ export default function AdminEditUserPage() {
                       type="text"
                       value={(fields[key] as string) || ""}
                       onChange={e => setFields({ ...fields, [key]: e.target.value })}
-                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#4361EE]/20 focus:outline-none"
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#246EB9]/20 focus:outline-none"
                     />
                   </div>
                 ))}
@@ -311,7 +311,7 @@ export default function AdminEditUserPage() {
                     step="0.1"
                     value={(fields.rating as number) || 0}
                     onChange={e => setFields({ ...fields, rating: parseFloat(e.target.value) || 0 })}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#4361EE]/20 focus:outline-none"
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#246EB9]/20 focus:outline-none"
                   />
                 </div>
               </div>
@@ -321,7 +321,7 @@ export default function AdminEditUserPage() {
                   value={(fields.bio as string) || ""}
                   onChange={e => setFields({ ...fields, bio: e.target.value })}
                   rows={3}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#4361EE]/20 focus:outline-none resize-none"
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#246EB9]/20 focus:outline-none resize-none"
                 />
               </div>
             </div>
@@ -337,7 +337,7 @@ export default function AdminEditUserPage() {
               <label key={key} className="flex items-center gap-3 cursor-pointer">
                 <div
                   onClick={() => setFields({ ...fields, [key]: !fields[key] })}
-                  className={`w-10 h-6 rounded-full transition-colors flex items-center px-1 ${fields[key] ? "bg-[#4361EE]" : "bg-gray-200"}`}
+                  className={`w-10 h-6 rounded-full transition-colors flex items-center px-1 ${fields[key] ? "bg-[#246EB9]" : "bg-gray-200"}`}
                 >
                   <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${fields[key] ? "translate-x-4" : "translate-x-0"}`} />
                 </div>
@@ -384,7 +384,7 @@ export default function AdminEditUserPage() {
                     <span>{(job.serviceTypes || []).join(", ")}</span>
                   </p>
                   <div className="mt-1 flex gap-2">
-                    <Link href={`/dashboard/messages/${job.chatId}`} className="text-xs text-[#4361EE] hover:underline flex items-center gap-1">
+                    <Link href={`/dashboard/messages/${job.chatId}`} className="text-xs text-[#246EB9] hover:underline flex items-center gap-1">
                       <MessageSquare className="w-3 h-3" /> View Chat
                     </Link>
                   </div>
@@ -514,7 +514,7 @@ export default function AdminEditUserPage() {
             <div className="bg-white rounded-2xl border border-gray-100 p-5">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-gray-900 flex items-center gap-2 text-lg">
-                  <FileText className="w-5 h-5 text-[#4361EE]" /> Government ID
+                  <FileText className="w-5 h-5 text-[#246EB9]" /> Government ID
                 </h3>
                 <div className="flex items-center gap-2">
                   {isVerified ? (
@@ -540,7 +540,7 @@ export default function AdminEditUserPage() {
                         href={idPhoto}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#4361EE] text-white rounded-xl text-sm font-medium hover:bg-[#3249D6] transition"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#246EB9] text-white rounded-xl text-sm font-medium hover:bg-[#1B5A9A] transition"
                       >
                         <ExternalLink className="w-4 h-4" /> Open in New Tab
                       </a>
@@ -570,7 +570,7 @@ export default function AdminEditUserPage() {
                       href={idPhoto}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 text-sm text-[#4361EE] hover:underline font-medium"
+                      className="flex items-center gap-1.5 text-sm text-[#246EB9] hover:underline font-medium"
                     >
                       <ExternalLink className="w-4 h-4" /> Open full size
                     </a>
@@ -657,7 +657,7 @@ export default function AdminEditUserPage() {
                         href={transcript}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 text-sm text-[#4361EE] hover:underline font-medium"
+                        className="flex items-center gap-1.5 text-sm text-[#246EB9] hover:underline font-medium"
                       >
                         <ExternalLink className="w-4 h-4" /> View document
                       </a>

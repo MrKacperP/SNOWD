@@ -8,7 +8,7 @@ import { BarChart3, Users, DollarSign, MapPin, TrendingUp } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, LineChart, Line } from "recharts";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 
-const COLORS = ["#4361EE", "#7C3AED", "#10B981", "#F59E0B", "#EF4444", "#6366F1"];
+const COLORS = ["#246EB9", "#7C3AED", "#10B981", "#F59E0B", "#EF4444", "#6366F1"];
 
 export default function AdminAnalyticsPage() {
   const [loading, setLoading] = useState(true);
@@ -97,7 +97,7 @@ export default function AdminAnalyticsPage() {
             <XAxis dataKey="date" tick={{ fontSize: 11 }} />
             <YAxis tick={{ fontSize: 11 }} />
             <Tooltip />
-            <Bar dataKey="revenue" fill="#4361EE" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="revenue" fill="#246EB9" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       );
@@ -110,7 +110,7 @@ export default function AdminAnalyticsPage() {
             <XAxis dataKey="date" tick={{ fontSize: 11 }} />
             <YAxis tick={{ fontSize: 11 }} />
             <Tooltip />
-            <Line type="monotone" dataKey="revenue" stroke="#4361EE" strokeWidth={2} dot={{ r: 3 }} />
+            <Line type="monotone" dataKey="revenue" stroke="#246EB9" strokeWidth={2} dot={{ r: 3 }} />
           </LineChart>
         </ResponsiveContainer>
       );
@@ -122,7 +122,7 @@ export default function AdminAnalyticsPage() {
           <XAxis dataKey="date" tick={{ fontSize: 11 }} />
           <YAxis tick={{ fontSize: 11 }} />
           <Tooltip />
-          <Area type="monotone" dataKey="revenue" stroke="#4361EE" fill="#4361EE" fillOpacity={0.15} />
+          <Area type="monotone" dataKey="revenue" stroke="#246EB9" fill="#246EB9" fillOpacity={0.15} />
         </AreaChart>
       </ResponsiveContainer>
     );
@@ -133,7 +133,7 @@ export default function AdminAnalyticsPage() {
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
-        <BarChart3 className="w-6 h-6 text-[#4361EE]" />
+        <BarChart3 className="w-6 h-6 text-[#246EB9]" />
         <h1 className="text-2xl font-bold">Platform Analytics</h1>
       </div>
 
@@ -166,7 +166,7 @@ export default function AdminAnalyticsPage() {
             </select>
             <div className="flex bg-gray-100 rounded-lg p-0.5">
               {(["area", "bar", "line"] as const).map(t => (
-                <button key={t} onClick={() => setChartType(t)} className={`px-3 py-1 text-xs rounded-md capitalize transition ${chartType === t ? "bg-white text-[#4361EE] font-medium shadow-sm" : "text-gray-500"}`}>
+                <button key={t} onClick={() => setChartType(t)} className={`px-3 py-1 text-xs rounded-md capitalize transition ${chartType === t ? "bg-white text-[#246EB9] font-medium shadow-sm" : "text-gray-500"}`}>
                   {t}
                 </button>
               ))}

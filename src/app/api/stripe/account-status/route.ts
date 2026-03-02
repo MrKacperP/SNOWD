@@ -18,6 +18,18 @@ export async function POST(req: NextRequest) {
       payoutsEnabled: account.payouts_enabled,
       detailsSubmitted: account.details_submitted,
       accountId: account.id,
+      // Additional info for fully ready check
+      currentlyDue: account.requirements?.currently_due || [],
+      eventuallyDue: account.requirements?.eventually_due || [],
+      pendingVerification: account.requirements?.pending_verification || [],
+      disabledReason: account.requirements?.disabled_reason || null,
+      // True when the account is fully live and ready for business
+      fullyReady: !!(
+        account.charges_enabled &&
+        account.payouts_enabled &&
+        account.details_submitted &&
+        (account.requirements?.currently_due?.length === 0 || !account.requirements?.currently_due)
+      ),
     });
   } catch (error: unknown) {
     console.error("Stripe account status error:", error);

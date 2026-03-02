@@ -14,8 +14,9 @@ import {
   ConfirmationResult,
   PhoneAuthProvider,
   signInWithCredential,
+  deleteUser,
 } from "firebase/auth";
-import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
+import { doc, getDoc, setDoc, onSnapshot, deleteDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { UserProfile, ClientProfile, OperatorProfile } from "@/lib/types";
 import { sendAdminNotif } from "@/lib/adminNotifications";
@@ -31,6 +32,7 @@ interface AuthContextType {
   confirmPhoneCode: (confirmationResult: ConfirmationResult, code: string) => Promise<User>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -96,7 +98,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password);
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+    sendAdminNotif({
+      type: "login",
+      message: `User logged in: ${email}`,
+      uid: cred.user.uid,
+      meta: { email },
+    });
   };
 
   const signUp = async (email: string, password: string) => {
@@ -176,6 +184,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await firebaseSignOut(auth);
   };
 
+  const deleteAccount = async () => {
+    if (!user) throw new Error("No user logged in");
+    // Delete Firestore document first
+    try {
+      await deleteDoc(doc(db, "users", user.uid));
+    } catch {}
+    // Delete Firebase auth user
+    await deleteUser(user);
+    setUser(null);
+    setProfile(null);
+  };
+
   const refreshProfile = async () => {
     if (user) {
       await fetchProfile(user.uid);
@@ -184,7 +204,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, profile, loading, signIn, signUp, signInWithGoogle, sendPhoneCode, confirmPhoneCode, signOut, refreshProfile }}
+      value={{ user, profile, loading, signIn, signUp, signInWithGoogle, sendPhoneCode, confirmPhoneCode, signOut, refreshProfile, deleteAccount }}
     >
       {children}
     </AuthContext.Provider>

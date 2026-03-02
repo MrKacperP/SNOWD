@@ -171,7 +171,7 @@ export default function AdminSettingsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <RefreshCw className="w-8 h-8 text-[#4361EE] animate-spin" />
+        <RefreshCw className="w-8 h-8 text-[#246EB9] animate-spin" />
       </div>
     );
   }
@@ -191,13 +191,13 @@ export default function AdminSettingsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Settings className="w-6 h-6 text-[#4361EE]" />
+          <Settings className="w-6 h-6 text-[#246EB9]" />
           <h1 className="text-2xl font-bold">Platform Settings</h1>
         </div>
         <button
           onClick={handleSave}
           disabled={saving}
-          className="flex items-center gap-2 px-5 py-2.5 bg-[#4361EE] text-white rounded-xl text-sm font-semibold hover:bg-[#3249D6] transition disabled:opacity-50"
+          className="flex items-center gap-2 px-5 py-2.5 bg-[#246EB9] text-white rounded-xl text-sm font-semibold hover:bg-[#1B5A9A] transition disabled:opacity-50"
         >
           {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : saved ? <CheckCircle className="w-4 h-4" /> : <Save className="w-4 h-4" />}
           {saving ? "Saving..." : saved ? "Saved!" : "Save Changes"}
@@ -207,7 +207,7 @@ export default function AdminSettingsPage() {
       {/* General */}
       <div className="bg-white rounded-2xl border border-gray-100 p-6">
         <h2 className="font-bold text-gray-900 flex items-center gap-2 mb-5">
-          <Globe className="w-4 h-4 text-[#4361EE]" /> General
+          <Globe className="w-4 h-4 text-[#246EB9]" /> General
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <div>
@@ -215,7 +215,7 @@ export default function AdminSettingsPage() {
             <input
               value={settings.platformName}
               onChange={e => setSettings(prev => ({ ...prev, platformName: e.target.value }))}
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4361EE]/20"
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#246EB9]/20"
             />
           </div>
           <div>
@@ -223,7 +223,7 @@ export default function AdminSettingsPage() {
             <input
               value={settings.supportEmail}
               onChange={e => setSettings(prev => ({ ...prev, supportEmail: e.target.value }))}
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4361EE]/20"
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#246EB9]/20"
             />
           </div>
         </div>
@@ -245,7 +245,7 @@ export default function AdminSettingsPage() {
               max={50}
               value={settings.platformFee}
               onChange={e => setSettings(prev => ({ ...prev, platformFee: Number(e.target.value) }))}
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4361EE]/20"
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#246EB9]/20"
             />
             <p className="text-xs text-gray-400 mt-1">The % you take from each job</p>
           </div>
@@ -256,7 +256,7 @@ export default function AdminSettingsPage() {
               min={0}
               value={settings.minimumJobPrice}
               onChange={e => setSettings(prev => ({ ...prev, minimumJobPrice: Number(e.target.value) }))}
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4361EE]/20"
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#246EB9]/20"
             />
           </div>
           <div>
@@ -267,7 +267,7 @@ export default function AdminSettingsPage() {
               max={200}
               value={settings.maximumServiceRadius}
               onChange={e => setSettings(prev => ({ ...prev, maximumServiceRadius: Number(e.target.value) }))}
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4361EE]/20"
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#246EB9]/20"
             />
           </div>
         </div>
@@ -335,7 +335,7 @@ export default function AdminSettingsPage() {
               max={20}
               value={settings.maxActiveJobsPerOperator}
               onChange={e => setSettings(prev => ({ ...prev, maxActiveJobsPerOperator: Number(e.target.value) }))}
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4361EE]/20"
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#246EB9]/20"
             />
           </div>
           <div>
@@ -346,7 +346,7 @@ export default function AdminSettingsPage() {
               max={1440}
               value={settings.cancellationWindowMinutes}
               onChange={e => setSettings(prev => ({ ...prev, cancellationWindowMinutes: Number(e.target.value) }))}
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4361EE]/20"
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#246EB9]/20"
             />
             <p className="text-xs text-gray-400 mt-1">How long clients can cancel without penalty</p>
           </div>
@@ -368,7 +368,7 @@ export default function AdminSettingsPage() {
                 onClick={() => toggleProvince(prov.code)}
                 className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition border ${
                   active
-                    ? "bg-[#4361EE]/10 text-[#4361EE] border-[#4361EE]/20"
+                    ? "bg-[#246EB9]/10 text-[#246EB9] border-[#246EB9]/20"
                     : "bg-gray-50 text-gray-400 border-gray-100 hover:border-gray-200"
                 }`}
               >

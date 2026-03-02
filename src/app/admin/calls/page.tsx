@@ -159,7 +159,7 @@ export default function AdminCallsPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
-        <Phone className="w-6 h-6 text-[#4361EE]" />
+        <Phone className="w-6 h-6 text-[#246EB9]" />
         <div>
           <h1 className="text-2xl font-bold">Call Verification</h1>
           <p className="text-sm text-gray-500">Verify caller identity before providing account assistance</p>
@@ -171,7 +171,7 @@ export default function AdminCallsPage() {
         {(["search", "confirm", "verified"] as VerifyStep[]).map((s, i) => (
           <React.Fragment key={s}>
             <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition ${
-              step === s ? "bg-[#4361EE] text-white" :
+              step === s ? "bg-[#246EB9] text-white" :
               (["search", "confirm"].indexOf(step) > i) ? "bg-green-100 text-green-700" :
               "bg-gray-100 text-gray-500"
             }`}>
@@ -202,13 +202,13 @@ export default function AdminCallsPage() {
                 onChange={e => setSearchTerm(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && handleSearch()}
                 placeholder="Name, email, phone, or city..."
-                className="w-full pl-9 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#4361EE]/20 focus:outline-none"
+                className="w-full pl-9 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#246EB9]/20 focus:outline-none"
               />
             </div>
             <button
               onClick={handleSearch}
               disabled={searching || !searchTerm.trim()}
-              className="px-5 py-3 bg-[#4361EE] text-white rounded-xl font-medium hover:bg-[#3249D6] transition disabled:opacity-50 text-sm"
+              className="px-5 py-3 bg-[#246EB9] text-white rounded-xl font-medium hover:bg-[#1B5A9A] transition disabled:opacity-50 text-sm"
             >
               {searching ? "Searching..." : "Search"}
             </button>
@@ -222,7 +222,7 @@ export default function AdminCallsPage() {
                   onClick={() => handleSelectUser(u)}
                   className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-[#F7FAFC] transition text-left"
                 >
-                  <div className="w-9 h-9 bg-[#4361EE]/10 rounded-full flex items-center justify-center text-[#4361EE] font-bold text-sm shrink-0">
+                  <div className="w-9 h-9 bg-[#246EB9]/10 rounded-full flex items-center justify-center text-[#246EB9] font-bold text-sm shrink-0">
                     {u.displayName?.charAt(0)?.toUpperCase() || "?"}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -230,7 +230,7 @@ export default function AdminCallsPage() {
                     <p className="text-xs text-gray-500 truncate">{u.email} · {u.city}, {u.province}</p>
                   </div>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${
-                    u.role === "operator" ? "bg-purple-100 text-purple-600" : "bg-[#4361EE]/10 text-[#4361EE]"
+                    u.role === "operator" ? "bg-purple-100 text-purple-600" : "bg-[#246EB9]/10 text-[#246EB9]"
                   }`}>{u.role}</span>
                   <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />
                 </button>
@@ -250,7 +250,7 @@ export default function AdminCallsPage() {
           {/* Caller profile summary */}
           <div className="bg-white rounded-2xl border border-gray-100 p-5">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-[#4361EE]/10 rounded-full flex items-center justify-center text-[#4361EE] font-bold text-lg">
+              <div className="w-12 h-12 bg-[#246EB9]/10 rounded-full flex items-center justify-center text-[#246EB9] font-bold text-lg">
                 {selected.displayName?.charAt(0)?.toUpperCase() || "?"}
               </div>
               <div className="flex-1">
@@ -289,7 +289,7 @@ export default function AdminCallsPage() {
           {/* Verification questions */}
           <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
             <div className="flex items-center gap-2 mb-1">
-              <Shield className="w-5 h-5 text-[#4361EE]" />
+              <Shield className="w-5 h-5 text-[#246EB9]" />
               <h2 className="font-semibold text-gray-800">Step 2: Verify Identity</h2>
             </div>
             <p className="text-sm text-gray-500">Ask the caller these questions. Enter their answers below to verify. Need 3 out of 5 to pass.</p>
@@ -311,7 +311,7 @@ export default function AdminCallsPage() {
                         setChecks(prev => ({ ...prev, [i]: null }));
                       }}
                       placeholder="Caller's answer..."
-                      className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#4361EE]/20 focus:outline-none bg-white"
+                      className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#246EB9]/20 focus:outline-none bg-white"
                     />
                     {checks[i] === true && <CheckCircle className="w-5 h-5 text-green-500 shrink-0" />}
                     {checks[i] === false && <XCircle className="w-5 h-5 text-red-400 shrink-0" />}
@@ -322,7 +322,7 @@ export default function AdminCallsPage() {
 
             <button
               onClick={handleVerifyAll}
-              className="w-full py-3 bg-[#4361EE] text-white rounded-xl font-semibold hover:bg-[#3249D6] transition"
+              className="w-full py-3 bg-[#246EB9] text-white rounded-xl font-semibold hover:bg-[#1B5A9A] transition"
             >
               Verify Identity
             </button>
@@ -346,7 +346,7 @@ export default function AdminCallsPage() {
           {/* Full account details for the call */}
           <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
             <h2 className="font-semibold text-gray-800 flex items-center gap-2">
-              <User className="w-5 h-5 text-[#4361EE]" /> Account Details
+              <User className="w-5 h-5 text-[#246EB9]" /> Account Details
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               {[
@@ -396,7 +396,7 @@ export default function AdminCallsPage() {
           <div className="grid grid-cols-2 gap-3">
             <Link
               href={`/admin/users/${selected.uid}`}
-              className="flex items-center justify-center gap-2 p-4 bg-[#4361EE] text-white rounded-2xl font-medium hover:bg-[#3249D6] transition"
+              className="flex items-center justify-center gap-2 p-4 bg-[#246EB9] text-white rounded-2xl font-medium hover:bg-[#1B5A9A] transition"
             >
               <Eye className="w-5 h-5" /> Edit Account
             </Link>

@@ -296,7 +296,7 @@ export default function CalendarPage() {
       <div className="flex items-center gap-3">
         <BackButton href="/dashboard" />
         <h1 className="text-2xl font-bold flex items-center gap-2">
-          <CalendarDays className="w-6 h-6 text-[#4361EE]" />
+          <CalendarDays className="w-6 h-6 text-[#246EB9]" />
           Calendar
         </h1>
       </div>
@@ -304,7 +304,7 @@ export default function CalendarPage() {
       {/* Location Bar */}
       <div className="bg-[var(--bg-card-solid)] rounded-xl border border-[var(--border-color)] px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
-          <MapPin className="w-4 h-4 text-[#4361EE]" />
+          <MapPin className="w-4 h-4 text-[#246EB9]" />
           <span className="font-medium text-[var(--text-primary)]">{profile?.city || "Unknown city"}, {profile?.province || ""}</span>
           {profile?.address && <span className="text-[var(--text-muted)] text-xs hidden sm:inline">• {profile.address}</span>}
         </div>
@@ -314,9 +314,9 @@ export default function CalendarPage() {
       {/* Weather Forecast */}
       <div className="bg-[var(--bg-card-solid)] rounded-2xl border border-[var(--border-color)] p-4 overflow-hidden">
         <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3 flex items-center gap-2">
-          <CloudSnow className="w-4 h-4 text-[#4361EE]" />
+          <CloudSnow className="w-4 h-4 text-[#246EB9]" />
           7-Day Snow Forecast
-          <a href="https://www.google.com/search?q=snow+forecast+this+week" target="_blank" rel="noopener noreferrer" className="ml-auto text-xs text-[#4361EE] hover:underline">
+          <a href="https://www.google.com/search?q=snow+forecast+this+week" target="_blank" rel="noopener noreferrer" className="ml-auto text-xs text-[#246EB9] hover:underline">
             Full forecast →
           </a>
         </h3>
@@ -326,12 +326,12 @@ export default function CalendarPage() {
             const isSnowy = day.snowChance > 40;
             return (
               <button key={day.date} onClick={() => setSelectedDate(new Date(day.date + "T12:00:00"))}
-                className={`flex-shrink-0 flex flex-col items-center gap-1 p-3 rounded-xl min-w-[72px] transition-all ${isSnowy ? "bg-[#4361EE]/10 border border-[#4361EE]/20" : "bg-[var(--bg-secondary)] border border-transparent hover:border-[var(--border-color)]"}`}
+                className={`flex-shrink-0 flex flex-col items-center gap-1 p-3 rounded-xl min-w-[72px] transition-all ${isSnowy ? "bg-[#246EB9]/10 border border-[#246EB9]/20" : "bg-[var(--bg-secondary)] border border-transparent hover:border-[var(--border-color)]"}`}
               >
                 <span className="text-[10px] font-semibold text-[var(--text-muted)]">{format(new Date(day.date + "T12:00:00"), "EEE")}</span>
-                <WeatherIcon className={`w-5 h-5 ${isSnowy ? "text-[#4361EE]" : "text-[var(--text-muted)]"}`} />
+                <WeatherIcon className={`w-5 h-5 ${isSnowy ? "text-[#246EB9]" : "text-[var(--text-muted)]"}`} />
                 <span className="text-xs font-bold text-[var(--text-primary)]">{day.high}°/{day.low}°</span>
-                {isSnowy && <span className="text-[9px] font-bold text-[#4361EE] bg-[#4361EE]/10 px-1.5 py-0.5 rounded-full">{day.snowChance}% ❄️</span>}
+                {isSnowy && <span className="text-[9px] font-bold text-[#246EB9] bg-[#246EB9]/10 px-1.5 py-0.5 rounded-full">{day.snowChance}% ❄️</span>}
               </button>
             );
           })}
@@ -365,11 +365,11 @@ export default function CalendarPage() {
               const busy = isBusyDay(day);
               return (
                 <button key={i} onClick={() => setSelectedDate(day)}
-                  className={`relative aspect-square flex flex-col items-center justify-center rounded-lg text-sm transition-all ${selected ? "bg-[#4361EE] text-white shadow-md" : todayDay ? "bg-[#4361EE]/10 text-[#4361EE] font-bold" : inMonth ? "hover:bg-[var(--bg-secondary)] text-[var(--text-primary)]" : "text-[var(--text-muted)]"}`}
+                  className={`relative aspect-square flex flex-col items-center justify-center rounded-lg text-sm transition-all ${selected ? "bg-[#246EB9] text-white shadow-md" : todayDay ? "bg-[#246EB9]/10 text-[#246EB9] font-bold" : inMonth ? "hover:bg-[var(--bg-secondary)] text-[var(--text-primary)]" : "text-[var(--text-muted)]"}`}
                 >
                   <span className="text-xs font-medium">{format(day, "d")}</span>
                   <div className="flex gap-0.5 mt-0.5">
-                    {dayJobs.length > 0 && <span className={`w-1.5 h-1.5 rounded-full ${selected ? "bg-white" : busy ? "bg-green-500" : "bg-[#4361EE]"}`} />}
+                    {dayJobs.length > 0 && <span className={`w-1.5 h-1.5 rounded-full ${selected ? "bg-white" : busy ? "bg-green-500" : "bg-[#246EB9]"}`} />}
                     {dayWeather && dayWeather.snowChance > 40 && <span className={`w-1.5 h-1.5 rounded-full ${selected ? "bg-white/60" : "bg-blue-300"}`} />}
                   </div>
                 </button>
@@ -386,21 +386,21 @@ export default function CalendarPage() {
               <MapPin className="w-3 h-3" />
               {profile?.city || "Your area"}, {profile?.province || ""}
               {selectedDayJobs.length > 0 && (
-                <span className="ml-2 px-1.5 py-0.5 bg-[#4361EE]/10 text-[#4361EE] rounded-full text-[10px] font-semibold">
+                <span className="ml-2 px-1.5 py-0.5 bg-[#246EB9]/10 text-[#246EB9] rounded-full text-[10px] font-semibold">
                   {selectedDayJobs.length} job{selectedDayJobs.length !== 1 ? "s" : ""}
                 </span>
               )}
             </p>
 
             {selectedWeather && (
-              <div className={`p-3 rounded-xl mb-3 ${selectedWeather.snowChance > 40 ? "bg-[#4361EE]/10 border border-[#4361EE]/15" : "bg-[var(--bg-secondary)]"}`}>
+              <div className={`p-3 rounded-xl mb-3 ${selectedWeather.snowChance > 40 ? "bg-[#246EB9]/10 border border-[#246EB9]/15" : "bg-[var(--bg-secondary)]"}`}>
                 <div className="flex items-center gap-2">
-                  {React.createElement(WEATHER_ICONS[selectedWeather.icon], { className: `w-5 h-5 ${selectedWeather.snowChance > 40 ? "text-[#4361EE]" : "text-[var(--text-muted)]"}` })}
+                  {React.createElement(WEATHER_ICONS[selectedWeather.icon], { className: `w-5 h-5 ${selectedWeather.snowChance > 40 ? "text-[#246EB9]" : "text-[var(--text-muted)]"}` })}
                   <span className="text-sm font-semibold text-[var(--text-primary)]">{selectedWeather.description}</span>
                 </div>
                 <p className="text-xs text-[var(--text-secondary)] mt-1">{selectedWeather.high}°C / {selectedWeather.low}°C • {selectedWeather.snowChance}% snow chance</p>
                 {selectedWeather.snowChance > 40 && (
-                  <p className="text-xs font-medium text-[#4361EE] mt-1">❄️ {isOperator ? "Get ready for requests!" : "Consider booking snow removal!"}</p>
+                  <p className="text-xs font-medium text-[#246EB9] mt-1">❄️ {isOperator ? "Get ready for requests!" : "Consider booking snow removal!"}</p>
                 )}
               </div>
             )}
@@ -410,7 +410,7 @@ export default function CalendarPage() {
                 <CalendarDays className="w-8 h-8 text-[var(--text-muted)] mx-auto mb-2" />
                 <p className="text-sm text-[var(--text-secondary)]">No jobs scheduled</p>
                 {!isOperator && (
-                  <button onClick={openOperatorPicker} className="inline-flex items-center gap-1.5 mt-3 px-4 py-2 bg-[#4361EE] text-white rounded-lg text-sm font-semibold hover:bg-[#3651D4] transition">
+                  <button onClick={openOperatorPicker} className="inline-flex items-center gap-1.5 mt-3 px-4 py-2 bg-[#246EB9] text-white rounded-lg text-sm font-semibold hover:bg-[#1B5A9A] transition">
                     <Plus className="w-4 h-4" /> Book for {format(selectedDate, "MMM d")}
                   </button>
                 )}
@@ -421,7 +421,7 @@ export default function CalendarPage() {
                   const otherId = isOperator ? job.clientId : job.operatorId;
                   return (
                     <Link key={job.id} href={`/dashboard/messages/${job.chatId}`}
-                      className="block p-3 rounded-xl border border-[var(--border-color)] hover:border-[#4361EE]/20 hover:shadow-sm transition"
+                      className="block p-3 rounded-xl border border-[var(--border-color)] hover:border-[#246EB9]/20 hover:shadow-sm transition"
                     >
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-sm font-semibold text-[var(--text-primary)]">{userNames[otherId] || (isOperator ? "Client" : "Operator")}</span>
@@ -435,13 +435,13 @@ export default function CalendarPage() {
                         <span className="text-xs text-[var(--text-muted)] flex items-center gap-1"><Clock className="w-3 h-3" />{job.scheduledTime || "ASAP"}</span>
                         <span className="text-xs font-bold text-green-600">${job.price}</span>
                       </div>
-                      {job.status === "in-progress" && <div className="mt-1.5 text-[10px] font-semibold text-[#4361EE] bg-[#4361EE]/10 px-2 py-0.5 rounded-full inline-block">🔵 Currently Working</div>}
+                      {job.status === "in-progress" && <div className="mt-1.5 text-[10px] font-semibold text-[#246EB9] bg-[#246EB9]/10 px-2 py-0.5 rounded-full inline-block">🔵 Currently Working</div>}
                       {job.status === "accepted" && <div className="mt-1.5 text-[10px] font-semibold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full inline-block">⏳ Queued — Tap for details</div>}
                     </Link>
                   );
                 })}
                 {!isOperator && (
-                  <button onClick={openOperatorPicker} className="w-full flex items-center justify-center gap-1.5 mt-1 py-2.5 border border-dashed border-[var(--border-color)] text-[var(--text-muted)] rounded-xl text-sm hover:border-[#4361EE]/50 hover:text-[#4361EE] transition">
+                  <button onClick={openOperatorPicker} className="w-full flex items-center justify-center gap-1.5 mt-1 py-2.5 border border-dashed border-[var(--border-color)] text-[var(--text-muted)] rounded-xl text-sm hover:border-[#246EB9]/50 hover:text-[#246EB9] transition">
                     <Plus className="w-4 h-4" /> Add booking for {format(selectedDate, "MMM d")}
                   </button>
                 )}
@@ -483,7 +483,7 @@ export default function CalendarPage() {
               className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden max-h-[85vh] flex flex-col"
             >
               {/* Header */}
-              <div className="bg-gradient-to-r from-[#4361EE] to-[#3249D6] p-5 text-white shrink-0 relative">
+              <div className="bg-[#246EB9] p-5 text-white shrink-0 relative">
                 <button onClick={() => setShowOperatorPicker(false)} className="absolute top-3 right-3 p-1 rounded-lg hover:bg-white/20 transition">
                   <X className="w-5 h-5" />
                 </button>
@@ -502,7 +502,7 @@ export default function CalendarPage() {
                 /* Confirm booking */
                 <div className="p-5 flex flex-col gap-4">
                   <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
-                    <div className="w-14 h-14 bg-[#4361EE]/20 rounded-xl flex items-center justify-center text-[#4361EE] font-bold text-xl shrink-0">
+                    <div className="w-14 h-14 bg-[#246EB9]/20 rounded-xl flex items-center justify-center text-[#246EB9] font-bold text-xl shrink-0">
                       {bookingOperator.displayName?.charAt(0)?.toUpperCase()}
                     </div>
                     <div>
@@ -517,7 +517,7 @@ export default function CalendarPage() {
                   <div className="grid grid-cols-2 gap-3">
                     <button onClick={() => setBookingOperator(null)} className="px-4 py-3 border border-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition text-sm">← Back</button>
                     <button onClick={bookOperatorForDate} disabled={bookingInProgress}
-                      className="flex items-center justify-center gap-2 px-4 py-3 bg-[#4361EE] hover:bg-[#3651D4] text-white rounded-xl font-semibold transition disabled:opacity-50 text-sm"
+                      className="flex items-center justify-center gap-2 px-4 py-3 bg-[#246EB9] hover:bg-[#1B5A9A] text-white rounded-xl font-semibold transition disabled:opacity-50 text-sm"
                     >
                       <MessageSquare className="w-4 h-4" />
                       {bookingInProgress ? "Booking..." : "Confirm & Chat"}
@@ -532,7 +532,7 @@ export default function CalendarPage() {
                     <div className="grid grid-cols-3 gap-2">
                       {["07:00", "09:00", "12:00", "14:00", "16:00", "18:00"].map((t) => (
                         <button key={t} onClick={() => setScheduleTime(t)}
-                          className={`flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg border text-xs font-medium transition ${scheduleTime === t ? "border-[#4361EE] bg-[#4361EE]/5 text-[#4361EE]" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
+                          className={`flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg border text-xs font-medium transition ${scheduleTime === t ? "border-[#246EB9] bg-[#246EB9]/5 text-[#246EB9]" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
                         >
                           <Clock className="w-3 h-3" />{t}
                         </button>
@@ -545,7 +545,7 @@ export default function CalendarPage() {
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <input type="text" value={operatorSearch} onChange={(e) => setOperatorSearch(e.target.value)} placeholder="Search operators..."
-                        className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4361EE]/20 focus:border-[#4361EE]"
+                        className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#246EB9]/20 focus:border-[#246EB9]"
                       />
                     </div>
                   </div>
@@ -564,9 +564,9 @@ export default function CalendarPage() {
                       </div>
                     ) : filteredOperators.map((op) => (
                       <button key={op.uid} onClick={() => setBookingOperator(op)}
-                        className="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-[#4361EE]/30 hover:bg-[#4361EE]/5 transition text-left"
+                        className="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-[#246EB9]/30 hover:bg-[#246EB9]/5 transition text-left"
                       >
-                        <div className="w-11 h-11 bg-[#4361EE]/20 rounded-xl flex items-center justify-center text-[#4361EE] font-bold text-lg shrink-0">
+                        <div className="w-11 h-11 bg-[#246EB9]/20 rounded-xl flex items-center justify-center text-[#246EB9] font-bold text-lg shrink-0">
                           {op.displayName?.charAt(0)?.toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -585,7 +585,7 @@ export default function CalendarPage() {
                           </div>
                           <p className="text-xs text-green-600 font-semibold mt-0.5">From ${op.pricing?.driveway?.medium || "–"}</p>
                         </div>
-                        <Zap className="w-4 h-4 text-[#4361EE] shrink-0" />
+                        <Zap className="w-4 h-4 text-[#246EB9] shrink-0" />
                       </button>
                     ))}
                   </div>
