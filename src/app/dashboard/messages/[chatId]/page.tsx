@@ -104,10 +104,15 @@ export default function ChatPage() {
 
   // Rehire state
   const [rehiring, setRehiring] = useState(false);
+  const [rehireSent, setRehireSent] = useState(false);
 
   // Cancellation popup state
   const [showCancelPopup, setShowCancelPopup] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+
+  // Payment gate popup
+  const [showPaymentGateModal, setShowPaymentGateModal] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<JobStatus | null>(null);
 
   // Report / claim state
   const [showReportModal, setShowReportModal] = useState(false);
@@ -139,6 +144,7 @@ export default function ChatPage() {
         const chatDoc = await getDoc(doc(db, "chats", chatId));
         if (chatDoc.exists()) {
           const chatData = chatDoc.data();
+          if (chatData.rehireSent) setRehireSent(true);
           const otherUid = chatData.participants?.find(
             (p: string) => p !== user.uid
           );
@@ -321,6 +327,30 @@ export default function ChatPage() {
   const updateJobStatus = async (newStatus: JobStatus) => {
     if (!job) return;
     try {
+      // ── Guard: photo proof required before completing ──────────────────────
+      if (newStatus === "completed" && !completionPhoto && !job.completionPhotoUrl) {
+        alert("You must submit photo proof before completing the job. Please upload a completion photo first.");
+        return;
+      }
+
+      // ── Guard: one active job at a time on accept ──────────────────────────
+      if (newStatus === "accepted") {
+        const { getDocs: gd, query: q2, collection: col2, where: w2 } = await import("firebase/firestore");
+        const activeSnap = await gd(q2(col2(db, "jobs"), w2("operatorId", "==", user?.uid), w2("status", "in", ["accepted", "en-route", "in-progress"])));
+        const otherActive = activeSnap.docs.filter(d => d.id !== job.id);
+        if (otherActive.length > 0) {
+          alert("You already have an active job in progress. Please complete it before accepting another.");
+          return;
+        }
+      }
+
+      // ── Guard: payment must be made before proceeding past accepted (credit/e-transfer) ──
+      if ((newStatus === "en-route" || newStatus === "in-progress" || newStatus === "completed") && job.paymentMethod !== "cash" && job.paymentStatus === "pending") {
+        setPendingStatus(newStatus);
+        setShowPaymentGateModal(true);
+        return;
+      }
+
       const updateData: Record<string, unknown> = {
         status: newStatus,
         updatedAt: Timestamp.now(),
@@ -329,14 +359,31 @@ export default function ChatPage() {
         updateData.startTime = Timestamp.now();
         // Hold payment when job starts
         if (job.paymentStatus === "pending" && job.stripePaymentIntentId) {
-          // Payment already exists but wasn't captured - just update status
           updateData.paymentStatus = "held";
         }
       }
       if (newStatus === "completed") {
         updateData.completionTime = Timestamp.now();
-        // For cash / e-transfer jobs (no Stripe intent) mark payment as paid directly
-        if (job.paymentStatus === "pending" && !job.stripePaymentIntentId) {
+        // Verify Stripe payment before completing (unless cash)
+        if (job.stripePaymentIntentId && job.paymentStatus === "held") {
+          try {
+            const res = await fetch("/api/stripe/capture-payment", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ paymentIntentId: job.stripePaymentIntentId }),
+            });
+            const data = await res.json();
+            if (data.error) {
+              alert("Payment verification failed. Cannot complete job until payment is confirmed.");
+              return;
+            }
+            updateData.paymentStatus = "paid";
+          } catch {
+            alert("Unable to verify payment. Please try again.");
+            return;
+          }
+        } else if (job.paymentMethod === "cash" || !job.stripePaymentIntentId) {
+          // Cash / e-transfer jobs — mark as paid directly
           updateData.paymentStatus = "paid";
         }
       }
@@ -361,6 +408,14 @@ export default function ChatPage() {
       // Trigger celebration animation
       if (newStatus === "accepted") {
         setCelebration({ show: true, type: "accepted" });
+        // Auto-send payment request to client when operator accepts
+        if (job.paymentMethod !== "cash" && job.paymentStatus === "pending") {
+          await sendMessage(
+            `${profile?.displayName} has accepted the job! Please pay $${job.price} CAD to confirm — funds are held securely by snowd.ca until job completion.`,
+            "payment-request",
+            { amount: job.price }
+          );
+        }
       } else if (newStatus === "completed") {
         setCelebration({ show: true, type: "completion" });
       }
@@ -404,7 +459,7 @@ export default function ChatPage() {
 
   // Rehire operator from a completed/cancelled chat
   const rehireOperator = async () => {
-    if (!job || !user?.uid || !otherUser?.uid || rehiring) return;
+    if (!job || !user?.uid || !otherUser?.uid || rehiring || rehireSent) return;
     setRehiring(true);
     try {
       const { addDoc: ad, collection: col, Timestamp: Ts } = await import("firebase/firestore");
@@ -431,12 +486,14 @@ export default function ChatPage() {
         updatedAt: Ts.now(),
       });
 
-      // Update chat to reference new job
+      // Update chat to reference new job and mark rehire as sent
       await updateDoc(doc(db, "chats", chatId), {
         jobId: newJobRef.id,
         lastMessage: "New job request created",
         lastMessageTime: Ts.now(),
+        rehireSent: true,
       });
+      setRehireSent(true);
 
       await sendMessage(
         `${profile?.displayName} has requested a new job! Same service, same location.`,
@@ -833,26 +890,24 @@ export default function ChatPage() {
       );
     }
 
-    // Progress update widget - show only the status change
+    // Progress update widget — clean centered status chip
     if (msg.type === "progress-update" || msg.type === "status-update") {
-      const statusColors: Record<string, { bg: string; border: string; text: string; icon: string }> = {
-        accepted: { bg: "bg-green-50", border: "border-green-200", text: "text-green-700", icon: "text-green-600" },
-        "en-route": { bg: "bg-purple-50", border: "border-purple-200", text: "text-purple-700", icon: "text-purple-600" },
-        "in-progress": { bg: "bg-orange-50", border: "border-orange-200", text: "text-orange-700", icon: "text-orange-600" },
-        completed: { bg: "bg-[#246EB9]/10", border: "border-[#246EB9]/20", text: "text-[#246EB9]", icon: "text-[#246EB9]" },
-        cancelled: { bg: "bg-red-50", border: "border-red-200", text: "text-red-700", icon: "text-red-600" },
+      const statusMeta: Record<string, { label: string; color: string; bg: string }> = {
+        accepted:    { label: "Job Accepted",      color: "text-blue-700",    bg: "bg-blue-50 border-blue-200" },
+        "en-route":  { label: "Operator En Route", color: "text-gray-700",    bg: "bg-gray-50 border-gray-200" },
+        "in-progress":{ label: "Work In Progress",  color: "text-gray-700",    bg: "bg-gray-50 border-gray-200" },
+        completed:   { label: "Job Completed",     color: "text-green-700",   bg: "bg-green-50 border-green-200" },
+        cancelled:   { label: "Job Cancelled",     color: "text-red-700",     bg: "bg-red-50 border-red-200" },
       };
       const statusValue = msg.metadata?.newStatus || "accepted";
-      const colors = statusColors[statusValue] || statusColors.accepted;
-      
+      const meta = statusMeta[statusValue] || statusMeta.accepted;
+
       return (
-        <div key={msg.id} className="flex justify-center my-3 chat-bubble">
-          <div className={`${colors.bg} border ${colors.border} rounded-xl px-4 py-2.5 max-w-sm`}>
-            <div className="flex items-center gap-2">
-              <CheckCircle className={`w-4 h-4 ${colors.icon}`} />
-              <span className={`text-sm font-medium ${colors.text}`}>{msg.content}</span>
-            </div>
-            <p className="text-xs text-gray-500 mt-1 text-center">{formatTimestamp(msg.createdAt)}</p>
+        <div key={msg.id} className="flex justify-center my-4 chat-bubble">
+          <div className={`${meta.bg} border rounded-full px-4 py-1.5 flex items-center gap-2`}>
+            <CheckCircle className={`w-3.5 h-3.5 ${meta.color}`} />
+            <span className={`text-xs font-semibold ${meta.color}`}>{meta.label}</span>
+            <span className="text-[10px] text-gray-400">{formatTimestamp(msg.createdAt)}</span>
           </div>
         </div>
       );
@@ -860,107 +915,108 @@ export default function ChatPage() {
 
     if (msg.type === "completion-photo") {
       return (
-        <div key={msg.id} className="flex justify-center my-3 chat-bubble">
-          <div className="bg-green-50 border border-green-200 rounded-xl p-4 max-w-sm w-full">
-            <div className="flex items-center gap-2 mb-2">
-              <Camera className="w-4 h-4 text-green-600" />
-              <span className="text-sm font-medium text-green-700">Completion Photo</span>
+        <div key={msg.id} className="flex justify-center my-4 chat-bubble">
+          <div className="bg-white rounded-2xl shadow-sm border border-green-100 p-4 max-w-[280px] w-full">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                <Camera className="w-4 h-4 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-900">Completion Photo</p>
+                <p className="text-xs text-gray-500">{formatTimestamp(msg.createdAt)}</p>
+              </div>
             </div>
             {msg.metadata?.completionPhotoUrl && (
               <img
                 src={msg.metadata.completionPhotoUrl}
                 alt="Job completion"
-                className="w-full rounded-lg mb-2 cursor-pointer"
+                className="w-full rounded-xl cursor-pointer object-cover"
+                style={{ maxHeight: 200 }}
                 onClick={() => window.open(msg.metadata!.completionPhotoUrl!, "_blank")}
               />
             )}
-            <p className="text-xs text-green-600">{msg.content}</p>
-            <p className="text-xs text-gray-500 mt-2 text-center">{formatTimestamp(msg.createdAt)}</p>
+            <p className="text-xs text-green-700 font-medium mt-2">{msg.content}</p>
           </div>
         </div>
       );
     }
 
     if (isSystem) {
+      const isPay = msg.type === "payment" || msg.type === "payment-request";
       return (
         <div key={msg.id} className="flex justify-center my-3 chat-bubble">
-          <div
-            className={`px-4 py-2 rounded-full text-sm max-w-xs text-center ${
-              msg.type === "eta-update"
-                ? "bg-purple-50 text-purple-700 border border-purple-200"
-                : msg.type === "payment"
-                ? "bg-green-50 text-green-700 border border-green-200"
-                : msg.type === "payment-request"
-                ? "bg-yellow-50 text-yellow-700 border border-yellow-200"
-                : "bg-gray-100 text-gray-600"
-            }`}
-          >
-            {msg.type === "eta-update" && (
-              <div className="flex items-center gap-2 justify-center">
-                <Clock className="w-4 h-4" />
-                <span>{msg.content}</span>
-              </div>
-            )}
-            {msg.type === "payment" && (
-              <div className="flex items-center gap-2 justify-center">
-                <DollarSign className="w-4 h-4" />
-                <span className="font-semibold">{msg.content}</span>
-              </div>
-            )}
-            {msg.type === "payment-request" && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 justify-center">
-                  <CreditCard className="w-4 h-4" />
-                  <span className="font-semibold">{msg.content}</span>
-                </div>
-                {!isOperator && job?.paymentStatus === "pending" && (
-                  <button
-                    onClick={initiatePayment}
-                    disabled={processingPayment}
-                    className="mt-1 px-4 py-1.5 bg-[#246EB9] text-white rounded-lg text-xs font-semibold hover:bg-[#1B5A9A] transition"
-                  >
-                    {processingPayment ? "Processing..." : "Pay Now"}
-                  </button>
+          {isPay ? (
+            <div className={`bg-white rounded-2xl shadow-sm border p-4 max-w-[280px] w-full ${
+              msg.type === "payment" ? "border-green-100" : "border-amber-100"
+            }`}>
+              <div className="flex items-center gap-2 mb-1">
+                {msg.type === "payment" ? (
+                  <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                    <DollarSign className="w-4 h-4 text-green-600" />
+                  </div>
+                ) : (
+                  <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
+                    <CreditCard className="w-4 h-4 text-amber-600" />
+                  </div>
                 )}
+                <span className={`text-sm font-semibold ${msg.type === "payment" ? "text-green-800" : "text-amber-800"}`}>
+                  {msg.type === "payment" ? "Payment Update" : "Payment Request"}
+                </span>
               </div>
-            )}
-            {msg.type === "system" && msg.content}
-          </div>
+              <p className="text-xs text-gray-600 leading-relaxed">{msg.content}</p>
+              {msg.type === "payment-request" && !isOperator && job?.paymentStatus === "pending" && (
+                <button
+                  onClick={initiatePayment}
+                  disabled={processingPayment}
+                  className="mt-3 w-full px-4 py-2.5 bg-[#246EB9] text-white rounded-xl text-sm font-semibold hover:bg-[#1B5A9A] transition disabled:opacity-50"
+                >
+                  {processingPayment ? "Processing..." : `Pay $${job?.price} CAD Now`}
+                </button>
+              )}
+              <p className="text-[10px] text-gray-400 mt-2 text-right">{formatTimestamp(msg.createdAt)}</p>
+            </div>
+          ) : (
+            <div className="px-3 py-1.5 bg-gray-100 rounded-full">
+              <span className="text-xs text-gray-500">
+                {msg.type === "eta-update" && <><Clock className="w-3 h-3 inline mr-1" />{msg.content}</>}
+                {msg.type !== "eta-update" && msg.content}
+              </span>
+            </div>
+          )}
         </div>
       );
     }
-
     // Regular text message with clickable avatar
     return (
       <div
         key={msg.id}
-        className={`flex ${isOwn ? "justify-end" : "justify-start"} mb-3 chat-bubble`}
+        className={`flex ${isOwn ? "justify-end" : "justify-start"} mb-1 chat-bubble`}
       >
         {/* Other user avatar - clickable to profile */}
         {!isOwn && otherUser && (
           <Link
             href={`/dashboard/u/${msg.senderId}`}
-            className="shrink-0 mr-2 self-end"
+            className="shrink-0 mr-2 self-end mb-1"
           >
-            <div className="w-7 h-7 bg-[#246EB9] rounded-full flex items-center justify-center text-white font-semibold text-xs hover:ring-2 hover:ring-[#246EB9]/30 transition">
+            <div className="w-7 h-7 bg-[#246EB9] rounded-full flex items-center justify-center text-white font-bold text-xs hover:ring-2 hover:ring-[#246EB9]/30 transition">
               {otherUser.displayName?.charAt(0)?.toUpperCase() || "?"}
             </div>
           </Link>
         )}
         <div
-          className={`max-w-[70%] px-4 py-2.5 rounded-2xl ${
+          className={`max-w-[72%] px-3.5 py-2 rounded-2xl shadow-sm ${
             isOwn
-              ? "bg-[#246EB9] text-white rounded-br-md"
-              : "bg-[var(--bg-card-solid)] border border-[var(--border-color)] text-[var(--text-primary)] rounded-bl-md"
+              ? "bg-[#246EB9] text-white rounded-tr-sm"
+              : "bg-white text-gray-900 rounded-tl-sm"
           }`}
         >
           {!isOwn && (
-            <p className="text-xs font-medium text-[#246EB9] mb-0.5">
+            <p className="text-xs font-semibold text-[#246EB9] mb-0.5">
               {msg.senderName}
             </p>
           )}
           <p className="text-sm leading-relaxed">{msg.content}</p>
-          <p className={`text-xs mt-1 ${isOwn ? "text-[#246EB9]/30" : "text-[#6B7C8F]"}`}>
+          <p className={`text-[10px] mt-0.5 text-right ${isOwn ? "text-white/50" : "text-gray-400"}`}>
             {formatTimestamp(msg.createdAt)}
           </p>
         </div>
@@ -1125,10 +1181,14 @@ export default function ChatPage() {
         )}
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 bg-[var(--bg-secondary)] border-x border-[var(--border-color)] space-y-1">
+        <div className="flex-1 overflow-y-auto px-4 py-4 bg-[#EBF0F5] dark:bg-[#0e1621] border-x border-[var(--border-color)] space-y-0.5">
           {messages.length === 0 && (
-            <div className="text-center py-8 text-[#6B7C8F]">
-              <p>No messages yet. Start the conversation!</p>
+            <div className="flex flex-col items-center justify-center h-full text-center py-12 text-[#6B7C8F]">
+              <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm mb-3">
+                <CheckCircle className="w-7 h-7 text-[#246EB9]" />
+              </div>
+              <p className="font-medium text-sm text-gray-700">Conversation started</p>
+              <p className="text-xs text-gray-500 mt-1">Messages will appear here</p>
             </div>
           )}
           {messages.map(renderMessage)}
@@ -1198,50 +1258,51 @@ export default function ChatPage() {
         )}
 
         {/* Operator Quick Actions */}
-        {isOperator && showActions && (
-          <div className="bg-white border-x border-[#E6EEF6] px-4 py-3 border-t border-[#E6EEF6]">
+        {isOperator && showActions && job && job.status !== "completed" && job.status !== "cancelled" && (
+          <div className="bg-white border-x border-[#E6EEF6] border-t border-gray-100 px-4 py-3">
+            <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-widest mb-2.5">Job Actions</p>
             <div className="grid grid-cols-2 gap-2">
-              {job?.status === "pending" && (
+              {job.status === "pending" && (
                 <button
                   onClick={() => updateJobStatus("accepted")}
-                  className="flex items-center gap-2 px-3 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-medium hover:bg-green-100 transition"
+                  className="flex items-center justify-center gap-2 px-3 py-2.5 bg-green-500 text-white rounded-xl text-sm font-semibold hover:bg-green-600 transition shadow-sm"
                 >
                   <CheckCircle className="w-4 h-4" /> Accept Job
                 </button>
               )}
-              {job?.status === "accepted" && (
+              {job.status === "accepted" && (
                 <button
                   onClick={() => updateJobStatus("en-route")}
-                  className="flex items-center gap-2 px-3 py-2 bg-purple-50 text-purple-700 rounded-lg text-sm font-medium hover:bg-purple-100 transition"
+                  className="flex items-center justify-center gap-2 px-3 py-2.5 bg-[#246EB9] text-white rounded-xl text-sm font-semibold hover:bg-[#1B5A9A] transition shadow-sm"
                 >
-                  <Navigation className="w-4 h-4" /> On My Way
+                  <Navigation className="w-4 h-4" /> I&apos;m On My Way
                 </button>
               )}
-              {job?.status === "en-route" && (
+              {job.status === "en-route" && (
                 <>
                   <button
                     onClick={() => updateJobStatus("in-progress")}
-                    className="flex items-center gap-2 px-3 py-2 bg-orange-50 text-orange-700 rounded-lg text-sm font-medium hover:bg-orange-100 transition"
+                    className="flex items-center justify-center gap-2 px-3 py-2.5 bg-[#246EB9] text-white rounded-xl text-sm font-semibold hover:bg-[#1B5A9A] transition shadow-sm"
                   >
                     <Play className="w-4 h-4" /> Start Job
                   </button>
                   <button
                     onClick={() => updateJobStatus("accepted")}
-                    className="flex items-center gap-2 px-3 py-2 bg-gray-50 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-100 transition"
+                    className="flex items-center justify-center gap-2 px-3 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-200 transition"
                   >
                     <ArrowLeft className="w-4 h-4" /> Go Back
                   </button>
                 </>
               )}
-              {job?.status === "in-progress" && (
+              {job.status === "in-progress" && (
                 <>
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploadingPhoto}
-                    className="flex items-center gap-2 px-3 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-medium hover:bg-green-100 transition disabled:opacity-50"
+                    className="flex items-center justify-center gap-2 px-3 py-2.5 bg-[#246EB9] text-white rounded-xl text-sm font-semibold hover:bg-[#1B5A9A] transition shadow-sm disabled:opacity-50 col-span-2"
                   >
                     <Camera className="w-4 h-4" />
-                    {uploadingPhoto ? "Uploading..." : "Submit Photo Proof"}
+                    {uploadingPhoto ? "Uploading Photo..." : "Submit Photo Proof & Complete"}
                   </button>
                   <input
                     ref={fileInputRef}
@@ -1252,35 +1313,31 @@ export default function ChatPage() {
                     className="hidden"
                   />
                   <button
-                    onClick={() => updateJobStatus("completed")}
-                    className="flex items-center gap-2 px-3 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-medium hover:bg-green-100 transition"
-                  >
-                    <CheckCircle className="w-4 h-4" /> Complete Job
-                  </button>
-                  <button
                     onClick={() => updateJobStatus("en-route")}
-                    className="flex items-center gap-2 px-3 py-2 bg-gray-50 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-100 transition"
+                    className="flex items-center justify-center gap-2 px-3 py-2 bg-gray-100 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-200 transition col-span-2"
                   >
-                    <ArrowLeft className="w-4 h-4" /> Go Back
+                    <ArrowLeft className="w-3.5 h-3.5" /> Go Back to En Route
                   </button>
                 </>
               )}
 
-              {(job?.status === "accepted" || job?.status === "en-route") && (
+              {(job.status === "accepted" || job.status === "en-route") && (
                 <>
-                  <button onClick={() => sendEtaUpdate(10)} className="flex items-center gap-2 px-3 py-2 bg-[#246EB9]/10 text-[#246EB9] rounded-lg text-sm font-medium hover:bg-[#246EB9]/15 transition">
-                    <Clock className="w-4 h-4" /> ETA: 10 min
+                  <div className="col-span-2 border-t border-gray-100 my-1" />
+                  <p className="col-span-2 text-[10px] text-gray-400 font-semibold uppercase tracking-widest">Send ETA</p>
+                  <button onClick={() => sendEtaUpdate(10)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-[#246EB9]/8 text-[#246EB9] rounded-xl text-xs font-semibold hover:bg-[#246EB9]/15 transition">
+                    <Clock className="w-3.5 h-3.5" /> 10 min
                   </button>
-                  <button onClick={() => sendEtaUpdate(20)} className="flex items-center gap-2 px-3 py-2 bg-[#246EB9]/10 text-[#246EB9] rounded-lg text-sm font-medium hover:bg-[#246EB9]/15 transition">
-                    <Clock className="w-4 h-4" /> ETA: 20 min
+                  <button onClick={() => sendEtaUpdate(20)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-[#246EB9]/8 text-[#246EB9] rounded-xl text-xs font-semibold hover:bg-[#246EB9]/15 transition">
+                    <Clock className="w-3.5 h-3.5" /> 20 min
                   </button>
-                  <button onClick={() => sendEtaUpdate(30)} className="flex items-center gap-2 px-3 py-2 bg-[#246EB9]/10 text-[#246EB9] rounded-lg text-sm font-medium hover:bg-[#246EB9]/15 transition">
-                    <Clock className="w-4 h-4" /> ETA: 30 min
+                  <button onClick={() => sendEtaUpdate(30)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-[#246EB9]/8 text-[#246EB9] rounded-xl text-xs font-semibold hover:bg-[#246EB9]/15 transition">
+                    <Clock className="w-3.5 h-3.5" /> 30 min
                   </button>
                 </>
               )}
 
-              {job?.status === "accepted" && job?.paymentStatus === "pending" && (
+              {job.status === "accepted" && job.paymentStatus === "pending" && (
                 <button
                   onClick={async () => {
                     await sendMessage(
@@ -1290,20 +1347,20 @@ export default function ChatPage() {
                     );
                     setShowActions(false);
                   }}
-                  className="flex items-center gap-2 px-3 py-2 bg-yellow-50 text-yellow-700 rounded-lg text-sm font-medium hover:bg-yellow-100 transition"
+                  className="flex items-center justify-center gap-2 px-3 py-2.5 bg-amber-500 text-white rounded-xl text-sm font-semibold hover:bg-amber-600 transition"
                 >
                   <CreditCard className="w-4 h-4" /> Request Payment
                 </button>
               )}
 
-              {job?.status !== "completed" && job?.status !== "cancelled" && (
+              <div className="col-span-2 border-t border-gray-100 mt-1 pt-2">
                 <button
                   onClick={cancelJob}
-                  className="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-700 rounded-lg text-sm font-medium hover:bg-red-100 transition"
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 text-red-500 rounded-xl text-sm font-medium hover:bg-red-50 transition"
                 >
                   <X className="w-4 h-4" /> Cancel Job
                 </button>
-              )}
+              </div>
             </div>
           </div>
         )}
@@ -1359,8 +1416,8 @@ export default function ChatPage() {
           </div>
         )}
 
-        {/* Completed Job — Rehire option (clients only) */}
-        {job?.status === "completed" && reviewSubmitted && !isOperator && (
+        {/* Completed Job — Rehire option (clients only, once) */}
+        {job?.status === "completed" && reviewSubmitted && !isOperator && !rehireSent && (
           <div className="bg-[#246EB9]/5 border-x border-[#246EB9]/10 px-4 py-3 border-t border-[#246EB9]/20">
             <div className="flex items-center justify-between">
               <div>
@@ -1407,7 +1464,7 @@ export default function ChatPage() {
                     <p className="text-xs text-red-600">Want to start a new job?</p>
                   )}
                 </div>
-                {!isOperator && (
+                {!isOperator && !rehireSent && (
                   <button
                     onClick={rehireOperator}
                     disabled={rehiring}
@@ -1485,18 +1542,18 @@ export default function ChatPage() {
             {/* Operator Update Buttons */}
             {isOperator && job.status !== "completed" && job.status !== "cancelled" && (
               <div className="mt-4 pt-3 border-t border-[#E6EEF6] dark:border-[#1e2d3d] space-y-2">
-                <p className="text-xs font-semibold text-[#6B7C8F] uppercase tracking-wide mb-2">Update Progress</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Update Progress</p>
                 {job.status === "pending" && (
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => updateJobStatus("accepted")}
-                      className="flex items-center justify-center gap-1.5 px-3 py-2 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg text-xs font-semibold hover:bg-green-100 dark:hover:bg-green-900/50 transition"
+                      className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-green-500 text-white rounded-xl text-xs font-bold hover:bg-green-600 transition shadow-sm"
                     >
                       <CheckCircle className="w-3.5 h-3.5" /> Accept
                     </button>
                     <button
                       onClick={() => updateJobStatus("cancelled")}
-                      className="flex items-center justify-center gap-1.5 px-3 py-2 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg text-xs font-semibold hover:bg-red-100 dark:hover:bg-red-900/50 transition"
+                      className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-red-50 text-red-600 rounded-xl text-xs font-bold hover:bg-red-100 transition"
                     >
                       <X className="w-3.5 h-3.5" /> Decline
                     </button>
@@ -1505,7 +1562,7 @@ export default function ChatPage() {
                 {job.status === "accepted" && (
                   <button
                     onClick={() => updateJobStatus("en-route")}
-                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded-lg text-xs font-semibold hover:bg-purple-100 dark:hover:bg-purple-900/50 transition"
+                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-[#246EB9] text-white rounded-xl text-xs font-bold hover:bg-[#1B5A9A] transition shadow-sm"
                   >
                     <Navigation className="w-3.5 h-3.5" /> Mark En Route
                   </button>
@@ -1514,13 +1571,13 @@ export default function ChatPage() {
                   <>
                     <button
                       onClick={() => updateJobStatus("in-progress")}
-                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded-lg text-xs font-semibold hover:bg-orange-100 dark:hover:bg-orange-900/50 transition"
+                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-[#246EB9] text-white rounded-xl text-xs font-bold hover:bg-[#1B5A9A] transition shadow-sm"
                     >
                       <Play className="w-3.5 h-3.5" /> Start Job
                     </button>
                     <button
                       onClick={() => updateJobStatus("accepted")}
-                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-50 dark:bg-gray-700/30 text-gray-600 dark:text-gray-400 rounded-lg text-xs font-semibold hover:bg-gray-100 dark:hover:bg-gray-700/50 transition"
+                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-100 text-gray-500 rounded-xl text-xs font-medium hover:bg-gray-200 transition"
                     >
                       <ArrowLeft className="w-3.5 h-3.5" /> Go Back
                     </button>
@@ -1528,24 +1585,16 @@ export default function ChatPage() {
                 )}
                 {job.status === "in-progress" && (
                   <>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={uploadingPhoto}
-                        className="flex items-center justify-center gap-1.5 px-3 py-2 bg-[#246EB9]/10 dark:bg-[#246EB9]/20 text-[#246EB9] dark:text-[#246EB9]/70 rounded-lg text-xs font-semibold hover:bg-[#246EB9]/15 dark:hover:bg-[#246EB9]/30 transition disabled:opacity-50"
-                      >
-                        <Camera className="w-3.5 h-3.5" /> Photo Proof
-                      </button>
-                      <button
-                        onClick={() => updateJobStatus("completed")}
-                        className="flex items-center justify-center gap-1.5 px-3 py-2 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg text-xs font-semibold hover:bg-green-100 dark:hover:bg-green-900/50 transition"
-                      >
-                        <CheckCircle className="w-3.5 h-3.5" /> Complete
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingPhoto}
+                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-[#246EB9] text-white rounded-xl text-xs font-bold hover:bg-[#1B5A9A] transition shadow-sm disabled:opacity-50"
+                    >
+                      <Camera className="w-3.5 h-3.5" /> {uploadingPhoto ? "Uploading..." : "Photo Proof & Complete"}
+                    </button>
                     <button
                       onClick={() => updateJobStatus("en-route")}
-                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-50 dark:bg-gray-700/30 text-gray-600 dark:text-gray-400 rounded-lg text-xs font-semibold hover:bg-gray-100 dark:hover:bg-gray-700/50 transition"
+                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-100 text-gray-500 rounded-xl text-xs font-medium hover:bg-gray-200 transition"
                     >
                       <ArrowLeft className="w-3.5 h-3.5" /> Go Back
                     </button>
@@ -1680,6 +1729,48 @@ export default function ChatPage() {
             >
               {submittingReport ? "Submitting..." : "Submit Report"}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Gate Modal — shown when operator tries to go en-route without client payment */}
+      {showPaymentGateModal && job && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowPaymentGateModal(false)}>
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="w-11 h-11 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
+                <CreditCard className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900">Payment Not Yet Received</h3>
+                <p className="text-xs text-gray-500">Client hasn&apos;t paid for this job</p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 leading-relaxed">
+              The client needs to pay <span className="font-bold text-gray-900">${job.price} CAD</span> before you can proceed. Send them a payment request so funds are held securely.
+            </p>
+            <div className="space-y-2 pt-1">
+              <button
+                onClick={async () => {
+                  await sendMessage(
+                    `${profile?.displayName} is requesting payment of $${job.price} CAD before starting the job. Please pay to confirm — funds are held securely by snowd.ca until completion.`,
+                    "payment-request",
+                    { amount: job.price }
+                  );
+                  setShowPaymentGateModal(false);
+                  setPendingStatus(null);
+                }}
+                className="w-full py-3 bg-[#246EB9] text-white rounded-xl font-semibold text-sm hover:bg-[#1B5A9A] transition flex items-center justify-center gap-2"
+              >
+                <CreditCard className="w-4 h-4" /> Send Payment Request to Client
+              </button>
+              <button
+                onClick={() => { setShowPaymentGateModal(false); setPendingStatus(null); }}
+                className="w-full py-2.5 text-gray-500 text-sm font-medium hover:text-gray-700 transition"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}

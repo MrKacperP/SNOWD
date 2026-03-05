@@ -451,13 +451,43 @@ export default function ProfilePage() {
               <ShieldCheck className="w-4 h-4" /> ID Verification
             </h3>
             {profile.idVerified ? (
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-green-50">
-                <CheckCircle className="w-5 h-5 text-green-600" />
-                <div>
-                  <p className="text-sm font-medium text-green-700">Verified</p>
-                  <p className="text-xs text-green-600">Your ID has been verified</p>
+              profile.idPhotoUrl ? (
+                <a
+                  href={profile.idPhotoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 p-3 rounded-xl bg-green-50 hover:bg-green-100 transition group cursor-pointer"
+                >
+                  <CheckCircle className="w-5 h-5 text-green-600" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-green-700">Verified</p>
+                    <p className="text-xs text-green-600">Tap to view your uploaded ID</p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-green-500 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                </a>
+              ) : (
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-green-50">
+                  <CheckCircle className="w-5 h-5 text-green-600" />
+                  <div>
+                    <p className="text-sm font-medium text-green-700">Verified</p>
+                    <p className="text-xs text-green-600">Your ID has been verified</p>
+                  </div>
                 </div>
-              </div>
+              )
+            ) : profile.idPhotoUrl ? (
+              <a
+                href={profile.idPhotoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 p-3 rounded-xl bg-amber-50 hover:bg-amber-100 transition group cursor-pointer"
+              >
+                <Camera className="w-5 h-5 text-amber-600" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-amber-700">Pending Review</p>
+                  <p className="text-xs text-amber-600">Tap to view your uploaded ID</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-amber-500 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+              </a>
             ) : (
               <Link
                 href="/dashboard/settings?tab=verification"

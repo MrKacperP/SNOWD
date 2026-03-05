@@ -29,10 +29,10 @@ import { format } from "date-fns";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
   pending: { label: "Pending", color: "text-yellow-700", bg: "bg-yellow-100", icon: <Clock className="w-3.5 h-3.5" /> },
-  accepted: { label: "Accepted", color: "text-purple-700", bg: "bg-purple-100", icon: <CheckCircle className="w-3.5 h-3.5" /> },
-  "en-route": { label: "En Route", color: "text-blue-700", bg: "bg-blue-100", icon: <Truck className="w-3.5 h-3.5" /> },
-  "in-progress": { label: "In Progress", color: "text-green-700", bg: "bg-green-100", icon: <Play className="w-3.5 h-3.5" /> },
-  completed: { label: "Completed", color: "text-gray-700", bg: "bg-gray-100", icon: <CheckCircle className="w-3.5 h-3.5" /> },
+  accepted: { label: "Accepted", color: "text-blue-700", bg: "bg-blue-100", icon: <CheckCircle className="w-3.5 h-3.5" /> },
+  "en-route": { label: "En Route", color: "text-gray-700", bg: "bg-gray-100", icon: <Truck className="w-3.5 h-3.5" /> },
+  "in-progress": { label: "In Progress", color: "text-gray-700", bg: "bg-gray-100", icon: <Play className="w-3.5 h-3.5" /> },
+  completed: { label: "Completed", color: "text-green-700", bg: "bg-green-100", icon: <CheckCircle className="w-3.5 h-3.5" /> },
   cancelled: { label: "Cancelled", color: "text-red-700", bg: "bg-red-100", icon: <XCircle className="w-3.5 h-3.5" /> },
 };
 

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { doc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { sendAdminNotif } from "@/lib/adminNotifications";
 import ServiceRadiusMap from "@/components/ServiceRadiusMap";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import AddressMap from "@/components/AddressMap";
@@ -273,6 +274,22 @@ export default function OnboardingPage() {
       }
 
       await refreshProfile();
+
+      // Notify admin of new user profile completion
+      sendAdminNotif({
+        type: "profile_saved",
+        message: `New ${role} profile created: ${displayName} (${city}, ${province})`,
+        uid: user.uid,
+        meta: {
+          name: displayName,
+          email: user.email || "",
+          role: role!,
+          city,
+          province,
+          address,
+        },
+      });
+
       if (typeof window !== "undefined") {
         sessionStorage.removeItem("snowd_signup_name");
         sessionStorage.removeItem("snowd_signup_uid");

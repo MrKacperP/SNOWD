@@ -257,7 +257,7 @@ export default function ClientDashboard() {
           <div className="px-5 py-4 border-b border-gray-100">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-gray-900">Complete Your Profile</h3>
+                <h3 className="font-bold text-gray-900">Profile Setup</h3>
                 <p className="text-xs text-gray-500 mt-0.5">
                   {completedSetupCount} of {clientSetupSteps.length} steps done
                 </p>

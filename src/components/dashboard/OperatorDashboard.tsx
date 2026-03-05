@@ -366,6 +366,21 @@ export default function OperatorDashboard() {
           createdAt: Timestamp.now(),
         });
 
+        // Auto-send payment request to client
+        if (job.paymentMethod !== "cash" && job.paymentStatus === "pending") {
+          const paymentMessage = `${operatorProfile?.displayName || "Operator"} has accepted the job! Please pay $${job.price} CAD to confirm — funds are held securely by snowd.ca until job completion.`;
+          await addDoc(fbCollection(db, "messages"), {
+            chatId: job.chatId,
+            senderId: "system",
+            senderName: "System",
+            type: "payment-request",
+            content: paymentMessage,
+            read: false,
+            createdAt: Timestamp.now(),
+            metadata: { amount: job.price },
+          });
+        }
+
         // Update chat lastMessage
         await updateDoc(doc(db, "chats", job.chatId), {
           lastMessage: systemMessage,
@@ -560,7 +575,7 @@ export default function OperatorDashboard() {
           <div className="px-5 py-4 border-b border-[var(--border-color)]">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-[var(--text-primary)]">Complete Your Setup</h3>
+                <h3 className="font-bold text-[var(--text-primary)]">Profile Setup</h3>
                 <p className="text-xs text-[var(--text-muted)] mt-0.5">
                   {completedSetupCount} of {totalSetupSteps} steps done — {!isAccountPublic ? "complete all steps to go public" : "finish remaining steps"}
                 </p>

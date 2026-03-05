@@ -362,6 +362,19 @@ export default function SettingsPage() {
       await refreshProfile();
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
+
+      // Notify admin of profile/location update
+      sendAdminNotif({
+        type: "profile_saved",
+        message: `Profile updated by ${displayName || profile.email}${city ? ` (${city}, ${province})` : ""}`,
+        uid: profile.uid,
+        meta: {
+          name: displayName || "",
+          email: profile.email || "",
+          city: city || "",
+          province: province || "",
+        },
+      });
     } catch (error) {
       console.error("Save error:", error);
     } finally {

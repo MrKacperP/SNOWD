@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { collection, query, orderBy, onSnapshot, addDoc, doc, updateDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { MessageSquare, Send, X, Headphones, Snowflake, Phone, ChevronRight, AlertTriangle } from "lucide-react";
+import { MessageSquare, Send, X, Headphones, Phone, ChevronRight, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 
@@ -93,7 +93,17 @@ export default function SupportChatButton() {
     setChatPhase("chat");
     const prob = PROBLEM_CATEGORIES.find(p => p.id === problemId);
     if (!prob) return;
-    const autoMsg = `Hi! I need help with: ${prob.emoji} ${prob.label} — ${prob.desc}`;
+    const autoMsg = `I need help with: ${prob.label} — ${prob.desc}`;
+
+    const FOLLOW_UP_QUESTIONS: Record<string, string> = {
+      payment: "Thanks for reaching out! To help you with your payment issue, could you please provide:\n\n• What type of issue are you experiencing? (e.g., incorrect charge, missing refund, card declined)\n• The date and approximate amount of the transaction\n• Any error messages you may have received",
+      operator: "Thanks for reaching out! To assist you with your operator concern, could you please tell us:\n\n• What happened, and when did this occur?\n• What was the job address or booking ID?\n• Did you receive any communication or updates from the operator?",
+      account: "Thanks for reaching out! To help you with your account, we'll need a few details:\n\n• What specific issue are you experiencing? (e.g., can't log in, need to update info)\n• Which email address is associated with your account?\n• When did this issue start?",
+      job: "Thanks for reaching out! To help with your job issue, please provide:\n\n• Your approximate booking date and job address\n• What status is your job currently showing in the app?\n• A brief description of what went wrong",
+      safety: "Thank you for flagging this. If you are in immediate danger, please call 911.\n\nTo document your safety concern, please tell us:\n\n• What happened and when?\n• Names or account details of anyone involved\n• Any evidence or photos you may have",
+      other: "Thanks for reaching out! Please describe your issue in as much detail as possible, including:\n\n• What you were trying to do\n• Any error messages or unexpected behavior\n• Relevant dates, amounts, or account details\n\nOur support team will review your message and get back to you shortly.",
+    };
+
     try {
       await setDoc(doc(db, "supportChats", supportChatId), {
         userId: user.uid, userName: profile?.displayName || "User",
@@ -104,6 +114,19 @@ export default function SupportChatButton() {
         senderId: user.uid, senderName: profile?.displayName || "User",
         content: autoMsg, createdAt: new Date(), read: false,
       });
+      // Send automated follow-up questions after a brief delay
+      const followUp = FOLLOW_UP_QUESTIONS[problemId] || FOLLOW_UP_QUESTIONS.other;
+      setTimeout(async () => {
+        try {
+          await addDoc(collection(db, "supportChats", supportChatId, "messages"), {
+            senderId: ADMIN_UID, senderName: "SNOWD Support",
+            content: followUp, createdAt: new Date(), read: false, type: "auto-reply",
+          });
+          await setDoc(doc(db, "supportChats", supportChatId), {
+            lastMessage: followUp, lastMessageTime: new Date(), updatedAt: new Date(),
+          }, { merge: true });
+        } catch {}
+      }, 1200);
     } catch (e) { console.error(e); }
   };
 
@@ -145,14 +168,13 @@ export default function SupportChatButton() {
             exit={{ scale: 0, opacity: 0 }}
             transition={{ type: "spring", stiffness: 260, damping: 20 }}
             onClick={() => { setIsOpen(true); if (messages.length === 0) setChatPhase("select"); }}
-            className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[100] w-14 h-14 bg-[#246EB9] hover:bg-[#1B5A9A] text-white rounded-full shadow-xl shadow-[#246EB9]/30 flex items-center justify-center transition-all duration-200 hover:scale-110 group"
+            className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[100] w-14 h-14 bg-[#246EB9] hover:bg-[#1B5A9A] text-white rounded-full shadow-xl shadow-[#246EB9]/30 flex items-center justify-center transition-all duration-200 hover:scale-105 group"
           >
             <Headphones className="w-6 h-6" />
             {unreadCount > 0 && (
-              <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }}
-                className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center shadow">
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center shadow">
                 {unreadCount}
-              </motion.span>
+              </span>
             )}
             <span className="absolute right-full mr-3 bg-[var(--bg-card-solid)] text-[var(--text-primary)] text-xs font-medium px-3 py-1.5 rounded-lg shadow-lg border border-[var(--border-color)] opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none">
               Need help?
@@ -165,40 +187,36 @@ export default function SupportChatButton() {
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: 24, scale: 0.94 }}
+            initial={{ opacity: 0, y: 24, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 24, scale: 0.94 }}
-            transition={{ type: "spring", duration: 0.45, bounce: 0.18 }}
-            className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[100] w-[370px] max-w-[calc(100vw-2rem)] bg-[var(--bg-card-solid)] rounded-2xl shadow-2xl border border-[var(--border-color)] overflow-hidden flex flex-col"
-            style={{ maxHeight: "80vh", minHeight: 400 }}
+            exit={{ opacity: 0, y: 24, scale: 0.95 }}
+            transition={{ type: "spring", duration: 0.4, bounce: 0.15 }}
+            className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[100] w-[370px] max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col"
+            style={{ maxHeight: "80vh", minHeight: 420 }}
           >
-            {/* Header */}
-            <div className="bg-[#246EB9] px-4 py-3.5 flex items-center justify-between shrink-0">
+            {/* Header — clean, no gradient */}
+            <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
-                <motion.div
-                  animate={{ rotate: [0, -10, 10, -5, 5, 0] }}
-                  transition={{ repeat: Infinity, repeatDelay: 5, duration: 0.5 }}
-                  className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center"
-                >
-                  <Snowflake className="w-4 h-4 text-white" />
-                </motion.div>
+                <div className="w-9 h-9 bg-[#246EB9] rounded-xl flex items-center justify-center shrink-0">
+                  <Headphones className="w-4.5 h-4.5 text-white" style={{ width: 18, height: 18 }} />
+                </div>
                 <div>
-                  <p className="text-white font-semibold text-sm">snowd.ca Support</p>
+                  <p className="font-bold text-gray-900 text-sm">snowd.ca Support</p>
                   <div className="flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 bg-green-400 rounded-full" />
-                    <p className="text-white/70 text-xs">Online · Usually responds in minutes</p>
+                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full" />
+                    <p className="text-gray-500 text-xs">Online · Replies in minutes</p>
                   </div>
                 </div>
               </div>
               <div className="flex items-center gap-1">
                 {chatPhase === "chat" && messages.length > 0 && (
                   <button onClick={() => setChatPhase("select")}
-                    className="p-1.5 hover:bg-white/10 rounded-lg transition text-white/70 hover:text-white text-xs font-medium px-2">
+                    className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition text-gray-600 text-xs font-semibold">
                     Topics
                   </button>
                 )}
-                <button onClick={() => setIsOpen(false)} className="p-1.5 hover:bg-white/10 rounded-lg transition">
-                  <X className="w-4 h-4 text-white" />
+                <button onClick={() => setIsOpen(false)} className="p-1.5 hover:bg-gray-100 rounded-lg transition">
+                  <X className="w-4 h-4 text-gray-500" />
                 </button>
               </div>
             </div>
@@ -207,53 +225,53 @@ export default function SupportChatButton() {
             <AnimatePresence mode="wait">
               {/* Problem selection */}
               {chatPhase === "select" && (
-                <motion.div key="select" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.2 }} className="flex-1 overflow-y-auto p-4">
-                  <div className="mb-4">
-                    <p className="text-sm font-semibold text-[var(--text-primary)] mb-1">Hi {profile.displayName?.split(" ")[0] || "there"}! 👋</p>
-                    <p className="text-xs text-[var(--text-muted)]">What can we help you with today? Select a topic to get started.</p>
+                <motion.div key="select" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                  transition={{ duration: 0.18 }} className="flex-1 overflow-y-auto bg-[#F8FAFC]">
+                  <div className="p-4 pb-2">
+                    <p className="text-sm font-bold text-gray-900">Hi, {profile.displayName?.split(" ")[0] || "there"}!</p>
+                    <p className="text-xs text-gray-500 mt-0.5">What can we help you with? Select a topic below.</p>
                   </div>
-                  <div className="space-y-2">
+                  <div className="px-3 pb-3 space-y-1.5">
                     {PROBLEM_CATEGORIES.map((cat, i) => (
-                      <motion.button key={cat.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
+                      <motion.button key={cat.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
                         onClick={() => handleSelectProblem(cat.id)}
-                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-[var(--bg-secondary)] hover:bg-[#246EB9]/10 border border-transparent hover:border-[#246EB9]/20 transition text-left group">
-                        <span className="text-xl shrink-0">{cat.emoji}</span>
+                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-white hover:bg-[#246EB9]/5 border border-gray-100 hover:border-[#246EB9]/20 transition text-left group shadow-sm">
+                        <span className="text-lg shrink-0 leading-none">{cat.emoji}</span>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-[var(--text-primary)] group-hover:text-[#246EB9] transition">{cat.label}</p>
-                          <p className="text-xs text-[var(--text-muted)] truncate">{cat.desc}</p>
+                          <p className="text-sm font-semibold text-gray-900 group-hover:text-[#246EB9] transition">{cat.label}</p>
+                          <p className="text-xs text-gray-500 truncate">{cat.desc}</p>
                         </div>
-                        <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-[#246EB9] shrink-0 transition" />
+                        <ChevronRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-[#246EB9] shrink-0 transition" />
                       </motion.button>
                     ))}
                   </div>
-                  <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
-                    onClick={() => setChatPhase("urgent")}
-                    className="w-full mt-4 flex items-center justify-center gap-2 p-3 rounded-xl bg-red-50 border border-red-100 text-red-600 hover:bg-red-100 transition font-medium text-sm">
-                    <AlertTriangle className="w-4 h-4" /> Mark as Urgent — I Need to Call
-                  </motion.button>
+                  <div className="px-3 pb-4">
+                    <button onClick={() => setChatPhase("urgent")}
+                      className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-red-50 border border-red-100 text-red-600 hover:bg-red-100 transition font-semibold text-sm">
+                      <AlertTriangle className="w-3.5 h-3.5" /> Urgent — I Need to Call
+                    </button>
+                  </div>
                 </motion.div>
               )}
 
               {/* Urgent */}
               {chatPhase === "urgent" && (
                 <motion.div key="urgent" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.97 }}
-                  transition={{ duration: 0.2 }} className="flex-1 overflow-y-auto p-5 flex flex-col items-center justify-center gap-5 text-center">
-                  <motion.div animate={{ scale: [1, 1.06, 1] }} transition={{ repeat: Infinity, duration: 1.8 }}
-                    className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
-                    <Phone className="w-8 h-8 text-red-500" />
-                  </motion.div>
+                  transition={{ duration: 0.2 }} className="flex-1 overflow-y-auto p-5 flex flex-col items-center justify-center gap-5 text-center bg-white">
+                  <div className="w-16 h-16 bg-red-50 border border-red-100 rounded-2xl flex items-center justify-center">
+                    <Phone className="w-7 h-7 text-red-500" />
+                  </div>
                   <div>
-                    <p className="text-lg font-bold text-[var(--text-primary)]">Urgent Support Line</p>
-                    <p className="text-sm text-[var(--text-muted)] mt-1 max-w-[260px]">
-                      Call us directly for immediate assistance with your account.
+                    <p className="text-base font-bold text-gray-900">Urgent Support Line</p>
+                    <p className="text-sm text-gray-500 mt-1 max-w-[240px]">
+                      Call us directly for immediate help.
                     </p>
                   </div>
                   <a href={`tel:${SUPPORT_PHONE.replace(/-/g, "")}`}
-                    className="w-full flex items-center justify-center gap-2 py-4 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-bold text-lg shadow-lg shadow-red-200 transition">
-                    <Phone className="w-5 h-5" /> {SUPPORT_PHONE}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold text-base shadow-sm shadow-red-200 transition">
+                    <Phone className="w-4.5 h-4.5" style={{ width: 18, height: 18 }} /> {SUPPORT_PHONE}
                   </a>
-                  <p className="text-xs text-[var(--text-muted)]">For urgent matters only. For general questions, use the chat below.</p>
+                  <p className="text-xs text-gray-400">For urgent matters only.</p>
                   <button onClick={() => startChatWithProblem(selectedProblem || "other")}
                     className="flex items-center gap-1.5 text-xs text-[#246EB9] hover:underline transition">
                     <MessageSquare className="w-3.5 h-3.5" /> Continue via chat instead
@@ -263,64 +281,53 @@ export default function SupportChatButton() {
 
               {/* Chat */}
               {chatPhase === "chat" && (
-                <motion.div key="chat" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.2 }} className="flex flex-col flex-1 overflow-hidden">
-                  <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                <motion.div key="chat" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                  transition={{ duration: 0.18 }} className="flex flex-col flex-1 overflow-hidden">
+                  <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1 bg-[#EBF0F5]">
                     {messages.length === 0 && (
-                      <div className="text-center py-8">
-                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 200 }}
-                          className="w-12 h-12 bg-[#246EB9]/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                          <MessageSquare className="w-6 h-6 text-[#246EB9]" />
-                        </motion.div>
-                        <p className="text-sm font-medium text-[var(--text-primary)]">Support is ready to help!</p>
-                        <p className="text-xs text-[var(--text-muted)] mt-1">Describe your issue and we&apos;ll get back to you ASAP.</p>
+                      <div className="flex flex-col items-center justify-center h-full py-8 text-center">
+                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm mb-2">
+                          <MessageSquare className="w-5 h-5 text-[#246EB9]" />
+                        </div>
+                        <p className="text-sm font-semibold text-gray-600">Support is online</p>
+                        <p className="text-xs text-gray-400 mt-0.5">Describe your issue and we&apos;ll help ASAP.</p>
                       </div>
                     )}
                     {messages.map((msg, i) => {
                       const isMe = msg.senderId === user?.uid;
 
-                      // Status-update system message widget
+                      // Status-update system message
                       if (msg.type === "status-update") {
                         const isResolved = msg.statusValue === "resolved";
                         const isInProgress = msg.statusValue === "in-progress";
                         return (
-                          <motion.div key={msg.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: Math.min(i * 0.02, 0.3) }} className="flex justify-center my-1">
-                            <div className={`flex items-start gap-2.5 px-4 py-3 rounded-2xl max-w-[90%] border text-sm ${
-                              isResolved
-                                ? "bg-green-50 border-green-200 text-green-800"
-                                : isInProgress
-                                ? "bg-blue-50 border-blue-200 text-blue-800"
-                                : "bg-gray-100 border-gray-200 text-gray-700"
+                          <motion.div key={msg.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: Math.min(i * 0.02, 0.3) }} className="flex justify-center my-2">
+                            <div className={`px-4 py-2.5 rounded-full border text-xs font-semibold flex items-center gap-2 ${
+                              isResolved ? "bg-green-50 border-green-200 text-green-700"
+                                : isInProgress ? "bg-blue-50 border-blue-200 text-blue-700"
+                                : "bg-gray-100 border-gray-200 text-gray-600"
                             }`}>
-                              <span className="text-base mt-0.5">
-                                {isResolved ? "✅" : isInProgress ? "👀" : "🔄"}
-                              </span>
-                              <div>
-                                <p className="font-semibold text-xs mb-0.5">
-                                  {isResolved ? "Issue Resolved" : isInProgress ? "Under Review" : "Status Updated"}
-                                </p>
-                                <p className="text-xs leading-snug">{msg.content}</p>
-                                <p className="text-[10px] mt-1 opacity-60">{format(msg.createdAt, "h:mm a")}</p>
-                              </div>
+                              <span>{isResolved ? "✅" : isInProgress ? "👀" : "🔄"}</span>
+                              <span>{isResolved ? "Issue Resolved" : isInProgress ? "Under Review" : "Status Updated"}</span>
                             </div>
                           </motion.div>
                         );
                       }
 
                       return (
-                        <motion.div key={msg.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: Math.min(i * 0.02, 0.3) }} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+                        <motion.div key={msg.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: Math.min(i * 0.02, 0.3) }} className={`flex ${isMe ? "justify-end" : "justify-start"} items-end gap-1.5`}>
                           {!isMe && (
-                            <div className="w-6 h-6 bg-[#246EB9] rounded-full flex items-center justify-center text-white text-xs font-bold mr-2 mt-auto shrink-0">
+                            <div className="w-6 h-6 bg-[#246EB9] rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0">
                               S
                             </div>
                           )}
-                          <div className={`max-w-[78%] px-3.5 py-2.5 rounded-2xl text-sm ${
-                            isMe ? "bg-[#246EB9] text-white rounded-br-md" : "bg-[var(--bg-secondary)] text-[var(--text-primary)] rounded-bl-md"
+                          <div className={`max-w-[80%] px-3 py-2 rounded-2xl shadow-sm text-sm ${
+                            isMe ? "bg-[#246EB9] text-white rounded-tr-sm" : "bg-white text-gray-900 rounded-tl-sm"
                           }`}>
-                            <p className="break-words">{msg.content}</p>
-                            <p className={`text-[10px] mt-1 ${isMe ? "text-white/50" : "text-[var(--text-muted)]"}`}>
+                            <p className="break-words whitespace-pre-line leading-relaxed">{msg.content}</p>
+                            <p className={`text-[10px] mt-0.5 text-right ${isMe ? "text-white/50" : "text-gray-400"}`}>
                               {format(msg.createdAt, "h:mm a")}
                             </p>
                           </div>
@@ -329,16 +336,16 @@ export default function SupportChatButton() {
                     })}
                     <div ref={messagesEndRef} />
                   </div>
-                  <div className="p-3 border-t border-[var(--border-color)] shrink-0">
+                  <div className="p-3 border-t border-gray-100 bg-white shrink-0">
                     <div className="flex items-center gap-2">
                       <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-                        placeholder="Type a message..."
-                        className="flex-1 px-3.5 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none focus:border-[#246EB9]/30 transition" />
-                      <motion.button whileTap={{ scale: 0.9 }} onClick={handleSend} disabled={!newMessage.trim() || sending}
-                        className="p-2.5 bg-[#246EB9] hover:bg-[#1B5A9A] text-white rounded-xl transition disabled:opacity-40">
+                        placeholder="Type your message..."
+                        className="flex-1 px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-[#246EB9]/40 focus:bg-white transition" />
+                      <button onClick={handleSend} disabled={!newMessage.trim() || sending}
+                        className="p-2.5 bg-[#246EB9] hover:bg-[#1B5A9A] text-white rounded-xl transition disabled:opacity-40 shrink-0">
                         <Send className="w-4 h-4" />
-                      </motion.button>
+                      </button>
                     </div>
                   </div>
                 </motion.div>

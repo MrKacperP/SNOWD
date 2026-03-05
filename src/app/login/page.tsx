@@ -6,11 +6,8 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Mail, ArrowRight, Snowflake, Shield, ChevronLeft, Eye, EyeOff } from "lucide-react";
+import { Mail, ArrowRight, Snowflake, ChevronLeft, Eye, EyeOff, Shield } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-
-// Emails that are automatically promoted to admin role on first login
-const ADMIN_EMAILS = ["kacperprymicz@gmail.com"];
 
 function FloatingSnowflake({ delay, x, size }: { delay: number; x: number; size: number }) {
   return (
@@ -24,6 +21,9 @@ function FloatingSnowflake({ delay, x, size }: { delay: number; x: number; size:
     </motion.div>
   );
 }
+
+// Emails that are automatically promoted to admin role on first login
+const ADMIN_EMAILS = ["kacperprymicz@gmail.com"];
 
 export default function LoginPage() {
   const { user, profile, loading: authLoading, signIn, signInWithGoogle } = useAuth();
@@ -150,7 +150,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen relative overflow-hidden">
-      <div className="absolute inset-0 bg-[#1a1f4e]" />
+      <div className="absolute inset-0 bg-[#0f1535]" />
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(12)].map((_, i) => (
           <FloatingSnowflake key={i} delay={i * 0.7} x={30 + (i * 80) % 350} size={8 + (i % 3) * 8} />
@@ -267,7 +267,7 @@ export default function LoginPage() {
 
           <motion.p className="text-center mt-6 text-sm text-white/30" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
             Don&apos;t have an account?{" "}
-            <Link href="/signup" className="text-[#3A8AD4] font-semibold hover:text-white transition">Sign up</Link>
+            <Link href="/signup" className="text-[#3A8AD4] font-semibold hover:text-white transition">Create one</Link>
           </motion.p>
         </div>
       </div>

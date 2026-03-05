@@ -2,33 +2,23 @@
 
 import React, { useState, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import LoadingScreen from "@/components/LoadingScreen";
 import SupportChatButton from "@/components/SupportChatButton";
 import { WeatherProvider } from "@/context/WeatherContext";
 import { useEffect } from "react";
 import Link from "next/link";
-import { AlertCircle, Upload, Shield, CheckCircle, Camera, ArrowLeft } from "lucide-react";
+import { Shield, CheckCircle, Camera, ArrowLeft } from "lucide-react";
 import TutorialOverlay from "@/components/TutorialOverlay";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage, db } from "@/lib/firebase";
 import { doc, updateDoc } from "firebase/firestore";
 import { sendAdminNotif } from "@/lib/adminNotifications";
 
-function isProfileComplete(
-  profile: { avatar?: string; phone?: string; address?: string; email?: string } | null | undefined,
-  authEmail?: string | null
-) {
-  if (!profile) return false;
-  const email = profile.email || authEmail;
-  return !!(profile.avatar && profile.phone && profile.address && email);
-}
-
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, profile, loading, refreshProfile } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
   const [uploadingId, setUploadingId] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -72,9 +62,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (loading) return <LoadingScreen />;
   if (!user || !profile) return <LoadingScreen />;
 
-  // Operators have the setup widget in their dashboard — don't show this banner for them
-  const incomplete = !isProfileComplete(profile, user?.email) && profile.role !== "admin" && profile.role !== "operator";
-  const onProfilePage = pathname === "/dashboard/profile";
   const accountApproved = (profile as unknown as Record<string, unknown>).accountApproved !== false;
   const hasIdPhoto = !!(profile as unknown as Record<string, unknown>).idPhotoUrl;
   const isAdmin = profile.role === "admin" || profile.role === "employee";
