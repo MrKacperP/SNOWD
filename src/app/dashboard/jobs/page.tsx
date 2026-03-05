@@ -165,26 +165,26 @@ export default function JobsPage() {
   const totalEarnings = completedJobs.reduce((sum, j) => sum + (j.price || 0), 0);
 
   return (
-    <div className="max-w-3xl mx-auto space-y-5">
+    <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
         <button onClick={() => router.back()} className="p-2 hover:bg-gray-100 rounded-lg transition">
           <ArrowLeft className="w-5 h-5 text-gray-600" />
         </button>
         <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Briefcase className="w-6 h-6 text-[#2F6FED]" />
+          <Briefcase className="w-6 h-6 text-[#3B82F6]" />
           My Jobs
         </h1>
       </div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <button onClick={() => setFilter("active")} className="bg-white rounded-xl border border-gray-100 p-3 text-center hover:border-orange-200 hover:bg-orange-50 transition">
           <Zap className="w-4 h-4 text-orange-500 mx-auto mb-1" />
           <p className="text-lg font-bold text-gray-900">{activeJob ? 1 : 0}</p>
           <p className="text-[10px] text-gray-500">Active</p>
         </button>
-        <button onClick={() => setFilter("queue")} className="bg-white rounded-xl border border-gray-100 p-3 text-center hover:border-[#2F6FED]/30 hover:bg-[#2F6FED]/5 transition">
-          <ListOrdered className="w-4 h-4 text-[#2F6FED] mx-auto mb-1" />
+        <button onClick={() => setFilter("queue")} className="bg-white rounded-xl border border-gray-100 p-3 text-center hover:border-[#3B82F6]/30 hover:bg-[#3B82F6]/5 transition">
+          <ListOrdered className="w-4 h-4 text-[#3B82F6] mx-auto mb-1" />
           <p className="text-lg font-bold text-gray-900">{queueJobs.length}</p>
           <p className="text-[10px] text-gray-500">In Queue</p>
         </button>
@@ -204,7 +204,7 @@ export default function JobsPage() {
       {activeJob && (
         <Link
           href={`/dashboard/messages/${activeJob.chatId}`}
-          className="block bg-[#2F6FED] rounded-2xl p-5 text-white shadow-lg hover:shadow-xl transition-all"
+          className="block bg-[#3B82F6] rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all"
         >
           <div className="flex items-center gap-2 mb-2">
             <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse" />
@@ -256,7 +256,7 @@ export default function JobsPage() {
             key={f.key}
             onClick={() => setFilter(f.key)}
             className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition ${
-              filter === f.key ? "bg-white text-[#2F6FED] shadow-sm" : "text-gray-500 hover:text-gray-700"
+              filter === f.key ? "bg-white text-[#3B82F6] shadow-sm" : "text-gray-500 hover:text-gray-700"
             }`}
           >
             {f.label} ({f.count})
@@ -271,7 +271,7 @@ export default function JobsPage() {
           <button
             onClick={() => setQueueSort("time")}
             className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
-              queueSort === "time" ? "bg-[#2F6FED] text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              queueSort === "time" ? "bg-[#3B82F6] text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
             <Clock className="w-3 h-3 inline mr-1" />
@@ -280,7 +280,7 @@ export default function JobsPage() {
           <button
             onClick={() => setQueueSort("distance")}
             className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
-              queueSort === "distance" ? "bg-[#2F6FED] text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              queueSort === "distance" ? "bg-[#3B82F6] text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
             <Compass className="w-3 h-3 inline mr-1" />
@@ -307,7 +307,7 @@ export default function JobsPage() {
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {filteredJobs.map((job, index) => {
             const dist = getJobDistance(job);
             const isQueued = ["pending", "accepted"].includes(job.status);
@@ -319,7 +319,7 @@ export default function JobsPage() {
               >
                 {/* Queue position badge */}
                 {filter === "queue" && isQueued && (
-                  <div className="absolute -top-2 -left-2 w-7 h-7 bg-[#2F6FED] rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md">
+                  <div className="absolute -top-2 -left-2 w-7 h-7 bg-[#3B82F6] rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md">
                     #{index + 1}
                   </div>
                 )}
@@ -330,7 +330,7 @@ export default function JobsPage() {
                         {clientNames[job.clientId] || "Client"}
                       </p>
                       {dist !== null && (
-                        <span className="px-2 py-0.5 bg-[#2F6FED]/10 text-[#2F6FED] rounded-full text-[10px] font-bold">
+                        <span className="px-2 py-0.5 bg-[#3B82F6]/10 text-[#3B82F6] rounded-full text-[10px] font-bold">
                           {dist.toFixed(1)} km
                         </span>
                       )}

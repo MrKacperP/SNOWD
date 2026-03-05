@@ -25,19 +25,19 @@ h1, h2, h3, h4, h5, h6,
   --ink-2: #1F2A44;
   --ink-3: #334155;
   --sky: #EAF2FF;
-  --ice: #F5F8FF;
+  --ice: #F5F7FB;
   --card: #FFFFFF;
   --card-soft: #FDFEFF;
   --border: #DBE3F0;
   --border-soft: #E8EEF8;
   --border-color: var(--border);
   --border-subtle: var(--border-soft);
-  --accent: #2F6FED;
-  --accent-dark: #2158C7;
-  --accent-soft: rgba(47, 111, 237, 0.12);
-  --accent-glow: rgba(47, 111, 237, 0.25);
+  --accent: #3B82F6;
+  --accent-dark: #2563EB;
+  --accent-soft: rgba(59, 130, 246, 0.12);
+  --accent-glow: rgba(59, 130, 246, 0.25);
   --accent-sun: #FFB84D;
-  --accent-mint: #2ECF9B;
+  --accent-mint: #22C55E;
   --text-primary: var(--ink);
   --text-secondary: var(--ink-3);
   --text-muted: #64748B;
@@ -46,7 +46,7 @@ h1, h2, h3, h4, h5, h6,
   --bg-card: var(--card-soft);
   --bg-card-solid: var(--card);
   --success: var(--accent-mint);
-  --warning: var(--accent-sun);
+  --warning: #F59E0B;
   --danger: #EF4444;
   --glass-bg: rgba(255, 255, 255, 0.7);
   --glass-border: rgba(219, 227, 240, 0.6);
@@ -103,10 +103,7 @@ h1, h2, h3, h4, h5, h6,
 * { box-sizing: border-box; }
 
 body {
-  background:
-    radial-gradient(1200px 700px at 15% -10%, rgba(47, 111, 237, 0.12), transparent 60%),
-    radial-gradient(900px 600px at 90% 0%, rgba(255, 184, 77, 0.12), transparent 55%),
-    linear-gradient(180deg, #F9FBFF 0%, #F2F6FF 100%);
+  background: var(--bg-primary);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

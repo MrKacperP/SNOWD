@@ -182,7 +182,7 @@ export default function TransactionsPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-96 text-[#6B7C8F] gap-3">
+      <div className="flex flex-col items-center justify-center h-96 text-slate-500 gap-3">
         <div className="animate-spin-slow">
           <Image src="/logo.png" alt="Loading" width={40} height={40} />
         </div>
@@ -192,7 +192,7 @@ export default function TransactionsPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link
@@ -202,7 +202,7 @@ export default function TransactionsPage() {
           >
             <ArrowLeft className="w-5 h-5 text-gray-600" />
           </Link>
-          <h1 className="text-2xl font-bold text-[#0B1F33]">
+          <h1 className="text-2xl font-bold text-slate-900">
             {isOperator ? "Earnings" : "Payment History"}
           </h1>
         </div>
@@ -210,7 +210,7 @@ export default function TransactionsPage() {
           <button
             onClick={handleManageStripe}
             disabled={stripeLoading}
-            className="flex items-center gap-2 px-4 py-2 bg-[#2F6FED]/10 text-[#2F6FED] rounded-xl text-sm font-semibold hover:bg-[#2F6FED]/20 transition disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-[#3B82F6]/10 text-[#3B82F6] rounded-xl text-sm font-semibold hover:bg-[#3B82F6]/20 transition disabled:opacity-50"
           >
             {stripeLoading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -249,42 +249,42 @@ export default function TransactionsPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <div className="bg-white rounded-2xl border border-[#E6EEF6] p-4">
+        <div className="bg-white rounded-2xl border border-slate-200 p-4">
           <div className="flex items-center gap-2 mb-1">
             <CheckCircle className="w-4 h-4 text-green-500" />
-            <span className="text-xs font-medium text-[#6B7C8F]">{isOperator ? "Earned" : "Paid"}</span>
+            <span className="text-xs font-medium text-slate-500">{isOperator ? "Earned" : "Paid"}</span>
           </div>
           <p className="text-xl font-bold text-green-600">${(totalEarned / 100).toFixed(2)}</p>
         </div>
-        <div className="bg-white rounded-2xl border border-[#E6EEF6] p-4">
+        <div className="bg-white rounded-2xl border border-slate-200 p-4">
           <div className="flex items-center gap-2 mb-1">
             <Shield className="w-4 h-4 text-yellow-500" />
-            <span className="text-xs font-medium text-[#6B7C8F]">Held</span>
+            <span className="text-xs font-medium text-slate-500">Held</span>
           </div>
           <p className="text-xl font-bold text-yellow-600">${(totalHeld / 100).toFixed(2)}</p>
         </div>
-        <div className="bg-white rounded-2xl border border-[#E6EEF6] p-4">
+        <div className="bg-white rounded-2xl border border-slate-200 p-4">
           <div className="flex items-center gap-2 mb-1">
             <XCircle className="w-4 h-4 text-red-500" />
-            <span className="text-xs font-medium text-[#6B7C8F]">Refunded</span>
+            <span className="text-xs font-medium text-slate-500">Refunded</span>
           </div>
           <p className="text-xl font-bold text-red-500">${(totalRefunded / 100).toFixed(2)}</p>
         </div>
         {isOperator && (
           <>
-            <div className="bg-white rounded-2xl border border-[#E6EEF6] p-4">
+            <div className="bg-white rounded-2xl border border-slate-200 p-4">
               <div className="flex items-center gap-2 mb-1">
                 <Banknote className="w-4 h-4 text-emerald-500" />
-                <span className="text-xs font-medium text-[#6B7C8F]">Cash Received</span>
+                <span className="text-xs font-medium text-slate-500">Cash Received</span>
               </div>
               <p className="text-xl font-bold text-emerald-600">${(totalCash / 100).toFixed(2)}</p>
             </div>
-            <div className="bg-white rounded-2xl border border-[#E6EEF6] p-4">
+            <div className="bg-white rounded-2xl border border-slate-200 p-4">
               <div className="flex items-center gap-2 mb-1">
-                <HandCoins className="w-4 h-4 text-[#2F6FED]" />
-                <span className="text-xs font-medium text-[#6B7C8F]">Tips</span>
+                <HandCoins className="w-4 h-4 text-[#3B82F6]" />
+                <span className="text-xs font-medium text-slate-500">Tips</span>
               </div>
-              <p className="text-xl font-bold text-[#2F6FED]">${(totalTips / 100).toFixed(2)}</p>
+              <p className="text-xl font-bold text-[#3B82F6]">${(totalTips / 100).toFixed(2)}</p>
             </div>
           </>
         )}
@@ -292,13 +292,13 @@ export default function TransactionsPage() {
 
       {/* Earnings Analytics Chart */}
       {isOperator && transactions.filter(t => t.status === "paid").length > 0 && (
-        <div className="bg-white rounded-2xl border border-[#E6EEF6] p-5">
+        <div className="bg-white rounded-2xl border border-slate-200 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-bold text-[#0B1F33] flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-[#2F6FED]" />
+            <h2 className="font-bold text-slate-900 flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-[#3B82F6]" />
               Earnings (14 days)
             </h2>
-            <span className="text-xs text-[#6B7C8F]">
+            <span className="text-xs text-slate-500">
               <TrendingUp className="w-3 h-3 inline mr-1" />
               ${(totalEarned / 100).toFixed(2)} total
             </span>
@@ -327,7 +327,7 @@ export default function TransactionsPage() {
               <XAxis dataKey="date" tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `$${v}`} />
               <Tooltip formatter={(value) => [`$${Number(value).toFixed(2)}`, "Earnings"]} />
-              <Area type="monotone" dataKey="amount" stroke="#2F6FED" fill="#2F6FED" fillOpacity={0.1} />
+              <Area type="monotone" dataKey="amount" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.1} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -335,21 +335,21 @@ export default function TransactionsPage() {
 
       {/* Stripe Portal Link for Operators */}
       {isOperator && (
-        <div className="bg-[#2F6FED]/5 rounded-2xl border border-[#2F6FED]/10 p-4">
+        <div className="bg-[#3B82F6]/5 rounded-2xl border border-[#3B82F6]/10 p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-[#2F6FED]/10 rounded-xl flex items-center justify-center">
-                <CreditCard className="w-5 h-5 text-[#2F6FED]" />
+              <div className="w-10 h-10 bg-[#3B82F6]/10 rounded-xl flex items-center justify-center">
+                <CreditCard className="w-5 h-5 text-[#3B82F6]" />
               </div>
               <div>
                 <p className="font-semibold text-[#0B1F33] text-sm">Stripe Dashboard</p>
-                <p className="text-xs text-[#6B7C8F]">View payouts, bank details & tax info</p>
+                <p className="text-xs text-slate-500">View payouts, bank details & tax info</p>
               </div>
             </div>
             <button
               onClick={handleManageStripe}
               disabled={stripeLoading}
-              className="flex items-center gap-2 px-4 py-2 bg-[#2F6FED] text-white rounded-xl text-sm font-semibold hover:bg-[#2158C7] transition disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-[#3B82F6] text-white rounded-xl text-sm font-semibold hover:bg-[#2563EB] transition disabled:opacity-50"
             >
               {stripeLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
               Open Stripe
@@ -360,15 +360,15 @@ export default function TransactionsPage() {
 
       {/* Filter */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
-        <Filter className="w-4 h-4 text-[#6B7C8F] shrink-0" />
+        <Filter className="w-4 h-4 text-slate-500 shrink-0" />
         {(["all", "held", "paid", "refunded", "cancelled"] as FilterStatus[]).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
             className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition ${
               filter === f
-                ? "bg-[#2F6FED] text-white"
-                : "bg-[#F7FAFC] text-[#6B7C8F] hover:bg-[#E6EEF6]"
+                ? "bg-[#3B82F6] text-white"
+                : "bg-slate-100 text-slate-500 hover:bg-slate-200"
             }`}
           >
             {f === "all" ? "All" : f.charAt(0).toUpperCase() + f.slice(1)}
@@ -379,12 +379,12 @@ export default function TransactionsPage() {
       {/* Transaction List */}
       <div className="space-y-3">
         {filteredTransactions.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-[#E6EEF6] p-12 text-center">
-            <DollarSign className="w-10 h-10 mx-auto text-[#E6EEF6] mb-3" />
-            <p className="text-[#6B7C8F] text-sm font-medium">
+          <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
+            <DollarSign className="w-10 h-10 mx-auto text-slate-200 mb-3" />
+            <p className="text-slate-500 text-sm font-medium">
               {filter === "all" ? "No transactions yet" : `No ${filter} transactions`}
             </p>
-            <p className="text-xs text-[#6B7C8F] mt-1">
+            <p className="text-xs text-slate-500 mt-1">
               Transactions will appear here when payments are made
             </p>
           </div>
@@ -393,7 +393,7 @@ export default function TransactionsPage() {
             <Link
               key={txn.id}
               href={txn.chatId ? `/dashboard/messages/${txn.chatId}` : "#"}
-              className="block bg-white rounded-2xl border border-[#E6EEF6] p-4 hover:shadow-md transition group"
+              className="block bg-white rounded-2xl border border-slate-200 p-4 hover:shadow-md transition group"
             >
               <div className="flex items-start gap-3">
                 {/* Icon */}
@@ -418,7 +418,7 @@ export default function TransactionsPage() {
                 {/* Details */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">
-                    <p className="text-sm font-semibold text-[#0B1F33] truncate">
+                    <p className="text-sm font-semibold text-slate-900 truncate">
                       {isOperator ? txn.clientName || "Client" : txn.operatorName || "Operator"}
                     </p>
                     <p className={`text-sm font-bold ${
@@ -430,10 +430,10 @@ export default function TransactionsPage() {
                       {isOperator ? "+" : "-"}${((txn.amount || 0) / 100).toFixed(2)}
                     </p>
                   </div>
-                  <p className="text-xs text-[#6B7C8F] truncate mb-1">
+                  <p className="text-xs text-slate-500 truncate mb-1">
                     {txn.description || txn.serviceTypes?.map((s) => SERVICE_LABELS[s]).join(", ") || "Snow removal"}
                   </p>
-                  <div className="flex items-center gap-3 text-xs text-[#6B7C8F]">
+                  <div className="flex items-center gap-3 text-xs text-slate-500">
                     <span className="flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
                       {formatDate(txn.createdAt)}
@@ -461,7 +461,7 @@ export default function TransactionsPage() {
                   {(txn.tipAmount || txn.cashReceived) && (
                     <div className="flex items-center gap-3 text-xs mt-1">
                       {txn.tipAmount ? (
-                        <span className="text-[#2F6FED] font-medium">Tip: ${(txn.tipAmount / 100).toFixed(2)}</span>
+                        <span className="text-[#3B82F6] font-medium">Tip: ${(txn.tipAmount / 100).toFixed(2)}</span>
                       ) : null}
                       {txn.cashReceived ? (
                         <span className="text-emerald-600 font-medium">Cash: ${(txn.cashReceived / 100).toFixed(2)}</span>
