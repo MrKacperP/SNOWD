@@ -15,6 +15,11 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { OperatorProfile, ClientProfile, ServiceType } from "@/lib/types";
+import {
+  getDistanceKm,
+  isClientWithinOperatorRadius,
+  isOperatorPublic,
+} from "@/lib/operatorDiscovery";
 import StarRating from "@/components/StarRating";
 import {
   Search,
@@ -83,7 +88,8 @@ export default function FindOperatorsPage() {
           where("accountApproved", "==", true)
         );
         const snap = await getDocs(q);
-        setOperators(snap.docs.map((d) => ({ ...d.data() } as OperatorProfile)));
+        const fetchedOperators = snap.docs.map((d) => ({ uid: d.id, ...d.data() } as OperatorProfile));
+        setOperators(fetchedOperators);
         
         // Load user's favorites
         if (user?.uid && clientProfile) {
@@ -105,16 +111,15 @@ export default function FindOperatorsPage() {
 
   // Filter and sort
   useEffect(() => {
+    if (!clientProfile) {
+      setFilteredOperators([]);
+      return;
+    }
+
     let results = [...operators];
 
-    // Hide operators without Stripe accounts (they can't receive payments)
-    results = results.filter((op) => {
-      const opWithStripe = op as OperatorProfile & { stripeConnectAccountId?: string };
-      return !!opWithStripe.stripeConnectAccountId;
-    });
-
-    // Hide operators with incomplete profiles (must have avatar, phone, and address)
-    results = results.filter((op) => !!(op.avatar && op.phone && op.address));
+    // Keep only operators that are truly public/live and in the client's radius match.
+    results = results.filter((op) => isOperatorPublic(op) && isClientWithinOperatorRadius(clientProfile, op));
 
     // Text search
     if (searchTerm) {
@@ -169,10 +174,33 @@ export default function FindOperatorsPage() {
           return (a.pricing?.driveway?.medium || 0) - (b.pricing?.driveway?.medium || 0);
         }
       );
+    } else if (sortBy === "distance") {
+      results.sort((a, b) => {
+        if (favoriteOperatorId) {
+          if (a.uid === favoriteOperatorId) return -1;
+          if (b.uid === favoriteOperatorId) return 1;
+        }
+
+        const aDistance = getDistanceKm(clientProfile, a);
+        const bDistance = getDistanceKm(clientProfile, b);
+        const aVal = aDistance == null ? Number.POSITIVE_INFINITY : aDistance;
+        const bVal = bDistance == null ? Number.POSITIVE_INFINITY : bDistance;
+        return aVal - bVal;
+      });
     }
 
     setFilteredOperators(results);
-  }, [operators, searchTerm, filterService, filterStudents, filterVerified, filterEquipment, sortBy, favoriteOperatorId]);
+  }, [
+    operators,
+    clientProfile,
+    searchTerm,
+    filterService,
+    filterStudents,
+    filterVerified,
+    filterEquipment,
+    sortBy,
+    favoriteOperatorId,
+  ]);
 
   // Book an operator — show scheduling modal first
   const bookOperator = async (operator: OperatorProfile) => {
@@ -415,6 +443,7 @@ export default function FindOperatorsPage() {
               >
                 <option value="rating">Highest Rated</option>
                 <option value="price">Lowest Price</option>
+                <option value="distance">Nearest First</option>
               </select>
             </div>
             <div>
@@ -466,6 +495,7 @@ export default function FindOperatorsPage() {
           {filteredOperators.map((op) => {
             const isExpanded = expandedOperator === op.uid;
             const mediumPrice = op.pricing?.driveway?.medium || "–";
+            const distanceKm = getDistanceKm(clientProfile, op);
             return (
               <div
                 key={op.uid}
@@ -521,6 +551,11 @@ export default function FindOperatorsPage() {
                           <MapPin className="w-3 h-3" />
                           {op.city}, {op.province}
                         </span>
+                        {distanceKm != null && (
+                          <span className="text-xs text-gray-500">
+                            {distanceKm.toFixed(1)} km away
+                          </span>
+                        )}
                       </div>
 
                       {/* Compact pricing & equipment summary */}

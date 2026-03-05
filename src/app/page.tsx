@@ -627,7 +627,7 @@ export default function LandingPage() {
       >
         <div className="max-w-6xl mx-auto px-5 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5">
-            <Image src="/logo.png" alt="snowd logo" width={32} height={32} className="rounded-full" />
+            <Image src="/logo.png" alt="snowd logo" width={40} height={44} style={{ width: 'auto', height: 44 }} />
             <span className="text-xl font-bold text-[var(--accent)] font-headline">
               snowd<span className="font-light text-[var(--text-muted)]">.ca</span>
             </span>

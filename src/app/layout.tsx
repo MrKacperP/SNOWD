@@ -5,7 +5,7 @@ import { ThemeProvider } from "@/context/ThemeContext";
 import PageVisitTracker from "@/components/PageVisitTracker";
 
 export const metadata: Metadata = {
-  title: "snowd.ca — Snow Removal Marketplace",
+  title: "Snowd",
   description:
     "Connect with local snow removal operators in your Canadian neighbourhood. From professional plowing services to students with shovels — get your snow cleared fast.",
   keywords: ["snow removal", "Canada", "snow plowing", "driveway clearing", "snow shovelling"],

@@ -71,7 +71,7 @@ export default function SignUpPage() {
             transition={{ duration: 0.35 }}
           >
             <Link href="/" className="inline-flex items-center gap-2 mb-6">
-              <Image src="/logo.png" alt="snowd logo" width={44} height={44} className="rounded-full" />
+              <Image src="/logo.png" alt="snowd logo" width={44} height={44} />
               <div className="text-left">
                 <p className="text-lg font-bold text-blue-600 leading-none">snowd</p>
                 <p className="text-xs text-gray-500">Student snow crew</p>
