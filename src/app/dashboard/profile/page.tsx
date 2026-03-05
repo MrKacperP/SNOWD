@@ -108,14 +108,14 @@ export default function ProfilePage() {
             <ArrowLeft className="w-5 h-5 text-gray-600" />
           </button>
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <User className="w-6 h-6 text-[#246EB9]" />
+            <User className="w-6 h-6 text-[#2F6FED]" />
             Profile
           </h1>
         </div>
         {!editing ? (
           <button
             onClick={() => setEditing(true)}
-            className="px-4 py-2 text-sm font-medium text-[#246EB9] hover:bg-[#246EB9]/10 rounded-lg transition"
+            className="px-4 py-2 text-sm font-medium text-[#2F6FED] hover:bg-[#2F6FED]/10 rounded-lg transition"
           >
             Edit Profile
           </button>
@@ -130,7 +130,7 @@ export default function ProfilePage() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex items-center gap-1 px-4 py-2 text-sm font-medium bg-[#246EB9] text-white rounded-lg hover:bg-[#1B5A9A] transition disabled:opacity-50"
+              className="flex items-center gap-1 px-4 py-2 text-sm font-medium bg-[#2F6FED] text-white rounded-lg hover:bg-[#2158C7] transition disabled:opacity-50"
             >
               <Save className="w-4 h-4" />
               {saving ? "Saving..." : "Save"}
@@ -149,7 +149,7 @@ export default function ProfilePage() {
       {/* Profile Card */}
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
         {/* Header */}
-        <div className="bg-[#246EB9] px-6 py-8">
+        <div className="bg-[#2F6FED] px-6 py-8">
           <div className="flex items-center gap-4">
             <div className="w-20 h-20 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center text-white font-bold text-3xl">
               {profile.displayName?.charAt(0)?.toUpperCase() || "U"}
@@ -165,7 +165,7 @@ export default function ProfilePage() {
               ) : (
                 <h2 className="text-xl font-bold">{profile.displayName}</h2>
               )}
-              <p className="text-[#246EB9]/20 capitalize mt-0.5">
+              <p className="text-[#2F6FED]/20 capitalize mt-0.5">
                 {isOperator ? (
                   <>
                     {operatorProfile.isStudent && (
@@ -180,7 +180,7 @@ export default function ProfilePage() {
               {isOperator && (
                 <div className="flex items-center gap-2 mt-1">
                   <StarRating rating={operatorProfile.rating || 0} size="sm" />
-                  <span className="text-[#246EB9]/30 text-sm">
+                  <span className="text-[#2F6FED]/30 text-sm">
                     ({operatorProfile.reviewCount || 0})
                   </span>
                 </div>
@@ -322,7 +322,7 @@ export default function ProfilePage() {
                 ) : (
                   <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-[#246EB9] rounded-full"
+                      className="h-full bg-[#2F6FED] rounded-full"
                       style={{
                         width: `${((operatorProfile.serviceRadius || 10) / 50) * 100}%`,
                       }}
@@ -340,7 +340,7 @@ export default function ProfilePage() {
                   {(operatorProfile.equipment || []).map((eq) => (
                     <span
                       key={eq}
-                      className="px-3 py-1 bg-[#246EB9]/10 text-[#246EB9] rounded-lg text-sm font-medium"
+                      className="px-3 py-1 bg-[#2F6FED]/10 text-[#2F6FED] rounded-lg text-sm font-medium"
                     >
                       {eq}
                     </span>
@@ -417,7 +417,7 @@ export default function ProfilePage() {
                     onClick={() => setPreferredPayment(pm.value)}
                     className={`p-3 rounded-xl border-2 text-center transition ${
                       preferredPayment === pm.value
-                        ? "border-[#246EB9] bg-[#246EB9]/5 text-[#246EB9]"
+                        ? "border-[#2F6FED] bg-[#2F6FED]/5 text-[#2F6FED]"
                         : "border-gray-200 text-gray-500 hover:border-gray-300"
                     }`}
                   >
@@ -433,7 +433,7 @@ export default function ProfilePage() {
                 {profile.preferredPaymentMethod === "cash" ? (
                   <Banknote className="w-5 h-5 text-green-600" />
                 ) : profile.preferredPaymentMethod === "e-transfer" ? (
-                  <DollarSign className="w-5 h-5 text-[#246EB9]" />
+                  <DollarSign className="w-5 h-5 text-[#2F6FED]" />
                 ) : (
                   <CreditCard className="w-5 h-5 text-gray-600" />
                 )}

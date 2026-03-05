@@ -1,105 +1,225 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ChevronRight, ChevronLeft, Snowflake, Search, MessageSquare, CreditCard, Star } from "lucide-react";
+import { ChevronLeft, ChevronRight, Compass, X } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { usePathname } from "next/navigation";
 
-const TUTORIAL_KEY = "snowd-tutorial-v1";
+const TUTORIAL_KEY = "snowd-guided-tour-v2";
+const TOOLTIP_WIDTH = 340;
 
-interface TutorialSlide {
-  icon: React.ReactNode;
-  color: string;
+interface TourStep {
+  id: string;
   title: string;
   description: string;
-  emoji: string;
+  selector?: string;
 }
 
-const SLIDES: TutorialSlide[] = [
-  {
-    icon: <Snowflake className="w-10 h-10 text-white" />,
-    color: "bg-[#246EB9]",
-    emoji: "❄️",
-    title: "Welcome to snowd.ca",
-    description: "Your Canadian snow removal marketplace. Connect with trusted local operators and get your property cleared fast — no fuss.",
-  },
-  {
-    icon: <Search className="w-10 h-10 text-white" />,
-    color: "bg-[#246EB9]",
-    emoji: "🔍",
-    title: "Find Local Operators",
-    description: "Browse verified snow removal pros near you. Filter by rating, price, equipment, and distance. Book in seconds.",
-  },
-  {
-    icon: <MessageSquare className="w-10 h-10 text-white" />,
-    color: "bg-[#7B2FBE]",
-    emoji: "💬",
-    title: "Chat & Coordinate",
-    description: "Communicate directly with your operator. Get real-time ETA updates, share job photos, and track progress live.",
-  },
-  {
-    icon: <CreditCard className="w-10 h-10 text-white" />,
-    color: "bg-[#00B4D8]",
-    emoji: "💳",
-    title: "Pay Securely",
-    description: "Pay in-app with Stripe — no cash awkwardness. Funds are held safely and released when the job is done.",
-  },
-  {
-    icon: <Star className="w-10 h-10 text-white" />,
-    color: "bg-[#F4A261]",
-    emoji: "⭐",
-    title: "Rate & Review",
-    description: "Help others by leaving honest reviews after every job. Your feedback builds a trustworthy community.",
-  },
-];
+function getVisibleElement(selector: string): HTMLElement | null {
+  const elements = Array.from(document.querySelectorAll(selector)) as HTMLElement[];
+
+  for (const el of elements) {
+    const style = window.getComputedStyle(el);
+    const rect = el.getBoundingClientRect();
+    if (
+      style.display !== "none" &&
+      style.visibility !== "hidden" &&
+      rect.width > 0 &&
+      rect.height > 0
+    ) {
+      return el;
+    }
+  }
+
+  return null;
+}
 
 export default function TutorialOverlay() {
+  const { profile } = useAuth();
+  const pathname = usePathname();
+  const isStaff = profile?.role === "admin" || profile?.role === "employee";
+
   const [visible, setVisible] = useState(false);
-  const [slide, setSlide] = useState(0);
-  const [direction, setDirection] = useState<"next" | "prev">("next");
+  const [step, setStep] = useState(0);
+  const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
+
+  const isClient = profile?.role === "client";
+  const steps = useMemo<TourStep[]>(() => {
+    const primaryStep: TourStep = isClient
+      ? {
+          id: "find",
+          title: "Find nearby help",
+          description: "Use Find to browse nearby operators and compare profiles before booking.",
+          selector: "[data-tour='nav-find']",
+        }
+      : {
+          id: "jobs",
+          title: "Manage your jobs",
+          description: "Use Jobs to review incoming requests and track active work.",
+          selector: "[data-tour='nav-jobs']",
+        };
+
+    return [
+      {
+        id: "welcome",
+        title: "Quick app tour",
+        description: "This walkthrough points to key controls so you can learn the app layout quickly.",
+      },
+      {
+        id: "home",
+        title: "Home dashboard",
+        description: "This is your Home tab for daily activity and key updates.",
+        selector: "[data-tour='nav-home']",
+      },
+      primaryStep,
+      {
+        id: "messages",
+        title: "Messages",
+        description: "Open Messages to chat with operators or clients in real time.",
+        selector: "[data-tour='nav-messages']",
+      },
+      {
+        id: "calendar",
+        title: "Calendar",
+        description: "Use Calendar for weather and schedule visibility.",
+        selector: "[data-tour='nav-calendar']",
+      },
+      {
+        id: "profile",
+        title: "Profile menu",
+        description: "Access your profile, settings, and online status here.",
+        selector: "[data-tour='profile-menu']",
+      },
+      {
+        id: "support",
+        title: "Support",
+        description: "Need help? Use the floating support button to chat with the team.",
+        selector: "[data-tour='support-chat']",
+      },
+    ];
+  }, [isClient]);
+
+  const dismiss = useCallback(() => {
+    localStorage.setItem(TUTORIAL_KEY, "shown");
+    setVisible(false);
+  }, []);
 
   useEffect(() => {
     const shown = localStorage.getItem(TUTORIAL_KEY);
     if (!shown) {
-      // Small delay so the dashboard loads first
-      const t = setTimeout(() => setVisible(true), 800);
+      const t = setTimeout(() => setVisible(true), 700);
       return () => clearTimeout(t);
     }
+    return undefined;
   }, []);
 
-  const dismiss = () => {
-    localStorage.setItem(TUTORIAL_KEY, "shown");
-    setVisible(false);
-  };
+  const updateTarget = useCallback(() => {
+    const current = steps[step];
+    if (!current?.selector) {
+      setTargetRect(null);
+      return;
+    }
+
+    const el = getVisibleElement(current.selector);
+    if (!el) {
+      setTargetRect(null);
+      return;
+    }
+
+    setTargetRect(el.getBoundingClientRect());
+  }, [steps, step]);
+
+  useEffect(() => {
+    if (!visible) return;
+
+    const raf = window.requestAnimationFrame(updateTarget);
+
+    const update = () => updateTarget();
+    const interval = window.setInterval(update, 220);
+
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+
+    return () => {
+      window.cancelAnimationFrame(raf);
+      window.clearInterval(interval);
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [visible, step, pathname, updateTarget]);
+
+  const findStepInDirection = useCallback((startIndex: number, direction: 1 | -1) => {
+    let idx = startIndex;
+
+    while (idx >= 0 && idx < steps.length) {
+      const candidate = steps[idx];
+      if (!candidate.selector) return idx;
+      if (getVisibleElement(candidate.selector)) return idx;
+      idx += direction;
+    }
+
+    return -1;
+  }, [steps]);
 
   const next = () => {
-    if (slide < SLIDES.length - 1) {
-      setDirection("next");
-      setSlide((s) => s + 1);
-    } else {
+    const nextIndex = findStepInDirection(step + 1, 1);
+    if (nextIndex === -1) {
       dismiss();
+      return;
     }
+    setStep(nextIndex);
   };
 
   const prev = () => {
-    if (slide > 0) {
-      setDirection("prev");
-      setSlide((s) => s - 1);
+    const prevIndex = findStepInDirection(step - 1, -1);
+    if (prevIndex >= 0) {
+      setStep(prevIndex);
     }
   };
 
-  const current = SLIDES[slide];
+  const current = steps[step];
+  const hasTarget = !!(current?.selector && targetRect);
 
-  const slideVariants = {
-    enter: (dir: string) => ({
-      x: dir === "next" ? 60 : -60,
-      opacity: 0,
-    }),
-    center: { x: 0, opacity: 1 },
-    exit: (dir: string) => ({
-      x: dir === "next" ? -60 : 60,
-      opacity: 0,
-    }),
-  };
+  const tooltipStyle: React.CSSProperties = useMemo(() => {
+    if (!hasTarget || !targetRect) {
+      return {};
+    }
+
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const tooltipWidth = Math.min(TOOLTIP_WIDTH, viewportWidth - 16);
+    const padding = 10;
+
+    let left = targetRect.left + targetRect.width / 2 - tooltipWidth / 2;
+    left = Math.max(padding, Math.min(left, viewportWidth - tooltipWidth - padding));
+
+    const spaceBelow = viewportHeight - targetRect.bottom;
+    const top = spaceBelow > 220
+      ? Math.min(viewportHeight - 170, targetRect.bottom + 14)
+      : Math.max(10, targetRect.top - 164);
+
+    return {
+      left,
+      top,
+      width: tooltipWidth,
+    };
+  }, [hasTarget, targetRect]);
+
+  const highlightStyle: React.CSSProperties = useMemo(() => {
+    if (!hasTarget || !targetRect) {
+      return {};
+    }
+
+    return {
+      top: targetRect.top - 6,
+      left: targetRect.left - 6,
+      width: targetRect.width + 12,
+      height: targetRect.height + 12,
+    };
+  }, [hasTarget, targetRect]);
+
+  if (isStaff) return null;
 
   return (
     <AnimatePresence>
@@ -108,106 +228,78 @@ export default function TutorialOverlay() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-[100] p-4"
+          className="fixed inset-0 z-[140]"
         >
+          <div className="absolute inset-0 bg-[rgba(11,18,32,0.52)] backdrop-blur-[2px]" />
+
+          {hasTarget && (
+            <motion.div
+              key={current.id}
+              initial={{ opacity: 0.8 }}
+              animate={{ opacity: 1 }}
+              className="fixed rounded-2xl border-2 border-[var(--accent)] pointer-events-none"
+              style={{
+                ...highlightStyle,
+                boxShadow: "0 0 0 9999px rgba(11,18,32,0.5), 0 0 0 4px rgba(47,111,237,0.18)",
+              }}
+            />
+          )}
+
           <motion.div
-            initial={{ scale: 0.9, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            transition={{ type: "spring", stiffness: 300, damping: 28 }}
-            className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden"
+            key={current.id}
+            initial={{ opacity: 0, y: 12, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 12, scale: 0.98 }}
+            transition={{ duration: 0.18 }}
+            className={hasTarget ? "fixed" : "fixed inset-0 flex items-center justify-center p-4"}
+            style={hasTarget ? tooltipStyle : undefined}
           >
-            {/* Solid colour header */}
-            <div className={`${current.color} p-8 relative`}>
-              {/* Skip button */}
-              <button
-                onClick={dismiss}
-                className="absolute top-4 right-4 p-1.5 rounded-lg bg-white/20 hover:bg-white/30 transition text-white"
-              >
-                <X className="w-4 h-4" />
-              </button>
-
-              {/* Floating snowflake decorations */}
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                className="absolute top-4 left-4 opacity-20"
-              >
-                <Snowflake className="w-8 h-8 text-white" />
-              </motion.div>
-              <motion.div
-                animate={{ rotate: -360 }}
-                transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-                className="absolute bottom-4 right-8 opacity-20"
-              >
-                <Snowflake className="w-6 h-6 text-white" />
-              </motion.div>
-
-              {/* Icon */}
-              <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                {current.icon}
-              </div>
-
-              {/* Slide dots */}
-              <div className="flex gap-1.5 justify-center">
-                {SLIDES.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => { setDirection(i > slide ? "next" : "prev"); setSlide(i); }}
-                    className={`h-1.5 rounded-full transition-all ${
-                      i === slide ? "w-6 bg-white" : "w-1.5 bg-white/40"
-                    }`}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Content */}
-            <div className="p-6">
-              <AnimatePresence mode="wait" custom={direction}>
-                <motion.div
-                  key={slide}
-                  custom={direction}
-                  variants={slideVariants}
-                  initial="enter"
-                  animate="center"
-                  exit="exit"
-                  transition={{ duration: 0.22, ease: "easeInOut" }}
-                >
-                  <div className="text-2xl mb-2">{current.emoji}</div>
-                  <h2 className="text-xl font-bold text-gray-900 mb-2">{current.title}</h2>
-                  <p className="text-gray-500 text-sm leading-relaxed">{current.description}</p>
-                </motion.div>
-              </AnimatePresence>
-
-              {/* Navigation */}
-              <div className="flex items-center gap-3 mt-6">
-                {slide > 0 && (
-                  <button
-                    onClick={prev}
-                    className="flex items-center justify-center w-11 h-11 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 transition shrink-0"
-                  >
-                    <ChevronLeft className="w-5 h-5" />
-                  </button>
-                )}
+            <div className="w-full max-w-[340px] bg-[var(--bg-card-solid)] border border-[var(--border)] rounded-2xl shadow-2xl p-4">
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl bg-[var(--accent-soft)] text-[var(--accent)] flex items-center justify-center shrink-0 mt-0.5">
+                  <Compass className="w-4.5 h-4.5" style={{ width: 18, height: 18 }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">
+                    Step {step + 1} of {steps.length}
+                  </p>
+                  <h2 className="text-[15px] font-bold text-[var(--text-primary)] mt-0.5">{current.title}</h2>
+                  <p className="text-sm text-[var(--text-secondary)] mt-1.5 leading-relaxed">{current.description}</p>
+                </div>
                 <button
-                  onClick={next}
-                  className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-white transition ${current.color} hover:opacity-90`}
+                  onClick={dismiss}
+                  className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition"
+                  aria-label="Skip tutorial"
                 >
-                  {slide < SLIDES.length - 1 ? (
-                    <>Next <ChevronRight className="w-4 h-4" /></>
-                  ) : (
-                    "Get Started 🚀"
-                  )}
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
-              {slide < SLIDES.length - 1 && (
+              <div className="flex items-center gap-2 mt-4">
+                <button
+                  onClick={prev}
+                  disabled={step === 0}
+                  className="w-10 h-10 rounded-xl border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] transition flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+                  aria-label="Previous step"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+
+                <button
+                  onClick={next}
+                  className="flex-1 h-10 rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-dark)] text-white font-semibold text-sm transition inline-flex items-center justify-center gap-1.5"
+                >
+                  {step === steps.length - 1 ? "Finish" : "Next"}
+                  {step !== steps.length - 1 && <ChevronRight className="w-4 h-4" />}
+                </button>
+              </div>
+
+              {step < steps.length - 1 && (
                 <button
                   onClick={dismiss}
-                  className="w-full text-center text-xs text-gray-400 hover:text-gray-600 mt-3 transition"
+                  className="w-full mt-2 text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition"
                 >
-                  Skip tutorial
+                  Skip tour
                 </button>
               )}
             </div>

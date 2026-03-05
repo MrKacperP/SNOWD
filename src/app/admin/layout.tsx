@@ -93,8 +93,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <aside className="hidden md:flex flex-col w-64 bg-white border-r border-gray-100 min-h-screen fixed left-0 top-0 z-30">
         <div className="p-6 border-b border-gray-100">
           <div className="flex items-center gap-2">
-            <Shield className="w-6 h-6 text-[#246EB9]" />
-            <span className="text-xl font-bold text-[#246EB9]">snowd</span>
+            <Shield className="w-6 h-6 text-[#2F6FED]" />
+            <span className="text-xl font-bold text-[#2F6FED]">snowd</span>
             <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isAdmin ? "bg-red-100 text-red-600" : "bg-orange-100 text-orange-600"}`}>
               {isAdmin ? "ADMIN" : "STAFF"}
             </span>
@@ -109,7 +109,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 key={item.href}
                 href={item.href}
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl transition font-medium ${
-                  active ? "bg-[#246EB9]/10 text-[#246EB9]" : "text-gray-500 hover:bg-gray-50"
+                  active ? "bg-[#2F6FED]/10 text-[#2F6FED]" : "text-gray-500 hover:bg-gray-50"
                 }`}
               >
                 <Icon className="w-5 h-5" />
@@ -126,7 +126,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="p-4 border-t border-gray-100 space-y-2">
           <Link
             href="/dashboard"
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#246EB9] hover:bg-[#246EB9]/5 transition font-medium"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#2F6FED] hover:bg-[#2F6FED]/5 transition font-medium"
           >
             <ExternalLink className="w-5 h-5" />
             View Live App
@@ -144,8 +144,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Mobile header */}
       <header className="md:hidden fixed top-0 left-0 right-0 bg-white border-b border-gray-100 z-30 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Shield className="w-5 h-5 text-[#246EB9]" />
-          <span className="font-bold text-[#246EB9]">snowd</span>
+          <Shield className="w-5 h-5 text-[#2F6FED]" />
+          <span className="font-bold text-[#2F6FED]">snowd</span>
           <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${isAdmin ? "bg-red-100 text-red-600" : "bg-orange-100 text-orange-600"}`}>
             {isAdmin ? "ADMIN" : "STAFF"}
           </span>
@@ -162,7 +162,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               key={item.href}
               href={item.href}
               className={`flex-1 flex flex-col items-center py-2 text-xs font-medium transition ${
-                active ? "text-[#246EB9]" : "text-gray-400"
+                active ? "text-[#2F6FED]" : "text-gray-400"
               }`}
             >
               <Icon className="w-5 h-5 mb-0.5" />

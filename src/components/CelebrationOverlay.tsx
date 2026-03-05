@@ -108,7 +108,7 @@ export default function CelebrationOverlay({ type, show, onComplete }: Celebrati
               initial={{ scale: 0 }}
               animate={{ scale: [0, 1.3, 1] }}
               transition={{ delay: 0.3, duration: 0.6 }}
-              className="w-20 h-20 mx-auto mb-4 bg-[#246EB9] rounded-full flex items-center justify-center shadow-lg"
+              className="w-20 h-20 mx-auto mb-4 bg-[#2F6FED] rounded-full flex items-center justify-center shadow-lg"
               style={{ boxShadow: "0 0 40px rgba(36, 110, 185, 0.5)" }}
             >
               <span className="text-3xl">

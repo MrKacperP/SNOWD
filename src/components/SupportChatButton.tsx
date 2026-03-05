@@ -168,7 +168,8 @@ export default function SupportChatButton() {
             exit={{ scale: 0, opacity: 0 }}
             transition={{ type: "spring", stiffness: 260, damping: 20 }}
             onClick={() => { setIsOpen(true); if (messages.length === 0) setChatPhase("select"); }}
-            className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[100] w-14 h-14 bg-[#246EB9] hover:bg-[#1B5A9A] text-white rounded-full shadow-xl shadow-[#246EB9]/30 flex items-center justify-center transition-all duration-200 hover:scale-105 group"
+            data-tour="support-chat"
+            className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[100] w-14 h-14 bg-[var(--accent)] hover:bg-[var(--accent-dark)] text-white rounded-full shadow-xl shadow-[#2F6FED]/30 flex items-center justify-center transition-all duration-200 hover:scale-105 group"
           >
             <Headphones className="w-6 h-6" />
             {unreadCount > 0 && (
@@ -197,7 +198,7 @@ export default function SupportChatButton() {
             {/* Header — clean, no gradient */}
             <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 bg-[#246EB9] rounded-xl flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 bg-[var(--accent)] rounded-xl flex items-center justify-center shrink-0">
                   <Headphones className="w-4.5 h-4.5 text-white" style={{ width: 18, height: 18 }} />
                 </div>
                 <div>
@@ -235,13 +236,13 @@ export default function SupportChatButton() {
                     {PROBLEM_CATEGORIES.map((cat, i) => (
                       <motion.button key={cat.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
                         onClick={() => handleSelectProblem(cat.id)}
-                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-white hover:bg-[#246EB9]/5 border border-gray-100 hover:border-[#246EB9]/20 transition text-left group shadow-sm">
+                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-white hover:bg-[var(--accent-soft)] border border-gray-100 hover:border-[rgba(47,111,237,0.2)] transition text-left group shadow-sm">
                         <span className="text-lg shrink-0 leading-none">{cat.emoji}</span>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-gray-900 group-hover:text-[#246EB9] transition">{cat.label}</p>
+                          <p className="text-sm font-semibold text-gray-900 group-hover:text-[var(--accent)] transition">{cat.label}</p>
                           <p className="text-xs text-gray-500 truncate">{cat.desc}</p>
                         </div>
-                        <ChevronRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-[#246EB9] shrink-0 transition" />
+                        <ChevronRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-[var(--accent)] shrink-0 transition" />
                       </motion.button>
                     ))}
                   </div>
@@ -273,7 +274,7 @@ export default function SupportChatButton() {
                   </a>
                   <p className="text-xs text-gray-400">For urgent matters only.</p>
                   <button onClick={() => startChatWithProblem(selectedProblem || "other")}
-                    className="flex items-center gap-1.5 text-xs text-[#246EB9] hover:underline transition">
+                    className="flex items-center gap-1.5 text-xs text-[var(--accent)] hover:underline transition">
                     <MessageSquare className="w-3.5 h-3.5" /> Continue via chat instead
                   </button>
                 </motion.div>
@@ -287,7 +288,7 @@ export default function SupportChatButton() {
                     {messages.length === 0 && (
                       <div className="flex flex-col items-center justify-center h-full py-8 text-center">
                         <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm mb-2">
-                          <MessageSquare className="w-5 h-5 text-[#246EB9]" />
+                          <MessageSquare className="w-5 h-5 text-[var(--accent)]" />
                         </div>
                         <p className="text-sm font-semibold text-gray-600">Support is online</p>
                         <p className="text-xs text-gray-400 mt-0.5">Describe your issue and we&apos;ll help ASAP.</p>
@@ -319,12 +320,12 @@ export default function SupportChatButton() {
                         <motion.div key={msg.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: Math.min(i * 0.02, 0.3) }} className={`flex ${isMe ? "justify-end" : "justify-start"} items-end gap-1.5`}>
                           {!isMe && (
-                            <div className="w-6 h-6 bg-[#246EB9] rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                            <div className="w-6 h-6 bg-[var(--accent)] rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0">
                               S
                             </div>
                           )}
                           <div className={`max-w-[80%] px-3 py-2 rounded-2xl shadow-sm text-sm ${
-                            isMe ? "bg-[#246EB9] text-white rounded-tr-sm" : "bg-white text-gray-900 rounded-tl-sm"
+                            isMe ? "bg-[var(--accent)] text-white rounded-tr-sm" : "bg-white text-gray-900 rounded-tl-sm"
                           }`}>
                             <p className="break-words whitespace-pre-line leading-relaxed">{msg.content}</p>
                             <p className={`text-[10px] mt-0.5 text-right ${isMe ? "text-white/50" : "text-gray-400"}`}>
@@ -341,9 +342,9 @@ export default function SupportChatButton() {
                       <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
                         placeholder="Type your message..."
-                        className="flex-1 px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-[#246EB9]/40 focus:bg-white transition" />
+                        className="flex-1 px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-[#2F6FED]/40 focus:bg-white transition" />
                       <button onClick={handleSend} disabled={!newMessage.trim() || sending}
-                        className="p-2.5 bg-[#246EB9] hover:bg-[#1B5A9A] text-white rounded-xl transition disabled:opacity-40 shrink-0">
+                        className="p-2.5 bg-[var(--accent)] hover:bg-[var(--accent-dark)] text-white rounded-xl transition disabled:opacity-40 shrink-0">
                         <Send className="w-4 h-4" />
                       </button>
                     </div>

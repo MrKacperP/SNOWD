@@ -4,7 +4,17 @@ import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { doc, updateDoc, collection, query, where, onSnapshot } from "firebase/firestore";
+import {
+  doc,
+  updateDoc,
+  collection,
+  query,
+  where,
+  onSnapshot,
+  orderBy,
+  limit,
+  writeBatch,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
   Home,
@@ -20,7 +30,8 @@ import {
   BarChart3,
   CalendarDays,
   Briefcase,
-  CloudSnow,
+  Bell,
+  CheckCheck,
 } from "lucide-react";
 import { useWeather } from "@/context/WeatherContext";
 
@@ -32,11 +43,30 @@ export default function Navbar() {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [pendingJobCount, setPendingJobCount] = useState(0);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState<{
+    id: string;
+    type?: string;
+    title?: string;
+    message?: string;
+    read?: boolean;
+    createdAt?: { seconds?: number };
+  }[]>([]);
   const menuRef = useRef<HTMLDivElement>(null);
+  const notifDesktopRef = useRef<HTMLDivElement>(null);
+  const notifMobileRef = useRef<HTMLDivElement>(null);
   const { weather } = useWeather();
 
   const isClient = profile?.role === "client";
   const isOnline = (profile as unknown as Record<string, unknown>)?.isOnline !== false;
+  const getTourKey = (href: string) => {
+    if (href === "/dashboard") return "nav-home";
+    if (href === "/dashboard/find") return "nav-find";
+    if (href === "/dashboard/jobs") return "nav-jobs";
+    if (href === "/dashboard/messages") return "nav-messages";
+    if (href === "/dashboard/calendar") return "nav-calendar";
+    return undefined;
+  };
 
   const navItems = isClient
     ? [
@@ -58,6 +88,13 @@ export default function Navbar() {
     const handleClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setProfileMenuOpen(false);
+      }
+      const clickedOutsideDesktop =
+        notifDesktopRef.current && !notifDesktopRef.current.contains(e.target as Node);
+      const clickedOutsideMobile =
+        notifMobileRef.current && !notifMobileRef.current.contains(e.target as Node);
+      if (clickedOutsideDesktop && clickedOutsideMobile) {
+        setNotifOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -96,6 +133,71 @@ export default function Navbar() {
     return () => unsubscribe();
   }, [profile?.uid, isClient]);
 
+  useEffect(() => {
+    if (!profile?.uid) return;
+
+    const notifQuery = query(
+      collection(db, "notifications"),
+      where("uid", "==", profile.uid),
+      orderBy("createdAt", "desc"),
+      limit(20)
+    );
+
+    const unsubscribe = onSnapshot(
+      notifQuery,
+      (snapshot) => {
+        const items = snapshot.docs.map((snap) => ({
+          id: snap.id,
+          ...(snap.data() as Omit<(typeof notifications)[number], "id">),
+        }));
+        setNotifications(items);
+      },
+      (error) => {
+        if (error.code !== "failed-precondition") {
+          console.error("Notifications listener error:", error);
+        }
+      }
+    );
+
+    return () => unsubscribe();
+  }, [profile?.uid]);
+
+  const unreadNotifications = notifications.filter((n) => !n.read).length;
+
+  const markNotificationRead = async (id: string) => {
+    try {
+      await updateDoc(doc(db, "notifications", id), { read: true });
+    } catch (error) {
+      console.error("Failed to mark notification read:", error);
+    }
+  };
+
+  const markAllNotificationsRead = async () => {
+    const unread = notifications.filter((n) => !n.read);
+    if (!unread.length) return;
+
+    try {
+      const batch = writeBatch(db);
+      unread.forEach((n) => {
+        batch.update(doc(db, "notifications", n.id), { read: true });
+      });
+      await batch.commit();
+    } catch (error) {
+      console.error("Failed to mark all notifications read:", error);
+    }
+  };
+
+  const notificationTime = (createdAt?: { seconds?: number }) => {
+    if (!createdAt?.seconds) return "Just now";
+    const d = new Date(createdAt.seconds * 1000);
+    return d.toLocaleString([], {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  };
+
   const toggleOnlineStatus = async () => {
     if (!profile?.uid) return;
     try {
@@ -125,23 +227,79 @@ export default function Navbar() {
       <aside className="hidden md:flex flex-col w-64 bg-[var(--bg-card-solid)]/90 backdrop-blur-xl border-r border-[var(--border-color)] min-h-screen fixed left-0 top-0 z-30">
         <div className="p-6 border-b border-[var(--border-color)]">
           <Link href="/dashboard" className="flex items-center gap-1">
-            <span className="text-2xl font-extrabold text-[#246EB9]">
+            <span className="text-2xl font-extrabold text-[var(--accent)]">
               snowd
             </span>
             <span className="text-2xl font-light text-gray-400">.ca</span>
           </Link>
           {weather && (
-            <div className="flex items-center gap-2 mt-3 px-3 py-2 bg-[#246EB9]/5 rounded-xl text-xs">
+            <div className="flex items-center gap-2 mt-3 px-3 py-2 bg-[var(--accent-soft)] rounded-xl text-xs">
               <span className="text-lg">{weather.icon}</span>
               <div>
                 <span className="font-bold text-gray-900">{weather.temp}°C</span>
                 <span className="text-gray-500 ml-1">{weather.condition}</span>
                 {weather.snowChance > 0 && (
-                  <span className="ml-1.5 text-[#246EB9] font-semibold">❄️{weather.snowChance}%</span>
+                  <span className="ml-1.5 text-[var(--accent)] font-semibold">❄️{weather.snowChance}%</span>
                 )}
               </div>
             </div>
           )}
+
+          <div className="mt-3 relative" ref={notifDesktopRef}>
+            <button
+              onClick={() => setNotifOpen((v) => !v)}
+              className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-card-solid)] hover:bg-[var(--bg-secondary)] transition text-sm font-semibold text-[var(--text-primary)]"
+              aria-label="Open notifications"
+            >
+              <Bell className="w-4 h-4 text-[var(--accent)]" />
+              Notifications
+              {unreadNotifications > 0 && (
+                <span className="ml-auto unread-badge">
+                  {unreadNotifications > 9 ? "9+" : unreadNotifications}
+                </span>
+              )}
+            </button>
+
+            {notifOpen && (
+              <div className="absolute left-0 right-0 mt-2 bg-[var(--bg-card-solid)] rounded-2xl border border-[var(--border-color)] shadow-lg overflow-hidden z-50">
+                <div className="flex items-center justify-between px-3 py-2.5 border-b border-[var(--border-color)]">
+                  <p className="text-xs font-bold text-[var(--text-primary)]">Notifications</p>
+                  {unreadNotifications > 0 && (
+                    <button
+                      onClick={markAllNotificationsRead}
+                      className="text-[11px] font-semibold text-[var(--accent)] hover:underline inline-flex items-center gap-1"
+                    >
+                      <CheckCheck className="w-3.5 h-3.5" /> Mark all read
+                    </button>
+                  )}
+                </div>
+                <div className="max-h-72 overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <p className="px-3 py-6 text-xs text-[var(--text-muted)] text-center">No notifications yet</p>
+                  ) : (
+                    notifications.map((n) => (
+                      <button
+                        key={n.id}
+                        onClick={() => markNotificationRead(n.id)}
+                        className={`w-full text-left px-3 py-2.5 border-b border-[var(--border-color)]/60 hover:bg-[var(--bg-secondary)] transition last:border-0 ${
+                          n.read ? "opacity-80" : "bg-[var(--accent-soft)]/50"
+                        }`}
+                      >
+                        <div className="flex items-start gap-2">
+                          {!n.read && <span className="mt-1 h-2 w-2 rounded-full bg-[var(--accent)] shrink-0" />}
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-semibold text-[var(--text-primary)] truncate">{n.title || "Notification"}</p>
+                            <p className="text-xs text-[var(--text-secondary)] mt-0.5 leading-relaxed">{n.message || "You have a new update."}</p>
+                            <p className="text-[10px] text-[var(--text-muted)] mt-1">{notificationTime(n.createdAt)}</p>
+                          </div>
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         <nav className="flex-1 p-4 space-y-1">
@@ -154,9 +312,10 @@ export default function Navbar() {
               <Link
                 key={item.href}
                 href={item.href}
+                data-tour={getTourKey(item.href)}
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-semibold tracking-wide relative ${
                   active
-                    ? "bg-[#246EB9]/10 text-[#246EB9] shadow-sm"
+                    ? "bg-[var(--accent-soft)] text-[var(--accent)] shadow-sm"
                     : "text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]"
                 }`}
               >
@@ -223,10 +382,11 @@ export default function Navbar() {
 
           <button
             onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+            data-tour="profile-menu"
             className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-gray-50 transition"
           >
             <div className="relative">
-              <div className="w-9 h-9 bg-[#246EB9] rounded-full flex items-center justify-center text-white font-semibold text-sm">
+              <div className="w-9 h-9 bg-[var(--accent)] rounded-full flex items-center justify-center text-white font-semibold text-sm">
                 {profile?.displayName?.charAt(0)?.toUpperCase() || "U"}
               </div>
               <div className={`absolute -bottom-0.5 -right-0.5 status-dot ${isOnline ? "online" : "offline"}`} />
@@ -245,20 +405,70 @@ export default function Navbar() {
       {/* Mobile top bar */}
       <header className="md:hidden fixed top-0 left-0 right-0 bg-[var(--bg-card-solid)]/90 backdrop-blur-xl border-b border-[var(--border-color)] z-30 px-4 py-3 flex items-center justify-between">
         <Link href="/dashboard" className="flex items-center gap-1">
-          <span className="text-xl font-extrabold text-[#246EB9]">
+          <span className="text-xl font-extrabold text-[var(--accent)]">
             snowd
           </span>
           <span className="text-xl font-light text-[var(--text-muted)]">.ca</span>
         </Link>
         <div className="flex items-center gap-2">
+          <div className="relative" ref={notifMobileRef}>
+            <button
+              onClick={() => setNotifOpen((v) => !v)}
+              className="p-2 rounded-lg border border-[var(--border-color)] text-[var(--text-secondary)] bg-[var(--bg-card-solid)] relative"
+              aria-label="Open notifications"
+            >
+              <Bell className="w-4 h-4" />
+              {unreadNotifications > 0 && (
+                <span className="absolute -top-1 -right-1 unread-badge" style={{ minWidth: "16px", height: "16px", fontSize: "9px", padding: "0 4px" }}>
+                  {unreadNotifications > 9 ? "9+" : unreadNotifications}
+                </span>
+              )}
+            </button>
+
+            {notifOpen && (
+              <div className="absolute right-0 mt-2 w-72 bg-[var(--bg-card-solid)] rounded-2xl border border-[var(--border-color)] shadow-xl overflow-hidden z-50">
+                <div className="flex items-center justify-between px-3 py-2.5 border-b border-[var(--border-color)]">
+                  <p className="text-xs font-bold text-[var(--text-primary)]">Notifications</p>
+                  {unreadNotifications > 0 && (
+                    <button
+                      onClick={markAllNotificationsRead}
+                      className="text-[11px] font-semibold text-[var(--accent)] hover:underline"
+                    >
+                      Mark all read
+                    </button>
+                  )}
+                </div>
+                <div className="max-h-72 overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <p className="px-3 py-6 text-xs text-[var(--text-muted)] text-center">No notifications yet</p>
+                  ) : (
+                    notifications.map((n) => (
+                      <button
+                        key={n.id}
+                        onClick={() => markNotificationRead(n.id)}
+                        className={`w-full text-left px-3 py-2.5 border-b border-[var(--border-color)]/60 hover:bg-[var(--bg-secondary)] transition last:border-0 ${
+                          n.read ? "opacity-80" : "bg-[var(--accent-soft)]/50"
+                        }`}
+                      >
+                        <p className="text-xs font-semibold text-[var(--text-primary)] truncate">{n.title || "Notification"}</p>
+                        <p className="text-xs text-[var(--text-secondary)] mt-0.5">{n.message || "You have a new update."}</p>
+                        <p className="text-[10px] text-[var(--text-muted)] mt-1">{notificationTime(n.createdAt)}</p>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
           {weather && (
-            <div className="flex items-center gap-1 px-2 py-1 bg-[#246EB9]/10 rounded-lg text-xs">
+            <div className="flex items-center gap-1 px-2 py-1 bg-[var(--accent-soft)] rounded-lg text-xs">
               <span>{weather.icon}</span>
               <span className="font-bold text-[var(--text-primary)]">{weather.temp}°</span>
             </div>
           )}
           <Link href={`/dashboard/u/${profile?.uid}`} className="relative">
-            <div className="w-8 h-8 bg-[#246EB9] rounded-full flex items-center justify-center text-white font-semibold text-xs">
+            <div className="w-8 h-8 bg-[var(--accent)] rounded-full flex items-center justify-center text-white font-semibold text-xs">
               {profile?.displayName?.charAt(0)?.toUpperCase() || "U"}
             </div>
             <div className={`absolute -bottom-0.5 -right-0.5 status-dot ${isOnline ? "online" : "offline"}`} style={{ width: 8, height: 8 }} />
@@ -281,9 +491,9 @@ export default function Navbar() {
                 <X className="w-6 h-6" />
               </button>
             </div>
-            <div className="flex items-center gap-3 px-4 py-3 mb-2 bg-[#246EB9]/5 rounded-xl">
+            <div className="flex items-center gap-3 px-4 py-3 mb-2 bg-[var(--accent-soft)] rounded-xl">
               <div className="relative">
-                <div className="w-10 h-10 bg-[#246EB9] rounded-full flex items-center justify-center text-white font-semibold">
+                <div className="w-10 h-10 bg-[var(--accent)] rounded-full flex items-center justify-center text-white font-semibold">
                   {profile?.displayName?.charAt(0)?.toUpperCase() || "U"}
                 </div>
                 <div className={`absolute -bottom-0.5 -right-0.5 status-dot ${isOnline ? "online" : "offline"}`} />
@@ -312,10 +522,11 @@ export default function Navbar() {
                   <Link
                     key={item.href}
                     href={item.href}
+                    data-tour={getTourKey(item.href)}
                     onClick={() => setMobileOpen(false)}
                     className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-semibold tracking-wide relative ${
                       active
-                        ? "bg-[#246EB9]/10 text-[#246EB9]"
+                        ? "bg-[var(--accent-soft)] text-[var(--accent)]"
                         : "text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
                     }`}
                   >
@@ -339,7 +550,7 @@ export default function Navbar() {
                 onClick={() => setMobileOpen(false)}
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-semibold tracking-wide ${
                   pathname === "/dashboard/settings"
-                    ? "bg-[#246EB9]/10 text-[#246EB9]"
+                    ? "bg-[var(--accent-soft)] text-[var(--accent)]"
                     : "text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
                 }`}
               >
@@ -372,8 +583,9 @@ export default function Navbar() {
             <Link
               key={item.href}
               href={item.href}
+              data-tour={getTourKey(item.href)}
               className={`flex-1 flex flex-col items-center py-2 text-xs font-semibold transition-all duration-200 relative ${
-                active ? "text-[#246EB9]" : "text-gray-400"
+                active ? "text-[var(--accent)]" : "text-gray-400"
               }`}
             >
               <Icon className="w-5 h-5 mb-0.5" />
@@ -389,7 +601,7 @@ export default function Navbar() {
                 </span>
               )}
               {active && (
-                <span className="absolute -bottom-0 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-[#246EB9] rounded-full" />
+                <span className="absolute -bottom-0 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-[var(--accent)] rounded-full" />
               )}
             </Link>
           );

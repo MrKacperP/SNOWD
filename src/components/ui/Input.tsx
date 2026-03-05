@@ -12,13 +12,13 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="w-full">
         {label && (
-          <label className="block text-sm font-medium text-[#0B1F33] mb-2">
+          <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
             {label}
           </label>
         )}
         <div className="relative">
           {icon && (
-            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6B7C8F]">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">
               {icon}
             </div>
           )}
@@ -26,22 +26,22 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             className={`
               w-full h-[52px] px-4 ${icon ? 'pl-12' : ''}
-              bg-white border border-[#E6EEF6] rounded-xl
-              text-[#0B1F33] placeholder:text-[#6B7C8F] text-base
-              focus:outline-none focus:ring-2 focus:ring-[#246EB9]/25 focus:border-[#246EB9]
+              bg-white border border-[var(--border)] rounded-xl
+              text-[var(--text-primary)] placeholder:text-[var(--text-muted)] text-base
+              focus:outline-none focus:ring-2 focus:ring-[rgba(47,111,237,0.25)] focus:border-[var(--accent)]
               transition-all duration-150
               disabled:opacity-50 disabled:cursor-not-allowed
-              ${error ? 'border-[#EB5757] focus:ring-[#EB5757]/25 focus:border-[#EB5757]' : ''}
+              ${error ? 'border-red-500 focus:ring-red-500/25 focus:border-red-500' : ''}
               ${className}
             `}
             {...props}
           />
         </div>
         {error && (
-          <p className="mt-1.5 text-sm text-[#EB5757]">{error}</p>
+          <p className="mt-1.5 text-sm text-red-500">{error}</p>
         )}
         {helperText && !error && (
-          <p className="mt-1.5 text-xs text-[#6B7C8F]">{helperText}</p>
+          <p className="mt-1.5 text-xs text-[var(--text-muted)]">{helperText}</p>
         )}
       </div>
     );

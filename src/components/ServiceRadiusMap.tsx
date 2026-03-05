@@ -156,10 +156,10 @@ export default function ServiceRadiusMap({
   };
 
   const circleOptions = {
-    strokeColor: "#246EB9",
+    strokeColor: "#2F6FED",
     strokeOpacity: 0.8,
     strokeWeight: 2,
-    fillColor: "#246EB9",
+    fillColor: "#2F6FED",
     fillOpacity: 0.1,
   };
 

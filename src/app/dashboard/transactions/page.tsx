@@ -210,7 +210,7 @@ export default function TransactionsPage() {
           <button
             onClick={handleManageStripe}
             disabled={stripeLoading}
-            className="flex items-center gap-2 px-4 py-2 bg-[#246EB9]/10 text-[#246EB9] rounded-xl text-sm font-semibold hover:bg-[#246EB9]/20 transition disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-[#2F6FED]/10 text-[#2F6FED] rounded-xl text-sm font-semibold hover:bg-[#2F6FED]/20 transition disabled:opacity-50"
           >
             {stripeLoading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -281,10 +281,10 @@ export default function TransactionsPage() {
             </div>
             <div className="bg-white rounded-2xl border border-[#E6EEF6] p-4">
               <div className="flex items-center gap-2 mb-1">
-                <HandCoins className="w-4 h-4 text-[#246EB9]" />
+                <HandCoins className="w-4 h-4 text-[#2F6FED]" />
                 <span className="text-xs font-medium text-[#6B7C8F]">Tips</span>
               </div>
-              <p className="text-xl font-bold text-[#246EB9]">${(totalTips / 100).toFixed(2)}</p>
+              <p className="text-xl font-bold text-[#2F6FED]">${(totalTips / 100).toFixed(2)}</p>
             </div>
           </>
         )}
@@ -295,7 +295,7 @@ export default function TransactionsPage() {
         <div className="bg-white rounded-2xl border border-[#E6EEF6] p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-bold text-[#0B1F33] flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-[#246EB9]" />
+              <BarChart3 className="w-4 h-4 text-[#2F6FED]" />
               Earnings (14 days)
             </h2>
             <span className="text-xs text-[#6B7C8F]">
@@ -327,7 +327,7 @@ export default function TransactionsPage() {
               <XAxis dataKey="date" tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `$${v}`} />
               <Tooltip formatter={(value) => [`$${Number(value).toFixed(2)}`, "Earnings"]} />
-              <Area type="monotone" dataKey="amount" stroke="#246EB9" fill="#246EB9" fillOpacity={0.1} />
+              <Area type="monotone" dataKey="amount" stroke="#2F6FED" fill="#2F6FED" fillOpacity={0.1} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -335,11 +335,11 @@ export default function TransactionsPage() {
 
       {/* Stripe Portal Link for Operators */}
       {isOperator && (
-        <div className="bg-[#246EB9]/5 rounded-2xl border border-[#246EB9]/10 p-4">
+        <div className="bg-[#2F6FED]/5 rounded-2xl border border-[#2F6FED]/10 p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-[#246EB9]/10 rounded-xl flex items-center justify-center">
-                <CreditCard className="w-5 h-5 text-[#246EB9]" />
+              <div className="w-10 h-10 bg-[#2F6FED]/10 rounded-xl flex items-center justify-center">
+                <CreditCard className="w-5 h-5 text-[#2F6FED]" />
               </div>
               <div>
                 <p className="font-semibold text-[#0B1F33] text-sm">Stripe Dashboard</p>
@@ -349,7 +349,7 @@ export default function TransactionsPage() {
             <button
               onClick={handleManageStripe}
               disabled={stripeLoading}
-              className="flex items-center gap-2 px-4 py-2 bg-[#246EB9] text-white rounded-xl text-sm font-semibold hover:bg-[#1B5A9A] transition disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-[#2F6FED] text-white rounded-xl text-sm font-semibold hover:bg-[#2158C7] transition disabled:opacity-50"
             >
               {stripeLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
               Open Stripe
@@ -367,7 +367,7 @@ export default function TransactionsPage() {
             onClick={() => setFilter(f)}
             className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition ${
               filter === f
-                ? "bg-[#246EB9] text-white"
+                ? "bg-[#2F6FED] text-white"
                 : "bg-[#F7FAFC] text-[#6B7C8F] hover:bg-[#E6EEF6]"
             }`}
           >
@@ -461,7 +461,7 @@ export default function TransactionsPage() {
                   {(txn.tipAmount || txn.cashReceived) && (
                     <div className="flex items-center gap-3 text-xs mt-1">
                       {txn.tipAmount ? (
-                        <span className="text-[#246EB9] font-medium">Tip: ${(txn.tipAmount / 100).toFixed(2)}</span>
+                        <span className="text-[#2F6FED] font-medium">Tip: ${(txn.tipAmount / 100).toFixed(2)}</span>
                       ) : null}
                       {txn.cashReceived ? (
                         <span className="text-emerald-600 font-medium">Cash: ${(txn.cashReceived / 100).toFixed(2)}</span>

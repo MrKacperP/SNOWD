@@ -170,7 +170,7 @@ export default function AdminVerificationsPage() {
     <div className="max-w-5xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <ShieldCheck className="w-6 h-6 text-[#246EB9]" />
+        <ShieldCheck className="w-6 h-6 text-[#2F6FED]" />
         <h1 className="text-2xl font-bold">ID Verifications</h1>
         <span className="text-sm text-gray-500">
           ({pendingUsers.length} pending)
@@ -193,11 +193,11 @@ export default function AdminVerificationsPage() {
             <p className="text-sm text-green-700">Verified & Live</p>
           </div>
         </div>
-        <div className="bg-[#246EB9]/5 border border-[#246EB9]/20 rounded-2xl p-4 flex items-center gap-3">
-          <Users className="w-8 h-8 text-[#246EB9] shrink-0" />
+        <div className="bg-[#2F6FED]/5 border border-[#2F6FED]/20 rounded-2xl p-4 flex items-center gap-3">
+          <Users className="w-8 h-8 text-[#2F6FED] shrink-0" />
           <div>
-            <p className="text-2xl font-bold text-[#246EB9]">{pendingUsers.length + approvedUsers.length}</p>
-            <p className="text-sm text-[#246EB9]/70">Total IDs Uploaded</p>
+            <p className="text-2xl font-bold text-[#2F6FED]">{pendingUsers.length + approvedUsers.length}</p>
+            <p className="text-sm text-[#2F6FED]/70">Total IDs Uploaded</p>
           </div>
         </div>
       </div>
@@ -209,7 +209,7 @@ export default function AdminVerificationsPage() {
             key={t}
             onClick={() => setTab(t)}
             className={`px-5 py-2 rounded-lg text-sm font-medium capitalize transition ${
-              tab === t ? "bg-white text-[#246EB9] shadow-sm" : "text-gray-500 hover:text-gray-700"
+              tab === t ? "bg-white text-[#2F6FED] shadow-sm" : "text-gray-500 hover:text-gray-700"
             }`}
           >
             {t === "pending" ? `Pending (${pendingUsers.length})` : `Approved (${approvedUsers.length})`}
@@ -243,7 +243,7 @@ export default function AdminVerificationsPage() {
             >
               {/* User Header */}
               <div className="flex items-center gap-4 px-5 py-4 border-b border-gray-50">
-                <div className="w-11 h-11 bg-[#246EB9]/10 rounded-full flex items-center justify-center text-[#246EB9] font-bold text-lg shrink-0">
+                <div className="w-11 h-11 bg-[#2F6FED]/10 rounded-full flex items-center justify-center text-[#2F6FED] font-bold text-lg shrink-0">
                   {u.displayName?.charAt(0)?.toUpperCase() || "?"}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -255,7 +255,7 @@ export default function AdminVerificationsPage() {
                           ? "bg-purple-100 text-purple-600"
                           : u.role === "admin"
                           ? "bg-red-100 text-red-600"
-                          : "bg-[#246EB9]/10 text-[#246EB9]"
+                          : "bg-[#2F6FED]/10 text-[#2F6FED]"
                       }`}
                     >
                       {u.role}
@@ -301,7 +301,7 @@ export default function AdminVerificationsPage() {
                           href={u.idPhotoUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-xs text-[#246EB9] hover:underline"
+                          className="inline-flex items-center gap-1 text-xs text-[#2F6FED] hover:underline"
                         >
                           <ExternalLink className="w-3 h-3" /> Open in new tab
                         </a>

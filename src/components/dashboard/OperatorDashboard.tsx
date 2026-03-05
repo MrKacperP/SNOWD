@@ -83,14 +83,14 @@ function OperatorMiniCalendar() {
         {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d => <div key={d} className="py-1 text-[var(--text-muted)] font-medium">{d}</div>)}
         {days.map((day, i) => (
           <div key={i} className={`py-1.5 rounded-lg text-xs ${
-            isToday(day) ? "bg-[#246EB9] text-white font-bold" :
+            isToday(day) ? "bg-[#2F6FED] text-white font-bold" :
             isSameMonth(day, currentMonth) ? "text-[var(--text-primary)]" : "text-[var(--text-muted)]"
           }`}>
             {format(day, "d")}
           </div>
         ))}
       </div>
-      <Link href="/dashboard/calendar" className="block text-center text-xs text-[#246EB9] font-medium mt-2 hover:underline">View Full Calendar</Link>
+      <Link href="/dashboard/calendar" className="block text-center text-xs text-[#2F6FED] font-medium mt-2 hover:underline">View Full Calendar</Link>
     </div>
   );
 }
@@ -456,7 +456,7 @@ export default function OperatorDashboard() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-[#246EB9] rounded-2xl p-6 md:p-8 text-white relative overflow-hidden shadow-lg"
+        className="bg-[#2F6FED] rounded-2xl p-6 md:p-8 text-white relative overflow-hidden shadow-lg"
       >
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-4 right-8 text-6xl">❄️</div>
@@ -581,7 +581,7 @@ export default function OperatorDashboard() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-[#246EB9]">
+                <span className="text-sm font-bold text-[#2F6FED]">
                   {Math.round((completedSetupCount / totalSetupSteps) * 100)}%
                 </span>
               </div>
@@ -589,7 +589,7 @@ export default function OperatorDashboard() {
             {/* Progress bar */}
             <div className="mt-3 h-2 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
               <motion.div
-                className="h-full bg-[#246EB9] rounded-full"
+                className="h-full bg-[#2F6FED] rounded-full"
                 initial={{ width: 0 }}
                 animate={{ width: `${(completedSetupCount / totalSetupSteps) * 100}%` }}
                 transition={{ duration: 0.8, ease: "easeOut" }}
@@ -610,7 +610,7 @@ export default function OperatorDashboard() {
                     ? "bg-green-100 text-green-600"
                     : step.key === "approval" && (operatorProfile as OperatorProfile & { idPhotoUrl?: string })?.idPhotoUrl && !isAccountPublic
                     ? "bg-amber-100 text-amber-600"
-                    : "bg-[#246EB9]/10 text-[#246EB9]"
+                    : "bg-[#2F6FED]/10 text-[#2F6FED]"
                 }`}>
                   {step.done ? <CheckCircle className="w-4 h-4" /> : step.icon}
                 </div>
@@ -638,7 +638,7 @@ export default function OperatorDashboard() {
       {/* Stats Grid — Clickable */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { icon: Clock, label: "Pending", value: pendingJobs.length, color: "text-[#246EB9]", bg: "bg-[#246EB9]/10", href: "/dashboard/jobs" },
+          { icon: Clock, label: "Pending", value: pendingJobs.length, color: "text-[#2F6FED]", bg: "bg-[#2F6FED]/10", href: "/dashboard/jobs" },
           { icon: CheckCircle2, label: "Active", value: activeJobs.length, color: "text-green-600", bg: "bg-green-50", href: "/dashboard/log" },
           { icon: DollarSign, label: "Earnings", value: `$${totalEarnings}`, color: "text-orange-500", bg: "bg-orange-50", href: "/dashboard/transactions" },
           { icon: Star, label: "Rating", value: operatorProfile?.rating?.toFixed(1) || "—", color: "text-yellow-500", bg: "bg-yellow-50", href: "/dashboard/analytics" },
@@ -666,7 +666,7 @@ export default function OperatorDashboard() {
           href="/dashboard/calendar"
           className="flex flex-col items-center gap-2 p-4 bg-[var(--bg-card-solid)] rounded-xl border border-[var(--border-subtle)] hover-lift interactive-card"
         >
-          <CalendarDays className="w-5 h-5 text-[#246EB9]" />
+          <CalendarDays className="w-5 h-5 text-[#2F6FED]" />
           <p className="text-xs font-medium text-[var(--text-secondary)]">Calendar</p>
         </Link>
         <Link
@@ -691,11 +691,11 @@ export default function OperatorDashboard() {
           <div className="px-6 py-4 border-b border-[var(--border-subtle)] flex items-center justify-between">
             <div className="flex items-center gap-2">
               <h2 className="font-semibold text-lg">New Requests</h2>
-              <span className="bg-[#246EB9] text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center">
+              <span className="bg-[#2F6FED] text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center">
                 {pendingJobs.length}
               </span>
             </div>
-            <Link href="/dashboard/jobs" className="text-sm text-[#246EB9] hover:underline font-medium">
+            <Link href="/dashboard/jobs" className="text-sm text-[#2F6FED] hover:underline font-medium">
               View All
             </Link>
           </div>
@@ -705,7 +705,7 @@ export default function OperatorDashboard() {
                 <div className="flex items-start justify-between gap-4">
                   <Link href={`/dashboard/u/${job.clientId}`} className="flex-1 group">
                     <div className="flex items-center gap-2 mb-0.5">
-                      <User className="w-4 h-4 text-[#246EB9]" />
+                      <User className="w-4 h-4 text-[#2F6FED]" />
                       <p className="font-semibold text-[var(--text-primary)]">{clientNames[job.clientId] || "Client"}</p>
                       <ExternalLink className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition" />
                     </div>
@@ -748,7 +748,7 @@ export default function OperatorDashboard() {
       <div className="bg-[var(--bg-card-solid)] rounded-2xl border border-[var(--border-subtle)] overflow-hidden">
         <div className="px-6 py-4 border-b border-[var(--border-subtle)] flex items-center justify-between">
           <h2 className="font-semibold text-lg">Active Jobs</h2>
-          <Link href="/dashboard/log" className="text-sm text-[#246EB9] hover:underline font-medium">
+          <Link href="/dashboard/log" className="text-sm text-[#2F6FED] hover:underline font-medium">
             View All
           </Link>
         </div>
@@ -767,7 +767,7 @@ export default function OperatorDashboard() {
               <div key={job.id} className="px-6 py-4">
                 <div className="flex items-center justify-between mb-3">
                   <Link href={`/dashboard/u/${job.clientId}`} className="flex items-center gap-2 group">
-                    <User className="w-4 h-4 text-[#246EB9]" />
+                    <User className="w-4 h-4 text-[#2F6FED]" />
                     <span className="font-semibold text-[var(--text-primary)]">{clientNames[job.clientId] || "Client"}</span>
                     <ExternalLink className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition" />
                   </Link>
@@ -792,7 +792,7 @@ export default function OperatorDashboard() {
                   </p>
                   <Link
                     href={`/dashboard/messages/${job.chatId}`}
-                    className="flex items-center gap-1 text-sm text-[#246EB9] hover:underline"
+                    className="flex items-center gap-1 text-sm text-[#2F6FED] hover:underline"
                   >
                     <MessageCircle className="w-4 h-4" />
                     Chat
@@ -808,14 +808,14 @@ export default function OperatorDashboard() {
       <div className="bg-[var(--bg-card-solid)] rounded-2xl border border-[var(--border-subtle)] p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold text-lg">Performance</h2>
-          <Link href="/dashboard/analytics" className="text-sm text-[#246EB9] hover:underline font-medium flex items-center gap-1">
+          <Link href="/dashboard/analytics" className="text-sm text-[#2F6FED] hover:underline font-medium flex items-center gap-1">
             <TrendingUp className="w-4 h-4" />
             Full Analytics
           </Link>
         </div>
         <div className="grid grid-cols-3 gap-4">
-          <div className="text-center p-4 bg-[#246EB9]/10 rounded-xl">
-            <p className="text-2xl font-bold text-[#246EB9]">
+          <div className="text-center p-4 bg-[#2F6FED]/10 rounded-xl">
+            <p className="text-2xl font-bold text-[#2F6FED]">
               {operatorProfile?.totalJobsCompleted || 0}
             </p>
             <p className="text-xs text-[var(--text-muted)] mt-1">Jobs Done</p>

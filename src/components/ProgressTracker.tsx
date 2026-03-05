@@ -67,7 +67,7 @@ export default function ProgressTracker({
                   isComplete
                     ? "bg-green-100 text-green-700"
                     : isCurrent
-                    ? "bg-[#246EB9]/15 text-[#246EB9] ring-2 ring-[#246EB9]/30"
+                    ? "bg-[#2F6FED]/15 text-[#2F6FED] ring-2 ring-[#2F6FED]/30"
                     : "bg-gray-100 text-gray-400"
                 }`}
               >
@@ -119,7 +119,7 @@ export default function ProgressTracker({
         {/* Progress line */}
         <div className="absolute left-[15px] top-0 bottom-0 w-0.5 bg-gray-200" />
         <div
-          className="absolute left-[15px] top-0 w-0.5 bg-[#246EB9] transition-all duration-500"
+          className="absolute left-[15px] top-0 w-0.5 bg-[#2F6FED] transition-all duration-500"
           style={{
             height: `${Math.min(100, (currentIndex / (STEPS.length - 1)) * 100)}%`,
           }}
@@ -139,7 +139,7 @@ export default function ProgressTracker({
                     isComplete
                       ? "bg-green-500 text-white"
                       : isCurrent
-                      ? "bg-[#246EB9] text-white ring-4 ring-[#246EB9]/15"
+                      ? "bg-[#2F6FED] text-white ring-4 ring-[#2F6FED]/15"
                       : "bg-gray-100 text-gray-400"
                   }`}
                 >
@@ -151,7 +151,7 @@ export default function ProgressTracker({
                       isComplete
                         ? "text-green-700"
                         : isCurrent
-                        ? "text-[#246EB9]"
+                        ? "text-[#2F6FED]"
                         : "text-gray-400"
                     }`}
                   >
@@ -159,7 +159,7 @@ export default function ProgressTracker({
                   </p>
                   <p
                     className={`text-xs ${
-                      isCurrent ? "text-[#246EB9]" : "text-gray-400"
+                      isCurrent ? "text-[#2F6FED]" : "text-gray-400"
                     }`}
                   >
                     {step.description}

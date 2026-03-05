@@ -19,11 +19,11 @@ export default function Button({
   const baseStyles = 'font-semibold tracking-wide transition-all duration-150 rounded-[14px] disabled:opacity-50 disabled:cursor-not-allowed btn-lift';
   
   const variants = {
-    primary: 'bg-[#246EB9] hover:bg-[#1e5ba8] text-white shadow-sm',
-    secondary: 'border-2 border-[#0B1F33] text-[#0B1F33] hover:bg-[#D6E8F5] bg-white',
-    ghost: 'text-[#246EB9] hover:bg-[#D6E8F5]',
-    success: 'bg-[#27AE60] hover:bg-[#1e8b4d] text-white',
-    danger: 'bg-[#EB5757] hover:bg-[#d64545] text-white',
+    primary: 'bg-[var(--accent)] hover:bg-[var(--accent-dark)] text-white shadow-sm',
+    secondary: 'border-2 border-[var(--border)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] bg-white',
+    ghost: 'text-[var(--accent)] hover:bg-[var(--accent-soft)]',
+    success: 'bg-emerald-500 hover:bg-emerald-600 text-white',
+    danger: 'bg-red-500 hover:bg-red-600 text-white',
   };
   
   const sizes = {

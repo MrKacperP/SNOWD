@@ -467,7 +467,7 @@ export default function SettingsPage() {
               onClick={() => setActiveTab(tab.key)}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
                 activeTab === tab.key
-                  ? "bg-white text-[#246EB9] shadow-sm"
+                  ? "bg-white text-[#2F6FED] shadow-sm"
                   : "text-[#6B7C8F] hover:text-[#0B1F33]"
               }`}
             >
@@ -484,7 +484,7 @@ export default function SettingsPage() {
           {/* Profile Info */}
           <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
             <h3 className="text-lg font-semibold text-[#0B1F33] mb-4 flex items-center gap-2">
-              <User className="w-5 h-5 text-[#246EB9]" />
+              <User className="w-5 h-5 text-[#2F6FED]" />
               Profile Information
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -494,7 +494,7 @@ export default function SettingsPage() {
                   type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#246EB9] focus:border-transparent outline-none"
+                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none"
                 />
               </div>
               <div>
@@ -512,7 +512,7 @@ export default function SettingsPage() {
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#246EB9] focus:border-transparent outline-none"
+                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none"
                 />
               </div>
               {isOperator && (
@@ -522,7 +522,7 @@ export default function SettingsPage() {
                     type="text"
                     value={businessName}
                     onChange={(e) => setBusinessName(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#246EB9] focus:border-transparent outline-none"
+                    className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none"
                   />
                 </div>
               )}
@@ -534,7 +534,7 @@ export default function SettingsPage() {
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
                   rows={3}
-                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#246EB9] focus:border-transparent outline-none resize-none"
+                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none resize-none"
                 />
               </div>
             )}
@@ -543,7 +543,7 @@ export default function SettingsPage() {
           {/* Location */}
           <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
             <h3 className="text-lg font-semibold text-[#0B1F33] mb-4 flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-[#246EB9]" />
+              <MapPin className="w-5 h-5 text-[#2F6FED]" />
               Location
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
@@ -553,7 +553,7 @@ export default function SettingsPage() {
                   type="text"
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#246EB9] focus:border-transparent outline-none"
+                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none"
                 />
               </div>
               <div>
@@ -562,7 +562,7 @@ export default function SettingsPage() {
                   type="text"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#246EB9] focus:border-transparent outline-none"
+                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none"
                 />
               </div>
               <div>
@@ -570,7 +570,7 @@ export default function SettingsPage() {
                 <select
                   value={province}
                   onChange={(e) => setProvince(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm bg-white focus:ring-2 focus:ring-[#246EB9] focus:border-transparent outline-none"
+                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm bg-white focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none"
                 >
                   {CANADIAN_PROVINCES.map((p) => (
                     <option key={p.code} value={p.code}>{p.name}</option>
@@ -584,7 +584,7 @@ export default function SettingsPage() {
                   value={postalCode}
                   onChange={(e) => setPostalCode(e.target.value.toUpperCase())}
                   maxLength={7}
-                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#246EB9] focus:border-transparent outline-none"
+                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none"
                 />
               </div>
             </div>
@@ -601,7 +601,7 @@ export default function SettingsPage() {
                   max={50}
                   value={serviceRadius}
                   onChange={(e) => setServiceRadius(parseInt(e.target.value))}
-                  className="w-full accent-[#246EB9] mb-3"
+                  className="w-full accent-[#2F6FED] mb-3"
                 />
                 <div className="rounded-xl overflow-hidden border border-[#E6EEF6]">
                   <ServiceRadiusMap
@@ -619,7 +619,7 @@ export default function SettingsPage() {
             {!isOperator && address && city && (
               <div className="mt-4">
                 <label className="text-sm font-medium text-[#6B7C8F] mb-2 block flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-[#246EB9]" />
+                  <MapPin className="w-4 h-4 text-[#2F6FED]" />
                   Your Location on Map
                 </label>
                 <div className="rounded-xl overflow-hidden border border-[#E6EEF6]">
@@ -643,7 +643,7 @@ export default function SettingsPage() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="btn-primary w-full flex items-center justify-center gap-2 px-6 py-3 bg-[#246EB9] text-white rounded-xl font-semibold text-sm hover:bg-[#1a6dd4] transition disabled:opacity-50"
+            className="btn-primary w-full flex items-center justify-center gap-2 px-6 py-3 bg-[#2F6FED] text-white rounded-xl font-semibold text-sm hover:bg-[#2158C7] transition disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
             {saving ? "Saving..." : "Save Changes"}
@@ -681,7 +681,7 @@ export default function SettingsPage() {
         <div className="space-y-6">
           <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
             <h3 className="text-lg font-semibold text-[#0B1F33] mb-4 flex items-center gap-2">
-              <Sun className="w-5 h-5 text-[#246EB9]" />
+              <Sun className="w-5 h-5 text-[#2F6FED]" />
               Theme
             </h3>
             <div className="grid grid-cols-2 gap-3">
@@ -697,12 +697,12 @@ export default function SettingsPage() {
                     onClick={() => handleThemeChange(opt.key)}
                     className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
                       active
-                        ? "border-[#246EB9] bg-[#D6E8F5]"
-                        : "border-[#E6EEF6] hover:border-[#246EB9]/30"
+                        ? "border-[#2F6FED] bg-[#D6E8F5]"
+                        : "border-[#E6EEF6] hover:border-[#2F6FED]/30"
                     }`}
                   >
-                    <Icon className={`w-6 h-6 ${active ? "text-[#246EB9]" : "text-[#6B7C8F]"}`} />
-                    <span className={`text-sm font-semibold ${active ? "text-[#246EB9]" : "text-[#0B1F33]"}`}>
+                    <Icon className={`w-6 h-6 ${active ? "text-[#2F6FED]" : "text-[#6B7C8F]"}`} />
+                    <span className={`text-sm font-semibold ${active ? "text-[#2F6FED]" : "text-[#0B1F33]"}`}>
                       {opt.label}
                     </span>
                     <span className="text-xs text-[#6B7C8F]">{opt.desc}</span>
@@ -719,7 +719,7 @@ export default function SettingsPage() {
         <div className="space-y-6">
           <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
             <h3 className="text-lg font-semibold text-[#0B1F33] mb-4 flex items-center gap-2">
-              <CreditCard className="w-5 h-5 text-[#246EB9]" />
+              <CreditCard className="w-5 h-5 text-[#2F6FED]" />
               Payment Methods
             </h3>
 
@@ -729,7 +729,7 @@ export default function SettingsPage() {
                 {(profile as UserProfile & { stripePaymentMethods: { brand: string; last4: string; expMonth: number; expYear: number }[] }).stripePaymentMethods.map((pm, i) => (
                   <div key={i} className="flex items-center justify-between p-3 bg-[#F7FAFC] rounded-xl">
                     <div className="flex items-center gap-3">
-                      <CreditCard className="w-5 h-5 text-[#246EB9]" />
+                      <CreditCard className="w-5 h-5 text-[#2F6FED]" />
                       <div>
                         <p className="text-sm font-medium text-[#0B1F33] capitalize">{pm.brand} **** {pm.last4}</p>
                         <p className="text-xs text-[#6B7C8F]">Expires {pm.expMonth}/{pm.expYear}</p>
@@ -758,7 +758,7 @@ export default function SettingsPage() {
           {isOperator && (
             <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
               <h3 className="text-lg font-semibold text-[#0B1F33] mb-4 flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-[#246EB9]" />
+                <Building2 className="w-5 h-5 text-[#2F6FED]" />
                 Payout Information
               </h3>
 
@@ -818,7 +818,7 @@ export default function SettingsPage() {
                   <button
                     onClick={handleStripeConnect}
                     disabled={stripeConnecting}
-                    className="btn-primary px-6 py-2.5 bg-[#246EB9] text-white rounded-xl text-sm font-semibold hover:bg-[#1a6dd4] transition disabled:opacity-50 flex items-center gap-2 mx-auto"
+                    className="btn-primary px-6 py-2.5 bg-[#2F6FED] text-white rounded-xl text-sm font-semibold hover:bg-[#2158C7] transition disabled:opacity-50 flex items-center gap-2 mx-auto"
                   >
                     {stripeConnecting ? (
                       <>
@@ -844,7 +844,7 @@ export default function SettingsPage() {
         <div className="space-y-6">
           <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
             <h3 className="text-lg font-semibold text-[#0B1F33] mb-4 flex items-center gap-2">
-              <Bell className="w-5 h-5 text-[#246EB9]" />
+              <Bell className="w-5 h-5 text-[#2F6FED]" />
               Notification Preferences
             </h3>
             <div className="space-y-4">
@@ -861,7 +861,7 @@ export default function SettingsPage() {
                   </div>
                   <label className="relative inline-block w-11 h-6 cursor-pointer">
                     <input type="checkbox" defaultChecked className="sr-only peer" />
-                    <div className="w-11 h-6 bg-[#E6EEF6] peer-checked:bg-[#246EB9] rounded-full transition-colors" />
+                    <div className="w-11 h-6 bg-[#E6EEF6] peer-checked:bg-[#2F6FED] rounded-full transition-colors" />
                     <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow peer-checked:translate-x-5 transition-transform" />
                   </label>
                 </div>
@@ -916,7 +916,7 @@ export default function SettingsPage() {
           {/* ID Photo Upload */}
           <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
             <h3 className="text-lg font-semibold text-[#0B1F33] mb-1 flex items-center gap-2">
-              <Camera className="w-5 h-5 text-[#246EB9]" />
+              <Camera className="w-5 h-5 text-[#2F6FED]" />
               Government ID Photo
             </h3>
             <p className="text-xs text-[#6B7C8F] mb-4">
@@ -949,7 +949,7 @@ export default function SettingsPage() {
             )}
 
             {/* Upload button */}
-            <label className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#246EB9] text-white rounded-xl text-sm font-semibold hover:bg-[#1a6dd4] transition cursor-pointer">
+            <label className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#2F6FED] text-white rounded-xl text-sm font-semibold hover:bg-[#2158C7] transition cursor-pointer">
               {uploadingId ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" /> Uploading...
@@ -973,7 +973,7 @@ export default function SettingsPage() {
           {isOperator && (
             <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
               <h3 className="text-lg font-semibold text-[#0B1F33] mb-1 flex items-center gap-2">
-                <GraduationCap className="w-5 h-5 text-[#246EB9]" />
+                <GraduationCap className="w-5 h-5 text-[#2F6FED]" />
                 Student Transcript / Report Card
               </h3>
               <p className="text-xs text-[#6B7C8F] mb-4">
@@ -1002,7 +1002,7 @@ export default function SettingsPage() {
                       href={studentTranscriptUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-sm text-[#246EB9] hover:underline"
+                      className="inline-flex items-center gap-2 text-sm text-[#2F6FED] hover:underline"
                     >
                       <ExternalLink className="w-4 h-4" /> View uploaded transcript
                     </a>
@@ -1015,7 +1015,7 @@ export default function SettingsPage() {
               )}
 
               {/* Upload button */}
-              <label className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#246EB9] text-white rounded-xl text-sm font-semibold hover:bg-[#1a6dd4] transition cursor-pointer">
+              <label className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#2F6FED] text-white rounded-xl text-sm font-semibold hover:bg-[#2158C7] transition cursor-pointer">
                 {uploadingTranscript ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" /> Uploading...
@@ -1044,7 +1044,7 @@ export default function SettingsPage() {
           {/* Business Identity */}
           <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
             <h3 className="text-lg font-semibold text-[#0B1F33] mb-4 flex items-center gap-2">
-              <Briefcase className="w-5 h-5 text-[#246EB9]" />
+              <Briefcase className="w-5 h-5 text-[#2F6FED]" />
               Business Identity
             </h3>
 
@@ -1060,7 +1060,7 @@ export default function SettingsPage() {
               <div>
                 <p className="text-sm font-medium text-[#0B1F33]">Business Logo</p>
                 <p className="text-xs text-[#6B7C8F] mb-2">Displayed on your profile and invoices</p>
-                <label className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#246EB9]/10 text-[#246EB9] rounded-lg text-xs font-semibold cursor-pointer hover:bg-[#246EB9]/20 transition">
+                <label className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#2F6FED]/10 text-[#2F6FED] rounded-lg text-xs font-semibold cursor-pointer hover:bg-[#2F6FED]/20 transition">
                   {uploadingLogo ? (
                     <><Loader2 className="w-3 h-3 animate-spin" /> Uploading...</>
                   ) : (
@@ -1081,7 +1081,7 @@ export default function SettingsPage() {
                   onChange={(e) => setBrandingTagline(e.target.value)}
                   placeholder="e.g. Fast & Reliable Snow Removal"
                   maxLength={80}
-                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl focus:ring-2 focus:ring-[#246EB9]/30 focus:border-[#246EB9] outline-none text-sm"
+                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl focus:ring-2 focus:ring-[#2F6FED]/30 focus:border-[#2F6FED] outline-none text-sm"
                 />
                 <p className="text-xs text-[#6B7C8F] mt-1">{brandingTagline.length}/80 characters</p>
               </div>
@@ -1094,7 +1094,7 @@ export default function SettingsPage() {
                   placeholder="Tell clients about your experience, services, and what makes you stand out..."
                   rows={4}
                   maxLength={500}
-                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl focus:ring-2 focus:ring-[#246EB9]/30 focus:border-[#246EB9] outline-none text-sm resize-none"
+                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl focus:ring-2 focus:ring-[#2F6FED]/30 focus:border-[#2F6FED] outline-none text-sm resize-none"
                 />
                 <p className="text-xs text-[#6B7C8F] mt-1">{brandingDescription.length}/500 characters</p>
               </div>
@@ -1102,7 +1102,7 @@ export default function SettingsPage() {
               <button
                 onClick={saveBranding}
                 disabled={saving}
-                className="flex items-center gap-2 px-5 py-2.5 bg-[#246EB9] text-white rounded-xl text-sm font-semibold hover:bg-[#1a6dd4] transition disabled:opacity-50"
+                className="flex items-center gap-2 px-5 py-2.5 bg-[#2F6FED] text-white rounded-xl text-sm font-semibold hover:bg-[#2158C7] transition disabled:opacity-50"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Save Changes
@@ -1113,7 +1113,7 @@ export default function SettingsPage() {
           {/* Work Portfolio */}
           <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
             <h3 className="text-lg font-semibold text-[#0B1F33] mb-1 flex items-center gap-2">
-              <ImagePlus className="w-5 h-5 text-[#246EB9]" />
+              <ImagePlus className="w-5 h-5 text-[#2F6FED]" />
               Work Portfolio
             </h3>
             <p className="text-xs text-[#6B7C8F] mb-4">
@@ -1149,7 +1149,7 @@ export default function SettingsPage() {
               </div>
             )}
 
-            <label className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#246EB9] text-white rounded-xl text-sm font-semibold hover:bg-[#1a6dd4] transition cursor-pointer disabled:opacity-50">
+            <label className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#2F6FED] text-white rounded-xl text-sm font-semibold hover:bg-[#2158C7] transition cursor-pointer disabled:opacity-50">
               {uploadingPortfolio ? (
                 <><Loader2 className="w-4 h-4 animate-spin" /> Uploading...</>
               ) : (

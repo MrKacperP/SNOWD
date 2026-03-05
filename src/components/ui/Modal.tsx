@@ -18,8 +18,8 @@ interface ModalProps {
 
 const variantStyles = {
   default: {
-    iconBg: "bg-[#246EB9]/10",
-    iconColor: "text-[#246EB9]",
+    iconBg: "bg-[#2F6FED]/10",
+    iconColor: "text-[#2F6FED]",
     accentGlow: "rgba(36, 110, 185, 0.15)",
   },
   danger: {
@@ -111,7 +111,7 @@ export default function Modal({
                   ? "bg-red-500"
                   : variant === "success"
                   ? "bg-emerald-500"
-                  : "bg-[#246EB9]"
+                  : "bg-[#2F6FED]"
               }`}
             />
 

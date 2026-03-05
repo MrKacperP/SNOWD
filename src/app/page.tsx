@@ -102,7 +102,7 @@ function SnowBG() {
       {flakes.map((f) => (
         <motion.div
           key={f.id}
-          className="absolute text-[#246EB9]"
+          className="absolute text-[var(--accent)]"
           style={{ left: `${f.left}%`, top: -20 }}
           animate={{ y: ["0vh", "110vh"], rotate: [0, 360] }}
           transition={{
@@ -147,7 +147,7 @@ function JobProgressWidget() {
   return (
     <div
       ref={ref}
-      className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm w-full max-w-md mx-auto"
+      className="bg-[var(--card)] rounded-2xl p-6 border border-[var(--border)] shadow-[0_12px_28px_rgba(15,23,42,0.08)] w-full max-w-md mx-auto"
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
@@ -161,7 +161,7 @@ function JobProgressWidget() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="px-2.5 py-0.5 text-[10px] font-semibold bg-[#246EB9]/10 text-[#246EB9] rounded-full"
+              className="px-2.5 py-0.5 text-[10px] font-semibold bg-[var(--accent-soft)] text-[var(--accent)] rounded-full"
             >
               {steps[active].label}
             </motion.span>
@@ -176,7 +176,7 @@ function JobProgressWidget() {
             <motion.div
               animate={{
                 scale: i === active ? 1.18 : 1,
-                backgroundColor: i <= active ? "#246EB9" : "#f3f4f6",
+                backgroundColor: i <= active ? "var(--accent)" : "#f3f4f6",
               }}
               transition={{ type: "spring", stiffness: 500, damping: 30 }}
               className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
@@ -192,7 +192,7 @@ function JobProgressWidget() {
                 <motion.div
                   animate={{ width: i < active ? "100%" : "0%" }}
                   transition={{ duration: 0.4, ease: "easeOut" }}
-                  className="h-full bg-[#246EB9] rounded-full"
+                  className="h-full bg-[var(--accent)] rounded-full"
                 />
               </div>
             )}
@@ -250,18 +250,18 @@ function ChatWidget() {
   return (
     <div
       ref={ref}
-      className="bg-white rounded-2xl border border-gray-100 shadow-sm w-full max-w-sm mx-auto overflow-hidden"
+      className="bg-[var(--card)] rounded-2xl border border-[var(--border)] shadow-[0_12px_28px_rgba(15,23,42,0.08)] w-full max-w-sm mx-auto overflow-hidden"
     >
       {/* Header */}
-      <div className="flex items-center gap-2.5 px-5 py-3 border-b border-gray-100">
-        <div className="w-8 h-8 bg-[#246EB9] rounded-full flex items-center justify-center text-white text-xs font-bold">
+      <div className="flex items-center gap-2.5 px-5 py-3 border-b border-[var(--border)]">
+        <div className="w-8 h-8 bg-[var(--accent)] rounded-full flex items-center justify-center text-white text-xs font-bold">
           J
         </div>
         <div>
           <p className="text-sm font-semibold text-gray-900 font-headline">
             Jake
           </p>
-          <p className="text-[10px] text-green-500 font-medium">● Online</p>
+          <p className="text-[10px] text-emerald-500 font-medium">● Online</p>
         </div>
       </div>
 
@@ -283,7 +283,7 @@ function ChatWidget() {
               }`}
             >
               {m.from === "system" ? (
-                <span className="bg-[#246EB9]/8 text-[#246EB9] border border-[#246EB9]/15 px-2.5 py-1 rounded-full text-[10px] font-medium">
+                <span className="bg-[var(--accent-soft)] text-[var(--accent)] border border-[rgba(47,111,237,0.2)] px-2.5 py-1 rounded-full text-[10px] font-medium">
                   <Clock className="w-3 h-3 inline mr-1" />
                   {m.text}
                 </span>
@@ -291,8 +291,8 @@ function ChatWidget() {
                 <div
                   className={`px-3 py-2 rounded-2xl text-xs max-w-[80%] ${
                     m.from === "client"
-                      ? "bg-[#246EB9] text-white rounded-br-sm"
-                      : "bg-gray-100 text-gray-800 rounded-bl-sm"
+                      ? "bg-[var(--accent)] text-white rounded-br-sm"
+                      : "bg-[var(--bg-secondary)] text-[var(--text-secondary)] rounded-bl-sm"
                   }`}
                 >
                   {m.text}
@@ -307,7 +307,7 @@ function ChatWidget() {
             transition={{ repeat: Infinity, duration: 1 }}
             className="flex justify-start"
           >
-            <div className="bg-gray-100 px-3 py-2 rounded-2xl rounded-bl-sm text-xs text-gray-400">
+            <div className="bg-[var(--bg-secondary)] px-3 py-2 rounded-2xl rounded-bl-sm text-xs text-[var(--text-muted)]">
               ···
             </div>
           </motion.div>
@@ -316,10 +316,10 @@ function ChatWidget() {
 
       {/* Input */}
       <div className="px-4 pb-4 flex items-center gap-2">
-        <div className="flex-1 text-[10px] px-3 py-2 bg-gray-50 rounded-xl border border-gray-200 text-gray-400">
+        <div className="flex-1 text-[10px] px-3 py-2 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border)] text-[var(--text-muted)]">
           Message…
         </div>
-        <div className="w-7 h-7 bg-[#246EB9] rounded-xl flex items-center justify-center">
+        <div className="w-7 h-7 bg-[var(--accent)] rounded-xl flex items-center justify-center">
           <Send className="w-3 h-3 text-white" />
         </div>
       </div>
@@ -377,7 +377,7 @@ function OperatorWidget() {
   return (
     <div
       ref={ref}
-      className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm w-full max-w-sm mx-auto"
+      className="bg-[var(--card)] rounded-2xl p-5 border border-[var(--border)] shadow-[0_12px_28px_rgba(15,23,42,0.08)] w-full max-w-sm mx-auto"
     >
       <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">
         Nearby operators
@@ -388,7 +388,7 @@ function OperatorWidget() {
             key={i}
             animate={{
               scale: i === selected ? 1.02 : 1,
-              borderColor: i === selected ? "#246EB9" : "#f3f4f6",
+              borderColor: i === selected ? "var(--accent)" : "#f3f4f6",
             }}
             transition={{ type: "spring", stiffness: 400, damping: 25 }}
             className="flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer"
@@ -397,8 +397,8 @@ function OperatorWidget() {
             <motion.div
               animate={{
                 backgroundColor:
-                  i === selected ? "#246EB9" : "rgba(36,110,185,0.1)",
-                color: i === selected ? "#ffffff" : "#246EB9",
+                  i === selected ? "var(--accent)" : "var(--accent-soft)",
+                color: i === selected ? "#ffffff" : "var(--accent)",
               }}
               className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shrink-0"
             >
@@ -444,7 +444,7 @@ function OperatorWidget() {
           <motion.button
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
-            className="w-full py-2.5 bg-[#246EB9] text-white text-sm font-semibold rounded-xl"
+            className="w-full py-2.5 bg-[var(--accent)] text-white text-sm font-semibold rounded-xl shadow-[0_10px_20px_rgba(47,111,237,0.25)]"
           >
             Book {ops[selected].name}
           </motion.button>
@@ -467,8 +467,8 @@ function PaymentWidget() {
       {
         icon: CreditCard,
         label: "Card",
-        color: "text-[#246EB9]",
-        bg: "bg-[#246EB9]/8",
+        color: "text-[var(--accent)]",
+        bg: "bg-[var(--accent-soft)]",
       },
       {
         icon: DollarSign,
@@ -508,7 +508,7 @@ function PaymentWidget() {
   return (
     <div
       ref={ref}
-      className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm w-full max-w-xs mx-auto"
+      className="bg-[var(--card)] rounded-2xl p-6 border border-[var(--border)] shadow-[0_12px_28px_rgba(15,23,42,0.08)] w-full max-w-xs mx-auto"
     >
       <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
         Payment
@@ -523,7 +523,7 @@ function PaymentWidget() {
             animate={{
               scale: i === selected && !paid ? 1.05 : 1,
               borderColor:
-                i === selected && !paid ? "#246EB9" : "#f3f4f6",
+                i === selected && !paid ? "var(--accent)" : "#f3f4f6",
             }}
             transition={{ type: "spring", stiffness: 400, damping: 25 }}
             className="flex-1 p-3 rounded-xl border-2 flex flex-col items-center gap-1.5 cursor-pointer"
@@ -550,7 +550,7 @@ function PaymentWidget() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0 }}
-            className="w-full py-2.5 bg-green-500 text-white text-sm font-semibold rounded-xl flex items-center justify-center gap-2"
+            className="w-full py-2.5 bg-emerald-500 text-white text-sm font-semibold rounded-xl flex items-center justify-center gap-2"
           >
             <CheckCircle className="w-4 h-4" /> Paid!
           </motion.div>
@@ -562,7 +562,7 @@ function PaymentWidget() {
             exit={{ opacity: 0 }}
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
-            className="w-full py-2.5 bg-[#246EB9] text-white text-sm font-semibold rounded-xl"
+            className="w-full py-2.5 bg-[var(--accent)] text-white text-sm font-semibold rounded-xl shadow-[0_10px_20px_rgba(47,111,237,0.25)]"
           >
             Pay now
           </motion.button>
@@ -594,8 +594,8 @@ function Btn({
         href={href}
         className={`inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl font-semibold text-base transition ${
           variant === "primary"
-            ? "bg-[#246EB9] text-white hover:bg-[#1B5A9A] shadow-lg shadow-[#246EB9]/20"
-            : "border-2 border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50"
+            ? "bg-[var(--accent)] text-white hover:bg-[var(--accent-dark)] shadow-lg shadow-[rgba(47,111,237,0.22)]"
+            : "border-2 border-[var(--border)] text-[var(--text-secondary)] hover:border-[rgba(47,111,237,0.35)] hover:bg-[var(--bg-secondary)]"
         } ${className}`}
       >
         {children}
@@ -609,7 +609,12 @@ function Btn({
    ══════════════════════════════════════════════════════════════════════ */
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-white relative overflow-x-hidden">
+    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] relative overflow-x-hidden">
+      <div className="absolute inset-0 -z-10">
+        <div className="absolute -top-32 left-8 h-64 w-64 rounded-full bg-[rgba(47,111,237,0.16)] blur-[90px]" />
+        <div className="absolute top-24 right-8 h-72 w-72 rounded-full bg-[rgba(255,184,77,0.18)] blur-[100px]" />
+        <div className="absolute inset-0 opacity-[0.25]" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, rgba(47,111,237,0.25) 1px, transparent 0)", backgroundSize: "28px 28px" }} />
+      </div>
       <SnowBG />
 
       {/* ── NAV ──────────────────────────────────────────────────── */}
@@ -617,7 +622,7 @@ export default function LandingPage() {
         initial={{ y: -80, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className="fixed top-0 inset-x-0 bg-white/85 backdrop-blur-md z-50 border-b border-gray-100"
+        className="fixed top-0 inset-x-0 bg-[var(--card)]/85 backdrop-blur-md z-50 border-b border-[var(--border)] shadow-sm"
       >
         <div className="max-w-6xl mx-auto px-5 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
@@ -625,17 +630,17 @@ export default function LandingPage() {
               whileHover={{ rotate: 180 }}
               transition={{ duration: 0.5 }}
             >
-              <Snowflake className="w-7 h-7 text-[#246EB9]" />
+              <Snowflake className="w-7 h-7 text-[var(--accent)]" />
             </motion.div>
-            <span className="text-xl font-bold text-[#246EB9] font-headline">
+            <span className="text-xl font-bold text-[var(--accent)] font-headline">
               snowd
             </span>
-            <span className="text-xl font-light text-gray-400">.ca</span>
+            <span className="text-xl font-light text-[var(--text-muted)]">.ca</span>
           </Link>
           <div className="flex items-center gap-3">
             <Link
               href="/login"
-              className="hidden sm:block px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition"
+              className="hidden sm:block px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition"
             >
               Sign In
             </Link>
@@ -645,7 +650,7 @@ export default function LandingPage() {
             >
               <Link
                 href="/signup"
-                className="px-5 py-2.5 text-sm font-semibold bg-[#246EB9] text-white rounded-xl hover:bg-[#1B5A9A] transition shadow-sm shadow-[#246EB9]/20"
+                className="px-5 py-2.5 text-sm font-semibold bg-[var(--accent)] text-white rounded-xl hover:bg-[var(--accent-dark)] transition shadow-sm shadow-[rgba(47,111,237,0.25)]"
               >
                 Get Started
               </Link>
@@ -661,29 +666,29 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 bg-[#246EB9]/8 border border-[#246EB9]/20 text-[#246EB9] rounded-full text-sm font-medium mb-8"
+            className="inline-flex items-center gap-2 px-4 py-1.5 bg-[var(--accent-soft)] border border-[rgba(47,111,237,0.2)] text-[var(--accent)] rounded-full text-sm font-medium mb-8"
           >
-            <Snowflake className="w-3.5 h-3.5" /> Built for Canadian winters
+            <Snowflake className="w-3.5 h-3.5" /> Built for student earners
           </motion.div>
 
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3, duration: 0.65 }}
-            className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold text-gray-900 leading-[1.02] tracking-tight font-headline"
+            className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold text-[var(--text-primary)] leading-[1.02] tracking-tight font-headline"
           >
-            Snow removal,
+            Turn snow days
             <br />
-            <span className="text-[#246EB9]">simplified.</span>
+            <span className="text-[var(--accent)]">into paid days.</span>
           </motion.h1>
 
           <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
-            className="mt-6 text-lg md:text-xl text-gray-400 max-w-md mx-auto"
+            className="mt-6 text-lg md:text-xl text-[var(--text-secondary)] max-w-xl mx-auto"
           >
-            Connect with local operators in minutes.
+            Students help neighbors clear snow, earn fast, and build trust locally — all from one app.
           </motion.p>
 
           <motion.div
@@ -693,10 +698,10 @@ export default function LandingPage() {
             className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-10"
           >
             <Btn href="/signup">
-              Get Started Free <ArrowRight className="w-4 h-4" />
+              Find a Job Nearby <ArrowRight className="w-4 h-4" />
             </Btn>
             <Btn href="/signup" variant="outline">
-              <Truck className="w-4 h-4" /> I&apos;m an Operator
+              <Truck className="w-4 h-4" /> I Need Snow Cleared
             </Btn>
           </motion.div>
 
@@ -704,16 +709,16 @@ export default function LandingPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.85 }}
-            className="flex flex-wrap items-center justify-center gap-6 mt-10 text-sm text-gray-400"
+            className="flex flex-wrap items-center justify-center gap-6 mt-10 text-sm text-[var(--text-muted)]"
           >
             <span className="flex items-center gap-1.5">
-              <MapPin className="w-4 h-4" /> All provinces
+              <MapPin className="w-4 h-4" /> Nearby jobs
             </span>
             <span className="flex items-center gap-1.5">
-              <Shield className="w-4 h-4" /> Verified profiles
+              <Shield className="w-4 h-4" /> Verified neighbors
             </span>
             <span className="flex items-center gap-1.5">
-              <Lock className="w-4 h-4" /> Secure payments
+              <Lock className="w-4 h-4" /> Secure payouts
             </span>
           </motion.div>
         </div>
@@ -723,11 +728,11 @@ export default function LandingPage() {
       <section className="py-16 md:py-24 px-5">
         <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
           <FadeUp>
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 font-headline leading-tight">
-              Track every step
+            <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] font-headline leading-tight">
+              Know what&apos;s happening
             </h2>
-            <p className="text-gray-400 mt-3 max-w-sm text-lg">
-              Watch your job progress in real time — from request to completion.
+            <p className="text-[var(--text-secondary)] mt-3 max-w-sm text-lg">
+              Students and neighbors stay in sync from request to completion.
             </p>
           </FadeUp>
           <FadeUp delay={0.15}>
@@ -737,14 +742,14 @@ export default function LandingPage() {
       </section>
 
       {/* ── WIDGET: Live Chat ────────────────────────────────────── */}
-      <section className="py-16 md:py-24 px-5 bg-gray-50">
+      <section className="py-16 md:py-24 px-5 bg-[var(--bg-secondary)]">
         <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
           <FadeUp className="md:order-2">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 font-headline leading-tight">
-              Chat in real time
+            <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] font-headline leading-tight">
+              Quick, friendly chat
             </h2>
-            <p className="text-gray-400 mt-3 max-w-sm text-lg">
-              Message your operator and get live ETA updates — all in-app.
+            <p className="text-[var(--text-secondary)] mt-3 max-w-sm text-lg">
+              Confirm details, swap photos, and get live ETA updates.
             </p>
           </FadeUp>
           <FadeUp delay={0.15} className="md:order-1">
@@ -757,11 +762,11 @@ export default function LandingPage() {
       <section className="py-16 md:py-24 px-5">
         <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
           <FadeUp>
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 font-headline leading-tight">
-              Find your operator
+            <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] font-headline leading-tight">
+              Choose the right helper
             </h2>
-            <p className="text-gray-400 mt-3 max-w-sm text-lg">
-              Browse verified locals — from pro plows to students with shovels.
+            <p className="text-[var(--text-secondary)] mt-3 max-w-sm text-lg">
+              Browse verified locals — including students who live nearby.
             </p>
           </FadeUp>
           <FadeUp delay={0.15}>
@@ -771,14 +776,14 @@ export default function LandingPage() {
       </section>
 
       {/* ── WIDGET: Payment ──────────────────────────────────────── */}
-      <section className="py-16 md:py-24 px-5 bg-gray-50">
+      <section className="py-16 md:py-24 px-5 bg-[var(--bg-secondary)]">
         <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
           <FadeUp className="md:order-2">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 font-headline leading-tight">
-              Pay your way
+            <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] font-headline leading-tight">
+              Get paid fast
             </h2>
-            <p className="text-gray-400 mt-3 max-w-sm text-lg">
-              Cash, card, or e-Transfer. Whatever works for you.
+            <p className="text-[var(--text-secondary)] mt-3 max-w-sm text-lg">
+              Safe, secure payments with clear payout tracking.
             </p>
           </FadeUp>
           <FadeUp delay={0.15} className="md:order-1">
@@ -788,13 +793,13 @@ export default function LandingPage() {
       </section>
 
       {/* ── STATS ────────────────────────────────────────────────── */}
-      <section className="py-14 px-5 bg-[#246EB9]">
+      <section className="py-14 px-5 bg-[var(--accent)]">
         <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 text-center text-white">
           {[
             { val: 500, sfx: "+", lbl: "Jobs Done" },
-            { val: 150, sfx: "+", lbl: "Operators" },
-            { val: 98, sfx: "%", lbl: "Satisfaction" },
-            { val: 5, sfx: " min", lbl: "Avg. Match" },
+            { val: 120, sfx: "+", lbl: "Student Helpers" },
+            { val: 4, sfx: " min", lbl: "Avg. Match" },
+            { val: 98, sfx: "%", lbl: "Happy Neighbors" },
           ].map((s, i) => (
             <FadeUp key={i} delay={i * 0.1} className="flex flex-col items-center">
               <span className="text-3xl md:text-4xl font-bold font-headline">
@@ -809,7 +814,7 @@ export default function LandingPage() {
       {/* ── CTA ──────────────────────────────────────────────────── */}
       <section className="py-20 md:py-28 px-5">
         <FadeUp className="max-w-4xl mx-auto">
-          <div className="bg-[#246EB9] rounded-3xl p-10 md:p-16 text-center text-white relative overflow-hidden">
+          <div className="bg-[var(--accent)] rounded-3xl p-10 md:p-16 text-center text-white relative overflow-hidden shadow-[0_30px_60px_rgba(47,111,237,0.3)]">
             <motion.div
               className="absolute top-6 right-10 opacity-10"
               animate={{ rotate: 360 }}
@@ -835,10 +840,10 @@ export default function LandingPage() {
 
             <div className="relative z-10">
               <h2 className="text-3xl md:text-5xl font-bold mb-4 font-headline">
-                Ready to get started?
+                Join the neighborhood snow crew
               </h2>
-              <p className="text-white/60 text-lg mb-10 max-w-md mx-auto">
-                Join snowd.ca — it&apos;s free.
+              <p className="text-white/70 text-lg mb-10 max-w-md mx-auto">
+                Perfect for students — flexible hours, clear payouts, and real neighbors.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                 <motion.div
@@ -847,9 +852,9 @@ export default function LandingPage() {
                 >
                   <Link
                     href="/signup"
-                    className="inline-flex items-center gap-2 px-8 py-4 bg-white text-[#246EB9] rounded-xl font-semibold text-lg hover:bg-gray-100 transition shadow-lg"
+                    className="inline-flex items-center gap-2 px-8 py-4 bg-white text-[var(--accent)] rounded-xl font-semibold text-lg hover:bg-[var(--bg-secondary)] transition shadow-lg"
                   >
-                    Sign Up Free <ChevronRight className="w-5 h-5" />
+                    Get Started Free <ChevronRight className="w-5 h-5" />
                   </Link>
                 </motion.div>
                 <motion.div
@@ -860,7 +865,7 @@ export default function LandingPage() {
                     href="/login"
                     className="inline-flex items-center px-8 py-4 border-2 border-white/30 text-white rounded-xl font-semibold text-lg hover:bg-white/10 transition"
                   >
-                    I have an account
+                    I already have an account
                   </Link>
                 </motion.div>
               </div>
@@ -870,26 +875,26 @@ export default function LandingPage() {
       </section>
 
       {/* ── FOOTER ───────────────────────────────────────────────── */}
-      <footer className="border-t border-gray-100 py-8 px-5 bg-white relative z-10">
+      <footer className="border-t border-[var(--border)] py-8 px-5 bg-[var(--card)] relative z-10">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <Snowflake className="w-5 h-5 text-[#246EB9]" />
-            <span className="font-bold text-[#246EB9] font-headline">
+            <Snowflake className="w-5 h-5 text-[var(--accent)]" />
+            <span className="font-bold text-[var(--accent)] font-headline">
               snowd
             </span>
-            <span className="font-light text-gray-400">.ca</span>
+            <span className="font-light text-[var(--text-muted)]">.ca</span>
           </div>
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-[var(--text-muted)]">
             &copy; 2026 snowd.ca &mdash; Made in Canada
           </p>
-          <div className="flex items-center gap-5 text-sm text-gray-400">
-            <Link href="#" className="hover:text-gray-700 transition">
+          <div className="flex items-center gap-5 text-sm text-[var(--text-muted)]">
+            <Link href="#" className="hover:text-[var(--text-primary)] transition">
               Privacy
             </Link>
-            <Link href="#" className="hover:text-gray-700 transition">
+            <Link href="#" className="hover:text-[var(--text-primary)] transition">
               Terms
             </Link>
-            <Link href="#" className="hover:text-gray-700 transition">
+            <Link href="#" className="hover:text-[var(--text-primary)] transition">
               Contact
             </Link>
           </div>

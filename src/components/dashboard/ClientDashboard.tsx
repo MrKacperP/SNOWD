@@ -65,14 +65,14 @@ function MiniCalendar() {
         {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d => <div key={d} className="py-1 text-gray-400 font-medium">{d}</div>)}
         {days.map((day, i) => (
           <div key={i} className={`py-1.5 rounded-lg text-xs ${
-            isToday(day) ? "bg-[#246EB9] text-white font-bold" :
+            isToday(day) ? "bg-[#2F6FED] text-white font-bold" :
             isSameMonth(day, currentMonth) ? "text-gray-900" : "text-gray-300"
           }`}>
             {format(day, "d")}
           </div>
         ))}
       </div>
-      <Link href="/dashboard/calendar" className="block text-center text-xs text-[#246EB9] font-medium mt-2 hover:underline">View Full Calendar</Link>
+      <Link href="/dashboard/calendar" className="block text-center text-xs text-[#2F6FED] font-medium mt-2 hover:underline">View Full Calendar</Link>
     </div>
   );
 }
@@ -220,7 +220,7 @@ export default function ClientDashboard() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-[#246EB9] rounded-2xl p-6 md:p-8 text-white shadow-lg relative overflow-hidden"
+        className="bg-[#2F6FED] rounded-2xl p-6 md:p-8 text-white shadow-lg relative overflow-hidden"
       >
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-4 right-8 text-6xl">❄️</div>
@@ -240,7 +240,7 @@ export default function ClientDashboard() {
         </div>
         <Link
           href="/dashboard/find"
-          className="inline-flex items-center gap-2 mt-5 px-6 py-3 bg-white text-[#246EB9] rounded-xl font-bold transition shadow-lg hover:shadow-xl hover:-translate-y-0.5 relative z-10"
+          className="inline-flex items-center gap-2 mt-5 px-6 py-3 bg-white text-[#2F6FED] rounded-xl font-bold transition shadow-lg hover:shadow-xl hover:-translate-y-0.5 relative z-10"
         >
           <Plus className="w-5 h-5" />
           Request Snow Removal
@@ -262,13 +262,13 @@ export default function ClientDashboard() {
                   {completedSetupCount} of {clientSetupSteps.length} steps done
                 </p>
               </div>
-              <span className="text-sm font-bold text-[#246EB9]">
+              <span className="text-sm font-bold text-[#2F6FED]">
                 {Math.round((completedSetupCount / clientSetupSteps.length) * 100)}%
               </span>
             </div>
             <div className="mt-3 h-2 bg-gray-100 rounded-full overflow-hidden">
               <motion.div
-                className="h-full bg-[#246EB9] rounded-full"
+                className="h-full bg-[#2F6FED] rounded-full"
                 initial={{ width: 0 }}
                 animate={{ width: `${(completedSetupCount / clientSetupSteps.length) * 100}%` }}
                 transition={{ duration: 0.8, ease: "easeOut" }}
@@ -283,7 +283,7 @@ export default function ClientDashboard() {
                 className={`flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition ${step.done ? "opacity-60" : ""}`}
               >
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                  step.done ? "bg-green-100 text-green-600" : "bg-[#246EB9]/10 text-[#246EB9]"
+                  step.done ? "bg-green-100 text-green-600" : "bg-[#2F6FED]/10 text-[#2F6FED]"
                 }`}>
                   {step.done ? <CheckCircle className="w-4 h-4" /> : step.icon}
                 </div>
@@ -309,7 +309,7 @@ export default function ClientDashboard() {
       {/* Stats Row — Clickable */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { icon: Clock, label: "Active Jobs", value: activeJobs.length, color: "text-[#246EB9]", bg: "bg-[#246EB9]/10", href: "/dashboard/log" },
+          { icon: Clock, label: "Active Jobs", value: activeJobs.length, color: "text-[#2F6FED]", bg: "bg-[#2F6FED]/10", href: "/dashboard/log" },
           { icon: CheckCircle2, label: "Completed", value: recentJobs.length, color: "text-green-600", bg: "bg-green-50", href: "/dashboard/log" },
           { icon: DollarSign, label: "Total Spent", value: `$${recentJobs.reduce((sum, j) => sum + (j.price || 0), 0)}`, color: "text-orange-500", bg: "bg-orange-50", href: "/dashboard/transactions" },
           { icon: TrendingUp, label: "Saved Ops", value: clientProfile?.savedOperators?.length || 0, color: "text-purple-600", bg: "bg-purple-50", href: "/dashboard/find" },
@@ -337,8 +337,8 @@ export default function ClientDashboard() {
           href="/dashboard/calendar"
           className="flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-100 hover-lift interactive-card"
         >
-          <div className="w-10 h-10 bg-[#246EB9]/10 rounded-xl flex items-center justify-center">
-            <CalendarDays className="w-5 h-5 text-[#246EB9]" />
+          <div className="w-10 h-10 bg-[#2F6FED]/10 rounded-xl flex items-center justify-center">
+            <CalendarDays className="w-5 h-5 text-[#2F6FED]" />
           </div>
           <div>
             <p className="text-sm font-semibold text-gray-900">Calendar</p>
@@ -363,7 +363,7 @@ export default function ClientDashboard() {
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
           <h2 className="font-semibold text-lg">Active Jobs</h2>
-          <Link href="/dashboard/log" className="text-sm text-[#246EB9] hover:underline font-medium">
+          <Link href="/dashboard/log" className="text-sm text-[#2F6FED] hover:underline font-medium">
             View All
           </Link>
         </div>
@@ -373,7 +373,7 @@ export default function ClientDashboard() {
           <div className="p-8 text-center">
             <Snowflake className="w-10 h-10 text-gray-300 mx-auto mb-3" />
             <p className="text-gray-500">No active jobs right now</p>
-            <Link href="/dashboard/find" className="inline-flex items-center gap-1 mt-3 text-sm text-[#246EB9] hover:underline">
+            <Link href="/dashboard/find" className="inline-flex items-center gap-1 mt-3 text-sm text-[#2F6FED] hover:underline">
               <Plus className="w-4 h-4" /> Find an operator
             </Link>
           </div>
@@ -384,7 +384,7 @@ export default function ClientDashboard() {
                 <Link href={`/dashboard/messages/${job.chatId}`} className="flex-1 flex items-center justify-between">
                   <div>
                     <div className="flex items-center gap-2 mb-0.5">
-                      <User className="w-4 h-4 text-[#246EB9]" />
+                      <User className="w-4 h-4 text-[#2F6FED]" />
                       <p className="font-semibold text-gray-900">{operatorNames[job.operatorId] || "Operator"}</p>
                     </div>
                     <p className="text-sm text-gray-700">{job.serviceTypes?.map((s) => s.replace("-", " ")).join(", ")}</p>
@@ -425,7 +425,7 @@ export default function ClientDashboard() {
             {recentJobs.map((job) => (
               <div key={job.id} className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition group">
                 <Link href={`/dashboard/u/${job.operatorId}`} className="flex-1 flex items-center gap-3">
-                  <div className="w-10 h-10 bg-[#246EB9]/10 rounded-full flex items-center justify-center text-[#246EB9] font-bold shrink-0">
+                  <div className="w-10 h-10 bg-[#2F6FED]/10 rounded-full flex items-center justify-center text-[#2F6FED] font-bold shrink-0">
                     {operatorNames[job.operatorId]?.charAt(0)?.toUpperCase() || "O"}
                   </div>
                   <div className="flex-1">
@@ -445,7 +445,7 @@ export default function ClientDashboard() {
                     <StatusBadge status="completed" />
                   </div>
                   <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Link href={`/dashboard/messages/${job.chatId}`} className="p-2 text-[#246EB9] hover:bg-[#246EB9]/10 rounded-lg transition" title="View chat">
+                    <Link href={`/dashboard/messages/${job.chatId}`} className="p-2 text-[#2F6FED] hover:bg-[#2F6FED]/10 rounded-lg transition" title="View chat">
                       <MessageCircle className="w-5 h-5" />
                     </Link>
                     <Link href="/dashboard/transactions" className="p-2 text-orange-500 hover:bg-orange-50 rounded-lg transition" title="View transaction">

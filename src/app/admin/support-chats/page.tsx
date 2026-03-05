@@ -184,7 +184,7 @@ export default function AdminSupportChatsPage() {
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Headphones className="w-6 h-6 text-[#246EB9]" />
+        <Headphones className="w-6 h-6 text-[#2F6FED]" />
         <h1 className="text-2xl font-bold">Support Chats</h1>
         {counts.open > 0 && (
           <span className="bg-green-100 text-green-700 text-xs font-semibold px-2.5 py-1 rounded-full">
@@ -220,7 +220,7 @@ export default function AdminSupportChatsPage() {
                   {selectedTicket.userId.replace("support_", "")}
                 </p>
                 {(selectedTicket as EnrichedTicket & { problemCategory?: string }).problemCategory && (
-                  <p className="text-xs text-[#246EB9] mt-1 font-medium capitalize">
+                  <p className="text-xs text-[#2F6FED] mt-1 font-medium capitalize">
                     Category: {(selectedTicket as EnrichedTicket & { problemCategory?: string }).problemCategory}
                   </p>
                 )}
@@ -273,13 +273,13 @@ export default function AdminSupportChatsPage() {
                     <div
                       className={`max-w-[75%] px-4 py-2.5 rounded-2xl ${
                         isAdmin
-                          ? "bg-[#246EB9] text-white rounded-br-md"
+                          ? "bg-[#2F6FED] text-white rounded-br-md"
                           : "bg-gray-100 text-gray-900 rounded-bl-md"
                       }`}
                     >
                       <p
                         className={`text-xs font-medium mb-0.5 ${
-                          isAdmin ? "text-white/70" : "text-[#246EB9]"
+                          isAdmin ? "text-white/70" : "text-[#2F6FED]"
                         }`}
                       >
                         {msg.senderName}
@@ -310,12 +310,12 @@ export default function AdminSupportChatsPage() {
                   e.key === "Enter" && !e.shiftKey && handleReply()
                 }
                 placeholder="Reply as SNOWD Support..."
-                className="flex-1 px-4 py-2.5 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#246EB9]/20"
+                className="flex-1 px-4 py-2.5 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2F6FED]/20"
               />
               <button
                 onClick={handleReply}
                 disabled={!adminReply.trim() || replying}
-                className="w-10 h-10 bg-[#246EB9] hover:bg-[#1B5A9A] disabled:opacity-50 text-white rounded-xl flex items-center justify-center transition"
+                className="w-10 h-10 bg-[#2F6FED] hover:bg-[#2158C7] disabled:opacity-50 text-white rounded-xl flex items-center justify-center transition"
               >
                 {replying ? (
                   <RefreshCw className="w-4 h-4 animate-spin" />
@@ -336,7 +336,7 @@ export default function AdminSupportChatsPage() {
                 onClick={() => setFilter(f)}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
                   filter === f
-                    ? "bg-white text-[#246EB9] shadow-sm"
+                    ? "bg-white text-[#2F6FED] shadow-sm"
                     : "text-gray-500 hover:text-gray-800"
                 }`}
               >
@@ -344,7 +344,7 @@ export default function AdminSupportChatsPage() {
                 <span
                   className={`px-1.5 py-0.5 rounded-full text-[10px] ${
                     filter === f
-                      ? "bg-[#246EB9]/10 text-[#246EB9]"
+                      ? "bg-[#2F6FED]/10 text-[#2F6FED]"
                       : "bg-gray-200 text-gray-500"
                   }`}
                 >
@@ -357,7 +357,7 @@ export default function AdminSupportChatsPage() {
           {/* Ticket list */}
           {loading ? (
             <div className="flex items-center justify-center py-16">
-              <RefreshCw className="w-6 h-6 text-[#246EB9] animate-spin" />
+              <RefreshCw className="w-6 h-6 text-[#2F6FED] animate-spin" />
             </div>
           ) : filtered.length === 0 ? (
             <div className="text-center py-16">

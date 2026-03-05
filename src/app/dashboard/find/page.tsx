@@ -355,7 +355,7 @@ export default function FindOperatorsPage() {
         </Link>
         <div className="flex-1">
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Search className="w-6 h-6 text-[#246EB9]" />
+            <Search className="w-6 h-6 text-[#2F6FED]" />
             Find Snow Removal Operators
           </h1>
           <p className="text-gray-500 mt-1">
@@ -380,7 +380,7 @@ export default function FindOperatorsPage() {
           onClick={() => setShowFilters(!showFilters)}
           className={`px-4 py-3 rounded-xl border transition flex items-center gap-2 ${
             showFilters
-              ? "bg-[#246EB9]/10 border-[#246EB9]/20 text-[#246EB9]"
+              ? "bg-[#2F6FED]/10 border-[#2F6FED]/20 text-[#2F6FED]"
               : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
           }`}
         >
@@ -434,11 +434,11 @@ export default function FindOperatorsPage() {
             </div>
             <div className="flex flex-col justify-end gap-2">
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={filterStudents} onChange={(e) => setFilterStudents(e.target.checked)} className="w-4 h-4 rounded text-[#246EB9]" />
+                <input type="checkbox" checked={filterStudents} onChange={(e) => setFilterStudents(e.target.checked)} className="w-4 h-4 rounded text-[#2F6FED]" />
                 <span className="text-xs text-gray-700">Students Only</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={filterVerified} onChange={(e) => setFilterVerified(e.target.checked)} className="w-4 h-4 rounded text-[#246EB9]" />
+                <input type="checkbox" checked={filterVerified} onChange={(e) => setFilterVerified(e.target.checked)} className="w-4 h-4 rounded text-[#2F6FED]" />
                 <span className="text-xs text-gray-700">ID Verified</span>
               </label>
             </div>
@@ -470,7 +470,7 @@ export default function FindOperatorsPage() {
               <div
                 key={op.uid}
                 className={`bg-white rounded-2xl border overflow-hidden hover:shadow-md transition ${
-                  op.uid === favoriteOperatorId ? "border-[#246EB9] shadow-sm" : "border-gray-100"
+                  op.uid === favoriteOperatorId ? "border-[#2F6FED] shadow-sm" : "border-gray-100"
                 }`}
               >
                 <div
@@ -479,7 +479,7 @@ export default function FindOperatorsPage() {
                 >
                   <div className="flex items-start gap-4">
                     {/* Avatar */}
-                    <div className="w-14 h-14 bg-[#246EB9]/20 rounded-xl flex items-center justify-center text-[#246EB9] font-bold text-xl shrink-0">
+                    <div className="w-14 h-14 bg-[#2F6FED]/20 rounded-xl flex items-center justify-center text-[#2F6FED] font-bold text-xl shrink-0">
                       {op.displayName?.charAt(0)?.toUpperCase()}
                     </div>
 
@@ -489,12 +489,12 @@ export default function FindOperatorsPage() {
                         <Link
                           href={`/dashboard/u/${op.uid}`}
                           onClick={(e) => e.stopPropagation()}
-                          className="font-semibold text-gray-900 hover:text-[#246EB9] hover:underline transition"
+                          className="font-semibold text-gray-900 hover:text-[#2F6FED] hover:underline transition"
                         >
                           {op.businessName || op.displayName}
                         </Link>
                         {op.uid === favoriteOperatorId && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#246EB9] text-white rounded-full text-xs font-medium">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#2F6FED] text-white rounded-full text-xs font-medium">
                             ⭐ Favorite
                           </span>
                         )}
@@ -547,7 +547,7 @@ export default function FindOperatorsPage() {
                         <Snowflake
                           className={`w-5 h-5 ${
                             op.uid === favoriteOperatorId
-                              ? "fill-[#246EB9] text-[#246EB9]"
+                              ? "fill-[#2F6FED] text-[#2F6FED]"
                               : "text-gray-400"
                           }`}
                         />
@@ -589,25 +589,25 @@ export default function FindOperatorsPage() {
                         {op.pricing?.driveway?.small != null && (
                           <div className="bg-gray-50 rounded-lg px-3 py-2 text-center">
                             <p className="text-xs text-gray-500">Small</p>
-                            <p className="font-bold text-[#246EB9]">${op.pricing.driveway.small}</p>
+                            <p className="font-bold text-[#2F6FED]">${op.pricing.driveway.small}</p>
                           </div>
                         )}
                         {op.pricing?.driveway?.medium != null && (
                           <div className="bg-gray-50 rounded-lg px-3 py-2 text-center">
                             <p className="text-xs text-gray-500">Medium</p>
-                            <p className="font-bold text-[#246EB9]">${op.pricing.driveway.medium}</p>
+                            <p className="font-bold text-[#2F6FED]">${op.pricing.driveway.medium}</p>
                           </div>
                         )}
                         {op.pricing?.driveway?.large != null && (
                           <div className="bg-gray-50 rounded-lg px-3 py-2 text-center">
                             <p className="text-xs text-gray-500">Large</p>
-                            <p className="font-bold text-[#246EB9]">${op.pricing.driveway.large}</p>
+                            <p className="font-bold text-[#2F6FED]">${op.pricing.driveway.large}</p>
                           </div>
                         )}
                         {op.pricing?.walkway != null && (
                           <div className="bg-gray-50 rounded-lg px-3 py-2 text-center">
                             <p className="text-xs text-gray-500">Walkway</p>
-                            <p className="font-bold text-[#246EB9]">${op.pricing.walkway}</p>
+                            <p className="font-bold text-[#2F6FED]">${op.pricing.walkway}</p>
                           </div>
                         )}
                       </div>
@@ -621,7 +621,7 @@ export default function FindOperatorsPage() {
                           {op.equipment.map((eq) => (
                             <span
                               key={eq}
-                              className="text-xs bg-[#246EB9]/20 text-[#246EB9] px-2.5 py-1 rounded-full font-medium"
+                              className="text-xs bg-[#2F6FED]/20 text-[#2F6FED] px-2.5 py-1 rounded-full font-medium"
                             >
                               {eq}
                             </span>
@@ -634,7 +634,7 @@ export default function FindOperatorsPage() {
                       <button
                         onClick={() => bookOperator(op)}
                         disabled={booking}
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#246EB9] hover:bg-[#1B5A9A] text-white rounded-xl font-semibold transition disabled:opacity-50 hover:shadow-lg hover:-translate-y-0.5"
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#2F6FED] hover:bg-[#2158C7] text-white rounded-xl font-semibold transition disabled:opacity-50 hover:shadow-lg hover:-translate-y-0.5"
                       >
                         <MessageSquare className="w-4 h-4" />
                         {booking ? "Booking..." : "Request & Chat"}
@@ -652,7 +652,7 @@ export default function FindOperatorsPage() {
       {schedulingOperator && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden">
-            <div className="bg-[#246EB9] p-5 text-white relative">
+            <div className="bg-[#2F6FED] p-5 text-white relative">
               <button
                 onClick={() => setSchedulingOperator(null)}
                 className="absolute top-3 right-3 p-1 rounded-lg hover:bg-white/20 transition"
@@ -671,12 +671,12 @@ export default function FindOperatorsPage() {
                   onClick={() => setScheduleType("asap")}
                   className={`flex flex-col items-center gap-1.5 p-4 rounded-xl border-2 transition ${
                     scheduleType === "asap"
-                      ? "border-[#246EB9] bg-[#246EB9]/5"
+                      ? "border-[#2F6FED] bg-[#2F6FED]/5"
                       : "border-gray-200 hover:border-gray-300"
                   }`}
                 >
-                  <Zap className={`w-5 h-5 ${scheduleType === "asap" ? "text-[#246EB9]" : "text-gray-400"}`} />
-                  <span className={`text-sm font-semibold ${scheduleType === "asap" ? "text-[#246EB9]" : "text-gray-600"}`}>
+                  <Zap className={`w-5 h-5 ${scheduleType === "asap" ? "text-[#2F6FED]" : "text-gray-400"}`} />
+                  <span className={`text-sm font-semibold ${scheduleType === "asap" ? "text-[#2F6FED]" : "text-gray-600"}`}>
                     ASAP
                   </span>
                   <span className="text-[10px] text-gray-400">As soon as possible</span>
@@ -685,12 +685,12 @@ export default function FindOperatorsPage() {
                   onClick={() => setScheduleType("scheduled")}
                   className={`flex flex-col items-center gap-1.5 p-4 rounded-xl border-2 transition ${
                     scheduleType === "scheduled"
-                      ? "border-[#246EB9] bg-[#246EB9]/5"
+                      ? "border-[#2F6FED] bg-[#2F6FED]/5"
                       : "border-gray-200 hover:border-gray-300"
                   }`}
                 >
-                  <CalendarDays className={`w-5 h-5 ${scheduleType === "scheduled" ? "text-[#246EB9]" : "text-gray-400"}`} />
-                  <span className={`text-sm font-semibold ${scheduleType === "scheduled" ? "text-[#246EB9]" : "text-gray-600"}`}>
+                  <CalendarDays className={`w-5 h-5 ${scheduleType === "scheduled" ? "text-[#2F6FED]" : "text-gray-400"}`} />
+                  <span className={`text-sm font-semibold ${scheduleType === "scheduled" ? "text-[#2F6FED]" : "text-gray-600"}`}>
                     Schedule
                   </span>
                   <span className="text-[10px] text-gray-400">Pick date & time</span>
@@ -708,7 +708,7 @@ export default function FindOperatorsPage() {
                       min={format(new Date(), "yyyy-MM-dd")}
                       max={format(addDays(new Date(), 30), "yyyy-MM-dd")}
                       onChange={(e) => setScheduledDate(e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#246EB9]/20 focus:border-[#246EB9]"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2F6FED]/20 focus:border-[#2F6FED]"
                     />
                   </div>
                   <div>
@@ -720,7 +720,7 @@ export default function FindOperatorsPage() {
                           onClick={() => setScheduledTime(t)}
                           className={`flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg border text-xs font-medium transition ${
                             scheduledTime === t
-                              ? "border-[#246EB9] bg-[#246EB9]/5 text-[#246EB9]"
+                              ? "border-[#2F6FED] bg-[#2F6FED]/5 text-[#2F6FED]"
                               : "border-gray-200 text-gray-500 hover:border-gray-300"
                           }`}
                         >
@@ -739,7 +739,7 @@ export default function FindOperatorsPage() {
               <button
                 onClick={confirmBooking}
                 disabled={booking}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-[#246EB9] hover:bg-[#1B5A9A] text-white rounded-xl font-semibold transition disabled:opacity-50 shadow-sm"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-[#2F6FED] hover:bg-[#2158C7] text-white rounded-xl font-semibold transition disabled:opacity-50 shadow-sm"
               >
                 <MessageSquare className="w-4 h-4" />
                 {booking ? "Booking..." : scheduleType === "asap" ? "Request Now" : "Schedule & Chat"}

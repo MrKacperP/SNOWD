@@ -313,7 +313,7 @@ export default function AdminActivityPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <Activity className="w-6 h-6 text-[#246EB9]" />
+          <Activity className="w-6 h-6 text-[#2F6FED]" />
           <h1 className="text-2xl font-bold">Activity Feed</h1>
           <span className="text-sm text-gray-400">
             {events.length} events loaded
@@ -327,7 +327,7 @@ export default function AdminActivityPage() {
             onClick={() => setAutoRefresh((v) => !v)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition ${
               autoRefresh
-                ? "bg-[#246EB9] text-white border-[#246EB9]"
+                ? "bg-[#2F6FED] text-white border-[#2F6FED]"
                 : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
             }`}
           >
@@ -351,7 +351,7 @@ export default function AdminActivityPage() {
           { label: "Page Visits Today", value: todayStats.visits, icon: <Eye className="w-5 h-5" />, color: "bg-blue-50 text-blue-600" },
           { label: "New Sign Ups Today", value: todayStats.signups, icon: <UserPlus className="w-5 h-5" />, color: "bg-green-50 text-green-600" },
           { label: "Other Actions Today", value: todayStats.actions, icon: <TrendingUp className="w-5 h-5" />, color: "bg-purple-50 text-purple-600" },
-          { label: "Total Events Today", value: todayStats.total, icon: <Activity className="w-5 h-5" />, color: "bg-[#246EB9]/5 text-[#246EB9]" },
+          { label: "Total Events Today", value: todayStats.total, icon: <Activity className="w-5 h-5" />, color: "bg-[#2F6FED]/5 text-[#2F6FED]" },
         ].map((s, i) => (
           <div key={i} className="bg-white rounded-xl border border-gray-100 p-4">
             <div className={`w-9 h-9 ${s.color} rounded-xl flex items-center justify-center mb-2`}>
@@ -376,7 +376,7 @@ export default function AdminActivityPage() {
                 placeholder="Search by user, path, message..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#246EB9]/20 focus:border-[#246EB9]/40"
+                className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2F6FED]/20 focus:border-[#2F6FED]/40"
               />
             </div>
 
@@ -388,7 +388,7 @@ export default function AdminActivityPage() {
                   onClick={() => setFilter(key as AdminNotifType | "all")}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition shrink-0 ${
                     filter === key
-                      ? "bg-[#246EB9] text-white"
+                      ? "bg-[#2F6FED] text-white"
                       : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                   }`}
                 >
@@ -415,7 +415,7 @@ export default function AdminActivityPage() {
               <p className="font-medium">No events match your filters</p>
               <button
                 onClick={() => { setFilter("all"); setSearch(""); }}
-                className="mt-2 text-sm text-[#246EB9] hover:underline"
+                className="mt-2 text-sm text-[#2F6FED] hover:underline"
               >
                 Clear filters
               </button>
@@ -458,7 +458,7 @@ export default function AdminActivityPage() {
             <button
               onClick={() => fetchEvents(false)}
               disabled={loadingMore}
-              className="w-full py-3 text-sm text-[#246EB9] font-medium border border-[#246EB9]/20 rounded-xl hover:bg-[#246EB9]/5 transition disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-3 text-sm text-[#2F6FED] font-medium border border-[#2F6FED]/20 rounded-xl hover:bg-[#2F6FED]/5 transition disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loadingMore ? (
                 <>
@@ -478,7 +478,7 @@ export default function AdminActivityPage() {
           {/* Top pages */}
           <div className="bg-white rounded-2xl border border-gray-100 p-4">
             <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-[#246EB9]" /> Top Pages
+              <MapPin className="w-4 h-4 text-[#2F6FED]" /> Top Pages
             </h3>
             {topPages.length === 0 ? (
               <p className="text-xs text-gray-400">No visit data yet</p>
@@ -490,7 +490,7 @@ export default function AdminActivityPage() {
                       <p className="text-xs font-medium text-gray-700 truncate">{path}</p>
                       <div className="h-1.5 bg-gray-100 rounded-full mt-1 overflow-hidden">
                         <div
-                          className="h-full bg-[#246EB9] rounded-full"
+                          className="h-full bg-[#2F6FED] rounded-full"
                           style={{
                             width: `${Math.min(100, (count / (topPages[0]?.[1] || 1)) * 100)}%`,
                           }}
@@ -509,7 +509,7 @@ export default function AdminActivityPage() {
           {/* Event type breakdown */}
           <div className="bg-white rounded-2xl border border-gray-100 p-4">
             <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-[#246EB9]" /> Event Breakdown
+              <TrendingUp className="w-4 h-4 text-[#2F6FED]" /> Event Breakdown
             </h3>
             <div className="space-y-2">
               {Object.entries(TYPE_CONFIG)
@@ -540,7 +540,7 @@ export default function AdminActivityPage() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="flex items-center justify-between px-3 py-2 rounded-lg text-xs text-gray-600 hover:bg-gray-50 hover:text-[#246EB9] transition"
+                  className="flex items-center justify-between px-3 py-2 rounded-lg text-xs text-gray-600 hover:bg-gray-50 hover:text-[#2F6FED] transition"
                 >
                   {link.label}
                   <ExternalLink className="w-3 h-3 opacity-40" />
@@ -577,7 +577,7 @@ function EventRow({
   return (
     <div
       className={`bg-white rounded-xl border transition cursor-pointer ${
-        expanded ? "border-[#246EB9]/30 shadow-sm" : "border-gray-100 hover:border-gray-200"
+        expanded ? "border-[#2F6FED]/30 shadow-sm" : "border-gray-100 hover:border-gray-200"
       }`}
       onClick={onToggle}
     >
@@ -607,7 +607,7 @@ function EventRow({
             {user && (
               <Link
                 href={`/admin/users/${event.uid}`}
-                className="flex items-center gap-1 text-xs text-[#246EB9] hover:underline font-medium"
+                className="flex items-center gap-1 text-xs text-[#2F6FED] hover:underline font-medium"
                 onClick={(e) => e.stopPropagation()}
               >
                 <User className="w-3 h-3" />
@@ -683,7 +683,7 @@ function EventRow({
             <div className="mt-3 pt-2 border-t border-gray-100 flex gap-2">
               <Link
                 href={`/admin/users/${event.uid}`}
-                className="flex items-center gap-1 text-xs text-[#246EB9] hover:underline font-medium"
+                className="flex items-center gap-1 text-xs text-[#2F6FED] hover:underline font-medium"
               >
                 <ExternalLink className="w-3 h-3" /> View user profile
               </Link>

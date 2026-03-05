@@ -866,7 +866,7 @@ export default function ChatPage() {
         >
           {!isOwn && otherUser && (
             <Link href={`/dashboard/u/${msg.senderId}`} className="shrink-0 mr-2 self-end">
-              <div className="w-7 h-7 bg-[#246EB9] rounded-full flex items-center justify-center text-white font-semibold text-xs hover:ring-2 hover:ring-[#246EB9]/30 transition">
+              <div className="w-7 h-7 bg-[#2F6FED] rounded-full flex items-center justify-center text-white font-semibold text-xs hover:ring-2 hover:ring-[#2F6FED]/30 transition">
                 {otherUser.displayName?.charAt(0)?.toUpperCase() || "?"}
               </div>
             </Link>
@@ -968,7 +968,7 @@ export default function ChatPage() {
                 <button
                   onClick={initiatePayment}
                   disabled={processingPayment}
-                  className="mt-3 w-full px-4 py-2.5 bg-[#246EB9] text-white rounded-xl text-sm font-semibold hover:bg-[#1B5A9A] transition disabled:opacity-50"
+                  className="mt-3 w-full px-4 py-2.5 bg-[#2F6FED] text-white rounded-xl text-sm font-semibold hover:bg-[#2158C7] transition disabled:opacity-50"
                 >
                   {processingPayment ? "Processing..." : `Pay $${job?.price} CAD Now`}
                 </button>
@@ -998,7 +998,7 @@ export default function ChatPage() {
             href={`/dashboard/u/${msg.senderId}`}
             className="shrink-0 mr-2 self-end mb-1"
           >
-            <div className="w-7 h-7 bg-[#246EB9] rounded-full flex items-center justify-center text-white font-bold text-xs hover:ring-2 hover:ring-[#246EB9]/30 transition">
+            <div className="w-7 h-7 bg-[#2F6FED] rounded-full flex items-center justify-center text-white font-bold text-xs hover:ring-2 hover:ring-[#2F6FED]/30 transition">
               {otherUser.displayName?.charAt(0)?.toUpperCase() || "?"}
             </div>
           </Link>
@@ -1006,12 +1006,12 @@ export default function ChatPage() {
         <div
           className={`max-w-[72%] px-3.5 py-2 rounded-2xl shadow-sm ${
             isOwn
-              ? "bg-[#246EB9] text-white rounded-tr-sm"
+              ? "bg-[#2F6FED] text-white rounded-tr-sm"
               : "bg-white text-gray-900 rounded-tl-sm"
           }`}
         >
           {!isOwn && (
-            <p className="text-xs font-semibold text-[#246EB9] mb-0.5">
+            <p className="text-xs font-semibold text-[#2F6FED] mb-0.5">
               {msg.senderName}
             </p>
           )}
@@ -1056,7 +1056,7 @@ export default function ChatPage() {
           </Link>
           {/* Clickable avatar → public profile */}
           <Link href={`/dashboard/u/${otherUserId || ""}`}>
-            <div className="w-10 h-10 bg-[#246EB9] rounded-full flex items-center justify-center text-white font-semibold hover:ring-2 hover:ring-[#246EB9]/30 transition cursor-pointer">
+            <div className="w-10 h-10 bg-[#2F6FED] rounded-full flex items-center justify-center text-white font-semibold hover:ring-2 hover:ring-[#2F6FED]/30 transition cursor-pointer">
               {otherUser?.displayName?.charAt(0)?.toUpperCase() || "?"}
             </div>
           </Link>
@@ -1070,7 +1070,7 @@ export default function ChatPage() {
               <MapPin className="w-3 h-3" />
               {otherUser?.city}, {otherUser?.province}
               {distance !== null && (
-                <span className="flex items-center gap-0.5 ml-2 text-[#246EB9] font-medium">
+                <span className="flex items-center gap-0.5 ml-2 text-[#2F6FED] font-medium">
                   <Compass className="w-3 h-3" />
                   {distance.toFixed(1)} km away
                 </span>
@@ -1094,11 +1094,11 @@ export default function ChatPage() {
         {/* Address bar for operator — show client address */}
         {isOperator && job && (
           <div className="bg-[var(--bg-secondary)] border-x border-[var(--border-color)] px-4 py-2 flex items-center gap-2 text-xs">
-            <MapPin className="w-3.5 h-3.5 text-[#246EB9] shrink-0" />
+            <MapPin className="w-3.5 h-3.5 text-[#2F6FED] shrink-0" />
             <span className="text-[#0B1F33] font-medium truncate">{job.address}</span>
             <span className="text-[#6B7C8F]">{job.city}, {job.province}</span>
             {distance !== null && (
-              <span className="ml-auto shrink-0 px-2 py-0.5 bg-[#D6E8F5] text-[#246EB9] rounded-full font-semibold">
+              <span className="ml-auto shrink-0 px-2 py-0.5 bg-[#D6E8F5] text-[#2F6FED] rounded-full font-semibold">
                 {distance.toFixed(1)} km
               </span>
             )}
@@ -1108,7 +1108,7 @@ export default function ChatPage() {
         {/* Client address bar — for client to see their own address */}
         {!isOperator && job && (
           <div className="bg-[var(--bg-secondary)] border-x border-[var(--border-color)] px-4 py-2 flex items-center gap-2 text-xs">
-            <MapPin className="w-3.5 h-3.5 text-[#246EB9] shrink-0" />
+            <MapPin className="w-3.5 h-3.5 text-[#2F6FED] shrink-0" />
             <span className="text-[#0B1F33] font-medium truncate">{job.address}</span>
             <span className="text-[#6B7C8F]">{job.city}, {job.province}</span>
           </div>
@@ -1116,13 +1116,13 @@ export default function ChatPage() {
 
         {/* Job Info Bar */}
         {job && (
-          <div className="bg-[#246EB9]/5 border-x border-[#246EB9]/10 px-4 py-3">
+          <div className="bg-[#2F6FED]/5 border-x border-[#2F6FED]/10 px-4 py-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 {/* Service types as pills */}
                 <div className="flex flex-wrap gap-1.5">
                   {job.serviceTypes?.map((s) => (
-                    <span key={s} className="px-2.5 py-1 bg-[#246EB9]/10 text-[#246EB9] rounded-full text-xs font-semibold capitalize">
+                    <span key={s} className="px-2.5 py-1 bg-[#2F6FED]/10 text-[#2F6FED] rounded-full text-xs font-semibold capitalize">
                       {s.replace("-", " ")}
                     </span>
                   ))}
@@ -1149,7 +1149,7 @@ export default function ChatPage() {
               {/* Price display */}
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1 bg-white rounded-lg px-3 py-1.5 border border-[#E6EEF6] shadow-sm">
-                  <DollarSign className="w-4 h-4 text-[#246EB9]" />
+                  <DollarSign className="w-4 h-4 text-[#2F6FED]" />
                   <span className="text-lg font-bold text-[#0B1F33]">{job.price}</span>
                   <span className="text-xs text-[#6B7C8F] font-medium">CAD</span>
                 </div>
@@ -1185,7 +1185,7 @@ export default function ChatPage() {
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center py-12 text-[#6B7C8F]">
               <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm mb-3">
-                <CheckCircle className="w-7 h-7 text-[#246EB9]" />
+                <CheckCircle className="w-7 h-7 text-[#2F6FED]" />
               </div>
               <p className="font-medium text-sm text-gray-700">Conversation started</p>
               <p className="text-xs text-gray-500 mt-1">Messages will appear here</p>
@@ -1273,7 +1273,7 @@ export default function ChatPage() {
               {job.status === "accepted" && (
                 <button
                   onClick={() => updateJobStatus("en-route")}
-                  className="flex items-center justify-center gap-2 px-3 py-2.5 bg-[#246EB9] text-white rounded-xl text-sm font-semibold hover:bg-[#1B5A9A] transition shadow-sm"
+                  className="flex items-center justify-center gap-2 px-3 py-2.5 bg-[#2F6FED] text-white rounded-xl text-sm font-semibold hover:bg-[#2158C7] transition shadow-sm"
                 >
                   <Navigation className="w-4 h-4" /> I&apos;m On My Way
                 </button>
@@ -1282,7 +1282,7 @@ export default function ChatPage() {
                 <>
                   <button
                     onClick={() => updateJobStatus("in-progress")}
-                    className="flex items-center justify-center gap-2 px-3 py-2.5 bg-[#246EB9] text-white rounded-xl text-sm font-semibold hover:bg-[#1B5A9A] transition shadow-sm"
+                    className="flex items-center justify-center gap-2 px-3 py-2.5 bg-[#2F6FED] text-white rounded-xl text-sm font-semibold hover:bg-[#2158C7] transition shadow-sm"
                   >
                     <Play className="w-4 h-4" /> Start Job
                   </button>
@@ -1299,7 +1299,7 @@ export default function ChatPage() {
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploadingPhoto}
-                    className="flex items-center justify-center gap-2 px-3 py-2.5 bg-[#246EB9] text-white rounded-xl text-sm font-semibold hover:bg-[#1B5A9A] transition shadow-sm disabled:opacity-50 col-span-2"
+                    className="flex items-center justify-center gap-2 px-3 py-2.5 bg-[#2F6FED] text-white rounded-xl text-sm font-semibold hover:bg-[#2158C7] transition shadow-sm disabled:opacity-50 col-span-2"
                   >
                     <Camera className="w-4 h-4" />
                     {uploadingPhoto ? "Uploading Photo..." : "Submit Photo Proof & Complete"}
@@ -1325,13 +1325,13 @@ export default function ChatPage() {
                 <>
                   <div className="col-span-2 border-t border-gray-100 my-1" />
                   <p className="col-span-2 text-[10px] text-gray-400 font-semibold uppercase tracking-widest">Send ETA</p>
-                  <button onClick={() => sendEtaUpdate(10)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-[#246EB9]/8 text-[#246EB9] rounded-xl text-xs font-semibold hover:bg-[#246EB9]/15 transition">
+                  <button onClick={() => sendEtaUpdate(10)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-[#2F6FED]/8 text-[#2F6FED] rounded-xl text-xs font-semibold hover:bg-[#2F6FED]/15 transition">
                     <Clock className="w-3.5 h-3.5" /> 10 min
                   </button>
-                  <button onClick={() => sendEtaUpdate(20)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-[#246EB9]/8 text-[#246EB9] rounded-xl text-xs font-semibold hover:bg-[#246EB9]/15 transition">
+                  <button onClick={() => sendEtaUpdate(20)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-[#2F6FED]/8 text-[#2F6FED] rounded-xl text-xs font-semibold hover:bg-[#2F6FED]/15 transition">
                     <Clock className="w-3.5 h-3.5" /> 20 min
                   </button>
-                  <button onClick={() => sendEtaUpdate(30)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-[#246EB9]/8 text-[#246EB9] rounded-xl text-xs font-semibold hover:bg-[#246EB9]/15 transition">
+                  <button onClick={() => sendEtaUpdate(30)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-[#2F6FED]/8 text-[#2F6FED] rounded-xl text-xs font-semibold hover:bg-[#2F6FED]/15 transition">
                     <Clock className="w-3.5 h-3.5" /> 30 min
                   </button>
                 </>
@@ -1398,7 +1398,7 @@ export default function ChatPage() {
               <button
                 onClick={initiatePayment}
                 disabled={processingPayment}
-                className="px-4 py-2 bg-[#246EB9] text-white rounded-lg font-semibold text-sm hover:bg-[#1a6dd4] transition disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2 bg-[#2F6FED] text-white rounded-lg font-semibold text-sm hover:bg-[#2158C7] transition disabled:opacity-50 flex items-center gap-2"
               >
                 {processingPayment ? (
                   <>
@@ -1418,7 +1418,7 @@ export default function ChatPage() {
 
         {/* Completed Job — Rehire option (clients only, once) */}
         {job?.status === "completed" && reviewSubmitted && !isOperator && !rehireSent && (
-          <div className="bg-[#246EB9]/5 border-x border-[#246EB9]/10 px-4 py-3 border-t border-[#246EB9]/20">
+          <div className="bg-[#2F6FED]/5 border-x border-[#2F6FED]/10 px-4 py-3 border-t border-[#2F6FED]/20">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-900">Job Complete</p>
@@ -1427,7 +1427,7 @@ export default function ChatPage() {
               <button
                 onClick={rehireOperator}
                 disabled={rehiring}
-                className="px-4 py-2 bg-[#246EB9] text-white rounded-lg font-semibold text-sm hover:bg-[#1B5A9A] transition flex items-center gap-2 disabled:opacity-50"
+                className="px-4 py-2 bg-[#2F6FED] text-white rounded-lg font-semibold text-sm hover:bg-[#2158C7] transition flex items-center gap-2 disabled:opacity-50"
               >
                 <Briefcase className="w-4 h-4" />
                 {rehiring ? "Creating..." : "Rehire"}
@@ -1450,7 +1450,7 @@ export default function ChatPage() {
                 </div>
                 <button
                   onClick={reopenJob}
-                  className="px-4 py-2 bg-[#246EB9] text-white rounded-lg font-semibold text-sm hover:bg-[#1a6dd4] transition flex items-center gap-2"
+                  className="px-4 py-2 bg-[#2F6FED] text-white rounded-lg font-semibold text-sm hover:bg-[#2158C7] transition flex items-center gap-2"
                 >
                   <Play className="w-4 h-4" />
                   Reopen Job
@@ -1468,7 +1468,7 @@ export default function ChatPage() {
                   <button
                     onClick={rehireOperator}
                     disabled={rehiring}
-                    className="px-4 py-2 bg-[#246EB9] text-white rounded-lg font-semibold text-sm hover:bg-[#1B5A9A] transition flex items-center gap-2 disabled:opacity-50"
+                    className="px-4 py-2 bg-[#2F6FED] text-white rounded-lg font-semibold text-sm hover:bg-[#2158C7] transition flex items-center gap-2 disabled:opacity-50"
                   >
                     <Briefcase className="w-4 h-4" />
                     {rehiring ? "Creating..." : "Rehire"}
@@ -1488,7 +1488,7 @@ export default function ChatPage() {
                 onClick={() => setShowActions(!showActions)}
                 className={`p-2 rounded-lg transition ${
                   showActions
-                    ? "bg-[#D6E8F5] text-[#246EB9]"
+                    ? "bg-[#D6E8F5] text-[#2F6FED]"
                     : "text-[#6B7C8F] hover:text-[#0B1F33] hover:bg-[#F7FAFC]"
                 }`}
               >
@@ -1499,7 +1499,7 @@ export default function ChatPage() {
             <button
               type="button"
               onClick={() => chatPhotoInputRef.current?.click()}
-              className="p-2 text-[#6B7C8F] hover:text-[#246EB9] hover:bg-[#F7FAFC] rounded-lg transition"
+              className="p-2 text-[#6B7C8F] hover:text-[#2F6FED] hover:bg-[#F7FAFC] rounded-lg transition"
               title="Send photo"
             >
               <Camera className="w-5 h-5" />
@@ -1516,12 +1516,12 @@ export default function ChatPage() {
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               placeholder="Type a message..."
-              className="flex-1 px-4 py-2.5 bg-[var(--bg-secondary)] rounded-xl outline-none focus:ring-2 focus:ring-[#246EB9] text-sm border border-[var(--border-color)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
+              className="flex-1 px-4 py-2.5 bg-[var(--bg-secondary)] rounded-xl outline-none focus:ring-2 focus:ring-[#2F6FED] text-sm border border-[var(--border-color)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
             />
             <button
               type="submit"
               disabled={!newMessage.trim()}
-              className="p-2.5 bg-[#246EB9] text-white rounded-xl hover:bg-[#1a6dd4] transition disabled:opacity-40 disabled:cursor-not-allowed"
+              className="p-2.5 bg-[#2F6FED] text-white rounded-xl hover:bg-[#2158C7] transition disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Send className="w-5 h-5" />
             </button>
@@ -1562,7 +1562,7 @@ export default function ChatPage() {
                 {job.status === "accepted" && (
                   <button
                     onClick={() => updateJobStatus("en-route")}
-                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-[#246EB9] text-white rounded-xl text-xs font-bold hover:bg-[#1B5A9A] transition shadow-sm"
+                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-[#2F6FED] text-white rounded-xl text-xs font-bold hover:bg-[#2158C7] transition shadow-sm"
                   >
                     <Navigation className="w-3.5 h-3.5" /> Mark En Route
                   </button>
@@ -1571,7 +1571,7 @@ export default function ChatPage() {
                   <>
                     <button
                       onClick={() => updateJobStatus("in-progress")}
-                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-[#246EB9] text-white rounded-xl text-xs font-bold hover:bg-[#1B5A9A] transition shadow-sm"
+                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-[#2F6FED] text-white rounded-xl text-xs font-bold hover:bg-[#2158C7] transition shadow-sm"
                     >
                       <Play className="w-3.5 h-3.5" /> Start Job
                     </button>
@@ -1588,7 +1588,7 @@ export default function ChatPage() {
                     <button
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploadingPhoto}
-                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-[#246EB9] text-white rounded-xl text-xs font-bold hover:bg-[#1B5A9A] transition shadow-sm disabled:opacity-50"
+                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-[#2F6FED] text-white rounded-xl text-xs font-bold hover:bg-[#2158C7] transition shadow-sm disabled:opacity-50"
                     >
                       <Camera className="w-3.5 h-3.5" /> {uploadingPhoto ? "Uploading..." : "Photo Proof & Complete"}
                     </button>
@@ -1609,7 +1609,7 @@ export default function ChatPage() {
                 <span className="text-[#6B7C8F]">Service</span>
                 <div className="flex flex-wrap gap-1 justify-end">
                   {job.serviceTypes?.map((s) => (
-                    <span key={s} className="px-2 py-0.5 bg-[#246EB9]/10 text-[#246EB9] rounded-full text-xs font-semibold capitalize">{s.replace("-", " ")}</span>
+                    <span key={s} className="px-2 py-0.5 bg-[#2F6FED]/10 text-[#2F6FED] rounded-full text-xs font-semibold capitalize">{s.replace("-", " ")}</span>
                   ))}
                 </div>
               </div>
@@ -1630,7 +1630,7 @@ export default function ChatPage() {
               <div className="flex items-center justify-between">
                 <span className="text-[#6B7C8F]">Price</span>
                 <div className="flex items-center gap-1">
-                  <DollarSign className="w-4 h-4 text-[#246EB9]" />
+                  <DollarSign className="w-4 h-4 text-[#2F6FED]" />
                   <span className="font-bold text-lg text-[#0B1F33]">{job.price}</span>
                   <span className="text-xs text-[#6B7C8F]">CAD</span>
                 </div>
@@ -1656,17 +1656,17 @@ export default function ChatPage() {
                   href={`/dashboard/u/${otherUser.uid}`}
                   className="flex items-center gap-3 p-3 rounded-xl hover:bg-[#F7FAFC] dark:hover:bg-[#1a2332] transition group"
                 >
-                  <div className="w-10 h-10 bg-[#246EB9] rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                  <div className="w-10 h-10 bg-[#2F6FED] rounded-full flex items-center justify-center text-white font-semibold text-sm">
                     {otherUser.displayName?.charAt(0)?.toUpperCase() || "?"}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-[#0B1F33] group-hover:text-[#246EB9] transition truncate">{otherUser.displayName}</p>
+                    <p className="text-sm font-semibold text-[#0B1F33] group-hover:text-[#2F6FED] transition truncate">{otherUser.displayName}</p>
                     <p className="text-xs text-[#6B7C8F]">
                       {otherUser.city}, {otherUser.province}
                       {distance !== null && ` • ${distance.toFixed(1)} km away`}
                     </p>
                   </div>
-                  <Star className="w-4 h-4 text-[#6B7C8F] group-hover:text-[#246EB9] transition" />
+                  <Star className="w-4 h-4 text-[#6B7C8F] group-hover:text-[#2F6FED] transition" />
                 </Link>
               </div>
             )}
@@ -1760,7 +1760,7 @@ export default function ChatPage() {
                   setShowPaymentGateModal(false);
                   setPendingStatus(null);
                 }}
-                className="w-full py-3 bg-[#246EB9] text-white rounded-xl font-semibold text-sm hover:bg-[#1B5A9A] transition flex items-center justify-center gap-2"
+                className="w-full py-3 bg-[#2F6FED] text-white rounded-xl font-semibold text-sm hover:bg-[#2158C7] transition flex items-center justify-center gap-2"
               >
                 <CreditCard className="w-4 h-4" /> Send Payment Request to Client
               </button>

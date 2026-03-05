@@ -96,7 +96,7 @@ function CheckoutFormInner({ onSuccess, onCancel, amount }: CheckoutFormProps) {
         <button
           type="submit"
           disabled={!stripe || processing}
-          className="flex-1 px-4 py-3 bg-[#246EB9] text-white rounded-xl font-semibold hover:bg-[#1B5A9A] transition disabled:opacity-50 flex items-center justify-center gap-2"
+          className="flex-1 px-4 py-3 bg-[#2F6FED] text-white rounded-xl font-semibold hover:bg-[#2158C7] transition disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {processing ? (
             <>
@@ -138,7 +138,7 @@ export default function StripeCheckout({
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
         {/* Header */}
-        <div className="bg-[#246EB9] p-5 text-white relative">
+        <div className="bg-[#2F6FED] p-5 text-white relative">
           <button
             onClick={onCancel}
             className="absolute top-3 right-3 p-1 rounded-lg hover:bg-white/20 transition"
@@ -151,7 +151,7 @@ export default function StripeCheckout({
             </div>
             <div>
               <h2 className="font-bold text-lg">snowd.ca Secure Payment</h2>
-              <p className="text-[#246EB9]/20 text-sm">Funds held until job completion</p>
+              <p className="text-[#2F6FED]/20 text-sm">Funds held until job completion</p>
             </div>
           </div>
         </div>

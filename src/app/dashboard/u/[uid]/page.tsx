@@ -160,7 +160,7 @@ export default function PublicProfilePage() {
       <div className="flex flex-col items-center justify-center h-96 text-[#6B7C8F]">
         <Snowflake className="w-12 h-12 mb-3 opacity-30" />
         <p className="text-lg font-semibold">User not found</p>
-        <button onClick={() => router.back()} className="mt-4 text-[#246EB9] text-sm font-medium hover:underline">
+        <button onClick={() => router.back()} className="mt-4 text-[#2F6FED] text-sm font-medium hover:underline">
           Go back
         </button>
       </div>
@@ -216,7 +216,7 @@ export default function PublicProfilePage() {
       {/* Profile Header - Instagram-like */}
       <div className="bg-white rounded-2xl border border-[#E6EEF6] overflow-hidden">
         {/* Cover / Gradient */}
-        <div className="h-32 bg-[#246EB9] relative">
+        <div className="h-32 bg-[#2F6FED] relative">
           <div className="absolute inset-0 bg-[url('/logo.svg')] bg-center bg-no-repeat opacity-10" style={{ backgroundSize: "60px" }} />
         </div>
 
@@ -224,7 +224,7 @@ export default function PublicProfilePage() {
         <div className="px-6 -mt-12 pb-6">
           <div className="flex items-end gap-4 mb-4">
             <div className="relative">
-              <div className="w-24 h-24 bg-[#246EB9] rounded-2xl flex items-center justify-center text-white font-bold text-4xl border-4 border-white shadow-lg">
+              <div className="w-24 h-24 bg-[#2F6FED] rounded-2xl flex items-center justify-center text-white font-bold text-4xl border-4 border-white shadow-lg">
                 {profileData.displayName?.charAt(0)?.toUpperCase() || "U"}
               </div>
               <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white ${isOnline ? "bg-green-500" : "bg-gray-400"}`} />
@@ -235,7 +235,7 @@ export default function PublicProfilePage() {
                 <MapPin className="w-3.5 h-3.5" />
                 {profileData.city}, {profileData.province} area
                 {distance !== null && (
-                  <span className="ml-2 text-[#246EB9] font-medium">
+                  <span className="ml-2 text-[#2F6FED] font-medium">
                     • {distance.toFixed(1)} km away
                   </span>
                 )}
@@ -272,7 +272,7 @@ export default function PublicProfilePage() {
 
           {/* Badges */}
           <div className="flex flex-wrap gap-2 mb-4">
-            <span className="px-3 py-1 bg-[#D6E8F5] text-[#246EB9] rounded-full text-xs font-semibold capitalize">
+            <span className="px-3 py-1 bg-[#D6E8F5] text-[#2F6FED] rounded-full text-xs font-semibold capitalize">
               {isOperator ? "Snow Removal Operator" : "Client"}
             </span>
             {isOperator && operatorProfile.isStudent && (
@@ -303,7 +303,7 @@ export default function PublicProfilePage() {
                       // In future: create a chat/job with this operator
                       router.push("/dashboard/find");
                     }}
-                    className="btn-primary flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#246EB9] text-white rounded-xl font-semibold text-sm hover:bg-[#1a6dd4] transition"
+                    className="btn-primary flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#2F6FED] text-white rounded-xl font-semibold text-sm hover:bg-[#2158C7] transition"
                   >
                     <Briefcase className="w-4 h-4" />
                     Hire
@@ -382,7 +382,7 @@ export default function PublicProfilePage() {
               onClick={() => setActiveTab(tab.key)}
               className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition ${
                 activeTab === tab.key
-                  ? "bg-[#D6E8F5] text-[#246EB9]"
+                  ? "bg-[#D6E8F5] text-[#2F6FED]"
                   : "text-[#6B7C8F] hover:text-[#0B1F33]"
               }`}
             >
@@ -401,7 +401,7 @@ export default function PublicProfilePage() {
               onClick={() => setActiveTab(tab.key)}
               className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition ${
                 activeTab === tab.key
-                  ? "bg-[#D6E8F5] text-[#246EB9]"
+                  ? "bg-[#D6E8F5] text-[#2F6FED]"
                   : "text-[#6B7C8F] hover:text-[#0B1F33]"
               }`}
             >
@@ -437,7 +437,7 @@ export default function PublicProfilePage() {
                     <MapPin className="w-3 h-3 inline mr-0.5" />
                     You: {myProfile.city}, {myProfile.province}
                   </span>
-                  <span className="text-[#246EB9] font-semibold">{distance.toFixed(1)} km</span>
+                  <span className="text-[#2F6FED] font-semibold">{distance.toFixed(1)} km</span>
                   <span className="text-[#6B7C8F]">
                     <MapPin className="w-3 h-3 inline mr-0.5" />
                     {profileData.displayName}: {profileData.city}, {profileData.province}
@@ -553,7 +553,7 @@ export default function PublicProfilePage() {
                     <span className="text-xl">{SERVICE_EMOJI[s]}</span>
                     <span className="font-medium text-[#0B1F33]">{SERVICE_LABELS[s]}</span>
                   </div>
-                  <span className="font-bold text-[#246EB9]">
+                  <span className="font-bold text-[#2F6FED]">
                     {s === "driveway"
                       ? `$${operatorProfile.pricing?.driveway?.small || "–"} – $${operatorProfile.pricing?.driveway?.large || "–"}`
                       : s === "walkway"
@@ -565,8 +565,8 @@ export default function PublicProfilePage() {
             </div>
             {operatorProfile.pricing?.hourlyRate && (
               <div className="mt-4 p-4 bg-[#D6E8F5] rounded-xl text-center">
-                <p className="text-sm text-[#246EB9]">Hourly Rate</p>
-                <p className="text-2xl font-bold text-[#246EB9]">${operatorProfile.pricing.hourlyRate}/hr</p>
+                <p className="text-sm text-[#2F6FED]">Hourly Rate</p>
+                <p className="text-2xl font-bold text-[#2F6FED]">${operatorProfile.pricing.hourlyRate}/hr</p>
               </div>
             )}
           </div>
