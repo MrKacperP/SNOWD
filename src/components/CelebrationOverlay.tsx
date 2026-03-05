@@ -98,10 +98,9 @@ export default function CelebrationOverlay({ type, show, onComplete }: Celebrati
 
           {/* Center text */}
           <motion.div
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.8, opacity: 0 }}
-            transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 15 }}
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1, transition: { delay: 0.2, type: "spring", stiffness: 200, damping: 15 } }}
+            exit={{ scale: 0.5, opacity: 0 }}
             className="relative z-10 text-center pointer-events-auto"
           >
             <motion.div

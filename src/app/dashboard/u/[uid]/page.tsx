@@ -148,7 +148,7 @@ export default function PublicProfilePage() {
     return (
       <div className="flex flex-col items-center justify-center h-96 text-[#6B7C8F] gap-3">
         <div className="animate-spin-slow">
-          <Image src="/logo.svg" alt="Loading" width={40} height={40} />
+          <Image src="/logo.png" alt="Loading" width={40} height={40} />
         </div>
         <p className="text-sm">Loading profile...</p>
       </div>
@@ -217,7 +217,7 @@ export default function PublicProfilePage() {
       <div className="bg-white rounded-2xl border border-[#E6EEF6] overflow-hidden">
         {/* Cover / Gradient */}
         <div className="h-32 bg-[#2F6FED] relative">
-          <div className="absolute inset-0 bg-[url('/logo.svg')] bg-center bg-no-repeat opacity-10" style={{ backgroundSize: "60px" }} />
+          <div className="absolute inset-0 bg-[url('/logo.png')] bg-center bg-no-repeat opacity-10" style={{ backgroundSize: "60px" }} />
         </div>
 
         {/* Avatar & Info */}

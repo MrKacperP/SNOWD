@@ -281,7 +281,7 @@ export default function MessagesPage() {
         <h1 className="text-2xl font-bold mb-6">Messages</h1>
         <div className="flex flex-col items-center py-12 text-gray-400 gap-3">
           <div className="animate-spin-slow">
-            <Image src="/logo.svg" alt="Loading" width={32} height={32} />
+            <Image src="/logo.png" alt="Loading" width={32} height={32} />
           </div>
           <p>Loading conversations...</p>
         </div>
@@ -370,7 +370,7 @@ export default function MessagesPage() {
       {chats.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
           <Image
-            src="/logo.svg"
+            src="/logo.png"
             alt="snowd.ca"
             width={48}
             height={48}

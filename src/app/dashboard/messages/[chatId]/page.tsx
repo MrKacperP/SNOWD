@@ -1028,7 +1028,7 @@ export default function ChatPage() {
     return (
       <div className="flex flex-col items-center justify-center h-96 text-[#6B7C8F] gap-3">
         <div className="animate-spin-slow">
-          <Image src="/logo.svg" alt="Loading" width={40} height={40} />
+          <Image src="/logo.png" alt="Loading" width={40} height={40} />
         </div>
         <p>Loading conversation...</p>
       </div>
@@ -1402,7 +1402,7 @@ export default function ChatPage() {
               >
                 {processingPayment ? (
                   <>
-                    <Image src="/logo.svg" alt="Loading" width={16} height={16} className="animate-spin-slow" />
+                    <Image src="/logo.png" alt="Loading" width={16} height={16} className="animate-spin-slow" />
                     Processing...
                   </>
                 ) : (

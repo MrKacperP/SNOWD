@@ -8,10 +8,11 @@ export default function LoadingScreen() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--bg-secondary)]">
       <div className="animate-spin-slow">
         <Image
-          src="/logo.svg"
+          src="/logo.png"
           alt="snowd.ca"
           width={64}
           height={64}
+          className="w-16 h-16"
           priority
         />
       </div>

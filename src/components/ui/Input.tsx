@@ -1,4 +1,5 @@
 import React, { forwardRef } from 'react';
+import { motion } from 'framer-motion';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -7,14 +8,21 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   icon?: React.ReactNode;
 }
 
+const MotionInput = motion.input;
+
 const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ label, error, helperText, icon, className = '', ...props }, ref) => {
     return (
       <div className="w-full">
         {label && (
-          <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
+          <motion.label 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="block text-sm font-medium text-[var(--text-primary)] mb-2"
+          >
             {label}
-          </label>
+          </motion.label>
         )}
         <div className="relative">
           {icon && (
@@ -22,8 +30,9 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
               {icon}
             </div>
           )}
-          <input
+          <MotionInput
             ref={ref}
+            whileFocus={{ scale: 1.02 }}
             className={`
               w-full h-[52px] px-4 ${icon ? 'pl-12' : ''}
               bg-white border border-[var(--border)] rounded-xl
@@ -38,7 +47,14 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           />
         </div>
         {error && (
-          <p className="mt-1.5 text-sm text-red-500">{error}</p>
+          <motion.p 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="mt-1.5 text-sm text-red-500"
+          >
+            {error}
+          </motion.p>
         )}
         {helperText && !error && (
           <p className="mt-1.5 text-xs text-[var(--text-muted)]">{helperText}</p>

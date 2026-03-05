@@ -6,11 +6,11 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import LoadingScreen from "@/components/LoadingScreen";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
-  Shield,
   Users,
   MessageSquare,
   DollarSign,
@@ -92,13 +92,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Sidebar */}
       <aside className="hidden md:flex flex-col w-64 bg-white border-r border-gray-100 min-h-screen fixed left-0 top-0 z-30">
         <div className="p-6 border-b border-gray-100">
-          <div className="flex items-center gap-2">
-            <Shield className="w-6 h-6 text-[#2F6FED]" />
+          <Link href="/dashboard" className="flex items-center gap-2">
+            <Image src="/logo.png" alt="snowd logo" width={28} height={28} className="rounded-full" />
             <span className="text-xl font-bold text-[#2F6FED]">snowd</span>
             <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isAdmin ? "bg-red-100 text-red-600" : "bg-orange-100 text-orange-600"}`}>
               {isAdmin ? "ADMIN" : "STAFF"}
             </span>
-          </div>
+          </Link>
         </div>
         <nav className="flex-1 p-4 space-y-1">
           {navItems.map((item) => {
@@ -143,13 +143,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Mobile header */}
       <header className="md:hidden fixed top-0 left-0 right-0 bg-white border-b border-gray-100 z-30 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Shield className="w-5 h-5 text-[#2F6FED]" />
+        <Link href="/dashboard" className="flex items-center gap-2">
+          <Image src="/logo.png" alt="snowd logo" width={20} height={20} className="rounded-full" />
           <span className="font-bold text-[#2F6FED]">snowd</span>
           <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${isAdmin ? "bg-red-100 text-red-600" : "bg-orange-100 text-orange-600"}`}>
             {isAdmin ? "ADMIN" : "STAFF"}
           </span>
-        </div>
+        </Link>
       </header>
 
       {/* Mobile bottom nav */}

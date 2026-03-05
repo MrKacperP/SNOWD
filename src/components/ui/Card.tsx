@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 
 interface CardProps {
   children: React.ReactNode;
@@ -6,6 +7,8 @@ interface CardProps {
   variant?: 'default' | 'frost' | 'glacier';
   padding?: 'sm' | 'md' | 'lg';
 }
+
+const MotionDiv = motion.div;
 
 export default function Card({ 
   children, 
@@ -28,8 +31,13 @@ export default function Card({
   };
   
   return (
-    <div className={`${baseStyles} ${variants[variant]} ${paddings[padding]} ${className}`}>
+    <MotionDiv 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className={`${baseStyles} ${variants[variant]} ${paddings[padding]} ${className}`}
+    >
       {children}
-    </div>
+    </MotionDiv>
   );
 }

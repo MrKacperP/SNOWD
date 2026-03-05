@@ -234,7 +234,7 @@ export default function TutorialOverlay() {
 
           {hasTarget && (
             <motion.div
-              key={current.id}
+              key={`${current.id}-highlight`}
               initial={{ opacity: 0.8 }}
               animate={{ opacity: 1 }}
               className="fixed rounded-2xl border-2 border-[var(--accent)] pointer-events-none"
@@ -246,7 +246,7 @@ export default function TutorialOverlay() {
           )}
 
           <motion.div
-            key={current.id}
+            key={`${current.id}-tooltip`}
             initial={{ opacity: 0, y: 12, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 12, scale: 0.98 }}

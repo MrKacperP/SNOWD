@@ -373,7 +373,7 @@ export default function OnboardingPage() {
             animate={{ scale: 1 }}
             transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 15 }}
           >
-            <Image src="/logo.svg" alt="snowd.ca" width={80} height={80} className="mx-auto mb-6 drop-shadow-2xl" />
+            <Image src="/logo.png" alt="snowd.ca" width={80} height={80} className="mx-auto mb-6 drop-shadow-2xl" />
           </motion.div>
 
           <motion.h1
@@ -427,7 +427,7 @@ export default function OnboardingPage() {
       <div className="max-w-lg mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <Image src="/logo.svg" alt="snowd.ca" width={48} height={48} className="mx-auto" />
+          <Image src="/logo.png" alt="snowd.ca" width={48} height={48} className="mx-auto" />
           <h1 className="text-2xl font-bold mt-3 text-[var(--text-primary)]">
             {step === 1 ? "Welcome to snowd.ca" : "Set Up Your Account"}
           </h1>

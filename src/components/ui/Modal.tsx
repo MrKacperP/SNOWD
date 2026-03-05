@@ -98,10 +98,10 @@ export default function Modal({
           {/* Modal */}
           <motion.div
             className={`relative w-full ${sizeStyles[size]} bg-[var(--bg-card-solid)] rounded-2xl shadow-2xl border border-[var(--border-color)] overflow-hidden`}
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            transition={{ type: "spring", duration: 0.4, bounce: 0.15 }}
+            initial={{ scale: 0.9, opacity: 0, y: 50 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.9, opacity: 0, y: 50 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Top accent line */}

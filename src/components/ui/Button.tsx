@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'ghost' | 'success' | 'danger';
@@ -6,6 +7,8 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
   isLoading?: boolean;
 }
+
+const MotionButton = motion.button;
 
 export default function Button({
   variant = 'primary',
@@ -33,7 +36,9 @@ export default function Button({
   };
   
   return (
-    <button
+    <MotionButton
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
       className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
       disabled={disabled || isLoading}
       {...props}
@@ -49,6 +54,6 @@ export default function Button({
       ) : (
         children
       )}
-    </button>
+    </MotionButton>
   );
 }

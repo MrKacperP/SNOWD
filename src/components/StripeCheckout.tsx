@@ -8,7 +8,7 @@ import {
   useElements,
 } from "@stripe/react-stripe-js";
 import { stripePromise } from "@/lib/stripe";
-import { Shield, Lock, Snowflake, X } from "lucide-react";
+import { Shield, Lock, X } from "lucide-react";
 import Image from "next/image";
 
 interface CheckoutFormProps {
@@ -101,7 +101,7 @@ function CheckoutFormInner({ onSuccess, onCancel, amount }: CheckoutFormProps) {
           {processing ? (
             <>
               <Image
-                src="/logo.svg"
+                src="/logo.png"
                 alt="Loading"
                 width={20}
                 height={20}
@@ -147,7 +147,7 @@ export default function StripeCheckout({
           </button>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-              <Image src="/logo.svg" alt="snowd.ca" width={28} height={28} />
+              <Image src="/logo.png" alt="snowd.ca" width={28} height={28} />
             </div>
             <div>
               <h2 className="font-bold text-lg">snowd.ca Secure Payment</h2>

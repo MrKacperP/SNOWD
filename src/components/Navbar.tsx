@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -226,11 +227,11 @@ export default function Navbar() {
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex flex-col w-64 bg-[var(--bg-card-solid)]/90 backdrop-blur-xl border-r border-[var(--border-color)] min-h-screen fixed left-0 top-0 z-30">
         <div className="p-6 border-b border-[var(--border-color)]">
-          <Link href="/dashboard" className="flex items-center gap-1">
-            <span className="text-2xl font-extrabold text-[var(--accent)]">
-              snowd
+          <Link href="/dashboard" className="flex items-center gap-2">
+            <Image src="/logo.png" alt="snowd logo" width={34} height={34} className="rounded-full" />
+            <span className="text-xl font-extrabold text-[var(--accent)]">
+              snowd<span className="font-light text-gray-400">.ca</span>
             </span>
-            <span className="text-2xl font-light text-gray-400">.ca</span>
           </Link>
           {weather && (
             <div className="flex items-center gap-2 mt-3 px-3 py-2 bg-[var(--accent-soft)] rounded-xl text-xs">
@@ -404,11 +405,11 @@ export default function Navbar() {
 
       {/* Mobile top bar */}
       <header className="md:hidden fixed top-0 left-0 right-0 bg-[var(--bg-card-solid)]/90 backdrop-blur-xl border-b border-[var(--border-color)] z-30 px-4 py-3 flex items-center justify-between">
-        <Link href="/dashboard" className="flex items-center gap-1">
-          <span className="text-xl font-extrabold text-[var(--accent)]">
-            snowd
+        <Link href="/dashboard" className="flex items-center gap-2">
+          <Image src="/logo.png" alt="snowd logo" width={28} height={28} className="rounded-full" />
+          <span className="text-lg font-extrabold text-[var(--accent)]">
+            snowd<span className="font-light text-[var(--text-muted)]">.ca</span>
           </span>
-          <span className="text-xl font-light text-[var(--text-muted)]">.ca</span>
         </Link>
         <div className="flex items-center gap-2">
           <div className="relative" ref={notifMobileRef}>

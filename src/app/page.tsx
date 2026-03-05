@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 import {
   Snowflake,
@@ -625,17 +626,11 @@ export default function LandingPage() {
         className="fixed top-0 inset-x-0 bg-[var(--card)]/85 backdrop-blur-md z-50 border-b border-[var(--border)] shadow-sm"
       >
         <div className="max-w-6xl mx-auto px-5 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <motion.div
-              whileHover={{ rotate: 180 }}
-              transition={{ duration: 0.5 }}
-            >
-              <Snowflake className="w-7 h-7 text-[var(--accent)]" />
-            </motion.div>
+          <Link href="/" className="flex items-center gap-2.5">
+            <Image src="/logo.png" alt="snowd logo" width={32} height={32} className="rounded-full" />
             <span className="text-xl font-bold text-[var(--accent)] font-headline">
-              snowd
+              snowd<span className="font-light text-[var(--text-muted)]">.ca</span>
             </span>
-            <span className="text-xl font-light text-[var(--text-muted)]">.ca</span>
           </Link>
           <div className="flex items-center gap-3">
             <Link
