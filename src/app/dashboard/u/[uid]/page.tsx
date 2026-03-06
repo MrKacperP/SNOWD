@@ -17,6 +17,7 @@ import ServiceRadiusMap from "@/components/ServiceRadiusMap";
 import AddressMap from "@/components/AddressMap";
 import Image from "next/image";
 import Link from "next/link";
+import UserAvatar from "@/components/UserAvatar";
 import {
   ArrowLeft,
   MapPin,
@@ -224,9 +225,14 @@ export default function PublicProfilePage() {
         <div className="px-6 -mt-12 pb-6">
           <div className="flex items-end gap-4 mb-4">
             <div className="relative">
-              <div className="w-24 h-24 bg-[#2F6FED] rounded-2xl flex items-center justify-center text-white font-bold text-4xl border-4 border-white shadow-lg">
-                {profileData.displayName?.charAt(0)?.toUpperCase() || "U"}
-              </div>
+              <UserAvatar
+                photoURL={(profileData as unknown as Record<string, string>)?.avatar}
+                role={profileData.role}
+                displayName={profileData.displayName}
+                size={96}
+                rounded="2xl"
+                className="border-4 border-white shadow-lg"
+              />
               <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white ${isOnline ? "bg-green-500" : "bg-gray-400"}`} />
             </div>
             <div className="flex-1 min-w-0 pb-1">

@@ -35,6 +35,7 @@ import {
   CheckCheck,
 } from "lucide-react";
 import { useWeather } from "@/context/WeatherContext";
+import UserAvatar from "@/components/UserAvatar";
 
 export default function Navbar() {
   const { profile, signOut } = useAuth();
@@ -387,9 +388,12 @@ export default function Navbar() {
             className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-gray-50 transition"
           >
             <div className="relative">
-              <div className="w-9 h-9 bg-[var(--accent)] rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                {profile?.displayName?.charAt(0)?.toUpperCase() || "U"}
-              </div>
+              <UserAvatar
+                photoURL={(profile as unknown as Record<string, string>)?.avatar}
+                role={profile?.role}
+                displayName={profile?.displayName}
+                size={36}
+              />
               <div className={`absolute -bottom-0.5 -right-0.5 status-dot ${isOnline ? "online" : "offline"}`} />
             </div>
             <div className="flex-1 min-w-0 text-left">
@@ -469,9 +473,12 @@ export default function Navbar() {
             </div>
           )}
           <Link href={`/dashboard/u/${profile?.uid}`} className="relative">
-            <div className="w-8 h-8 bg-[var(--accent)] rounded-full flex items-center justify-center text-white font-semibold text-xs">
-              {profile?.displayName?.charAt(0)?.toUpperCase() || "U"}
-            </div>
+            <UserAvatar
+              photoURL={(profile as unknown as Record<string, string>)?.avatar}
+              role={profile?.role}
+              displayName={profile?.displayName}
+              size={32}
+            />
             <div className={`absolute -bottom-0.5 -right-0.5 status-dot ${isOnline ? "online" : "offline"}`} style={{ width: 8, height: 8 }} />
           </Link>
           <button onClick={() => setMobileOpen(!mobileOpen)} className="p-2 text-gray-500">
@@ -494,9 +501,12 @@ export default function Navbar() {
             </div>
             <div className="flex items-center gap-3 px-4 py-3 mb-2 bg-[var(--accent-soft)] rounded-xl">
               <div className="relative">
-                <div className="w-10 h-10 bg-[var(--accent)] rounded-full flex items-center justify-center text-white font-semibold">
-                  {profile?.displayName?.charAt(0)?.toUpperCase() || "U"}
-                </div>
+                <UserAvatar
+                  photoURL={(profile as unknown as Record<string, string>)?.avatar}
+                  role={profile?.role}
+                  displayName={profile?.displayName}
+                  size={40}
+                />
                 <div className={`absolute -bottom-0.5 -right-0.5 status-dot ${isOnline ? "online" : "offline"}`} />
               </div>
               <div>

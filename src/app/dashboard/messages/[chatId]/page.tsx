@@ -28,6 +28,7 @@ import StatusBadge from "@/components/StatusBadge";
 import ProgressTracker from "@/components/ProgressTracker";
 import StripeCheckout from "@/components/StripeCheckout";
 import Image from "next/image";
+import UserAvatar from "@/components/UserAvatar";
 import {
   Send,
   ArrowLeft,
@@ -998,8 +999,13 @@ export default function ChatPage() {
             href={`/dashboard/u/${msg.senderId}`}
             className="shrink-0 mr-2 self-end mb-1"
           >
-            <div className="w-7 h-7 bg-[#2F6FED] rounded-full flex items-center justify-center text-white font-bold text-xs hover:ring-2 hover:ring-[#2F6FED]/30 transition">
-              {otherUser.displayName?.charAt(0)?.toUpperCase() || "?"}
+            <div className="hover:ring-2 hover:ring-[#2F6FED]/30 transition rounded-full">
+              <UserAvatar
+                photoURL={(otherUser as unknown as Record<string, string>)?.avatar}
+                role={otherUser.role}
+                displayName={otherUser.displayName}
+                size={28}
+              />
             </div>
           </Link>
         )}

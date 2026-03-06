@@ -609,13 +609,16 @@ function Btn({
    PAGE
    ══════════════════════════════════════════════════════════════════════ */
 export default function LandingPage() {
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] relative overflow-x-hidden">
-      <div className="absolute inset-0 -z-10">
-        <div className="absolute -top-32 left-8 h-64 w-64 rounded-full bg-[rgba(47,111,237,0.16)] blur-[90px]" />
-        <div className="absolute top-24 right-8 h-72 w-72 rounded-full bg-[rgba(255,184,77,0.18)] blur-[100px]" />
-        <div className="absolute inset-0 opacity-[0.25]" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, rgba(47,111,237,0.25) 1px, transparent 0)", backgroundSize: "28px 28px" }} />
-      </div>
       <SnowBG />
 
       {/* ── NAV ──────────────────────────────────────────────────── */}
@@ -623,19 +626,25 @@ export default function LandingPage() {
         initial={{ y: -80, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className="fixed top-0 inset-x-0 bg-[var(--card)]/85 backdrop-blur-md z-50 border-b border-[var(--border)] shadow-sm"
+        className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${
+          scrolled
+            ? "bg-[var(--card)]/90 backdrop-blur-md border-b border-[var(--border)] shadow-sm"
+            : "bg-transparent border-b border-transparent"
+        }`}
       >
         <div className="max-w-6xl mx-auto px-5 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5">
             <Image src="/logo.png" alt="snowd logo" width={40} height={44} style={{ width: 'auto', height: 44 }} />
             <span className="text-xl font-bold text-[var(--accent)] font-headline">
-              snowd<span className="font-light text-[var(--text-muted)]">.ca</span>
+              snowd<span className={`font-light transition-colors duration-300 ${scrolled ? "text-[var(--text-muted)]" : "text-white/70"}`}>.ca</span>
             </span>
           </Link>
           <div className="flex items-center gap-3">
             <Link
               href="/login"
-              className="hidden sm:block px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition"
+              className={`hidden sm:block px-4 py-2 text-sm font-medium transition-colors duration-300 ${
+                scrolled ? "text-[var(--text-secondary)] hover:text-[var(--text-primary)]" : "text-white/80 hover:text-white"
+              }`}
             >
               Sign In
             </Link>
@@ -655,48 +664,56 @@ export default function LandingPage() {
       </motion.nav>
 
       {/* ── HERO ─────────────────────────────────────────────────── */}
-      <section className="relative pt-32 pb-12 md:pt-44 md:pb-20 px-5">
-        <div className="max-w-5xl mx-auto text-center">
+      <section className="relative z-0 pt-32 pb-14 md:pt-40 md:pb-20 px-5 min-h-screen flex items-center overflow-hidden">
+        {/* Background image — scoped to the first screen only */}
+        <div
+          className="absolute inset-0 -z-10 bg-cover bg-center"
+          style={{ backgroundImage: "url('/space-hero.png')" }}
+        />
+        {/* Left-side text readability overlay */}
+        <div className="absolute inset-0 -z-10 bg-[linear-gradient(105deg,rgba(1,4,16,0.82)_0%,rgba(1,4,16,0.60)_38%,rgba(1,4,16,0.18)_65%,transparent_100%)]" />
+        <div className="relative z-10 max-w-6xl mx-auto w-full">
+          <div className="max-w-2xl text-center md:text-left">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 bg-[var(--accent-soft)] border border-[rgba(47,111,237,0.2)] text-[var(--accent)] rounded-full text-sm font-medium mb-8"
+            className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/12 border border-white/30 text-white rounded-full text-sm font-medium mb-8 backdrop-blur-sm"
           >
-            <Snowflake className="w-3.5 h-3.5" /> Built for student earners
+            <Snowflake className="w-3.5 h-3.5" /> Clearing Canada, one driveway at a time
           </motion.div>
 
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3, duration: 0.65 }}
-            className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold text-[var(--text-primary)] leading-[1.02] tracking-tight font-headline"
+            className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold text-white leading-[1.02] tracking-tight font-headline"
           >
             Turn snow days
             <br />
-            <span className="text-[var(--accent)]">into paid days.</span>
+            <span className="text-[#9FD3FF]">into paid days</span>
           </motion.h1>
 
           <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
-            className="mt-6 text-lg md:text-xl text-[var(--text-secondary)] max-w-xl mx-auto"
+            className="mt-6 text-lg md:text-xl text-slate-200 max-w-xl md:mx-0 mx-auto"
           >
-            Students help neighbors clear snow, earn fast, and build trust locally — all from one app.
+            Students earn real money clearing snow for neighbours, booked, tracked, and paid through one simple app.
           </motion.p>
 
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.65 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-10"
+            className="flex flex-col sm:flex-row items-center md:items-start justify-center md:justify-start gap-3 mt-10"
           >
             <Btn href="/signup">
-              Find a Job Nearby <ArrowRight className="w-4 h-4" />
+              Start Earning <ArrowRight className="w-4 h-4" />
             </Btn>
-            <Btn href="/signup" variant="outline">
-              <Truck className="w-4 h-4" /> I Need Snow Cleared
+            <Btn href="/signup" variant="outline" className="!border-white/50 !text-white hover:!bg-white/14">
+              <Truck className="w-4 h-4" /> Get My Driveway Cleared
             </Btn>
           </motion.div>
 
@@ -704,18 +721,19 @@ export default function LandingPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.85 }}
-            className="flex flex-wrap items-center justify-center gap-6 mt-10 text-sm text-[var(--text-muted)]"
+            className="flex flex-wrap items-center justify-center md:justify-start gap-6 mt-10 text-sm text-slate-200"
           >
             <span className="flex items-center gap-1.5">
-              <MapPin className="w-4 h-4" /> Nearby jobs
+              <MapPin className="w-4 h-4" /> Jobs near you
             </span>
             <span className="flex items-center gap-1.5">
-              <Shield className="w-4 h-4" /> Verified neighbors
+              <Shield className="w-4 h-4" /> Verified neighbours
             </span>
             <span className="flex items-center gap-1.5">
               <Lock className="w-4 h-4" /> Secure payouts
             </span>
           </motion.div>
+          </div>
         </div>
       </section>
 

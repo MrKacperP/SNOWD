@@ -21,6 +21,7 @@ import {
   isOperatorPublic,
 } from "@/lib/operatorDiscovery";
 import StarRating from "@/components/StarRating";
+import UserAvatar from "@/components/UserAvatar";
 import {
   Search,
   MapPin,
@@ -509,8 +510,14 @@ export default function FindOperatorsPage() {
                 >
                   <div className="flex items-start gap-4">
                     {/* Avatar */}
-                    <div className="w-14 h-14 bg-[#2F6FED]/20 rounded-xl flex items-center justify-center text-[#2F6FED] font-bold text-xl shrink-0">
-                      {op.displayName?.charAt(0)?.toUpperCase()}
+                    <div className="w-14 h-14 shrink-0">
+                      <UserAvatar
+                        photoURL={(op as unknown as Record<string, string>)?.avatar}
+                        role="operator"
+                        displayName={op.displayName}
+                        size={56}
+                        rounded="xl"
+                      />
                     </div>
 
                     {/* Info */}

@@ -114,6 +114,18 @@ export default function OnboardingPage() {
 
   const totalSteps = role === "client" ? 3 : 4;
 
+  // Mascot guide messages per step
+  const getMascotMessage = () => {
+    if (step === 1) return "Hey there! 👋 Are you looking to get your snow removed, or do you want to earn money clearing it?";
+    if (step === 2) return "Great choice! Now tell me where you're located so I can connect you with the right people nearby.";
+    if (step === 3 && role === "client") return "Nice! Let me know about your property so operators know exactly what to clear. 🏠";
+    if (step === 3 && role === "operator") return "Awesome! Tell clients what kind of operator you are and what equipment you use. 🛠️";
+    if (step === 4 && role === "operator") return "Almost done! Set your prices and you'll be ready to start earning. 🎉";
+    return "You're doing great!";
+  };
+
+  const getMascotSrc = () => role === "operator" ? "/StudentLogo.png" : "/logo.png";
+
   const toggleServiceType = (type: ServiceType) => {
     setServiceTypes((prev) =>
       prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
@@ -373,7 +385,22 @@ export default function OnboardingPage() {
             animate={{ scale: 1 }}
             transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 15 }}
           >
-            <Image src="/logo.png" alt="snowd.ca" width={80} height={80} className="mx-auto mb-6 drop-shadow-2xl" />
+            <Image src="/logo.png" alt="snowd.ca" width={100} height={100} className="mx-auto mb-2 drop-shadow-2xl" />
+          </motion.div>
+
+          {/* Mascot speech bubble on intro */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.6, type: "spring" }}
+            className="relative inline-block mb-6"
+          >
+            <div className="bg-white rounded-2xl px-4 py-2.5 shadow-lg border border-[#E6EEF6] text-sm text-[#0B1F33] font-medium max-w-xs">
+              Hi! I&apos;m Snowd! Let&apos;s get you set up in under 2 minutes. ❄️
+              <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-2 overflow-hidden">
+                <div className="w-3 h-3 bg-white border-l border-t border-[#E6EEF6] rotate-45 translate-y-1 mx-auto" />
+              </div>
+            </div>
           </motion.div>
 
           <motion.h1
@@ -449,6 +476,34 @@ export default function OnboardingPage() {
             />
           </div>
         </div>
+
+        {/* Mascot guide */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={`mascot-${step}`}
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.95 }}
+            transition={{ duration: 0.25 }}
+            className="flex items-center gap-3 mb-5 px-1"
+          >
+            <motion.div
+              animate={{ rotate: [0, -5, 5, -3, 3, 0] }}
+              transition={{ delay: 0.4, duration: 0.6 }}
+            >
+              <Image
+                src={getMascotSrc()}
+                alt="Snowd mascot"
+                width={48}
+                height={48}
+                className="drop-shadow-sm"
+              />
+            </motion.div>
+            <div className="relative bg-white rounded-2xl rounded-tl-sm px-4 py-2.5 shadow-md border border-[#E6EEF6] flex-1">
+              <p className="text-sm text-[#0B1F33] font-medium leading-snug">{getMascotMessage()}</p>
+            </div>
+          </motion.div>
+        </AnimatePresence>
 
         <div className="bg-white rounded-2xl shadow-lg border border-[#E6EEF6] p-6 md:p-8">
           <AnimatePresence mode="wait">
