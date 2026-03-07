@@ -48,6 +48,7 @@ import {
   Flag,
   AlertTriangle,
   Briefcase,
+  ExternalLink,
 } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
@@ -81,6 +82,7 @@ export default function ChatPage() {
   const [otherUser, setOtherUser] = useState<UserProfile | null>(null);
   const [showActions, setShowActions] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [sendingMessage, setSendingMessage] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Stripe state
@@ -121,8 +123,11 @@ export default function ChatPage() {
   const [reportDescription, setReportDescription] = useState("");
   const [submittingReport, setSubmittingReport] = useState(false);
   const [reportSubmitted, setReportSubmitted] = useState(false);
+  const [showMapModal, setShowMapModal] = useState(false);
 
   const isOperator = profile?.role === "operator";
+  const mapAddress = [job?.address, job?.city, job?.province].filter(Boolean).join(", ");
+  const mapQuery = encodeURIComponent(mapAddress || "Canada");
 
   // Compute distance between operator and client address
   const distance = React.useMemo(() => {
@@ -284,6 +289,9 @@ export default function ChatPage() {
       if (!content.trim() && type === "text") return;
       if (!user?.uid || !chatId) return;
 
+      const trackSendingState = type === "text";
+      if (trackSendingState) setSendingMessage(true);
+
       try {
         const messageData: Record<string, unknown> = {
           chatId,
@@ -319,6 +327,8 @@ export default function ChatPage() {
         if (type === "text") setNewMessage("");
       } catch (error) {
         console.error("Error sending message:", error);
+      } finally {
+        if (trackSendingState) setSendingMessage(false);
       }
     },
     [user?.uid, chatId, profile?.displayName]
@@ -802,6 +812,7 @@ export default function ChatPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (sendingMessage) return;
     sendMessage(newMessage);
   };
 
@@ -849,9 +860,17 @@ export default function ChatPage() {
     return "";
   };
 
+  const latestOwnMessageId = React.useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      if (messages[i].senderId === user?.uid) return messages[i].id;
+    }
+    return null;
+  }, [messages, user?.uid]);
+
   // Message rendering
   const renderMessage = (msg: ChatMessage) => {
     const isOwn = msg.senderId === user?.uid;
+    const showDeliveryState = isOwn && latestOwnMessageId === msg.id;
     const isSystem =
       msg.type === "system" ||
       msg.type === "eta-update" ||
@@ -883,9 +902,14 @@ export default function ChatPage() {
               className="w-full max-h-80 object-cover cursor-pointer rounded-2xl"
               onClick={() => window.open(msg.metadata!.imageUrl!, "_blank")}
             />
-            <p className={`text-xs mt-1 ${isOwn ? "text-[#6B7C8F] text-right" : "text-[#6B7C8F]"}`}>
-              {formatTimestamp(msg.createdAt)}
-            </p>
+            <div className={`mt-1 flex items-center gap-1.5 text-[10px] ${isOwn ? "justify-end text-[#6B7C8F]" : "text-[#6B7C8F]"}`}>
+              <span>{formatTimestamp(msg.createdAt)}</span>
+              {showDeliveryState && (
+                <span className={`font-semibold ${msg.read ? "text-emerald-600" : "text-[#6B7C8F]"}`}>
+                  {msg.read ? "Read" : "Sent"}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       );
@@ -1013,7 +1037,7 @@ export default function ChatPage() {
           className={`max-w-[72%] px-3.5 py-2 rounded-2xl shadow-sm ${
             isOwn
               ? "bg-[#2F6FED] text-white rounded-tr-sm"
-              : "bg-white text-gray-900 rounded-tl-sm"
+              : "bg-white text-gray-900 rounded-tl-sm border border-[var(--border-soft)]"
           }`}
         >
           {!isOwn && (
@@ -1022,9 +1046,14 @@ export default function ChatPage() {
             </p>
           )}
           <p className="text-sm leading-relaxed">{msg.content}</p>
-          <p className={`text-[10px] mt-0.5 text-right ${isOwn ? "text-white/50" : "text-gray-400"}`}>
-            {formatTimestamp(msg.createdAt)}
-          </p>
+          <div className={`mt-1 flex items-center gap-1.5 text-[10px] ${isOwn ? "justify-end text-white/70" : "justify-end text-gray-400"}`}>
+            <span>{formatTimestamp(msg.createdAt)}</span>
+            {showDeliveryState && (
+              <span className={`font-semibold ${isOwn && msg.read ? "text-emerald-200" : ""}`}>
+                {msg.read ? "Read" : "Sent"}
+              </span>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -1044,39 +1073,39 @@ export default function ChatPage() {
   const otherUserId = otherUser?.uid || (messages.find((m) => m.senderId !== user?.uid)?.senderId);
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] md:h-[calc(100vh-4rem)] gap-0 md:gap-4">
+    <div className="flex h-[calc(100vh-8rem)] md:h-[calc(100vh-4rem)] gap-0 md:gap-4 md:items-stretch overflow-hidden min-h-0">
       <CelebrationOverlay
         type={celebration.type}
         show={celebration.show}
         onComplete={() => setCelebration({ ...celebration, show: false })}
       />
       {/* Chat Column */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0 rounded-2xl overflow-hidden border border-[var(--border-color)] bg-[var(--bg-card-solid)] shadow-[0_20px_40px_rgba(15,23,42,0.08)]">
         {/* Chat Header */}
-        <div className="bg-[var(--bg-card-solid)] rounded-t-2xl border border-[var(--border-color)] px-4 py-3 flex items-center gap-3 shrink-0">
+        <div className="bg-gradient-to-r from-white via-[#F9FBFF] to-white px-4 py-3 flex items-center gap-3 shrink-0 border-b border-[var(--border-soft)]">
           <Link
             href="/dashboard/messages"
-            className="p-1.5 text-[#6B7C8F] hover:text-[#0B1F33] rounded-lg hover:bg-[#F7FAFC]"
+            className="p-1.5 text-[#6B7C8F] hover:text-[#0B1F33] rounded-lg hover:bg-[#EEF4FF]"
           >
             <ArrowLeft className="w-5 h-5" />
           </Link>
           {/* Clickable avatar → public profile */}
           <Link href={`/dashboard/u/${otherUserId || ""}`}>
-            <div className="w-10 h-10 bg-[#2F6FED] rounded-full flex items-center justify-center text-white font-semibold hover:ring-2 hover:ring-[#2F6FED]/30 transition cursor-pointer">
+            <div className="w-10 h-10 bg-[#2F6FED] rounded-full flex items-center justify-center text-white font-semibold hover:ring-2 hover:ring-[#2F6FED]/30 transition cursor-pointer shadow-sm">
               {otherUser?.displayName?.charAt(0)?.toUpperCase() || "?"}
             </div>
           </Link>
           <div className="flex-1 min-w-0">
-            <Link href={`/dashboard/u/${otherUserId || ""}`} className="hover:underline">
+            <Link href={`/dashboard/u/${otherUserId || ""}`} className="hover:underline underline-offset-2">
               <p className="font-semibold text-[#0B1F33] truncate">
                 {otherUser?.displayName || "User"}
               </p>
             </Link>
-            <p className="text-xs text-[#6B7C8F] flex items-center gap-1">
+            <p className="text-xs text-[#6B7C8F] flex items-center gap-1.5">
               <MapPin className="w-3 h-3" />
               {otherUser?.city}, {otherUser?.province}
               {distance !== null && (
-                <span className="flex items-center gap-0.5 ml-2 text-[#2F6FED] font-medium">
+                <span className="flex items-center gap-0.5 ml-2 text-[#2F6FED] font-semibold">
                   <Compass className="w-3 h-3" />
                   {distance.toFixed(1)} km away
                 </span>
@@ -1099,12 +1128,12 @@ export default function ChatPage() {
 
         {/* Address bar for operator — show client address */}
         {isOperator && job && (
-          <div className="bg-[var(--bg-secondary)] border-x border-[var(--border-color)] px-4 py-2 flex items-center gap-2 text-xs">
+          <div className="bg-[#F8FAFD] border-b border-[var(--border-soft)] px-4 py-2.5 flex items-center gap-2 text-xs">
             <MapPin className="w-3.5 h-3.5 text-[#2F6FED] shrink-0" />
             <span className="text-[#0B1F33] font-medium truncate">{job.address}</span>
             <span className="text-[#6B7C8F]">{job.city}, {job.province}</span>
             {distance !== null && (
-              <span className="ml-auto shrink-0 px-2 py-0.5 bg-[#D6E8F5] text-[#2F6FED] rounded-full font-semibold">
+              <span className="ml-auto shrink-0 px-2.5 py-0.5 bg-[#E8F0FF] text-[#2F6FED] rounded-full font-semibold">
                 {distance.toFixed(1)} km
               </span>
             )}
@@ -1113,7 +1142,7 @@ export default function ChatPage() {
 
         {/* Client address bar — for client to see their own address */}
         {!isOperator && job && (
-          <div className="bg-[var(--bg-secondary)] border-x border-[var(--border-color)] px-4 py-2 flex items-center gap-2 text-xs">
+          <div className="bg-[#F8FAFD] border-b border-[var(--border-soft)] px-4 py-2.5 flex items-center gap-2 text-xs">
             <MapPin className="w-3.5 h-3.5 text-[#2F6FED] shrink-0" />
             <span className="text-[#0B1F33] font-medium truncate">{job.address}</span>
             <span className="text-[#6B7C8F]">{job.city}, {job.province}</span>
@@ -1122,7 +1151,7 @@ export default function ChatPage() {
 
         {/* Job Info Bar */}
         {job && (
-          <div className="bg-[#2F6FED]/5 border-x border-[#2F6FED]/10 px-4 py-3">
+          <div className="bg-[#F4F8FF] border-b border-[#DCE8FF] px-4 py-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 {/* Service types as pills */}
@@ -1177,7 +1206,7 @@ export default function ChatPage() {
 
         {/* Compact progress tracker on mobile */}
         {job && (
-          <div className="md:hidden border-x border-[#E6EEF6] px-4 py-2 bg-white border-b border-[#E6EEF6]">
+          <div className="md:hidden px-4 py-2 bg-white border-b border-[var(--border-soft)]">
             <ProgressTracker
               status={job.status}
               paymentStatus={job.paymentStatus as "pending" | "held" | "paid" | "refunded" | undefined}
@@ -1187,10 +1216,10 @@ export default function ChatPage() {
         )}
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 bg-[#EBF0F5] dark:bg-[#0e1621] border-x border-[var(--border-color)] space-y-0.5">
+        <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 bg-[linear-gradient(180deg,#F5F8FD_0%,#EFF4FB_100%)] dark:bg-[#0e1621] space-y-1">
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center py-12 text-[#6B7C8F]">
-              <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm mb-3">
+              <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-[var(--border-soft)] mb-3">
                 <CheckCircle className="w-7 h-7 text-[#2F6FED]" />
               </div>
               <p className="font-medium text-sm text-gray-700">Conversation started</p>
@@ -1265,7 +1294,7 @@ export default function ChatPage() {
 
         {/* Operator Quick Actions */}
         {isOperator && showActions && job && job.status !== "completed" && job.status !== "cancelled" && (
-          <div className="bg-white border-x border-[#E6EEF6] border-t border-gray-100 px-4 py-3">
+          <div className="bg-white border-x border-[#E6EEF6] border-t border-gray-100 px-4 py-3 md:hidden">
             <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-widest mb-2.5">Job Actions</p>
             <div className="grid grid-cols-2 gap-2">
               {job.status === "pending" && (
@@ -1486,8 +1515,8 @@ export default function ChatPage() {
         )}
 
         {/* Message Input */}
-        <div className="bg-[var(--bg-card-solid)] rounded-b-2xl border border-[var(--border-color)] px-4 py-3 shrink-0">
-          <form onSubmit={handleSubmit} className="flex items-center gap-2">
+        <div className="bg-white px-3 sm:px-4 py-3 shrink-0 border-t border-[var(--border-soft)]">
+          <form onSubmit={handleSubmit} className="flex items-center gap-2 rounded-2xl border border-[var(--border-soft)] bg-[#FAFCFF] p-2">
             {isOperator && (
               <button
                 type="button"
@@ -1495,7 +1524,7 @@ export default function ChatPage() {
                 className={`p-2 rounded-lg transition ${
                   showActions
                     ? "bg-[#D6E8F5] text-[#2F6FED]"
-                    : "text-[#6B7C8F] hover:text-[#0B1F33] hover:bg-[#F7FAFC]"
+                    : "text-[#6B7C8F] hover:text-[#0B1F33] hover:bg-[#EEF4FF]"
                 }`}
               >
                 <ChevronDown className={`w-5 h-5 transition-transform ${showActions ? "rotate-180" : ""}`} />
@@ -1505,7 +1534,7 @@ export default function ChatPage() {
             <button
               type="button"
               onClick={() => chatPhotoInputRef.current?.click()}
-              className="p-2 text-[#6B7C8F] hover:text-[#2F6FED] hover:bg-[#F7FAFC] rounded-lg transition"
+              className="p-2 text-[#6B7C8F] hover:text-[#2F6FED] hover:bg-[#EEF4FF] rounded-lg transition"
               title="Send photo"
             >
               <Camera className="w-5 h-5" />
@@ -1522,14 +1551,17 @@ export default function ChatPage() {
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               placeholder="Type a message..."
-              className="flex-1 px-4 py-2.5 bg-[var(--bg-secondary)] rounded-xl outline-none focus:ring-2 focus:ring-[#2F6FED] text-sm border border-[var(--border-color)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
+              className="flex-1 px-4 py-2.5 bg-white rounded-xl outline-none focus:ring-2 focus:ring-[#2F6FED]/30 text-sm border border-[var(--border-color)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
             />
             <button
               type="submit"
-              disabled={!newMessage.trim()}
-              className="p-2.5 bg-[#2F6FED] text-white rounded-xl hover:bg-[#2158C7] transition disabled:opacity-40 disabled:cursor-not-allowed"
+              disabled={!newMessage.trim() || sendingMessage}
+              className="px-4 py-2.5 bg-[#2F6FED] text-white rounded-xl hover:bg-[#2158C7] transition disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2"
             >
               <Send className="w-5 h-5" />
+              <span className="hidden sm:inline text-sm font-semibold">
+                {sendingMessage ? "Sending" : "Send"}
+              </span>
             </button>
           </form>
         </div>
@@ -1537,8 +1569,8 @@ export default function ChatPage() {
 
       {/* Desktop Right Panel — Progress Tracker */}
       {job && (
-        <div className="hidden md:flex flex-col w-80 shrink-0 space-y-4">
-          <div className="bg-[var(--bg-card-solid)] dark:bg-[#151c24] rounded-2xl border border-[var(--border-color)] dark:border-[#1e2d3d] p-5 sticky top-4">
+        <div className="hidden md:flex flex-col w-80 shrink-0 h-full min-h-0">
+          <div className="bg-[var(--bg-card-solid)] dark:bg-[#151c24] rounded-2xl border border-[var(--border-color)] dark:border-[#1e2d3d] p-5 h-full overflow-y-auto min-h-0">
             <h3 className="text-sm font-semibold text-[#6B7C8F] uppercase tracking-wide mb-4">Job Progress</h3>
             <ProgressTracker
               status={job.status}
@@ -1609,6 +1641,46 @@ export default function ChatPage() {
               </div>
             )}
 
+            {isOperator && (job.status === "accepted" || job.status === "en-route") && (
+              <div className="mt-4 pt-3 border-t border-[#E6EEF6] dark:border-[#1e2d3d] space-y-2">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Quick Comms</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => sendEtaUpdate(10)}
+                    className="flex items-center justify-center gap-1 px-2 py-2 bg-[#2F6FED]/8 text-[#2F6FED] rounded-xl text-xs font-semibold hover:bg-[#2F6FED]/15 transition"
+                  >
+                    10m
+                  </button>
+                  <button
+                    onClick={() => sendEtaUpdate(20)}
+                    className="flex items-center justify-center gap-1 px-2 py-2 bg-[#2F6FED]/8 text-[#2F6FED] rounded-xl text-xs font-semibold hover:bg-[#2F6FED]/15 transition"
+                  >
+                    20m
+                  </button>
+                  <button
+                    onClick={() => sendEtaUpdate(30)}
+                    className="flex items-center justify-center gap-1 px-2 py-2 bg-[#2F6FED]/8 text-[#2F6FED] rounded-xl text-xs font-semibold hover:bg-[#2F6FED]/15 transition"
+                  >
+                    30m
+                  </button>
+                </div>
+                {job.status === "accepted" && job.paymentStatus === "pending" && (
+                  <button
+                    onClick={async () => {
+                      await sendMessage(
+                        `${profile?.displayName} is requesting payment of $${job.price} CAD for this job. Tap Pay Now to hold funds securely with snowd.ca.`,
+                        "payment-request",
+                        { amount: job.price }
+                      );
+                    }}
+                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-amber-500 text-white rounded-xl text-xs font-bold hover:bg-amber-600 transition"
+                  >
+                    <CreditCard className="w-3.5 h-3.5" /> Request Payment
+                  </button>
+                )}
+              </div>
+            )}
+
             {/* Job summary */}
             <div className="mt-5 pt-4 border-t border-[#E6EEF6] dark:border-[#1e2d3d] space-y-3 text-sm">
               <div className="flex items-center justify-between">
@@ -1648,10 +1720,21 @@ export default function ChatPage() {
                 </div>
               )}
               <div className="pt-2">
-                <p className="text-xs text-[#6B7C8F] flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setShowMapModal(true)}
+                  className="w-full text-left text-xs text-[#6B7C8F] flex items-center gap-1.5 hover:text-[#2F6FED] transition"
+                >
                   <MapPin className="w-3 h-3" />
                   {job.address}, {job.city}
-                </p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => window.open(`https://maps.google.com/?q=${mapQuery}`, "_blank", "noopener,noreferrer")}
+                  className="mt-1 text-[11px] font-semibold text-[#2F6FED] inline-flex items-center gap-1 hover:text-[#2158C7]"
+                >
+                  Open in Google Maps <ExternalLink className="w-3 h-3" />
+                </button>
               </div>
             </div>
 
@@ -1775,6 +1858,44 @@ export default function ChatPage() {
                 className="w-full py-2.5 text-gray-500 text-sm font-medium hover:text-gray-700 transition"
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showMapModal && (
+        <div className="fixed inset-0 bg-black/45 z-50 flex items-center justify-center p-4" onClick={() => setShowMapModal(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="px-4 py-3 border-b border-[var(--border-soft)] flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-[#0B1F33]">Job Address</p>
+                <p className="text-xs text-[#6B7C8F] truncate">{mapAddress || "Address unavailable"}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowMapModal(false)}
+                className="p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="h-[50vh] min-h-[320px] bg-[#EFF4FB]">
+              <iframe
+                title="Google Maps address preview"
+                src={`https://www.google.com/maps?q=${mapQuery}&output=embed`}
+                className="w-full h-full border-0"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+            </div>
+            <div className="px-4 py-3 border-t border-[var(--border-soft)] flex items-center justify-end">
+              <button
+                type="button"
+                onClick={() => window.open(`https://maps.google.com/?q=${mapQuery}`, "_blank", "noopener,noreferrer")}
+                className="px-3 py-2 rounded-lg bg-[#2F6FED] text-white text-sm font-semibold hover:bg-[#2158C7] inline-flex items-center gap-1.5"
+              >
+                Open Full Map <ExternalLink className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>

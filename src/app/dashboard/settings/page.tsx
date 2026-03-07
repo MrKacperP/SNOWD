@@ -27,7 +27,7 @@ import {
   DollarSign,
   Sun,
   Moon,
-  // Monitor removed - no longer needed
+  Monitor,
   CreditCard,
   Save,
   CheckCircle,
@@ -73,6 +73,7 @@ export default function SettingsPage() {
   const [province, setProvince] = useState(profile?.province || "");
   const [postalCode, setPostalCode] = useState(profile?.postalCode || "");
   const [address, setAddress] = useState(profile?.address || "");
+  const [age, setAge] = useState<number | undefined>((profile as ClientProfile)?.age);
 
   // Operator fields
   const operatorProfile = profile as OperatorProfile;
@@ -337,6 +338,8 @@ export default function SettingsPage() {
         setBio(op.bio || "");
         setBusinessName(op.businessName || "");
         setServiceRadius(op.serviceRadius || 10);
+      } else {
+        setAge((profile as ClientProfile)?.age);
       }
     }
   }, [profile, isOperator]);
@@ -357,6 +360,9 @@ export default function SettingsPage() {
         updates.bio = bio;
         updates.businessName = businessName;
         updates.serviceRadius = serviceRadius;
+      } else {
+        updates.age = age || null;
+        updates.simplifiedMode = !!(age && age >= 55);
       }
       await updateDoc(doc(db, "users", profile.uid), updates);
       await refreshProfile();
@@ -515,6 +521,23 @@ export default function SettingsPage() {
                   className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none"
                 />
               </div>
+              {!isOperator && (
+                <div>
+                  <label className="text-sm font-medium text-[#6B7C8F] mb-1 block">Age</label>
+                  <input
+                    type="number"
+                    min={13}
+                    max={120}
+                    value={age ?? ""}
+                    onChange={(e) => {
+                      const next = parseInt(e.target.value, 10);
+                      setAge(Number.isNaN(next) ? undefined : next);
+                    }}
+                    className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none"
+                  />
+                  <p className="mt-1 text-xs text-[#6B7C8F]">55+ enables the simplified dashboard experience.</p>
+                </div>
+              )}
               {isOperator && (
                 <div>
                   <label className="text-sm font-medium text-[#6B7C8F] mb-1 block">Business Name</label>
@@ -684,10 +707,11 @@ export default function SettingsPage() {
               <Sun className="w-5 h-5 text-[#2F6FED]" />
               Theme
             </h3>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               {[
                 { key: "light" as const, label: "Light", icon: Sun, desc: "Bright & clean" },
                 { key: "dark" as const, label: "Dark", icon: Moon, desc: "Easy on eyes" },
+                { key: "system" as const, label: "System", icon: Monitor, desc: "Follow device" },
               ].map((opt) => {
                 const Icon = opt.icon;
                 const active = theme === opt.key;

@@ -456,7 +456,7 @@ export default function OperatorDashboard() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-[#2F6FED] rounded-2xl p-6 md:p-8 text-white relative overflow-hidden shadow-lg"
+        className="bg-[linear-gradient(120deg,#0B1F33_0%,#12395C_45%,#2F6FED_100%)] rounded-2xl p-6 md:p-8 text-white relative overflow-hidden shadow-lg"
       >
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-4 right-8 text-6xl">❄️</div>
@@ -468,6 +468,7 @@ export default function OperatorDashboard() {
               <h1 className="text-2xl md:text-3xl font-extrabold drop-shadow-sm">
                 {greeting()}, {operatorProfile?.displayName?.split(" ")[0] || "there"}!
               </h1>
+              <p className="mt-1 text-white/90 text-sm">Your operator control center for jobs, earnings, and reputation.</p>
               <div className="mt-1 flex items-center gap-3 flex-wrap">
                 <p className="text-white/80 flex items-center gap-1">
                   <MapPin className="w-4 h-4" />
@@ -499,7 +500,7 @@ export default function OperatorDashboard() {
               />
             </button>
             <span className="text-sm font-medium">
-              {isAvailable ? "Available for Jobs" : "Unavailable"}
+              {isAvailable ? "Available for new requests" : "Paused"}
             </span>
           </div>
         </div>
@@ -577,7 +578,7 @@ export default function OperatorDashboard() {
               <div>
                 <h3 className="font-bold text-[var(--text-primary)]">Profile Setup</h3>
                 <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                  {completedSetupCount} of {totalSetupSteps} steps done — {!isAccountPublic ? "complete all steps to go public" : "finish remaining steps"}
+                  {completedSetupCount} of {totalSetupSteps} steps done - {!isAccountPublic ? "complete all steps to become bookable" : "finish remaining steps"}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -661,27 +662,42 @@ export default function OperatorDashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <Link
           href="/dashboard/calendar"
-          className="flex flex-col items-center gap-2 p-4 bg-[var(--bg-card-solid)] rounded-xl border border-[var(--border-subtle)] hover-lift interactive-card"
+          className="flex items-center gap-3 p-4 bg-[var(--bg-card-solid)] rounded-xl border border-[var(--border-subtle)] hover-lift interactive-card"
         >
-          <CalendarDays className="w-5 h-5 text-[#2F6FED]" />
-          <p className="text-xs font-medium text-[var(--text-secondary)]">Calendar</p>
+          <div className="w-10 h-10 rounded-xl bg-[#2F6FED]/10 flex items-center justify-center">
+            <CalendarDays className="w-5 h-5 text-[#2F6FED]" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-[var(--text-primary)]">Calendar</p>
+            <p className="text-xs text-[var(--text-secondary)]">Plan your route and availability</p>
+          </div>
         </Link>
         <Link
           href="/dashboard/log"
-          className="flex flex-col items-center gap-2 p-4 bg-[var(--bg-card-solid)] rounded-xl border border-[var(--border-subtle)] hover-lift interactive-card"
+          className="flex items-center gap-3 p-4 bg-[var(--bg-card-solid)] rounded-xl border border-[var(--border-subtle)] hover-lift interactive-card"
         >
-          <ClipboardList className="w-5 h-5 text-purple-600" />
-          <p className="text-xs font-medium text-[var(--text-secondary)]">Job Log</p>
+          <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center">
+            <ClipboardList className="w-5 h-5 text-purple-600" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-[var(--text-primary)]">Job Log</p>
+            <p className="text-xs text-[var(--text-secondary)]">Track completed and active jobs</p>
+          </div>
         </Link>
         <Link
           href="/dashboard/analytics"
-          className="flex flex-col items-center gap-2 p-4 bg-[var(--bg-card-solid)] rounded-xl border border-[var(--border-subtle)] hover-lift interactive-card"
+          className="flex items-center gap-3 p-4 bg-[var(--bg-card-solid)] rounded-xl border border-[var(--border-subtle)] hover-lift interactive-card"
         >
-          <BarChart3 className="w-5 h-5 text-green-600" />
-          <p className="text-xs font-medium text-[var(--text-secondary)]">Analytics</p>
+          <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">
+            <BarChart3 className="w-5 h-5 text-green-600" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-[var(--text-primary)]">Analytics</p>
+            <p className="text-xs text-[var(--text-secondary)]">Watch earnings and job quality</p>
+          </div>
         </Link>
       </div>
 

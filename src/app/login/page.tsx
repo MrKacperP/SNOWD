@@ -7,7 +7,7 @@ import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { ArrowRight, CheckCircle, Shield } from "lucide-react";
+import { CheckCircle, Shield } from "lucide-react";
 import { motion } from "framer-motion";
 
 const ADMIN_EMAILS = ["kacperprymicz@gmail.com"];
@@ -119,19 +119,19 @@ export default function LoginPage() {
               <Image src="/logo.png" alt="snowd logo" width={44} height={44} />
               <div className="text-left">
                 <p className="text-lg font-bold text-blue-600 leading-none">snowd</p>
-                <p className="text-xs text-gray-500">Student snow crew</p>
+                <p className="text-xs text-gray-500">Student + neighborhood snow help</p>
               </div>
             </Link>
 
             <h1 className="text-3xl md:text-4xl font-bold font-headline text-gray-800 mb-3">Welcome back</h1>
             <p className="text-gray-600 text-sm md:text-base max-w-sm">
-              Sign in to your account and continue managing jobs, chats, and payouts.
+              Sign in to keep booking fast help or managing your student snow jobs.
             </p>
 
             <div className="mt-6 space-y-3 text-sm text-gray-600">
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-emerald-500" />
-                Verified community of local operators and clients
+                Verified neighborhood operators and clients
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-emerald-500" />
@@ -139,7 +139,7 @@ export default function LoginPage() {
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-emerald-500" />
-                Fast secure payouts with full tracking
+                Fast payouts and full job tracking
               </div>
             </div>
           </motion.div>
@@ -152,7 +152,11 @@ export default function LoginPage() {
           >
             <div className="text-left mb-5">
               <h2 className="text-xl font-bold text-gray-800">Sign in</h2>
-              <p className="text-gray-500 text-sm mt-1">The only supported sign-in method is Google.</p>
+              <p className="text-gray-500 text-sm mt-1">Google sign-in keeps access simple and secure.</p>
+            </div>
+
+            <div className="mb-5 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+              Returning student operator? You can jump right back to jobs, chats, and earnings.
             </div>
 
             {error && (

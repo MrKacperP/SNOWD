@@ -33,6 +33,7 @@ import {
   Briefcase,
   Bell,
   CheckCheck,
+  ClipboardList,
 } from "lucide-react";
 import { useWeather } from "@/context/WeatherContext";
 import UserAvatar from "@/components/UserAvatar";
@@ -60,17 +61,26 @@ export default function Navbar() {
   const { weather } = useWeather();
 
   const isClient = profile?.role === "client";
+  const simplifiedClient = isClient && (((profile as unknown as Record<string, unknown>)?.simplifiedMode as boolean) || Number((profile as unknown as Record<string, unknown>)?.age || 0) >= 55);
   const isOnline = (profile as unknown as Record<string, unknown>)?.isOnline !== false;
   const getTourKey = (href: string) => {
     if (href === "/dashboard") return "nav-home";
     if (href === "/dashboard/find") return "nav-find";
+    if (href === "/dashboard/log") return "nav-jobs";
     if (href === "/dashboard/jobs") return "nav-jobs";
     if (href === "/dashboard/messages") return "nav-messages";
     if (href === "/dashboard/calendar") return "nav-calendar";
     return undefined;
   };
 
-  const navItems = isClient
+  const navItems = simplifiedClient
+    ? [
+        { href: "/dashboard", label: "Home", icon: Home },
+        { href: "/dashboard/find", label: "Book", icon: Search },
+        { href: "/dashboard/log", label: "Progress", icon: ClipboardList },
+        { href: "/dashboard/messages", label: "Messages", icon: MessageSquare },
+      ]
+    : isClient
     ? [
         { href: "/dashboard", label: "Home", icon: Home },
         { href: "/dashboard/find", label: "Find", icon: Search },

@@ -137,7 +137,7 @@ export default function MessagesPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto space-y-5">
       <button
         onClick={() => router.push("/dashboard")}
         className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 transition"
@@ -146,11 +146,16 @@ export default function MessagesPage() {
         Back to Dashboard
       </button>
 
-      <header className="space-y-3">
-        <h1 className="text-2xl font-semibold text-slate-900 flex items-center gap-2">
-          <MessageSquare className="w-6 h-6 text-[#3B82F6]" />
-          Messages
-        </h1>
+      <header className="rounded-2xl border border-[var(--border-soft)] bg-[linear-gradient(135deg,#ffffff_0%,#f5f9ff_100%)] p-4 sm:p-5 space-y-3 shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-2xl font-semibold text-slate-900 flex items-center gap-2">
+            <MessageSquare className="w-6 h-6 text-[#3B82F6]" />
+            Messages
+          </h1>
+          <span className="text-xs sm:text-sm px-2.5 py-1 rounded-full bg-white border border-[var(--border-soft)] text-slate-600 font-medium">
+            {filteredChats.length} conversation{filteredChats.length === 1 ? "" : "s"}
+          </span>
+        </div>
 
         <div className="relative">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -159,12 +164,12 @@ export default function MessagesPage() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search conversations"
-            className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#3B82F6]/25 focus:border-[#3B82F6]"
+            className="w-full bg-white border border-[var(--border-soft)] rounded-xl pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#3B82F6]/25 focus:border-[#3B82F6]"
           />
         </div>
       </header>
 
-      <section className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+      <section className="bg-white border border-[var(--border-soft)] rounded-2xl overflow-hidden shadow-[0_12px_26px_rgba(15,23,42,0.04)]">
         {loading ? (
           <div className="p-8 text-center text-sm text-slate-500">
             Loading conversations...
@@ -174,7 +179,7 @@ export default function MessagesPage() {
             No conversations found.
           </div>
         ) : (
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-[var(--border-soft)]">
             {filteredChats.map((chat) => {
               const unread = chat.unreadCount?.[user?.uid || ""] || 0;
               const title = chat.otherUser?.displayName || "User";
@@ -184,10 +189,10 @@ export default function MessagesPage() {
                   <Link
                     href={`/dashboard/messages/${chat.id}`}
                     onClick={() => handleOpenChat(chat.id, unread)}
-                    className="block px-4 py-3 hover:bg-slate-50 transition"
+                    className="block px-4 py-3.5 hover:bg-[#F8FBFF] transition"
                   >
                     <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-full bg-[#3B82F6]/10 text-[#3B82F6] flex items-center justify-center font-semibold shrink-0">
+                      <div className="w-10 h-10 rounded-full bg-[#EAF2FF] text-[#2F6FED] flex items-center justify-center font-semibold shrink-0 border border-[#D8E7FF]">
                         {title.charAt(0).toUpperCase()}
                       </div>
 
@@ -196,7 +201,7 @@ export default function MessagesPage() {
                           <p className="text-sm font-semibold text-slate-900 truncate">
                             {title}
                           </p>
-                          <p className="text-xs text-slate-400 shrink-0">
+                          <p className="text-xs text-slate-400 shrink-0 font-medium">
                             {formatChatTime(chat.lastMessageTime)}
                           </p>
                         </div>

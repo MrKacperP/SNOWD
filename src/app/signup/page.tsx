@@ -7,7 +7,7 @@ import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { ArrowRight, CheckCircle, Shield } from "lucide-react";
+import { CheckCircle, Shield } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function SignUpPage() {
@@ -74,27 +74,27 @@ export default function SignUpPage() {
               <Image src="/logo.png" alt="snowd logo" width={44} height={44} />
               <div className="text-left">
                 <p className="text-lg font-bold text-blue-600 leading-none">snowd</p>
-                <p className="text-xs text-gray-500">Student snow crew</p>
+                <p className="text-xs text-gray-500">Student + neighborhood snow help</p>
               </div>
             </Link>
 
             <h1 className="text-3xl md:text-4xl font-bold font-headline text-gray-800 mb-3">Create your account</h1>
             <p className="text-gray-600 text-sm md:text-base max-w-sm">
-              Start with Google, then complete onboarding to set your profile and preferences.
+              One tap with Google, then a short guided setup with our penguin helper.
             </p>
 
             <div className="mt-6 space-y-3 text-sm text-gray-600">
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-emerald-500" />
-                Quick setup for clients and operators
+                Student-friendly operator onboarding in under 2 minutes
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-emerald-500" />
-                Local matching based on your location
+                Easy booking flow for neighbors and seniors
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-emerald-500" />
-                Secure in-app messaging and payments
+                Secure chat, tracking, and payments
               </div>
             </div>
           </motion.div>
@@ -107,7 +107,16 @@ export default function SignUpPage() {
           >
             <div className="text-left mb-5">
               <h2 className="text-xl font-bold text-gray-800">Sign up</h2>
-              <p className="text-gray-500 text-sm mt-1">The only supported sign-up method is Google.</p>
+              <p className="text-gray-500 text-sm mt-1">Choose Google to continue. We will guide you by role right after.</p>
+            </div>
+
+            <div className="mb-5 grid grid-cols-2 gap-2 text-xs">
+              <div className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-blue-700 font-semibold text-center">
+                Student operator
+              </div>
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-emerald-700 font-semibold text-center">
+                Home client
+              </div>
             </div>
 
             {error && (

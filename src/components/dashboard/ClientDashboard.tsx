@@ -7,31 +7,23 @@ import { db } from "@/lib/firebase";
 import { Job, ClientProfile, UserProfile } from "@/lib/types";
 import StatusBadge from "@/components/StatusBadge";
 import CelebrationOverlay from "@/components/CelebrationOverlay";
-import { WeatherCard } from "@/context/WeatherContext";
+import { useWeather } from "@/context/WeatherContext";
 import { motion } from "framer-motion";
 import {
   Snowflake,
   Plus,
-  Clock,
-  CheckCircle2,
   MapPin,
   Calendar,
-  DollarSign,
-  TrendingUp,
   User,
   X,
-  MessageCircle,
-  Receipt,
   ExternalLink,
-  ClipboardList,
-  CalendarDays,
-  Camera,
   ShieldCheck,
   Phone,
   CheckCircle,
+  ArrowRight,
 } from "lucide-react";
 import Link from "next/link";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOfWeek, isSameMonth, isToday, isSameDay } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOfWeek, isSameMonth, isToday } from "date-fns";
 
 const isValidDate = (date: unknown): boolean => {
   if (!date) return false;
@@ -50,38 +42,81 @@ function MiniCalendar() {
   const calStart = startOfWeek(monthStart);
   const calEnd = endOfWeek(monthEnd);
   const days = eachDayOfInterval({ start: calStart, end: calEnd });
-  const today = new Date();
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="font-bold text-sm">{format(currentMonth, "MMMM yyyy")}</h3>
-        <div className="flex gap-1">
-          <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))} className="p-1 hover:bg-gray-100 rounded text-gray-500 text-xs">◀</button>
-          <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))} className="p-1 hover:bg-gray-100 rounded text-gray-500 text-xs">▶</button>
+    <div className="min-w-0 bg-[var(--bg-card-solid)] rounded-3xl border border-[var(--border-color)] p-4 shadow-sm">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="min-w-0 truncate pr-2 font-headline font-bold text-xl md:text-2xl text-[var(--text-primary)] leading-none">{format(currentMonth, "MMMM yyyy")}</h3>
+        <div className="flex gap-1.5">
+          <button
+            onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
+            className="h-8 w-8 rounded-lg border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
+            aria-label="Previous month"
+          >
+            ◀
+          </button>
+          <button
+            onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
+            className="h-8 w-8 rounded-lg border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
+            aria-label="Next month"
+          >
+            ▶
+          </button>
         </div>
       </div>
       <div className="grid grid-cols-7 gap-0.5 text-center text-xs">
-        {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d => <div key={d} className="py-1 text-gray-400 font-medium">{d}</div>)}
+        {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
+          <div key={d} className="py-1 text-[var(--text-muted)] font-semibold">
+            {d}
+          </div>
+        ))}
         {days.map((day, i) => (
-          <div key={i} className={`py-1.5 rounded-lg text-xs ${
-            isToday(day) ? "bg-[#2F6FED] text-white font-bold" :
-            isSameMonth(day, currentMonth) ? "text-gray-900" : "text-gray-300"
-          }`}>
+          <div
+            key={i}
+            className={`py-1.5 rounded-lg text-xs md:text-sm ${
+              isToday(day)
+                ? "bg-[#2F6FED] text-white font-bold"
+                : isSameMonth(day, currentMonth)
+                  ? "text-[var(--text-secondary)]"
+                  : "text-[var(--text-muted)]/60"
+            }`}
+          >
             {format(day, "d")}
           </div>
         ))}
       </div>
-      <Link href="/dashboard/calendar" className="block text-center text-xs text-[#2F6FED] font-medium mt-2 hover:underline">View Full Calendar</Link>
+      <Link
+        href="/dashboard/calendar"
+        className="mt-4 inline-flex w-full items-center justify-center gap-1 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-sm md:text-base font-semibold text-[var(--accent)] hover:bg-[var(--accent-soft)] active:scale-[0.99] transition"
+      >
+        View Full Calendar
+        <ArrowRight className="w-4 h-4" />
+      </Link>
+      <div className="mt-2.5 grid grid-cols-2 gap-2">
+        <Link
+          href="/dashboard/find"
+          className="inline-flex items-center justify-center gap-1 rounded-xl bg-[#2F6FED] px-3 py-2 text-[11px] font-semibold text-white shadow-sm hover:bg-[#2A63D5] active:scale-[0.99] transition"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          Find Operator
+        </Link>
+        <Link
+          href="/dashboard/log"
+          className="inline-flex items-center justify-center gap-1 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-2 text-[11px] font-semibold text-[var(--accent)] hover:bg-[var(--accent-soft)] active:scale-[0.99] transition"
+        >
+          Open Log
+          <ArrowRight className="w-3.5 h-3.5" />
+        </Link>
+      </div>
     </div>
   );
 }
 
 export default function ClientDashboard() {
   const { profile } = useAuth();
+  const { weather, loading: weatherLoading } = useWeather();
   const clientProfile = profile as ClientProfile;
   const [activeJobs, setActiveJobs] = useState<Job[]>([]);
-  const [recentJobs, setRecentJobs] = useState<Job[]>([]);
   const [operatorNames, setOperatorNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [cancellingJob, setCancellingJob] = useState<string | null>(null);
@@ -152,20 +187,10 @@ export default function ClientDashboard() {
             const bTime = b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
             return bTime - aTime;
           })
-          .slice(0, 5);
+          .slice(0, 3);
         setActiveJobs(active);
 
-        const recent = allJobs
-          .filter((j) => j.status === "completed")
-          .sort((a, b) => {
-            const aTime = a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
-            const bTime = b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
-            return bTime - aTime;
-          })
-          .slice(0, 5);
-        setRecentJobs(recent);
-
-        const operatorIds = [...new Set([...active, ...recent].map((j) => j.operatorId))];
+        const operatorIds = [...new Set(active.map((j) => j.operatorId))];
         const names: Record<string, string> = {};
         await Promise.all(
           operatorIds.map(async (oid) => {
@@ -213,251 +238,195 @@ export default function ClientDashboard() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-[1240px] mx-auto space-y-4 xl:min-h-[calc(100vh-6.75rem)] xl:flex xl:flex-col">
       <CelebrationOverlay type="booking" show={showCelebration} onComplete={() => setShowCelebration(false)} />
 
       {/* Welcome Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-[#2F6FED] rounded-2xl p-6 md:p-8 text-white shadow-lg relative overflow-hidden"
+        className="bg-[linear-gradient(118deg,#2F6FED_0%,#4D8BFB_42%,#6EA7F4_100%)] rounded-3xl p-5 md:p-6 text-white shadow-[0_16px_30px_rgba(47,111,237,0.24)] relative overflow-hidden border border-white/20"
       >
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-4 right-8 text-6xl">❄️</div>
-          <div className="absolute bottom-4 right-24 text-4xl">❄️</div>
+        <div className="absolute inset-0 opacity-20 pointer-events-none">
+          <div className="absolute -top-14 right-6 h-40 w-40 rounded-full bg-white/20 blur-2xl" />
+          <div className="absolute -bottom-12 left-[35%] h-32 w-48 rounded-full bg-white/10 blur-2xl" />
         </div>
-        <div className="relative z-10 flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold drop-shadow-sm">
+        <div className="relative z-10 grid grid-cols-1 md:grid-cols-[1.1fr_0.9fr] gap-4 md:gap-6 items-stretch">
+          <div className="min-w-0">
+            <h1 className="text-3xl md:text-[2.2rem] font-headline font-extrabold drop-shadow-sm leading-tight">
               {greeting()}, {clientProfile?.displayName?.split(" ")[0] || "there"}!
             </h1>
-            <p className="mt-1 text-white/80">
+            <p className="mt-1.5 text-white/90 text-sm md:text-base">Book trusted local help in a few taps.</p>
+            <p className="mt-1.5 text-white/80 text-base md:text-lg">
               <MapPin className="w-4 h-4 inline mr-1" />
               {clientProfile?.city}, {clientProfile?.province}
             </p>
-          </div>
-          <Snowflake className="w-10 h-10 text-white/20" />
-        </div>
-        <Link
-          href="/dashboard/find"
-          className="inline-flex items-center gap-2 mt-5 px-6 py-3 bg-white text-[#2F6FED] rounded-xl font-bold transition shadow-lg hover:shadow-xl hover:-translate-y-0.5 relative z-10"
-        >
-          <Plus className="w-5 h-5" />
-          Request Snow Removal
-        </Link>
-      </motion.div>
-
-      {/* Profile Setup Widget — shown until all steps complete */}
-      {!allSetupComplete && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-2xl border border-gray-100 overflow-hidden"
-        >
-          <div className="px-5 py-4 border-b border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-gray-900">Profile Setup</h3>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  {completedSetupCount} of {clientSetupSteps.length} steps done
-                </p>
-              </div>
-              <span className="text-sm font-bold text-[#2F6FED]">
-                {Math.round((completedSetupCount / clientSetupSteps.length) * 100)}%
-              </span>
-            </div>
-            <div className="mt-3 h-2 bg-gray-100 rounded-full overflow-hidden">
-              <motion.div
-                className="h-full bg-[#2F6FED] rounded-full"
-                initial={{ width: 0 }}
-                animate={{ width: `${(completedSetupCount / clientSetupSteps.length) * 100}%` }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
-              />
-            </div>
-          </div>
-          <div className="divide-y divide-gray-50">
-            {clientSetupSteps.map((step) => (
-              <Link
-                key={step.key}
-                href={step.href}
-                className={`flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition ${step.done ? "opacity-60" : ""}`}
-              >
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                  step.done ? "bg-green-100 text-green-600" : "bg-[#2F6FED]/10 text-[#2F6FED]"
-                }`}>
-                  {step.done ? <CheckCircle className="w-4 h-4" /> : step.icon}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-semibold ${step.done ? "line-through text-gray-400" : "text-gray-900"}`}>
-                    {step.label}
-                  </p>
-                  <p className="text-xs text-gray-500">{step.description}</p>
-                </div>
-                {!step.done && <ExternalLink className="w-4 h-4 text-gray-400 shrink-0" />}
-              </Link>
-            ))}
-          </div>
-        </motion.div>
-      )}
-
-      {/* Weather + Calendar Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <WeatherCard />
-        <MiniCalendar />
-      </div>
-
-      {/* Stats Row — Clickable */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
-          { icon: Clock, label: "Active Jobs", value: activeJobs.length, color: "text-[#2F6FED]", bg: "bg-[#2F6FED]/10", href: "/dashboard/log" },
-          { icon: CheckCircle2, label: "Completed", value: recentJobs.length, color: "text-green-600", bg: "bg-green-50", href: "/dashboard/log" },
-          { icon: DollarSign, label: "Total Spent", value: `$${recentJobs.reduce((sum, j) => sum + (j.price || 0), 0)}`, color: "text-orange-500", bg: "bg-orange-50", href: "/dashboard/transactions" },
-          { icon: TrendingUp, label: "Saved Ops", value: clientProfile?.savedOperators?.length || 0, color: "text-purple-600", bg: "bg-purple-50", href: "/dashboard/find" },
-        ].map((stat, i) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 + i * 0.05 }}
-          >
-            <Link href={stat.href} className="block bg-white rounded-xl p-4 border border-gray-100 hover-lift interactive-card">
-              <div className={`w-8 h-8 ${stat.bg} rounded-lg flex items-center justify-center mb-2`}>
-                <stat.icon className={`w-4 h-4 ${stat.color}`} />
-              </div>
-              <p className="text-2xl font-bold">{stat.value}</p>
-              <p className="text-xs text-gray-500">{stat.label}</p>
+            <Link
+              href="/dashboard/find"
+              className="inline-flex items-center gap-2 mt-4 px-5 py-2.5 bg-white text-[#2F6FED] rounded-2xl font-bold text-base md:text-lg leading-none transition shadow-md hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.99]"
+            >
+              <Plus className="w-5 h-5" />
+              Book Snow Help
             </Link>
-          </motion.div>
-        ))}
-      </div>
+          </div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-2 gap-3">
-        <Link
-          href="/dashboard/calendar"
-          className="flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-100 hover-lift interactive-card"
-        >
-          <div className="w-10 h-10 bg-[#2F6FED]/10 rounded-xl flex items-center justify-center">
-            <CalendarDays className="w-5 h-5 text-[#2F6FED]" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-gray-900">Calendar</p>
-            <p className="text-xs text-gray-500">Schedule & weather</p>
-          </div>
-        </Link>
-        <Link
-          href="/dashboard/log"
-          className="flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-100 hover-lift interactive-card"
-        >
-          <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center">
-            <ClipboardList className="w-5 h-5 text-purple-600" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-gray-900">Job Log</p>
-            <p className="text-xs text-gray-500">All job history</p>
-          </div>
-        </Link>
-      </div>
-
-      {/* Active Jobs */}
-      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="font-semibold text-lg">Active Jobs</h2>
-          <Link href="/dashboard/log" className="text-sm text-[#2F6FED] hover:underline font-medium">
-            View All
+          <Link
+            href="/dashboard/calendar"
+            className="group w-full rounded-2xl border border-white/30 bg-[linear-gradient(145deg,rgba(123,166,255,0.33),rgba(59,117,240,0.56))] px-5 py-4 backdrop-blur-sm hover:border-white/50 transition"
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-white/80 text-sm md:text-base font-medium">Today&apos;s Weather</p>
+              <ArrowRight className="w-4 h-4 text-white/80 group-hover:translate-x-0.5 transition-transform" />
+            </div>
+            {weatherLoading ? (
+              <p className="mt-2 text-white/80">Loading weather...</p>
+            ) : weather ? (
+              <>
+                <div className="mt-1 flex items-end justify-between">
+                  <div>
+                    <p className="text-5xl font-headline font-bold leading-none">{weather.temp}°C</p>
+                    <p className="text-lg text-white/90 mt-0.5">Feels {weather.feelsLike}°</p>
+                    <p className="text-2xl font-semibold mt-1.5">{weather.condition}</p>
+                  </div>
+                  <div className="text-5xl" aria-hidden>
+                    {weather.icon}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <p className="mt-2 text-white/80">Weather unavailable</p>
+            )}
           </Link>
         </div>
-        {loading ? (
-          <div className="p-8 text-center text-gray-400">Loading jobs...</div>
-        ) : activeJobs.length === 0 ? (
-          <div className="p-8 text-center">
-            <Snowflake className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">No active jobs right now</p>
-            <Link href="/dashboard/find" className="inline-flex items-center gap-1 mt-3 text-sm text-[#2F6FED] hover:underline">
-              <Plus className="w-4 h-4" /> Find an operator
-            </Link>
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-50">
-            {activeJobs.map((job) => (
-              <div key={job.id} className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition">
-                <Link href={`/dashboard/messages/${job.chatId}`} className="flex-1 flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <User className="w-4 h-4 text-[#2F6FED]" />
-                      <p className="font-semibold text-gray-900">{operatorNames[job.operatorId] || "Operator"}</p>
-                    </div>
-                    <p className="text-sm text-gray-700">{job.serviceTypes?.map((s) => s.replace("-", " ")).join(", ")}</p>
-                    <p className="text-sm text-gray-500 flex items-center gap-1 mt-0.5">
-                      <Calendar className="w-3.5 h-3.5" />
-                      {job.scheduledDate && isValidDate(job.scheduledDate) ? format(job.scheduledDate instanceof Date ? job.scheduledDate : new Date(job.scheduledDate), "MMM d, yyyy") : "TBD"}{" "}
-                      {job.scheduledTime && `at ${job.scheduledTime}`}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-semibold text-gray-700">${job.price}</span>
-                    <StatusBadge status={job.status} />
-                  </div>
-                </Link>
-                {job.status === "pending" && (
-                  <button
-                    onClick={() => cancelJob(job.id)}
-                    disabled={cancellingJob === job.id}
-                    className="ml-3 p-2 text-red-500 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
-                    title="Cancel job"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      </motion.div>
 
-      {/* Recent Jobs */}
-      {recentJobs.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100">
-            <h2 className="font-semibold text-lg">Recent Completions</h2>
-          </div>
-          <div className="divide-y divide-gray-50">
-            {recentJobs.map((job) => (
-              <div key={job.id} className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition group">
-                <Link href={`/dashboard/u/${job.operatorId}`} className="flex-1 flex items-center gap-3">
-                  <div className="w-10 h-10 bg-[#2F6FED]/10 rounded-full flex items-center justify-center text-[#2F6FED] font-bold shrink-0">
-                    {operatorNames[job.operatorId]?.charAt(0)?.toUpperCase() || "O"}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <p className="font-semibold text-gray-900">{operatorNames[job.operatorId] || "Operator"}</p>
-                      <ExternalLink className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition" />
-                    </div>
-                    <p className="text-sm text-gray-700">{job.serviceTypes?.map((s) => s.replace("-", " ")).join(", ")}</p>
-                    <p className="text-sm text-gray-500">
-                      {job.completionTime && isValidDate(job.completionTime) ? format(job.completionTime instanceof Date ? job.completionTime : new Date(job.completionTime), "MMM d, yyyy") : "Recently completed"}
-                    </p>
-                  </div>
+      <div className="grid grid-cols-1 gap-4 xl:flex-1 xl:min-h-0">
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_350px] gap-4 items-stretch xl:min-h-[320px]">
+          {/* Active Jobs */}
+          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden xl:min-h-[320px] xl:flex xl:flex-col">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="font-semibold text-lg">Active Jobs</h2>
+              <Link
+                href="/dashboard/log"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[#D8E3F7] bg-[#F8FBFF] px-3 py-1.5 text-xs font-semibold text-[#3B6FE2] hover:bg-[#EEF4FF] active:scale-[0.99] transition"
+              >
+                View All
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+            {loading ? (
+              <div className="p-8 text-center text-gray-400 xl:flex-1 xl:flex xl:items-center xl:justify-center">Loading jobs...</div>
+            ) : activeJobs.length === 0 ? (
+              <div className="px-8 py-6 text-center flex flex-col items-center justify-center xl:flex-1">
+                <Snowflake className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500">No active jobs right now</p>
+                <Link
+                  href="/dashboard/find"
+                  className="inline-flex items-center gap-1.5 mt-3 rounded-lg border border-[#D8E3F7] bg-[#F8FBFF] px-3 py-1.5 text-xs font-semibold text-[#3B6FE2] hover:bg-[#EEF4FF] active:scale-[0.99] transition"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Find an Operator
                 </Link>
-                <div className="flex items-center gap-4">
-                  <div className="text-right">
-                    <p className="font-semibold">${job.price}</p>
-                    <StatusBadge status="completed" />
-                  </div>
-                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Link href={`/dashboard/messages/${job.chatId}`} className="p-2 text-[#2F6FED] hover:bg-[#2F6FED]/10 rounded-lg transition" title="View chat">
-                      <MessageCircle className="w-5 h-5" />
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-50 xl:overflow-y-auto xl:min-h-0 xl:flex-1">
+                {activeJobs.map((job) => (
+                  <div key={job.id} className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition">
+                    <Link href={`/dashboard/messages/${job.chatId}`} className="flex-1 min-w-0 flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <User className="w-4 h-4 text-[#2F6FED]" />
+                          <p className="font-semibold text-gray-900 truncate">{operatorNames[job.operatorId] || "Operator"}</p>
+                        </div>
+                        <p className="text-sm text-gray-700 truncate">{job.serviceTypes?.map((s) => s.replace("-", " ")).join(", ")}</p>
+                        <p className="text-sm text-gray-500 flex items-center gap-1 mt-0.5 truncate">
+                          <Calendar className="w-3.5 h-3.5" />
+                          {job.scheduledDate && isValidDate(job.scheduledDate) ? format(job.scheduledDate instanceof Date ? job.scheduledDate : new Date(job.scheduledDate), "MMM d, yyyy") : "TBD"}{" "}
+                          {job.scheduledTime && `at ${job.scheduledTime}`}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className="text-sm font-semibold text-gray-700">${job.price}</span>
+                        <StatusBadge status={job.status} />
+                      </div>
                     </Link>
-                    <Link href="/dashboard/transactions" className="p-2 text-orange-500 hover:bg-orange-50 rounded-lg transition" title="View transaction">
-                      <Receipt className="w-5 h-5" />
-                    </Link>
+                    {job.status === "pending" && (
+                      <button
+                        onClick={() => cancelJob(job.id)}
+                        disabled={cancellingJob === job.id}
+                        className="ml-3 p-2 text-red-500 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
+                        title="Cancel job"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    )}
                   </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-4 xl:min-h-[320px] xl:flex xl:flex-col">
+          <div className="shrink-0">
+            <MiniCalendar />
+          </div>
+
+          {/* Profile Setup Widget — shown until all steps complete */}
+          {!allSetupComplete && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white rounded-2xl border border-gray-100 overflow-hidden xl:min-h-0 xl:flex xl:flex-col xl:flex-1"
+            >
+              <div className="px-4 py-3.5 border-b border-gray-100 flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-gray-900">Profile Setup</h3>
+                  <p className="text-[11px] text-gray-500 mt-0.5">
+                    {completedSetupCount}/{clientSetupSteps.length} complete
+                  </p>
+                </div>
+                <span className="text-xs font-bold text-[#2F6FED]">
+                  {Math.round((completedSetupCount / clientSetupSteps.length) * 100)}%
+                </span>
+              </div>
+              <div className="px-4 pt-2">
+                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <motion.div
+                    className="h-full bg-[#2F6FED] rounded-full"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${(completedSetupCount / clientSetupSteps.length) * 100}%` }}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
+                  />
                 </div>
               </div>
-            ))}
-          </div>
+              <div className="divide-y divide-gray-50 mt-2 xl:overflow-y-auto xl:min-h-0 xl:flex-1">
+                {clientSetupSteps.map((step) => (
+                  <Link
+                    key={step.key}
+                    href={step.href}
+                    className={`flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition ${step.done ? "opacity-60" : ""}`}
+                  >
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                      step.done ? "bg-green-100 text-green-600" : "bg-[#2F6FED]/10 text-[#2F6FED]"
+                    }`}>
+                      {step.done ? <CheckCircle className="w-3.5 h-3.5" /> : step.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-xs font-semibold ${step.done ? "line-through text-gray-400" : "text-gray-900"}`}>
+                        {step.label}
+                      </p>
+                      <p className="text-[11px] text-gray-500 truncate">{step.description}</p>
+                    </div>
+                    {!step.done && <ExternalLink className="w-3.5 h-3.5 text-gray-400 shrink-0" />}
+                  </Link>
+                ))}
+              </div>
+            </motion.div>
+          )}
         </div>
-      )}
+      </div>
+
+      </div>
     </div>
   );
 }
