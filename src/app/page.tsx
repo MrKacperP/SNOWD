@@ -680,7 +680,7 @@ export default function LandingPage() {
             transition={{ delay: 0.15 }}
             className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/12 border border-white/30 text-white rounded-full text-sm font-medium mb-8 backdrop-blur-sm"
           >
-            <Snowflake className="w-3.5 h-3.5" /> Clearing Canada, one driveway at a time
+            <Snowflake className="w-3.5 h-3.5" /> Built for students, families, and seniors next door
           </motion.div>
 
           <motion.h1
@@ -689,9 +689,9 @@ export default function LandingPage() {
             transition={{ delay: 0.3, duration: 0.65 }}
             className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold text-white leading-[1.02] tracking-tight font-headline"
           >
-            Turn snow days
+            Snow gone.
             <br />
-            <span className="text-[#9FD3FF]">into paid days</span>
+            <span className="text-[#9FD3FF]">Money earned.</span>
           </motion.h1>
 
           <motion.p
@@ -700,7 +700,7 @@ export default function LandingPage() {
             transition={{ delay: 0.5 }}
             className="mt-6 text-lg md:text-xl text-slate-200 max-w-xl md:mx-0 mx-auto"
           >
-            Students earn real money clearing snow for neighbours, booked, tracked, and paid through one simple app.
+            High school students earn real money helping nearby homes, while neighbors book trusted local help in minutes.
           </motion.p>
 
           <motion.div
@@ -710,10 +710,10 @@ export default function LandingPage() {
             className="flex flex-col sm:flex-row items-center md:items-start justify-center md:justify-start gap-3 mt-10"
           >
             <Btn href="/signup">
-              Start Earning <ArrowRight className="w-4 h-4" />
+              I&apos;m a Student Operator <ArrowRight className="w-4 h-4" />
             </Btn>
             <Btn href="/signup" variant="outline" className="!border-white/50 !text-white hover:!bg-white/14">
-              <Truck className="w-4 h-4" /> Get My Driveway Cleared
+              <Truck className="w-4 h-4" /> I Need Help at Home
             </Btn>
           </motion.div>
 
@@ -727,10 +727,10 @@ export default function LandingPage() {
               <MapPin className="w-4 h-4" /> Jobs near you
             </span>
             <span className="flex items-center gap-1.5">
-              <Shield className="w-4 h-4" /> Verified neighbours
+              <Shield className="w-4 h-4" /> Verified local community
             </span>
             <span className="flex items-center gap-1.5">
-              <Lock className="w-4 h-4" /> Secure payouts
+              <Lock className="w-4 h-4" /> Senior-friendly booking flow
             </span>
           </motion.div>
           </div>
@@ -853,10 +853,10 @@ export default function LandingPage() {
 
             <div className="relative z-10">
               <h2 className="text-3xl md:text-5xl font-bold mb-4 font-headline">
-                Join the neighborhood snow crew
+                Join your neighborhood snow crew
               </h2>
               <p className="text-white/70 text-lg mb-10 max-w-md mx-auto">
-                Perfect for students — flexible hours, clear payouts, and real neighbors.
+                Students get flexible paid work. Families and seniors get reliable, trusted help.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                 <motion.div
@@ -867,7 +867,7 @@ export default function LandingPage() {
                     href="/signup"
                     className="inline-flex items-center gap-2 px-8 py-4 bg-white text-[var(--accent)] rounded-xl font-semibold text-lg hover:bg-[var(--bg-secondary)] transition shadow-lg"
                   >
-                    Get Started Free <ChevronRight className="w-5 h-5" />
+                    Create My Account <ChevronRight className="w-5 h-5" />
                   </Link>
                 </motion.div>
                 <motion.div
@@ -878,7 +878,7 @@ export default function LandingPage() {
                     href="/login"
                     className="inline-flex items-center px-8 py-4 border-2 border-white/30 text-white rounded-xl font-semibold text-lg hover:bg-white/10 transition"
                   >
-                    I already have an account
+                    I Already Use snowd
                   </Link>
                 </motion.div>
               </div>

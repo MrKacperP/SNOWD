@@ -26,7 +26,7 @@ export type ServiceType =
 
 export type PropertySize = "small" | "medium" | "large" | "commercial";
 
-export type ThemePreference = "light" | "dark";
+export type ThemePreference = "light" | "dark" | "system";
 
 export type ClaimStatus = "open" | "under-review" | "resolved" | "dismissed";
 export type ClaimType = "property-damage" | "incomplete-job" | "misconduct" | "other";
@@ -83,6 +83,8 @@ export interface UserProfile {
 
 export interface ClientProfile extends UserProfile {
   role: "client";
+  age?: number;
+  simplifiedMode?: boolean;
   propertyDetails: {
     propertySize: PropertySize;
     serviceTypes: ServiceType[];

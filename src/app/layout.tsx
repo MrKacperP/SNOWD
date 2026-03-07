@@ -34,7 +34,9 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: `
           try {
             var t = localStorage.getItem('snowd-theme');
-            if (t === 'dark') { document.documentElement.classList.add('dark'); }
+            var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            var isDark = t === 'dark' || ((!t || t === 'system') && prefersDark);
+            document.documentElement.classList.toggle('dark', isDark);
           } catch(e) {}
         ` }} />
       </head>

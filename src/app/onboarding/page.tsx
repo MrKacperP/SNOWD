@@ -113,14 +113,15 @@ export default function OnboardingPage() {
   const [lng, setLng] = useState<number | undefined>();
 
   const totalSteps = role === "client" ? 3 : 4;
+  const isSeniorClient = role === "client" && (age ?? 0) >= 55;
 
   // Mascot guide messages per step
   const getMascotMessage = () => {
-    if (step === 1) return "Hey there! 👋 Are you looking to get your snow removed, or do you want to earn money clearing it?";
-    if (step === 2) return "Great choice! Now tell me where you're located so I can connect you with the right people nearby.";
-    if (step === 3 && role === "client") return "Nice! Let me know about your property so operators know exactly what to clear. 🏠";
-    if (step === 3 && role === "operator") return "Awesome! Tell clients what kind of operator you are and what equipment you use. 🛠️";
-    if (step === 4 && role === "operator") return "Almost done! Set your prices and you'll be ready to start earning. 🎉";
+    if (step === 1) return "Hey! I can set you up fast. Are you booking help for home, or earning money as a student operator?";
+    if (step === 2) return "Perfect. Add your age, phone, and address so I can match you with trusted people nearby.";
+    if (step === 3 && role === "client") return "Great! Share your property details so your operator shows up ready. 🏠";
+    if (step === 3 && role === "operator") return "Nice. Tell clients your style and tools so you get the right job requests. 🛠️";
+    if (step === 4 && role === "operator") return "Last step. Set fair starter pricing and you are ready to accept jobs. 🎉";
     return "You're doing great!";
   };
 
@@ -233,7 +234,8 @@ export default function OnboardingPage() {
         postalCode,
         address,
         isOnline: true,
-        themePreference: "light" as const,
+        themePreference: "system" as const,
+        age: age || null,
         lat: lat || null,
         lng: lng || null,
       };
@@ -245,6 +247,7 @@ export default function OnboardingPage() {
           accountApproved: true,
           idVerified: true,
           verificationStatus: "approved",
+          simplifiedMode: !!(age && age >= 55),
           propertyDetails: {
             propertySize,
             serviceTypes,
@@ -262,7 +265,6 @@ export default function OnboardingPage() {
           verificationStatus: "not-submitted",
           businessName,
           isStudent,
-          age: age || null,
           bio,
           equipment,
           serviceRadius,
@@ -328,7 +330,7 @@ export default function OnboardingPage() {
         return role !== null;
       case 2:
         // Require phone + address at minimum; city/province/postal can be filled manually
-        return !!(phone && address);
+        return !!(phone && address && age && age >= 13);
       case 3:
         if (role === "client") return serviceTypes.length > 0;
         return bio.length > 0 && equipment.length > 0;
@@ -396,7 +398,7 @@ export default function OnboardingPage() {
             className="relative inline-block mb-6"
           >
             <div className="bg-white rounded-2xl px-4 py-2.5 shadow-lg border border-[#E6EEF6] text-sm text-[#0B1F33] font-medium max-w-xs">
-              Hi! I&apos;m Snowd! Let&apos;s get you set up in under 2 minutes. ❄️
+              Hi! I&apos;m your Snowd penguin guide. Let&apos;s finish setup in about 2 minutes. ❄️
               <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-2 overflow-hidden">
                 <div className="w-3 h-3 bg-white border-l border-t border-[#E6EEF6] rotate-45 translate-y-1 mx-auto" />
               </div>
@@ -418,9 +420,9 @@ export default function OnboardingPage() {
             transition={{ delay: 0.7, duration: 0.6 }}
             className="text-lg text-[var(--text-secondary)] mb-10"
           >
-            Canada&apos;s snow removal marketplace.
+            Neighborhood snow help, powered by local students.
             <br />
-            Let&apos;s get you set up in under 2 minutes.
+            Quick setup. Clear next steps. Guided by your penguin.
           </motion.p>
 
           <motion.button
@@ -469,6 +471,7 @@ export default function OnboardingPage() {
               </button>
             )}
           </div>
+          <p className="text-xs text-[var(--text-muted)] mt-1.5">Most users finish in about 2 minutes.</p>
           <div className="mt-4 h-2 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
             <div
               className="h-full bg-[var(--accent)] rounded-full transition-all duration-500"
@@ -528,9 +531,9 @@ export default function OnboardingPage() {
                   }`}
                 >
                   <Home className="w-8 h-8 text-[#2F6FED] mb-3" />
-                  <h3 className="font-semibold text-lg text-[#0B1F33]">I Need Snow Removed</h3>
+                  <h3 className="font-semibold text-lg text-[#0B1F33]">Book Snow Help</h3>
                   <p className="text-sm text-[#6B7C8F] mt-1">
-                    Find someone to clear your property fast.
+                    Fast booking for homes, families, and seniors.
                   </p>
                 </button>
                 <button
@@ -542,9 +545,9 @@ export default function OnboardingPage() {
                   }`}
                 >
                   <Truck className="w-8 h-8 text-[#2F6FED] mb-3" />
-                  <h3 className="font-semibold text-lg text-[#0B1F33]">I Remove Snow</h3>
+                  <h3 className="font-semibold text-lg text-[#0B1F33]">Earn as an Operator</h3>
                   <p className="text-sm text-[#6B7C8F] mt-1">
-                    Earn money clearing snow for others.
+                    Great for high school students and local crews.
                   </p>
                 </button>
               </div>
@@ -556,7 +559,26 @@ export default function OnboardingPage() {
             <div className="space-y-5">
               <div className="flex items-center gap-2 mb-2">
                 <MapPin className="w-5 h-5 text-[#2F6FED]" />
-                <h2 className="text-xl font-semibold text-[#0B1F33]">Where are you located?</h2>
+                <h2 className="text-xl font-semibold text-[#0B1F33]">Where should we match you?</h2>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[#0B1F33] mb-1.5">Age</label>
+                <input
+                  type="number"
+                  min={13}
+                  max={120}
+                  value={age ?? ""}
+                  onChange={(e) => {
+                    const next = parseInt(e.target.value, 10);
+                    setAge(Number.isNaN(next) ? undefined : next);
+                  }}
+                  placeholder="e.g., 62"
+                  className="w-full px-4 py-3.5 border border-[#E6EEF6] rounded-xl focus:ring-2 focus:ring-[#2F6FED]/25 focus:border-[#2F6FED] outline-none transition text-[#0B1F33]"
+                />
+                <p className="text-xs text-[#6B7C8F] mt-1.5">
+                  If you are 55+, we automatically switch to a simpler app view with only the essentials.
+                </p>
               </div>
 
               <div>
@@ -590,7 +612,7 @@ export default function OnboardingPage() {
                   )}
                 </div>
                 <p className="text-xs text-[#6B7C8F] mt-1.5">
-                  Select your address from the dropdown — we&apos;ll auto-fill the rest
+                  Select from the dropdown so we can auto-fill city, province, and postal code
                 </p>
               </div>
 
@@ -652,6 +674,11 @@ export default function OnboardingPage() {
                 <h2 className="text-xl font-semibold text-[#0B1F33]">Tell us about your property</h2>
               </div>
               <p className="text-sm text-[#6B7C8F]">Pick the closest match — you can always change this later.</p>
+              {isSeniorClient && (
+                <div className="rounded-xl border border-[#D6E8F5] bg-[#F4F8FF] px-4 py-3 text-sm text-[#32508C]">
+                  Senior mode will be enabled after setup: quick booking, simple progress view, and direct support chat.
+                </div>
+              )}
 
               {/* Quick presets */}
               <div className="grid grid-cols-2 gap-3">
@@ -717,9 +744,9 @@ export default function OnboardingPage() {
             <div className="space-y-5">
               <div className="flex items-center gap-2 mb-1">
                 <Wrench className="w-5 h-5 text-[#2F6FED]" />
-                <h2 className="text-xl font-semibold text-[#0B1F33]">What kind of operator are you?</h2>
+                <h2 className="text-xl font-semibold text-[#0B1F33]">Describe your operator profile</h2>
               </div>
-              <p className="text-sm text-[#6B7C8F]">Pick a starting template — you can customize everything after.</p>
+              <p className="text-sm text-[#6B7C8F]">Pick a starter template, then fine-tune it anytime in settings.</p>
 
               {/* Quick presets */}
               <div className="grid grid-cols-2 gap-3">
@@ -828,7 +855,7 @@ export default function OnboardingPage() {
                 <Snowflake className="w-5 h-5 text-[#2F6FED]" />
                 <h2 className="text-xl font-semibold text-[#0B1F33]">Set your prices (CAD)</h2>
               </div>
-              <p className="text-sm text-[#6B7C8F]">Suggested prices are pre-filled. Adjust to your preference.</p>
+              <p className="text-sm text-[#6B7C8F]">Suggested starter pricing is pre-filled for quick launch.</p>
 
               {/* Services offered */}
               <div>
@@ -919,7 +946,7 @@ export default function OnboardingPage() {
                 className="flex items-center gap-2 px-8 py-3 bg-[#27AE60] text-white rounded-xl font-semibold hover:bg-[#1e8b4d] transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed btn-lift shadow-sm"
               >
                 <CheckCircle className="w-5 h-5" />
-                {loading ? "Saving..." : "Get Started"}
+                {loading ? "Saving..." : "Finish Setup"}
               </button>
             ) : (
               <button
