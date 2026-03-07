@@ -16,8 +16,6 @@ import {
   Calendar,
   User,
   X,
-  MessageCircle,
-  Receipt,
   ExternalLink,
   ShieldCheck,
   Phone,
@@ -119,7 +117,6 @@ export default function ClientDashboard() {
   const { weather, loading: weatherLoading } = useWeather();
   const clientProfile = profile as ClientProfile;
   const [activeJobs, setActiveJobs] = useState<Job[]>([]);
-  const [recentJobs, setRecentJobs] = useState<Job[]>([]);
   const [operatorNames, setOperatorNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [cancellingJob, setCancellingJob] = useState<string | null>(null);
@@ -193,17 +190,7 @@ export default function ClientDashboard() {
           .slice(0, 3);
         setActiveJobs(active);
 
-        const recent = allJobs
-          .filter((j) => j.status === "completed")
-          .sort((a, b) => {
-            const aTime = a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
-            const bTime = b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
-            return bTime - aTime;
-          })
-          .slice(0, 3);
-        setRecentJobs(recent);
-
-        const operatorIds = [...new Set([...active, ...recent].map((j) => j.operatorId))];
+        const operatorIds = [...new Set(active.map((j) => j.operatorId))];
         const names: Record<string, string> = {};
         await Promise.all(
           operatorIds.map(async (oid) => {
@@ -439,58 +426,6 @@ export default function ClientDashboard() {
         </div>
       </div>
 
-        {/* Recent Jobs Bottom Dock */}
-        <div className="bg-white rounded-2xl border border-[#DCE6F7] overflow-hidden xl:min-h-[230px] xl:flex xl:flex-col shadow-sm relative z-10">
-          <div className="px-6 py-3.5 border-b border-[#E8EEF9] bg-[linear-gradient(180deg,#F8FBFF_0%,#FFFFFF_100%)] flex items-center justify-between">
-            <h2 className="font-semibold text-lg text-[#1F2A44]">Recent Completions</h2>
-            <Link
-              href="/dashboard/log"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[#D8E3F7] bg-white px-3 py-1.5 text-xs font-semibold text-[#3B6FE2] hover:bg-[#EEF4FF] active:scale-[0.99] transition"
-            >
-              Open
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-          {recentJobs.length === 0 ? (
-            <div className="p-8 text-sm text-center text-gray-500">No completed jobs yet.</div>
-          ) : (
-            <div className="divide-y divide-gray-50 xl:overflow-y-auto xl:min-h-0 xl:flex-1">
-              {recentJobs.map((job) => (
-                <div key={job.id} className="flex items-center justify-between px-6 py-3.5 hover:bg-gray-50 transition group gap-3">
-                  <Link href={`/dashboard/u/${job.operatorId}`} className="flex-1 min-w-0 flex items-center gap-3">
-                    <div className="w-10 h-10 bg-[#2F6FED]/10 rounded-full flex items-center justify-center text-[#2F6FED] font-bold shrink-0">
-                      {operatorNames[job.operatorId]?.charAt(0)?.toUpperCase() || "O"}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <p className="font-semibold text-gray-900 truncate">{operatorNames[job.operatorId] || "Operator"}</p>
-                        <ExternalLink className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition" />
-                      </div>
-                      <p className="text-sm text-gray-700 truncate">{job.serviceTypes?.map((s) => s.replace("-", " ")).join(", ")}</p>
-                      <p className="text-sm text-gray-500">
-                        {job.completionTime && isValidDate(job.completionTime) ? format(job.completionTime instanceof Date ? job.completionTime : new Date(job.completionTime), "MMM d, yyyy") : "Recently completed"}
-                      </p>
-                    </div>
-                  </Link>
-                  <div className="flex items-center gap-4 shrink-0">
-                    <div className="text-right">
-                      <p className="font-semibold">${job.price}</p>
-                      <StatusBadge status="completed" />
-                    </div>
-                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Link href={`/dashboard/messages/${job.chatId}`} className="p-2 text-[#2F6FED] hover:bg-[#2F6FED]/10 rounded-lg transition" title="View chat">
-                        <MessageCircle className="w-5 h-5" />
-                      </Link>
-                      <Link href="/dashboard/transactions" className="p-2 text-orange-500 hover:bg-orange-50 rounded-lg transition" title="View transaction">
-                        <Receipt className="w-5 h-5" />
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );
