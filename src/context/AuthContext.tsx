@@ -10,7 +10,7 @@ import {
   deleteUser,
 } from "firebase/auth";
 import { doc, getDoc, onSnapshot, deleteDoc } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+import { auth, db, isFirebaseConfigured } from "@/lib/firebase";
 import { UserProfile, ClientProfile, OperatorProfile } from "@/lib/types";
 import { sendAdminNotif } from "@/lib/adminNotifications";
 
@@ -47,6 +47,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!isFirebaseConfigured || !auth || !db) {
+      setLoading(false);
+      return;
+    }
+
     let profileUnsubscribe: (() => void) | null = null;
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -87,6 +92,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signInWithGoogle = async () => {
+    if (!isFirebaseConfigured || !auth) {
+      throw new Error("Firebase is not configured. Add valid NEXT_PUBLIC_FIREBASE_* values in .env.local");
+    }
+
     const provider = new GoogleAuthProvider();
     const cred = await signInWithPopup(auth, provider);
     sendAdminNotif({
@@ -108,6 +117,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    if (!isFirebaseConfigured || !auth) return;
+
     // Clear state immediately so UI responds before the async call finishes
     setUser(null);
     setProfile(null);
@@ -115,6 +126,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteAccount = async () => {
+    if (!isFirebaseConfigured || !db) {
+      throw new Error("Firebase is not configured. Add valid NEXT_PUBLIC_FIREBASE_* values in .env.local");
+    }
+
     if (!user) throw new Error("No user logged in");
     // Delete Firestore document first
     try {

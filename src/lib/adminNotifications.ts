@@ -7,7 +7,7 @@
  */
 
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { db, canWriteAdminNotifications } from "@/lib/firebase";
 
 export type AdminNotifType =
   | "signup"
@@ -32,6 +32,8 @@ export interface AdminNotifPayload {
 
 export async function sendAdminNotif(payload: AdminNotifPayload) {
   try {
+    if (!canWriteAdminNotifications || !db) return;
+
     await addDoc(collection(db, "adminNotifications"), {
       ...payload,
       createdAt: serverTimestamp(),

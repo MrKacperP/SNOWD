@@ -1,22 +1,32 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isAdminOrEmployee() {
+      return isSignedIn() &&
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in ["admin", "employee"];
+    }
+
     // ID documents - users can upload their own, admin can read all
     match /id-documents/{userId}/{allPaths=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if isSelf(userId) || isAdminOrEmployee();
     }
     
     // Verification files (ID photos, transcripts from settings page)
     match /verification/{userId}/{allPaths=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if isSelf(userId) || isAdminOrEmployee();
     }
     
     // Student transcripts
     match /transcripts/{userId}/{allPaths=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if isSelf(userId) || isAdminOrEmployee();
     }
     
     // Branding assets (logo, portfolio via settings page)
@@ -39,8 +49,7 @@ service firebase.storage {
     
     // Completion photos for jobs
     match /completion-photos/{allPaths=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
+      allow read, write: if isSignedIn();
     }
     
     // Default: deny all
