@@ -617,8 +617,14 @@ export default function LandingPage() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  const sectionContrastCard = "rounded-3xl border border-white/20 bg-[rgba(3,10,24,0.45)] backdrop-blur-[3px] shadow-[0_16px_38px_rgba(0,0,0,0.35)]";
+
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] relative overflow-x-hidden">
+    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] relative overflow-x-hidden isolate">
+      <div
+        className="fixed inset-0 -z-20 bg-cover bg-center"
+        style={{ backgroundImage: "url('/space-hero.png')" }}
+      />
       <SnowBG />
 
       {/* ── NAV ──────────────────────────────────────────────────── */}
@@ -634,7 +640,7 @@ export default function LandingPage() {
       >
         <div className="max-w-6xl mx-auto px-5 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5">
-            <Image src="/logo.png" alt="snowd logo" width={40} height={44} style={{ width: 'auto', height: 44 }} />
+            <Image src="/logo.png" alt="snowd logo" width={40} height={44} />
             <span className="text-xl font-bold text-[var(--accent)] font-headline">
               snowd<span className={`font-light transition-colors duration-300 ${scrolled ? "text-[var(--text-muted)]" : "text-white/70"}`}>.ca</span>
             </span>
@@ -665,20 +671,13 @@ export default function LandingPage() {
 
       {/* ── HERO ─────────────────────────────────────────────────── */}
       <section className="relative z-0 pt-32 pb-14 md:pt-40 md:pb-20 px-5 min-h-screen flex items-center overflow-hidden">
-        {/* Background image — scoped to the first screen only */}
-        <div
-          className="absolute inset-0 -z-10 bg-cover bg-center"
-          style={{ backgroundImage: "url('/space-hero.png')" }}
-        />
-        {/* Left-side text readability overlay */}
-        <div className="absolute inset-0 -z-10 bg-[linear-gradient(105deg,rgba(1,4,16,0.82)_0%,rgba(1,4,16,0.60)_38%,rgba(1,4,16,0.18)_65%,transparent_100%)]" />
         <div className="relative z-10 max-w-6xl mx-auto w-full">
-          <div className="max-w-2xl text-center md:text-left">
+          <div className="max-w-2xl text-center md:text-left rounded-3xl border border-white/20 bg-[rgba(3,10,24,0.45)] backdrop-blur-[3px] px-5 py-6 sm:px-7 sm:py-8 shadow-[0_16px_38px_rgba(0,0,0,0.35)]">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/12 border border-white/30 text-white rounded-full text-sm font-medium mb-8 backdrop-blur-sm"
+            className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/16 border border-white/40 text-white rounded-full text-sm font-medium mb-8 backdrop-blur-sm"
           >
             <Snowflake className="w-3.5 h-3.5" /> Built for students, families, and seniors next door
           </motion.div>
@@ -698,7 +697,7 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
-            className="mt-6 text-lg md:text-xl text-slate-200 max-w-xl md:mx-0 mx-auto"
+            className="mt-6 text-lg md:text-xl text-slate-100 max-w-xl md:mx-0 mx-auto"
           >
             High school students earn real money helping nearby homes, while neighbors book trusted local help in minutes.
           </motion.p>
@@ -721,7 +720,7 @@ export default function LandingPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.85 }}
-            className="flex flex-wrap items-center justify-center md:justify-start gap-6 mt-10 text-sm text-slate-200"
+            className="flex flex-wrap items-center justify-center md:justify-start gap-6 mt-10 text-sm text-slate-100"
           >
             <span className="flex items-center gap-1.5">
               <MapPin className="w-4 h-4" /> Jobs near you
@@ -739,12 +738,12 @@ export default function LandingPage() {
 
       {/* ── WIDGET: Job Progress ─────────────────────────────────── */}
       <section className="py-16 md:py-24 px-5">
-        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+        <div className={`max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 items-center ${sectionContrastCard} p-6 md:p-10`}>
           <FadeUp>
-            <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] font-headline leading-tight">
+            <h2 className="text-3xl md:text-4xl font-bold text-white font-headline leading-tight">
               Know what&apos;s happening
             </h2>
-            <p className="text-[var(--text-secondary)] mt-3 max-w-sm text-lg">
+            <p className="text-slate-200 mt-3 max-w-sm text-lg">
               Students and neighbors stay in sync from request to completion.
             </p>
           </FadeUp>
@@ -756,12 +755,12 @@ export default function LandingPage() {
 
       {/* ── WIDGET: Live Chat ────────────────────────────────────── */}
       <section className="py-16 md:py-24 px-5 bg-[var(--bg-secondary)]">
-        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+        <div className={`max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 items-center ${sectionContrastCard} p-6 md:p-10`}>
           <FadeUp className="md:order-2">
-            <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] font-headline leading-tight">
+            <h2 className="text-3xl md:text-4xl font-bold text-white font-headline leading-tight">
               Quick, friendly chat
             </h2>
-            <p className="text-[var(--text-secondary)] mt-3 max-w-sm text-lg">
+            <p className="text-slate-200 mt-3 max-w-sm text-lg">
               Confirm details, swap photos, and get live ETA updates.
             </p>
           </FadeUp>
@@ -773,12 +772,12 @@ export default function LandingPage() {
 
       {/* ── WIDGET: Find Operator ────────────────────────────────── */}
       <section className="py-16 md:py-24 px-5">
-        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+        <div className={`max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 items-center ${sectionContrastCard} p-6 md:p-10`}>
           <FadeUp>
-            <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] font-headline leading-tight">
+            <h2 className="text-3xl md:text-4xl font-bold text-white font-headline leading-tight">
               Choose the right helper
             </h2>
-            <p className="text-[var(--text-secondary)] mt-3 max-w-sm text-lg">
+            <p className="text-slate-200 mt-3 max-w-sm text-lg">
               Browse verified locals — including students who live nearby.
             </p>
           </FadeUp>
@@ -790,12 +789,12 @@ export default function LandingPage() {
 
       {/* ── WIDGET: Payment ──────────────────────────────────────── */}
       <section className="py-16 md:py-24 px-5 bg-[var(--bg-secondary)]">
-        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+        <div className={`max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 items-center ${sectionContrastCard} p-6 md:p-10`}>
           <FadeUp className="md:order-2">
-            <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] font-headline leading-tight">
+            <h2 className="text-3xl md:text-4xl font-bold text-white font-headline leading-tight">
               Get paid fast
             </h2>
-            <p className="text-[var(--text-secondary)] mt-3 max-w-sm text-lg">
+            <p className="text-slate-200 mt-3 max-w-sm text-lg">
               Safe, secure payments with clear payout tracking.
             </p>
           </FadeUp>
@@ -806,8 +805,8 @@ export default function LandingPage() {
       </section>
 
       {/* ── STATS ────────────────────────────────────────────────── */}
-      <section className="py-14 px-5 bg-[var(--accent)]">
-        <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 text-center text-white">
+      <section className="py-14 px-5">
+        <div className={`max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 text-center text-white ${sectionContrastCard} p-6 md:p-8`}>
           {[
             { val: 500, sfx: "+", lbl: "Jobs Done" },
             { val: 120, sfx: "+", lbl: "Student Helpers" },
@@ -826,7 +825,7 @@ export default function LandingPage() {
 
       {/* ── CTA ──────────────────────────────────────────────────── */}
       <section className="py-20 md:py-28 px-5">
-        <FadeUp className="max-w-4xl mx-auto">
+        <FadeUp className={`max-w-4xl mx-auto ${sectionContrastCard} p-3 md:p-4`}>
           <div className="bg-[var(--accent)] rounded-3xl p-10 md:p-16 text-center text-white relative overflow-hidden shadow-[0_30px_60px_rgba(47,111,237,0.3)]">
             <motion.div
               className="absolute top-6 right-10 opacity-10"
