@@ -1,11 +1,10 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React from "react";
 import Image from "next/image";
 import { Navigation, Shield } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { GoogleMap, useJsApiLoader } from "@react-google-maps/api";
-import { GOOGLE_MAPS_LIBRARIES, GOOGLE_MAPS_API_KEY } from "@/lib/googleMaps";
+import { Snowflake } from "lucide-react";
 
 interface LocationPermissionPopupProps {
   isOpen: boolean;
@@ -13,101 +12,7 @@ interface LocationPermissionPopupProps {
   onDeny: () => void;
 }
 
-// Snowflake SVG marker rendered as a DOM overlay on the map
-function SnowflakeMarker({ map, position }: { map: google.maps.Map | null; position: google.maps.LatLngLiteral }) {
-  const [overlay, setOverlay] = React.useState<google.maps.OverlayView | null>(null);
-
-  React.useEffect(() => {
-    if (!map) return;
-
-    class SnowOverlay extends google.maps.OverlayView {
-      private div: HTMLDivElement | null = null;
-      draw() {
-        if (!this.div) return;
-        const projection = this.getProjection();
-        const pt = projection.fromLatLngToDivPixel(new google.maps.LatLng(position.lat, position.lng));
-        if (pt) {
-          this.div.style.left = `${pt.x - 24}px`;
-          this.div.style.top = `${pt.y - 24}px`;
-        }
-      }
-      onAdd() {
-        this.div = document.createElement("div");
-        this.div.style.position = "absolute";
-        this.div.style.width = "48px";
-        this.div.style.height = "48px";
-        this.div.style.display = "flex";
-        this.div.style.alignItems = "center";
-        this.div.style.justifyContent = "center";
-        this.div.innerHTML = `
-          <div style="
-            background: #2F6FED;
-            border-radius: 50%;
-            width: 44px;
-            height: 44px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 16px rgba(47,111,237,0.45);
-            border: 3px solid white;
-            animation: pulse-snowflake 2s infinite;
-          ">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="2" x2="22" y1="12" y2="12"/>
-              <line x1="12" x2="12" y1="2" y2="22"/>
-              <line x1="20" x2="4" y1="4" y2="20"/>
-              <line x1="20" x2="4" y1="20" y2="4"/>
-            </svg>
-          </div>`;
-        const style = document.createElement("style");
-        style.textContent = `@keyframes pulse-snowflake { 0%,100%{transform:scale(1);} 50%{transform:scale(1.15);} }`;
-        this.div.appendChild(style);
-        const panes = this.getPanes();
-        panes?.overlayMouseTarget.appendChild(this.div);
-      }
-      onRemove() {
-        this.div?.parentNode?.removeChild(this.div);
-        this.div = null;
-      }
-    }
-
-    const ov = new SnowOverlay();
-    ov.setMap(map);
-    setOverlay(ov);
-    return () => { ov.setMap(null); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map]);
-
-  return null;
-}
-
-const DEFAULT_CENTER = { lat: 43.6532, lng: -79.3832 }; // Toronto
-
-const MAP_OPTIONS: google.maps.MapOptions = {
-  disableDefaultUI: true,
-  zoomControl: false,
-  styles: [
-    { featureType: "all", elementType: "geometry", stylers: [{ color: "#e8f4fd" }] },
-    { featureType: "water", elementType: "geometry", stylers: [{ color: "#c9e8f9" }] },
-    { featureType: "road", elementType: "geometry", stylers: [{ color: "#ffffff" }] },
-    { featureType: "road.arterial", elementType: "geometry", stylers: [{ color: "#f0f8ff" }] },
-    { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#d4edda" }] },
-    { featureType: "landscape.natural", elementType: "geometry", stylers: [{ color: "#ddeeff" }] },
-    { featureType: "administrative", elementType: "labels.text.fill", stylers: [{ color: "#2F6FED" }] },
-    { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#6B7C8F" }] },
-  ],
-};
-
 export default function LocationPermissionPopup({ isOpen, onAllow, onDeny }: LocationPermissionPopupProps) {
-  const [map, setMap] = useState<google.maps.Map | null>(null);
-
-  const { isLoaded } = useJsApiLoader({
-    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-    libraries: GOOGLE_MAPS_LIBRARIES,
-  });
-
-  const onMapLoad = useCallback((m: google.maps.Map) => setMap(m), []);
-
   return (
     <AnimatePresence>
       {isOpen && (
@@ -128,21 +33,19 @@ export default function LocationPermissionPopup({ isOpen, onAllow, onDeny }: Loc
           >
             {/* Google Map */}
             <div className="relative h-44 w-full bg-[#e8f4fd]">
-              {isLoaded ? (
-                <GoogleMap
-                  mapContainerStyle={{ width: "100%", height: "100%" }}
-                  center={DEFAULT_CENTER}
-                  zoom={13}
-                  options={MAP_OPTIONS}
-                  onLoad={onMapLoad}
-                >
-                  {map && <SnowflakeMarker map={map} position={DEFAULT_CENTER} />}
-                </GoogleMap>
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-[#e8f4fd]">
-                  <div className="w-6 h-6 rounded-full border-2 border-[#2F6FED] border-t-transparent animate-spin" />
+              <div className="w-full h-full relative overflow-hidden" aria-label="Location preview">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,#d8ebff_0%,transparent_40%),radial-gradient(circle_at_80%_70%,#c6e2ff_0%,transparent_45%),linear-gradient(135deg,#edf6ff_0%,#dfeefe_100%)]" />
+                <div className="absolute inset-0 opacity-60" style={{
+                  backgroundImage:
+                    "linear-gradient(to right, rgba(47,111,237,0.08) 1px, transparent 1px), linear-gradient(to bottom, rgba(47,111,237,0.08) 1px, transparent 1px)",
+                  backgroundSize: "28px 28px",
+                }} />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-11 h-11 rounded-full bg-[#2F6FED] text-white flex items-center justify-center shadow-lg shadow-[#2F6FED]/40 border-2 border-white">
+                    <Snowflake className="w-5 h-5" />
+                  </div>
                 </div>
-              )}
+              </div>
               {/* Gradient overlay at bottom */}
               <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white to-transparent" />
             </div>

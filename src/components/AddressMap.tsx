@@ -2,7 +2,12 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
-import { GOOGLE_MAPS_LIBRARIES, GOOGLE_MAPS_API_KEY } from "@/lib/googleMaps";
+import {
+  GOOGLE_MAPS_LIBRARIES,
+  GOOGLE_MAPS_API_KEY,
+  hasGoogleMapsApiKey,
+  buildGoogleMapsEmbedUrl,
+} from "@/lib/googleMaps";
 
 interface AddressMapProps {
   address: string;
@@ -28,6 +33,27 @@ export default function AddressMap({
   province,
   postalCode,
 }: AddressMapProps) {
+  const fullAddress = `${address}, ${city}, ${province}, ${postalCode}, Canada`;
+
+  if (!hasGoogleMapsApiKey) {
+    return (
+      <div className="relative">
+        <iframe
+          title="Address map"
+          width="100%"
+          height="250"
+          style={{ border: 0, borderRadius: "12px" }}
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+          src={buildGoogleMapsEmbedUrl(fullAddress, 15)}
+        />
+        <div className="mt-1.5 text-xs text-gray-500 text-center">
+          {address ? `${address}, ${city}` : "Enter your address to see location"}
+        </div>
+      </div>
+    );
+  }
+
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
     libraries: GOOGLE_MAPS_LIBRARIES,
@@ -42,8 +68,6 @@ export default function AddressMap({
     setIsGeocoding(true);
     try {
       const geocoder = new google.maps.Geocoder();
-      const fullAddress = `${address}, ${city}, ${province}, ${postalCode}, Canada`;
-
       const result = await geocoder.geocode({ address: fullAddress });
 
       if (result.results[0]) {

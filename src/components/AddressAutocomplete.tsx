@@ -2,7 +2,11 @@
 
 import React, { useRef, useEffect, useCallback } from "react";
 import { useJsApiLoader } from "@react-google-maps/api";
-import { GOOGLE_MAPS_LIBRARIES, GOOGLE_MAPS_API_KEY } from "@/lib/googleMaps";
+import {
+  GOOGLE_MAPS_LIBRARIES,
+  GOOGLE_MAPS_API_KEY,
+  hasGoogleMapsApiKey,
+} from "@/lib/googleMaps";
 
 interface AddressAutocompleteProps {
   value: string;
@@ -19,6 +23,19 @@ export default function AddressAutocomplete({
   placeholder = "123 Main St",
   className = "",
 }: AddressAutocompleteProps) {
+  if (!hasGoogleMapsApiKey) {
+    return (
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className={className}
+        autoComplete="street-address"
+      />
+    );
+  }
+
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
     libraries: GOOGLE_MAPS_LIBRARIES,
