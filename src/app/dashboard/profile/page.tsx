@@ -28,6 +28,8 @@ import {
   Camera,
   ShieldCheck,
   ChevronRight,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -64,10 +66,33 @@ export default function ProfilePage() {
   const [serviceRadius, setServiceRadius] = useState(operatorProfile?.serviceRadius || 10);
 
   const isOperator = profile?.role === "operator";
+  const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const requiredProfileFields: { key: string; label: string; value: string }[] = [
+    { key: "displayName", label: "Display Name", value: displayName || "" },
+    { key: "phone", label: "Phone", value: phone || "" },
+    { key: "address", label: "Street Address", value: address || "" },
+    { key: "city", label: "City", value: city || "" },
+    { key: "province", label: "Province", value: province || "" },
+    { key: "postalCode", label: "Postal Code", value: postalCode || "" },
+    ...(isOperator
+      ? [
+          { key: "businessName", label: "Business Name", value: businessName || "" },
+          { key: "bio", label: "Bio", value: bio || "" },
+        ]
+      : []),
+  ];
+  const missingProfileFields = requiredProfileFields.filter((field) => !field.value.trim());
+  const missingProfileFieldSet = new Set(missingProfileFields.map((field) => field.key));
+  const profileCompletionPercent = Math.round(
+    ((requiredProfileFields.length - missingProfileFields.length) / requiredProfileFields.length) * 100
+  );
 
   const handleSave = async () => {
     if (!profile?.uid) return;
+    setSaved(false);
     setSaving(true);
+    const startedAt = Date.now();
     try {
       const updates: Record<string, unknown> = {
         displayName,
@@ -88,6 +113,10 @@ export default function ProfilePage() {
 
       await updateDoc(doc(db, "users", profile.uid), updates);
       await refreshProfile();
+      const remaining = 2000 - (Date.now() - startedAt);
+      if (remaining > 0) {
+        await wait(remaining);
+      }
       setEditing(false);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -130,13 +159,49 @@ export default function ProfilePage() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex items-center gap-1 px-4 py-2 text-sm font-medium bg-[#2F6FED] text-white rounded-lg hover:bg-[#2158C7] transition disabled:opacity-50"
+              className={`flex items-center gap-1 px-4 py-2 text-sm font-medium text-white rounded-lg transition disabled:opacity-50 ${
+                saved ? "bg-green-600 hover:bg-green-700" : "bg-[#2F6FED] hover:bg-[#2158C7]"
+              }`}
             >
-              <Save className="w-4 h-4" />
-              {saving ? "Saving..." : "Save"}
+              {saving ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : saved ? (
+                <CheckCircle className="w-4 h-4" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
+              {saving ? "Saving changes..." : saved ? "Saved" : "Save"}
             </button>
           </div>
         )}
+      </div>
+
+      <div className={`rounded-2xl border p-4 ${
+        missingProfileFields.length === 0
+          ? "bg-green-50 border-green-200"
+          : "bg-amber-50 border-amber-200"
+      }`}>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className={`text-sm font-semibold ${
+              missingProfileFields.length === 0 ? "text-green-800" : "text-amber-800"
+            }`}>
+              Profile completion: {profileCompletionPercent}%
+            </p>
+            {missingProfileFields.length === 0 ? (
+              <p className="text-xs text-green-700 mt-1">Everything needed is complete.</p>
+            ) : (
+              <p className="text-xs text-amber-700 mt-1">
+                Complete these fields: {missingProfileFields.map((field) => field.label).join(", ")}
+              </p>
+            )}
+          </div>
+          {missingProfileFields.length === 0 ? (
+            <CheckCircle className="w-5 h-5 text-green-600 shrink-0" />
+          ) : (
+            <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+          )}
+        </div>
       </div>
 
       {saved && (
@@ -160,7 +225,11 @@ export default function ProfilePage() {
                   type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="bg-white/20 backdrop-blur px-3 py-1.5 rounded-lg text-white placeholder-white/60 outline-none text-xl font-bold"
+                  className={`backdrop-blur px-3 py-1.5 rounded-lg text-white placeholder-white/60 outline-none text-xl font-bold ${
+                    missingProfileFieldSet.has("displayName")
+                      ? "bg-amber-200/40 border border-amber-200"
+                      : "bg-white/20"
+                  }`}
                 />
               ) : (
                 <h2 className="text-xl font-bold">{profile.displayName}</h2>
@@ -211,7 +280,9 @@ export default function ProfilePage() {
                       type="tel"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      className="text-sm font-medium bg-white px-2 py-1 border rounded-lg w-full"
+                      className={`text-sm font-medium bg-white px-2 py-1 border rounded-lg w-full ${
+                        missingProfileFieldSet.has("phone") ? "border-amber-300 bg-amber-50" : ""
+                      }`}
                     />
                   ) : (
                     <p className="text-sm font-medium">{profile.phone || "Not set"}</p>
@@ -233,19 +304,25 @@ export default function ProfilePage() {
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                   placeholder="Street Address"
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm col-span-full"
+                  className={`px-3 py-2 border rounded-lg text-sm col-span-full ${
+                    missingProfileFieldSet.has("address") ? "border-amber-300 bg-amber-50" : "border-gray-200"
+                  }`}
                 />
                 <input
                   type="text"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   placeholder="City"
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  className={`px-3 py-2 border rounded-lg text-sm ${
+                    missingProfileFieldSet.has("city") ? "border-amber-300 bg-amber-50" : "border-gray-200"
+                  }`}
                 />
                 <select
                   value={province}
                   onChange={(e) => setProvince(e.target.value)}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"
+                  className={`px-3 py-2 border rounded-lg text-sm bg-white ${
+                    missingProfileFieldSet.has("province") ? "border-amber-300 bg-amber-50" : "border-gray-200"
+                  }`}
                 >
                   {CANADIAN_PROVINCES.map((p) => (
                     <option key={p.code} value={p.code}>
@@ -259,11 +336,20 @@ export default function ProfilePage() {
                   onChange={(e) => setPostalCode(e.target.value.toUpperCase())}
                   placeholder="Postal Code"
                   maxLength={7}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  className={`px-3 py-2 border rounded-lg text-sm ${
+                    missingProfileFieldSet.has("postalCode") ? "border-amber-300 bg-amber-50" : "border-gray-200"
+                  }`}
                 />
               </div>
             ) : (
-              <div className="p-3 bg-gray-50 rounded-xl text-sm">
+              <div className={`p-3 rounded-xl text-sm ${
+                missingProfileFieldSet.has("address") ||
+                missingProfileFieldSet.has("city") ||
+                missingProfileFieldSet.has("province") ||
+                missingProfileFieldSet.has("postalCode")
+                  ? "bg-amber-50 border border-amber-200"
+                  : "bg-gray-50"
+              }`}>
                 <p className="font-medium">{profile.address}</p>
                 <p className="text-gray-500">
                   {profile.city}, {profile.province} {profile.postalCode}
@@ -300,7 +386,9 @@ export default function ProfilePage() {
                     type="text"
                     value={businessName}
                     onChange={(e) => setBusinessName(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                    className={`w-full px-3 py-2 border rounded-lg text-sm ${
+                      missingProfileFieldSet.has("businessName") ? "border-amber-300 bg-amber-50" : "border-gray-200"
+                    }`}
                   />
                 </div>
               )}

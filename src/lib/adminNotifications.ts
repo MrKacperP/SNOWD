@@ -18,7 +18,8 @@ export type AdminNotifType =
   | "login"
   | "profile_saved"
   | "job_status_change"
-  | "account_approved";
+  | "account_approved"
+  | "account_rejected";
 
 export interface AdminNotifPayload {
   type: AdminNotifType;
@@ -32,14 +33,20 @@ export interface AdminNotifPayload {
 
 export async function sendAdminNotif(payload: AdminNotifPayload) {
   try {
-    if (!canWriteAdminNotifications || !db) return;
+    if (!canWriteAdminNotifications || !db) {
+      console.warn("[adminNotifications] Skipped write: Firebase is not configured.", payload.type);
+      return;
+    }
 
     await addDoc(collection(db, "adminNotifications"), {
       ...payload,
       createdAt: serverTimestamp(),
       read: false,
     });
-  } catch {
-    // Silently swallow — notification failures must never break the app
+  } catch (error) {
+    console.error("[adminNotifications] Failed to write admin notification", {
+      type: payload.type,
+      error,
+    });
   }
 }

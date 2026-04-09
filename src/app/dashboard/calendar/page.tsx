@@ -200,6 +200,8 @@ export default function CalendarPage() {
     try {
       const dateStr = format(selectedDate, "yyyy-MM-dd");
       const scheduledTs = Timestamp.fromDate(new Date(dateStr + "T" + scheduleTime));
+      const operatorRequiresCard =
+        Boolean(bookingOperator.stripeConnectAccountId) && (bookingOperator.stripeEnabledJobsOnly ?? true);
 
       const chatsQuery = query(collection(db, "chats"), where("participants", "array-contains", user.uid));
       const chatsSnap = await getDocs(chatsQuery);
@@ -229,7 +231,8 @@ export default function CalendarPage() {
           bookingOperator.pricing?.driveway?.[
             (clientProfile?.propertyDetails?.propertySize || "medium") as "small" | "medium" | "large"
           ] || 40,
-        paymentMethod: "cash",
+        paymentMethod: operatorRequiresCard ? "credit" : "cash",
+        requiresCardPayment: operatorRequiresCard,
         paymentStatus: "pending",
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
@@ -251,7 +254,7 @@ export default function CalendarPage() {
         senderId: "system",
         senderName: "snowd.ca",
         type: "system",
-        content: `${clientProfile?.displayName} has requested snow removal service scheduled for ${format(selectedDate, "EEEE, MMM d")} at ${scheduleTime}.`,
+        content: `${clientProfile?.displayName} has requested snow removal service scheduled for ${format(selectedDate, "EEEE, MMM d")} at ${scheduleTime}.${operatorRequiresCard ? " Card payment is required for this operator." : ""}`,
         read: false,
         createdAt: Timestamp.now(),
       });

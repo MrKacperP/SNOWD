@@ -112,6 +112,14 @@ export default function OnboardingPage() {
   const [lat, setLat] = useState<number | undefined>();
   const [lng, setLng] = useState<number | undefined>();
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const savedPostal = sessionStorage.getItem("snowd_signup_postal");
+    if (savedPostal && !postalCode) {
+      setPostalCode(savedPostal);
+    }
+  }, [postalCode]);
+
   const totalSteps = role === "client" ? 3 : 4;
   const isSeniorClient = role === "client" && (age ?? 0) >= 55;
 
@@ -329,8 +337,10 @@ export default function OnboardingPage() {
       case 1:
         return role !== null;
       case 2:
-        // Require phone + address at minimum; city/province/postal can be filled manually
-        return !!(phone && address && age && age >= 13);
+        // Keep onboarding intuitive: require address; enforce age only when provided.
+        if (!address) return false;
+        if (age !== undefined && age < 13) return false;
+        return true;
       case 3:
         if (role === "client") return serviceTypes.length > 0;
         return bio.length > 0 && equipment.length > 0;

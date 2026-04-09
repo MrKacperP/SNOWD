@@ -7,17 +7,20 @@ import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { CheckCircle, Shield } from "lucide-react";
+import { Shield, Snowflake, MessageCircle, PhoneCall, Mail, Globe, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
 
 const ADMIN_EMAILS = ["kacperprymicz@gmail.com"];
 
 export default function LoginPage() {
-  const { user, profile, loading: authLoading, signInWithGoogle } = useAuth();
+  const { user, profile, loading: authLoading, signInWithGoogle, signInWithEmailPassword } = useAuth();
   const router = useRouter();
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(true);
 
   useEffect(() => {
     if (!authLoading && user && profile?.onboardingComplete) {
@@ -98,77 +101,105 @@ export default function LoginPage() {
     }
   };
 
+  const handleEmailSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const signedUser = await signInWithEmailPassword(email.trim(), password);
+      await checkProfileAndRedirect(signedUser.uid);
+      if (!remember && typeof window !== "undefined") {
+        sessionStorage.removeItem("snowd_signup_name");
+        sessionStorage.removeItem("snowd_signup_postal");
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to sign in with email and password";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!authLoading && user && profile?.onboardingComplete) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#a3d5f7] to-[#e0f2ff] relative overflow-hidden">
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute -top-40 -left-40 h-96 w-96 rounded-full bg-white/30 blur-[120px]" />
-        <div className="absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-white/30 blur-[120px]" />
-      </div>
-
-      <div className="relative z-10 min-h-screen flex items-center justify-center px-4 py-10">
-        <div className="w-full max-w-5xl grid md:grid-cols-[1.1fr_1fr] gap-6">
+    <div className="min-h-dvh bg-[#EEF3FA]">
+      <div className="min-h-dvh grid lg:h-dvh lg:grid-cols-[minmax(500px,560px)_minmax(0,1fr)]">
+        <section className="px-5 sm:px-8 lg:px-10 py-6 lg:py-10 flex items-center justify-center overflow-y-auto">
           <motion.div
-            className="rounded-3xl p-8 md:p-10 bg-white/80 backdrop-blur-lg border border-white/50 shadow-2xl"
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35 }}
+            className="w-full max-w-[470px]"
           >
-            <Link href="/" className="inline-flex items-center gap-2 mb-6">
-              <Image src="/logo.png" alt="snowd logo" width={44} height={44} />
-              <div className="text-left">
-                <p className="text-lg font-bold text-blue-600 leading-none">snowd</p>
-                <p className="text-xs text-gray-500">Student + neighborhood snow help</p>
-              </div>
+            <Link href="/" className="flex items-center gap-2.5 mb-10">
+              <Image src="/logo.png" alt="snowd logo" width={36} height={36} />
+              <span className="font-headline font-bold text-[#1342A1] text-2xl leading-none">snowd</span>
             </Link>
 
-            <h1 className="text-3xl md:text-4xl font-bold font-headline text-gray-800 mb-3">Welcome back</h1>
-            <p className="text-gray-600 text-sm md:text-base max-w-sm">
-              Sign in to keep booking fast help or managing your student snow jobs.
-            </p>
+            <h1 className="text-[34px] sm:text-[42px] leading-[1.05] font-headline font-bold text-[#101B2D]">Welcome back</h1>
+            <p className="mt-2 text-[#5B6B84]">Sign in and jump right into your snow ops dashboard.</p>
 
-            <div className="mt-6 space-y-3 text-sm text-gray-600">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-emerald-500" />
-                Verified neighborhood operators and clients
+            <form onSubmit={handleEmailSignIn} className="mt-8 space-y-5">
+              <div>
+                <label className="text-[15px] font-semibold text-[#1C2B43]">Email address</label>
+                <input
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@email.com"
+                  className="mt-2 w-full h-12 rounded-xl border border-[#D2DBE7] bg-white px-4 text-[#101B2D] outline-none focus:border-[#2F6FED]"
+                />
               </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-emerald-500" />
-                Real-time messaging and status updates
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-emerald-500" />
-                Fast payouts and full job tracking
-              </div>
-            </div>
-          </motion.div>
 
-          <motion.div
-            className="rounded-3xl p-8 bg-white/80 backdrop-blur-lg border border-white/50 shadow-2xl"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: 0.05 }}
-          >
-            <div className="text-left mb-5">
-              <h2 className="text-xl font-bold text-gray-800">Sign in</h2>
-              <p className="text-gray-500 text-sm mt-1">Google sign-in keeps access simple and secure.</p>
-            </div>
-
-            <div className="mb-5 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
-              Returning student operator? You can jump right back to jobs, chats, and earnings.
-            </div>
-
-            {error && (
-              <div className="p-3 mb-4 bg-red-100 border border-red-200 rounded-xl text-red-700 text-sm text-center">
-                {error}
+              <div>
+                <label className="text-[15px] font-semibold text-[#1C2B43]">Password</label>
+                <input
+                  type="password"
+                  required
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  className="mt-2 w-full h-12 rounded-xl border border-[#D2DBE7] bg-white px-4 text-[#101B2D] outline-none focus:border-[#2F6FED]"
+                />
               </div>
-            )}
+
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-sm">
+                <label className="inline-flex items-center gap-2 text-[#5B6B84]">
+                  <input
+                    type="checkbox"
+                    checked={remember}
+                    onChange={(e) => setRemember(e.target.checked)}
+                    className="w-4 h-4 rounded border-[#C7D3E3] text-[#2F6FED]"
+                  />
+                  Remember for 30 days
+                </label>
+                <button type="button" className="text-[#2F6FED] hover:text-[#2158C7] font-medium">Forgot password</button>
+              </div>
+
+              {error && (
+                <div className="p-3 bg-red-100 border border-red-200 rounded-xl text-red-700 text-sm">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full h-12 rounded-xl bg-[#2F6FED] hover:bg-[#2158C7] text-white font-semibold transition disabled:opacity-50"
+              >
+                {loading ? "Signing in..." : "Sign in"}
+              </button>
+            </form>
 
             <button
               onClick={handleGoogleSignIn}
               disabled={loading}
-              className="w-full flex items-center justify-center gap-3 p-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl transition-all duration-200 group disabled:opacity-50"
+              className="mt-4 w-full h-12 border border-[#D2DBE7] bg-white hover:bg-[#F7FAFF] rounded-xl font-medium text-[#1E2C42] transition flex items-center justify-center gap-2"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
@@ -176,27 +207,69 @@ export default function LoginPage() {
                 <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
                 <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
               </svg>
-              <span className="font-semibold text-base">{loading ? "Connecting..." : "Sign in with Google"}</span>
+              Continue with Google
             </button>
 
-            <p className="text-gray-500 text-xs text-center mt-4">
-              <Shield className="w-3 h-3 inline mr-1" />
-              Secure authentication via Google OAuth.
+            <p className="text-xs text-[#6D7E95] mt-4 inline-flex items-center gap-1.5">
+              <Shield className="w-3.5 h-3.5" />
+              Secure login powered by Firebase Auth.
             </p>
 
-            <motion.p
-              className="text-center mt-6 text-sm text-gray-500"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.15 }}
-            >
-              New to snowd?{" "}
-              <Link href="/signup" className="text-blue-600 font-semibold hover:text-blue-700 transition">
-                Create an account
+            <p className="mt-6 text-sm text-[#5B6B84]">
+              Don&apos;t have an account?{" "}
+              <Link href="/signup" className="font-semibold text-[#2F6FED] hover:text-[#2158C7]">
+                Sign up
               </Link>
-            </motion.p>
+            </p>
           </motion.div>
-        </div>
+        </section>
+
+        <section className="hidden lg:flex relative overflow-hidden bg-[linear-gradient(145deg,#8AB6FF_0%,#5E8FE8_36%,#4577D8_100%)]">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_10%,rgba(255,255,255,0.38),transparent_40%),radial-gradient(circle_at_10%_80%,rgba(255,255,255,0.2),transparent_35%)]" />
+          <div className="hidden xl:block absolute top-16 left-16 text-white/50"><MessageCircle className="w-10 h-10" /></div>
+          <div className="hidden xl:block absolute top-28 right-20 text-white/50"><PhoneCall className="w-9 h-9" /></div>
+          <div className="hidden xl:block absolute bottom-40 left-20 text-white/50"><Mail className="w-9 h-9" /></div>
+          <div className="hidden xl:block absolute bottom-20 right-24 text-white/50"><Globe className="w-10 h-10" /></div>
+
+          <div className="relative z-10 w-full h-full flex items-center justify-center p-8 xl:p-12">
+            <motion.div
+              animate={{ y: [0, -8, 0] }}
+              transition={{ duration: 4.8, repeat: Infinity, ease: "easeInOut" }}
+              className="w-full max-w-[440px] rounded-[34px] bg-white/12 border border-white/30 backdrop-blur-md p-7 xl:p-8"
+            >
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <p className="text-white/90 font-semibold">SNOWD Dispatch</p>
+                  <p className="text-white/70 text-sm">Live winter operations</p>
+                </div>
+                <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center">
+                  <Image src="/logo.png" alt="snowd logo icon" width={24} height={24} />
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-white/10 border border-white/25 px-4 py-3">
+                {[
+                  "Chat with operators in real time",
+                  "Track service updates and ETAs",
+                  "Manage jobs from one dashboard",
+                ].map((item, index) => (
+                  <div
+                    key={item}
+                    className={`flex items-center gap-2.5 text-white/90 text-sm py-2 ${index > 0 ? "border-t border-white/20" : ""}`}
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-white/95 shrink-0" />
+                    <span>{item}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-8 xl:mt-10 flex items-center gap-2 text-white/80 text-sm">
+                <Snowflake className="w-4 h-4" />
+                Winter-ready support for clients and operators.
+              </div>
+            </motion.div>
+          </div>
+        </section>
       </div>
     </div>
   );

@@ -85,6 +85,13 @@ export default function TransactionsPage() {
         body: JSON.stringify({ accountId }),
       });
       const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || "Failed to open Stripe dashboard");
+      }
+      if (data?.configured === false) {
+        alert(data?.error || "Stripe is not configured on this environment");
+        return;
+      }
       if (data.error) throw new Error(data.error);
       window.location.href = data.onboardingUrl;
     } catch (error) {

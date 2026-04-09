@@ -18,7 +18,6 @@ import { OperatorProfile, ClientProfile, ServiceType } from "@/lib/types";
 import {
   getDistanceKm,
   isClientWithinOperatorRadius,
-  isOperatorPublic,
 } from "@/lib/operatorDiscovery";
 import StarRating from "@/components/StarRating";
 import UserAvatar from "@/components/UserAvatar";
@@ -77,19 +76,23 @@ export default function FindOperatorsPage() {
   const [scheduleType, setScheduleType] = useState<"asap" | "scheduled">("asap");
   const [scheduledDate, setScheduledDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
   const [scheduledTime, setScheduledTime] = useState<string>("09:00");
+  const clientHasCoordinates =
+    typeof clientProfile?.lat === "number" && Number.isFinite(clientProfile.lat) &&
+    typeof clientProfile?.lng === "number" && Number.isFinite(clientProfile.lng);
 
-  // Fetch operators — only show approved/public operators
+  // Fetch operators with same baseline criteria used by calendar booking.
   useEffect(() => {
     const fetchOperators = async () => {
       try {
         const q = query(
           collection(db, "users"),
           where("role", "==", "operator"),
-          where("onboardingComplete", "==", true),
-          where("accountApproved", "==", true)
+          where("onboardingComplete", "==", true)
         );
         const snap = await getDocs(q);
-        const fetchedOperators = snap.docs.map((d) => ({ uid: d.id, ...d.data() } as OperatorProfile));
+        const fetchedOperators = snap.docs
+          .map((d) => ({ uid: d.id, ...d.data() } as OperatorProfile))
+          .filter((op) => !!(op as OperatorProfile & { stripeConnectAccountId?: string }).stripeConnectAccountId);
         setOperators(fetchedOperators);
         
         // Load user's favorites
@@ -119,8 +122,8 @@ export default function FindOperatorsPage() {
 
     let results = [...operators];
 
-    // Keep only operators that are truly public/live and in the client's radius match.
-    results = results.filter((op) => isOperatorPublic(op) && isClientWithinOperatorRadius(clientProfile, op));
+    // Show every operator inside the client's discoverable service radius.
+    results = results.filter((op) => isClientWithinOperatorRadius(clientProfile, op));
 
     // Text search
     if (searchTerm) {
@@ -266,6 +269,9 @@ export default function FindOperatorsPage() {
     setBooking(true);
 
     try {
+      const operatorRequiresCard =
+        Boolean(operator.stripeConnectAccountId) && (operator.stripeEnabledJobsOnly ?? true);
+
       const jobRef = await addDoc(collection(db, "jobs"), {
         clientId: user.uid,
         operatorId: operator.uid,
@@ -276,6 +282,8 @@ export default function FindOperatorsPage() {
         city: clientProfile?.city || "",
         province: clientProfile?.province || "",
         postalCode: clientProfile?.postalCode || "",
+        clientLat: clientProfile?.lat ?? null,
+        clientLng: clientProfile?.lng ?? null,
         specialInstructions: clientProfile?.propertyDetails?.specialInstructions || "",
         scheduledDate: scheduleType === "scheduled" ? Timestamp.fromDate(new Date(scheduledDate + "T" + scheduledTime)) : null,
         scheduledTime: scheduleType === "scheduled" ? scheduledTime : "ASAP",
@@ -284,7 +292,8 @@ export default function FindOperatorsPage() {
           operator.pricing?.driveway?.[
             (clientProfile?.propertyDetails?.propertySize || "medium") as "small" | "medium" | "large"
           ] || 40,
-        paymentMethod: "cash",
+        paymentMethod: operatorRequiresCard ? "credit" : "cash",
+        requiresCardPayment: operatorRequiresCard,
         paymentStatus: "pending",
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
@@ -305,13 +314,16 @@ export default function FindOperatorsPage() {
       const scheduleInfo = scheduleType === "scheduled"
         ? ` Scheduled for ${format(new Date(scheduledDate), "MMM d")} at ${scheduledTime}.`
         : "";
+      const paymentInfo = operatorRequiresCard
+        ? " Card payment is required for this operator."
+        : "";
 
       await addDoc(collection(db, "messages"), {
         chatId: chatRef.id,
         senderId: "system",
         senderName: "snowd.ca",
         type: "system",
-        content: `${clientProfile?.displayName} has requested snow removal service.${scheduleInfo} Please discuss details and confirm the booking.`,
+        content: `${clientProfile?.displayName} has requested snow removal service.${scheduleInfo}${paymentInfo} Please discuss details and confirm the booking.`,
         read: false,
         createdAt: Timestamp.now(),
       });
@@ -486,9 +498,15 @@ export default function FindOperatorsPage() {
         <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
           <Snowflake className="w-12 h-12 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-600">No operators found</h3>
-          <p className="text-gray-400 mt-1">
-            Try adjusting your search or filters, or check back later.
-          </p>
+          {clientHasCoordinates ? (
+            <p className="text-gray-400 mt-1">
+              Try adjusting your search or filters, or check back later.
+            </p>
+          ) : (
+            <p className="text-gray-400 mt-1">
+              Add your exact address in profile settings to enable nearby operator matching.
+            </p>
+          )}
         </div>
       ) : (
         <div className="space-y-3">

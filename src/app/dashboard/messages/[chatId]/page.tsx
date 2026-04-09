@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import {
   collection,
@@ -19,6 +19,7 @@ import {
 import { db } from "@/lib/firebase";
 import {
   ChatMessage,
+  Chat,
   Job,
   UserProfile,
   JobStatus,
@@ -32,6 +33,7 @@ import UserAvatar from "@/components/UserAvatar";
 import {
   Send,
   ArrowLeft,
+  Search,
   MapPin,
   Clock,
   DollarSign,
@@ -45,6 +47,7 @@ import {
   X,
   Compass,
   Star,
+  User,
   Flag,
   AlertTriangle,
   Briefcase,
@@ -52,8 +55,27 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
-import CelebrationOverlay from "@/components/CelebrationOverlay";
 import CancellationPopup from "@/components/CancellationPopup";
+
+type ChatWithOtherUser = Chat & {
+  otherUser?: UserProfile;
+};
+
+const formatChatTime = (ts: unknown): string => {
+  if (!ts) return "";
+
+  try {
+    if (ts instanceof Date) return format(ts, "MMM d");
+    if (typeof ts === "object" && ts !== null && "toDate" in ts) {
+      return format((ts as Timestamp).toDate(), "MMM d");
+    }
+    if (typeof ts === "string") return format(new Date(ts), "MMM d");
+  } catch {
+    return "";
+  }
+
+  return "";
+};
 
 // Haversine distance between two coords
 function getDistanceKm(
@@ -75,6 +97,7 @@ export default function ChatPage() {
   const params = useParams();
   const chatId = params.chatId as string;
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, profile } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -102,9 +125,6 @@ export default function ChatPage() {
   const [submittingReview, setSubmittingReview] = useState(false);
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
 
-  // Celebration overlay
-  const [celebration, setCelebration] = useState<{ show: boolean; type: "booking" | "completion" | "accepted" | "payment" }>({ show: false, type: "booking" });
-
   // Rehire state
   const [rehiring, setRehiring] = useState(false);
   const [rehireSent, setRehireSent] = useState(false);
@@ -124,10 +144,22 @@ export default function ChatPage() {
   const [submittingReport, setSubmittingReport] = useState(false);
   const [reportSubmitted, setReportSubmitted] = useState(false);
   const [showMapModal, setShowMapModal] = useState(false);
+  const [showCameraQrModal, setShowCameraQrModal] = useState(false);
+  const [rightPanelView, setRightPanelView] = useState<"updates" | "profile">("updates");
+  const [chatList, setChatList] = useState<ChatWithOtherUser[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [chatListLoading, setChatListLoading] = useState(true);
 
   const isOperator = profile?.role === "operator";
+  const mobileCameraMode = searchParams.get("mobileCamera") === "1";
   const mapAddress = [job?.address, job?.city, job?.province].filter(Boolean).join(", ");
   const mapQuery = encodeURIComponent(mapAddress || "Canada");
+  const mapLink = `https://maps.google.com/?q=${mapQuery}`;
+  const mapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  const mapStaticUrl = mapsApiKey
+    ? `https://maps.googleapis.com/maps/api/staticmap?center=${mapQuery}&zoom=15&size=1200x600&scale=2&maptype=roadmap&markers=color:0x2F6FED|${mapQuery}&key=${mapsApiKey}`
+    : null;
+  const mobileCameraUrl = `https://snowd.ca/dashboard/messages/${chatId}?mobileCamera=1`;
 
   // Compute distance between operator and client address
   const distance = React.useMemo(() => {
@@ -229,6 +261,88 @@ export default function ChatPage() {
 
     return () => unsubscribe();
   }, [chatId]);
+
+  useEffect(() => {
+    setRightPanelView("updates");
+  }, [chatId]);
+
+  // Left-side conversations list for full Telegram-style layout.
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const q = query(
+      collection(db, "chats"),
+      where("participants", "array-contains", user.uid)
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      async (snapshot) => {
+        const list = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as ChatWithOtherUser);
+
+        list.sort((a, b) => {
+          const aTime = a.lastMessageTime;
+          const bTime = b.lastMessageTime;
+          if (!aTime) return 1;
+          if (!bTime) return -1;
+
+          const aDate =
+            aTime instanceof Date
+              ? aTime
+              : typeof aTime === "object" && "toDate" in aTime
+              ? (aTime as Timestamp).toDate()
+              : new Date(aTime as string);
+
+          const bDate =
+            bTime instanceof Date
+              ? bTime
+              : typeof bTime === "object" && "toDate" in bTime
+              ? (bTime as Timestamp).toDate()
+              : new Date(bTime as string);
+
+          return bDate.getTime() - aDate.getTime();
+        });
+
+        const enriched = await Promise.all(
+          list.map(async (chat) => {
+            const otherUid = chat.participants.find((p) => p !== user.uid);
+            if (!otherUid) return chat;
+
+            try {
+              const otherUserDoc = await getDoc(doc(db, "users", otherUid));
+              if (otherUserDoc.exists()) {
+                return {
+                  ...chat,
+                  otherUser: otherUserDoc.data() as UserProfile,
+                };
+              }
+            } catch {
+              // Keep chat row even if profile fetch fails.
+            }
+
+            return chat;
+          })
+        );
+
+        setChatList(enriched);
+        setChatListLoading(false);
+      },
+      () => setChatListLoading(false)
+    );
+
+    return () => unsubscribe();
+  }, [user?.uid]);
+
+  const filteredChatList = React.useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return chatList;
+
+    return chatList.filter((chat) => {
+      const name = chat.otherUser?.displayName?.toLowerCase() || "";
+      const preview = chat.lastMessage?.toLowerCase() || "";
+      return name.includes(term) || preview.includes(term);
+    });
+  }, [chatList, searchTerm]);
 
   // Auto scroll to bottom
   useEffect(() => {
@@ -376,22 +490,14 @@ export default function ChatPage() {
       if (newStatus === "completed") {
         updateData.completionTime = Timestamp.now();
         // Verify Stripe payment before completing (unless cash)
-        if (job.stripePaymentIntentId && job.paymentStatus === "held") {
-          try {
-            const res = await fetch("/api/stripe/capture-payment", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ paymentIntentId: job.stripePaymentIntentId }),
-            });
-            const data = await res.json();
-            if (data.error) {
-              alert("Payment verification failed. Cannot complete job until payment is confirmed.");
-              return;
-            }
-            updateData.paymentStatus = "paid";
-          } catch {
-            alert("Unable to verify payment. Please try again.");
+        if (job.stripePaymentIntentId) {
+          const captureResult = await captureStripePaymentIfNeeded(job);
+          if (captureResult.error) {
+            alert(`Payment verification failed. ${captureResult.error}`);
             return;
+          }
+          if (captureResult.captured || job.paymentStatus === "paid" || job.paymentCapturedAt) {
+            updateData.paymentStatus = "paid";
           }
         } else if (job.paymentMethod === "cash" || !job.stripePaymentIntentId) {
           // Cash / e-transfer jobs — mark as paid directly
@@ -416,9 +522,7 @@ export default function ChatPage() {
         { newStatus }
       );
 
-      // Trigger celebration animation
       if (newStatus === "accepted") {
-        setCelebration({ show: true, type: "accepted" });
         // Auto-send payment request to client when operator accepts
         if (job.paymentMethod !== "cash" && job.paymentStatus === "pending") {
           await sendMessage(
@@ -427,8 +531,6 @@ export default function ChatPage() {
             { amount: job.price }
           );
         }
-      } else if (newStatus === "completed") {
-        setCelebration({ show: true, type: "completion" });
       }
 
       setShowActions(false);
@@ -474,6 +576,13 @@ export default function ChatPage() {
     setRehiring(true);
     try {
       const { addDoc: ad, collection: col, Timestamp: Ts } = await import("firebase/firestore");
+      const operatorStripeReady = Boolean(
+        (otherUser as UserProfile & { stripeConnectAccountId?: string }).stripeConnectAccountId
+      );
+      const operatorRequiresCard =
+        operatorStripeReady &&
+        ((otherUser as UserProfile & { stripeEnabledJobsOnly?: boolean }).stripeEnabledJobsOnly ?? true);
+
       // Create a new job with the same details
       const newJobRef = await ad(col(db, "jobs"), {
         clientId: isOperator ? otherUser.uid : user.uid,
@@ -490,7 +599,8 @@ export default function ChatPage() {
         scheduledTime: "ASAP",
         estimatedDuration: job.estimatedDuration || 60,
         price: job.price || 0,
-        paymentMethod: "credit",
+        paymentMethod: operatorRequiresCard ? "credit" : "cash",
+        requiresCardPayment: operatorRequiresCard,
         paymentStatus: "pending",
         chatId: chatId,
         createdAt: Ts.now(),
@@ -511,7 +621,6 @@ export default function ChatPage() {
         "system"
       );
 
-      setCelebration({ show: true, type: "booking" });
     } catch (error) {
       console.error("Error rehiring:", error);
       alert("Failed to create new job. Please try again.");
@@ -578,6 +687,43 @@ export default function ChatPage() {
     setShowActions(false);
   };
 
+  const captureStripePaymentIfNeeded = async (activeJob: Job) => {
+    if (!activeJob.stripePaymentIntentId) {
+      return { captured: false, skipped: true };
+    }
+
+    if (activeJob.paymentStatus === "paid" || activeJob.paymentCapturedAt) {
+      return { captured: false, skipped: true };
+    }
+
+    if (activeJob.paymentStatus !== "held") {
+      return { captured: false, skipped: false, error: "Payment is not in a hold state yet." };
+    }
+
+    try {
+      const response = await fetch("/api/stripe/capture-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentIntentId: activeJob.stripePaymentIntentId }),
+      });
+      const data = await response.json();
+      if (data.error) {
+        return { captured: false, skipped: false, error: data.error as string };
+      }
+
+      await updateDoc(doc(db, "jobs", activeJob.id), {
+        paymentStatus: "paid",
+        paymentCapturedAt: Timestamp.now(),
+        paymentCaptureAttempts: increment(1),
+        updatedAt: Timestamp.now(),
+      });
+
+      return { captured: true, skipped: false };
+    } catch {
+      return { captured: false, skipped: false, error: "Unable to capture payment. Please retry." };
+    }
+  };
+
   // Stripe payment initiation
   const initiatePayment = async () => {
     if (!job) return;
@@ -603,12 +749,16 @@ export default function ChatPage() {
         }),
       });
       const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error || "Failed to initiate payment");
+      }
       if (data.error) throw new Error(data.error);
       setClientSecret(data.clientSecret);
       setShowCheckout(true);
     } catch (error) {
       console.error("Payment initiation error:", error);
-      alert("Failed to initiate payment. Please try again.");
+      const message = error instanceof Error ? error.message : "Failed to initiate payment. Please try again.";
+      alert(message);
     } finally {
       setProcessingPayment(false);
     }
@@ -630,7 +780,6 @@ export default function ChatPage() {
       );
       setShowCheckout(false);
       setClientSecret(null);
-      setCelebration({ show: true, type: "payment" });
     } catch (error) {
       console.error("Payment recording error:", error);
     }
@@ -654,22 +803,11 @@ export default function ChatPage() {
           updatedAt: Timestamp.now(),
         });
         
-        // If payment was held via Stripe, capture it now
-        if (job.stripePaymentIntentId && job.paymentStatus === "held") {
-          try {
-            const response = await fetch("/api/stripe/capture-payment", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ paymentIntentId: job.stripePaymentIntentId }),
-            });
-            const data = await response.json();
-            if (!data.error) {
-              await updateDoc(doc(db, "jobs", job.id), {
-                paymentStatus: "paid",
-              });
-            }
-          } catch (error) {
-            console.error("Payment capture error:", error);
+        // If payment was held via Stripe, capture it idempotently.
+        if (job.stripePaymentIntentId) {
+          const captureResult = await captureStripePaymentIfNeeded(job);
+          if (captureResult.error) {
+            console.error("Payment capture error:", captureResult.error);
           }
         } else if (!job.stripePaymentIntentId) {
           // Cash / e-transfer job — mark as paid directly
@@ -707,15 +845,10 @@ export default function ChatPage() {
   };
 
   const confirmCompletionAndRelease = async () => {
-    if (!job?.stripePaymentIntentId) return;
+    if (!job) return;
     try {
-      const response = await fetch("/api/stripe/capture-payment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paymentIntentId: job.stripePaymentIntentId }),
-      });
-      const data = await response.json();
-      if (data.error) throw new Error(data.error);
+      const captureResult = await captureStripePaymentIfNeeded(job);
+      if (captureResult.error) throw new Error(captureResult.error);
 
       await updateDoc(doc(db, "jobs", job.id), {
         paymentStatus: "paid",
@@ -814,6 +947,14 @@ export default function ChatPage() {
     e.preventDefault();
     if (sendingMessage) return;
     sendMessage(newMessage);
+  };
+
+  const handleOpenCameraUpload = () => {
+    if (typeof window === "undefined") return;
+    const opened = window.open(mobileCameraUrl, "_blank", "noopener,noreferrer");
+    if (!opened) {
+      window.location.href = mobileCameraUrl;
+    }
   };
 
   // Report / File Claim
@@ -1017,39 +1158,18 @@ export default function ChatPage() {
         key={msg.id}
         className={`flex ${isOwn ? "justify-end" : "justify-start"} mb-1 chat-bubble`}
       >
-        {/* Other user avatar - clickable to profile */}
-        {!isOwn && otherUser && (
-          <Link
-            href={`/dashboard/u/${msg.senderId}`}
-            className="shrink-0 mr-2 self-end mb-1"
-          >
-            <div className="hover:ring-2 hover:ring-[#2F6FED]/30 transition rounded-full">
-              <UserAvatar
-                photoURL={(otherUser as unknown as Record<string, string>)?.avatar}
-                role={otherUser.role}
-                displayName={otherUser.displayName}
-                size={28}
-              />
-            </div>
-          </Link>
-        )}
         <div
           className={`max-w-[72%] px-3.5 py-2 rounded-2xl shadow-sm ${
             isOwn
-              ? "bg-[#2F6FED] text-white rounded-tr-sm"
-              : "bg-white text-gray-900 rounded-tl-sm border border-[var(--border-soft)]"
+              ? "bg-[#DCF8C6] text-[#102030] rounded-tr-sm border border-[#CDECB7]"
+              : "bg-white text-gray-900 rounded-tl-sm border border-[#E2E8F0]"
           }`}
         >
-          {!isOwn && (
-            <p className="text-xs font-semibold text-[#2F6FED] mb-0.5">
-              {msg.senderName}
-            </p>
-          )}
           <p className="text-sm leading-relaxed">{msg.content}</p>
-          <div className={`mt-1 flex items-center gap-1.5 text-[10px] ${isOwn ? "justify-end text-white/70" : "justify-end text-gray-400"}`}>
+          <div className={`mt-1 flex items-center gap-1.5 text-[10px] ${isOwn ? "justify-end text-[#60737f]" : "justify-end text-gray-400"}`}>
             <span>{formatTimestamp(msg.createdAt)}</span>
             {showDeliveryState && (
-              <span className={`font-semibold ${isOwn && msg.read ? "text-emerald-200" : ""}`}>
+              <span className={`font-semibold ${isOwn && msg.read ? "text-emerald-600" : ""}`}>
                 {msg.read ? "Read" : "Sent"}
               </span>
             )}
@@ -1063,7 +1183,7 @@ export default function ChatPage() {
     return (
       <div className="flex flex-col items-center justify-center h-96 text-[#6B7C8F] gap-3">
         <div className="animate-spin-slow">
-          <Image src="/logo.png" alt="Loading" width={40} height={40} />
+          <Image src="/logo.png" alt="Loading" width={40} height={40} style={{ width: "auto", height: "auto" }} />
         </div>
         <p>Loading conversation...</p>
       </div>
@@ -1074,29 +1194,116 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-[calc(100vh-8rem)] md:h-[calc(100vh-4rem)] gap-0 md:gap-4 md:items-stretch overflow-hidden min-h-0">
-      <CelebrationOverlay
-        type={celebration.type}
-        show={celebration.show}
-        onComplete={() => setCelebration({ ...celebration, show: false })}
-      />
+      {/* Left Column — Conversations */}
+      <aside className="hidden md:flex flex-col w-[320px] shrink-0 min-h-0 rounded-2xl overflow-hidden border border-[var(--border-color)] bg-white shadow-[0_20px_40px_rgba(15,23,42,0.08)]">
+        <div className="px-3 py-3 border-b border-[#E2E8F0] bg-[#F4F4F5]">
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search"
+              className="w-full bg-white border border-[#DCE3EC] rounded-xl pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3B82F6]/20 focus:border-[#3B82F6]"
+            />
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          {chatListLoading ? (
+            <div className="p-4 text-sm text-slate-500">Loading chats...</div>
+          ) : filteredChatList.length === 0 ? (
+            <div className="p-4 text-sm text-slate-500">No conversations found.</div>
+          ) : (
+            <ul className="divide-y divide-[#EDF2F7]">
+              {filteredChatList.map((chat) => {
+                const unread = chat.unreadCount?.[user?.uid || ""] || 0;
+                const title = chat.otherUser?.displayName || "User";
+                const isActive = chat.id === chatId;
+
+                return (
+                  <li key={chat.id}>
+                    <Link
+                      href={`/dashboard/messages/${chat.id}`}
+                      className={`block px-3 py-2.5 transition ${
+                        isActive ? "bg-[#4A9BD6] text-white" : "hover:bg-[#F8FBFF]"
+                      }`}
+                    >
+                      <div className="flex items-start gap-2.5">
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center font-semibold shrink-0 border ${
+                          isActive
+                            ? "bg-white/20 text-white border-white/30"
+                            : "bg-[#EAF2FF] text-[#2F6FED] border-[#D8E7FF]"
+                        }`}>
+                          {title.charAt(0).toUpperCase()}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className={`text-sm font-semibold truncate ${isActive ? "text-white" : "text-slate-900"}`}>
+                              {title}
+                            </p>
+                            <p className={`text-[11px] shrink-0 ${isActive ? "text-white/85" : "text-slate-400"}`}>
+                              {formatChatTime(chat.lastMessageTime)}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center justify-between gap-2 mt-0.5">
+                            <p className={`text-xs truncate ${isActive ? "text-white/90" : unread > 0 ? "text-slate-900 font-medium" : "text-slate-500"}`}>
+                              {chat.lastMessage || "No messages yet"}
+                            </p>
+                            {unread > 0 && (
+                              <span className={`h-5 min-w-5 px-1.5 rounded-full text-[11px] font-semibold flex items-center justify-center ${isActive ? "bg-white text-[#2F6FED]" : "bg-[#3B82F6] text-white"}`}>
+                                {unread > 9 ? "9+" : unread}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </aside>
+
       {/* Chat Column */}
       <div className="flex-1 flex flex-col min-w-0 min-h-0 rounded-2xl overflow-hidden border border-[var(--border-color)] bg-[var(--bg-card-solid)] shadow-[0_20px_40px_rgba(15,23,42,0.08)]">
         {/* Chat Header */}
-        <div className="bg-gradient-to-r from-white via-[#F9FBFF] to-white px-4 py-3 flex items-center gap-3 shrink-0 border-b border-[var(--border-soft)]">
+        <div className="bg-[#F4F4F5] px-4 py-3 flex items-center gap-3 shrink-0 border-b border-[#DFE4EA]">
           <Link
             href="/dashboard/messages"
             className="p-1.5 text-[#6B7C8F] hover:text-[#0B1F33] rounded-lg hover:bg-[#EEF4FF]"
           >
             <ArrowLeft className="w-5 h-5" />
           </Link>
-          {/* Clickable avatar → public profile */}
-          <Link href={`/dashboard/u/${otherUserId || ""}`}>
+          {/* Desktop: open profile panel. Mobile: route to profile page. */}
+          <button
+            type="button"
+            onClick={() => setRightPanelView("profile")}
+            className="hidden md:flex w-10 h-10 bg-[#2F6FED] rounded-full items-center justify-center text-white font-semibold hover:ring-2 hover:ring-[#2F6FED]/30 transition cursor-pointer shadow-sm"
+            title="Show profile details"
+          >
+            {otherUser?.displayName?.charAt(0)?.toUpperCase() || "?"}
+          </button>
+          <Link href={`/dashboard/u/${otherUserId || ""}`} className="md:hidden">
             <div className="w-10 h-10 bg-[#2F6FED] rounded-full flex items-center justify-center text-white font-semibold hover:ring-2 hover:ring-[#2F6FED]/30 transition cursor-pointer shadow-sm">
               {otherUser?.displayName?.charAt(0)?.toUpperCase() || "?"}
             </div>
           </Link>
           <div className="flex-1 min-w-0">
-            <Link href={`/dashboard/u/${otherUserId || ""}`} className="hover:underline underline-offset-2">
+            <button
+              type="button"
+              onClick={() => setRightPanelView("profile")}
+              className="hidden md:block hover:underline underline-offset-2"
+            >
+              <p className="font-semibold text-[#0B1F33] truncate">
+                {otherUser?.displayName || "User"}
+              </p>
+            </button>
+            <Link href={`/dashboard/u/${otherUserId || ""}`} className="md:hidden hover:underline underline-offset-2">
               <p className="font-semibold text-[#0B1F33] truncate">
                 {otherUser?.displayName || "User"}
               </p>
@@ -1129,7 +1336,15 @@ export default function ChatPage() {
         {/* Address bar for operator — show client address */}
         {isOperator && job && (
           <div className="bg-[#F8FAFD] border-b border-[var(--border-soft)] px-4 py-2.5 flex items-center gap-2 text-xs">
-            <MapPin className="w-3.5 h-3.5 text-[#2F6FED] shrink-0" />
+            <a
+              href={mapLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center"
+              title="Open in Google Maps"
+            >
+              <MapPin className="w-3.5 h-3.5 text-[#2F6FED] shrink-0" />
+            </a>
             <span className="text-[#0B1F33] font-medium truncate">{job.address}</span>
             <span className="text-[#6B7C8F]">{job.city}, {job.province}</span>
             {distance !== null && (
@@ -1143,7 +1358,15 @@ export default function ChatPage() {
         {/* Client address bar — for client to see their own address */}
         {!isOperator && job && (
           <div className="bg-[#F8FAFD] border-b border-[var(--border-soft)] px-4 py-2.5 flex items-center gap-2 text-xs">
-            <MapPin className="w-3.5 h-3.5 text-[#2F6FED] shrink-0" />
+            <a
+              href={mapLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center"
+              title="Open in Google Maps"
+            >
+              <MapPin className="w-3.5 h-3.5 text-[#2F6FED] shrink-0" />
+            </a>
             <span className="text-[#0B1F33] font-medium truncate">{job.address}</span>
             <span className="text-[#6B7C8F]">{job.city}, {job.province}</span>
           </div>
@@ -1151,54 +1374,56 @@ export default function ChatPage() {
 
         {/* Job Info Bar */}
         {job && (
-          <div className="bg-[#F4F8FF] border-b border-[#DCE8FF] px-4 py-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {/* Service types as pills */}
-                <div className="flex flex-wrap gap-1.5">
+          <div className="bg-[#F7FAFF] border-b border-[#DCE8FF] px-4 py-3">
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_220px] gap-3 items-stretch">
+              <div className="rounded-xl bg-white border border-[#E6EEF6] px-3.5 py-3">
+                <p className="text-[11px] uppercase tracking-wide text-[#6B7C8F] font-semibold">Service Details</p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
                   {job.serviceTypes?.map((s) => (
                     <span key={s} className="px-2.5 py-1 bg-[#2F6FED]/10 text-[#2F6FED] rounded-full text-xs font-semibold capitalize">
                       {s.replace("-", " ")}
                     </span>
                   ))}
+                  <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                    job.propertySize === "small" ? "bg-emerald-50 text-emerald-700" :
+                    job.propertySize === "medium" ? "bg-amber-50 text-amber-700" :
+                    job.propertySize === "large" ? "bg-orange-50 text-orange-700" :
+                    "bg-purple-50 text-purple-700"
+                  }`}>
+                    {job.propertySize === "small" && "🏠 Small Lot"}
+                    {job.propertySize === "medium" && "🏡 Medium Lot"}
+                    {job.propertySize === "large" && "🏘️ Large Lot"}
+                    {job.propertySize === "commercial" && "🏢 Commercial"}
+                  </span>
                 </div>
-
-                {/* Property size badge with icon */}
-                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                  job.propertySize === "small" ? "bg-emerald-50 text-emerald-700" :
-                  job.propertySize === "medium" ? "bg-amber-50 text-amber-700" :
-                  job.propertySize === "large" ? "bg-orange-50 text-orange-700" :
-                  "bg-purple-50 text-purple-700"
-                }`}>
-                  {job.propertySize === "small" && "🏠"}
-                  {job.propertySize === "medium" && "🏡"}
-                  {job.propertySize === "large" && "🏘️"}
-                  {job.propertySize === "commercial" && "🏢"}
-                  {job.propertySize === "small" && "Small Lot"}
-                  {job.propertySize === "medium" && "Medium Lot"}
-                  {job.propertySize === "large" && "Large Lot"}
-                  {job.propertySize === "commercial" && "Commercial"}
-                </span>
               </div>
 
-              {/* Price display */}
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1 bg-white rounded-lg px-3 py-1.5 border border-[#E6EEF6] shadow-sm">
-                  <DollarSign className="w-4 h-4 text-[#2F6FED]" />
-                  <span className="text-lg font-bold text-[#0B1F33]">{job.price}</span>
-                  <span className="text-xs text-[#6B7C8F] font-medium">CAD</span>
+              <div className="rounded-xl bg-white border border-[#E6EEF6] px-3.5 py-3 flex flex-col justify-between">
+                <p className="text-[11px] uppercase tracking-wide text-[#6B7C8F] font-semibold">Price & Payment</p>
+                <div className="mt-2">
+                  <div className="flex items-center gap-1.5">
+                    <DollarSign className="w-4 h-4 text-[#2F6FED]" />
+                    <span className="text-xl font-extrabold text-[#0B1F33] leading-none">{job.price}</span>
+                    <span className="text-xs text-[#6B7C8F] font-semibold mt-1">CAD</span>
+                  </div>
                 </div>
-                {job.paymentStatus === "held" && (
-                  <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full font-medium">
-                    <Shield className="w-3 h-3 inline mr-0.5" />
-                    Held
-                  </span>
-                )}
-                {job.paymentStatus === "paid" && (
-                  <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
-                    ✓ Paid
-                  </span>
-                )}
+                <div className="mt-2.5">
+                  {job.paymentStatus === "held" && (
+                    <span className="inline-flex items-center gap-1 text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full font-medium">
+                      <Shield className="w-3 h-3" /> Held
+                    </span>
+                  )}
+                  {job.paymentStatus === "paid" && (
+                    <span className="inline-flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
+                      ✓ Paid
+                    </span>
+                  )}
+                  {job.paymentStatus === "pending" && (
+                    <span className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full font-medium">
+                      Awaiting Payment
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -1216,7 +1441,7 @@ export default function ChatPage() {
         )}
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 bg-[linear-gradient(180deg,#F5F8FD_0%,#EFF4FB_100%)] dark:bg-[#0e1621] space-y-1">
+        <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 bg-[radial-gradient(circle_at_20%_20%,rgba(175,217,163,0.35),transparent_30%),radial-gradient(circle_at_80%_70%,rgba(159,206,255,0.25),transparent_35%),linear-gradient(180deg,#EAF4DD_0%,#E7F1DA_45%,#E2EED5_100%)] space-y-1">
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center py-12 text-[#6B7C8F]">
               <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-[var(--border-soft)] mb-3">
@@ -1437,7 +1662,7 @@ export default function ChatPage() {
               >
                 {processingPayment ? (
                   <>
-                    <Image src="/logo.png" alt="Loading" width={16} height={16} className="animate-spin-slow" />
+                    <Image src="/logo.png" alt="Loading" width={16} height={16} className="animate-spin-slow" style={{ width: "auto", height: "auto" }} />
                     Processing...
                   </>
                 ) : (
@@ -1515,8 +1740,8 @@ export default function ChatPage() {
         )}
 
         {/* Message Input */}
-        <div className="bg-white px-3 sm:px-4 py-3 shrink-0 border-t border-[var(--border-soft)]">
-          <form onSubmit={handleSubmit} className="flex items-center gap-2 rounded-2xl border border-[var(--border-soft)] bg-[#FAFCFF] p-2">
+        <div className="bg-[#F4F4F5] px-3 sm:px-4 py-3 shrink-0 border-t border-[#DFE4EA]">
+          <form onSubmit={handleSubmit} className="flex items-center gap-2 rounded-2xl border border-[#D7DDE5] bg-white p-2">
             {isOperator && (
               <button
                 type="button"
@@ -1533,7 +1758,7 @@ export default function ChatPage() {
             {/* Photo upload button */}
             <button
               type="button"
-              onClick={() => chatPhotoInputRef.current?.click()}
+                onClick={handleOpenCameraUpload}
               className="p-2 text-[#6B7C8F] hover:text-[#2F6FED] hover:bg-[#EEF4FF] rounded-lg transition"
               title="Send photo"
             >
@@ -1543,6 +1768,7 @@ export default function ChatPage() {
               ref={chatPhotoInputRef}
               type="file"
               accept="image/*"
+              capture="environment"
               onChange={handleChatPhotoUpload}
               className="hidden"
             />
@@ -1567,11 +1793,34 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* Desktop Right Panel — Progress Tracker */}
-      {job && (
+      {/* Desktop Right Panel — dynamic: updates by default, profile on demand */}
+        {(job || otherUser) && (
         <div className="hidden md:flex flex-col w-80 shrink-0 h-full min-h-0">
-          <div className="bg-[var(--bg-card-solid)] dark:bg-[#151c24] rounded-2xl border border-[var(--border-color)] dark:border-[#1e2d3d] p-5 h-full overflow-y-auto min-h-0">
-            <h3 className="text-sm font-semibold text-[#6B7C8F] uppercase tracking-wide mb-4">Job Progress</h3>
+          <div className="bg-[var(--bg-card-solid)] rounded-2xl border border-[var(--border-color)] p-5 h-full overflow-y-auto min-h-0">
+            <div className="mb-4 flex items-center gap-2 rounded-xl bg-[#F4F8FF] p-1 border border-[#E3ECFA]">
+              <button
+                type="button"
+                onClick={() => setRightPanelView("updates")}
+                className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                  rightPanelView === "updates" ? "bg-white text-[#2F6FED] shadow-sm" : "text-[#6B7C8F] hover:text-[#0B1F33]"
+                }`}
+              >
+                Updates
+              </button>
+              <button
+                type="button"
+                onClick={() => setRightPanelView("profile")}
+                className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                  rightPanelView === "profile" ? "bg-white text-[#2F6FED] shadow-sm" : "text-[#6B7C8F] hover:text-[#0B1F33]"
+                }`}
+              >
+                Profile
+              </button>
+            </div>
+
+            {rightPanelView === "updates" && job && (
+              <>
+                <h3 className="text-sm font-semibold text-[#6B7C8F] uppercase tracking-wide mb-4">Job Progress</h3>
             <ProgressTracker
               status={job.status}
               paymentStatus={job.paymentStatus as "pending" | "held" | "paid" | "refunded" | undefined}
@@ -1579,7 +1828,7 @@ export default function ChatPage() {
 
             {/* Operator Update Buttons */}
             {isOperator && job.status !== "completed" && job.status !== "cancelled" && (
-              <div className="mt-4 pt-3 border-t border-[#E6EEF6] dark:border-[#1e2d3d] space-y-2">
+              <div className="mt-4 pt-3 border-t border-[#E6EEF6] space-y-2">
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Update Progress</p>
                 {job.status === "pending" && (
                   <div className="grid grid-cols-2 gap-2">
@@ -1642,7 +1891,7 @@ export default function ChatPage() {
             )}
 
             {isOperator && (job.status === "accepted" || job.status === "en-route") && (
-              <div className="mt-4 pt-3 border-t border-[#E6EEF6] dark:border-[#1e2d3d] space-y-2">
+              <div className="mt-4 pt-3 border-t border-[#E6EEF6] space-y-2">
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Quick Comms</p>
                 <div className="grid grid-cols-3 gap-2">
                   <button
@@ -1682,10 +1931,10 @@ export default function ChatPage() {
             )}
 
             {/* Job summary */}
-            <div className="mt-5 pt-4 border-t border-[#E6EEF6] dark:border-[#1e2d3d] space-y-3 text-sm">
+            <div className="mt-5 pt-4 border-t border-[#E6EEF6] space-y-2.5 text-sm">
               <div className="flex items-center justify-between">
                 <span className="text-[#6B7C8F]">Service</span>
-                <div className="flex flex-wrap gap-1 justify-end">
+                <div className="flex flex-wrap gap-1 justify-end max-w-[180px]">
                   {job.serviceTypes?.map((s) => (
                     <span key={s} className="px-2 py-0.5 bg-[#2F6FED]/10 text-[#2F6FED] rounded-full text-xs font-semibold capitalize">{s.replace("-", " ")}</span>
                   ))}
@@ -1719,45 +1968,97 @@ export default function ChatPage() {
                   <span className="font-medium text-[#0B1F33]">{distance.toFixed(1)} km</span>
                 </div>
               )}
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowMapModal(true)}
-                  className="w-full text-left text-xs text-[#6B7C8F] flex items-center gap-1.5 hover:text-[#2F6FED] transition"
-                >
-                  <MapPin className="w-3 h-3" />
-                  {job.address}, {job.city}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => window.open(`https://maps.google.com/?q=${mapQuery}`, "_blank", "noopener,noreferrer")}
+              <div className="pt-1.5">
+                <div className="rounded-xl overflow-hidden border border-[#E6EEF6] bg-white">
+                  <button
+                    type="button"
+                    onClick={() => setShowMapModal(true)}
+                    className="w-full text-left text-xs text-[#6B7C8F] flex items-start gap-1.5 hover:text-[#2F6FED] transition px-2.5 py-2"
+                  >
+                    <MapPin className="w-3 h-3" />
+                    <span className="line-clamp-2">{job.address}, {job.city}</span>
+                  </button>
+                  <div className="h-32 bg-[#EFF4FB] border-t border-[#E6EEF6] overflow-hidden">
+                    {mapStaticUrl ? (
+                      <img
+                        src={mapStaticUrl}
+                        alt="Map preview"
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-xs text-[#6B7C8F]">
+                        Map preview unavailable
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <a
+                  href={mapLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="mt-1 text-[11px] font-semibold text-[#2F6FED] inline-flex items-center gap-1 hover:text-[#2158C7]"
                 >
                   Open in Google Maps <ExternalLink className="w-3 h-3" />
-                </button>
+                </a>
               </div>
             </div>
 
-            {/* View Other User Profile */}
-            {otherUser && (
-              <div className="mt-4 pt-3 border-t border-[#E6EEF6] dark:border-[#1e2d3d]">
+                <div className="mt-4 pt-3 border-t border-[#E6EEF6]">
+                  <button
+                    type="button"
+                    onClick={() => setRightPanelView("profile")}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-[#F3F7FF] text-[#2F6FED] rounded-xl text-xs font-semibold hover:bg-[#EAF1FF] transition"
+                  >
+                    <User className="w-3.5 h-3.5" /> View profile details
+                  </button>
+                </div>
+              </>
+            )}
+
+            {rightPanelView === "profile" && otherUser && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <UserAvatar
+                    photoURL={(otherUser as unknown as Record<string, string>)?.avatar}
+                    role={otherUser.role}
+                    displayName={otherUser.displayName}
+                    size={48}
+                  />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-[#0B1F33] truncate">{otherUser.displayName}</p>
+                    <p className="text-xs text-[#6B7C8F] capitalize">{otherUser.role}</p>
+                  </div>
+                </div>
+                <div className="space-y-2 text-sm">
+                  <div className="rounded-xl border border-[#E6EEF6] bg-[#FAFCFF] px-3 py-2.5">
+                    <p className="text-[11px] uppercase tracking-wide text-[#6B7C8F]">Location</p>
+                    <p className="text-[#0B1F33]">{otherUser.city}, {otherUser.province}</p>
+                  </div>
+                  {distance !== null && (
+                    <div className="rounded-xl border border-[#E6EEF6] bg-[#FAFCFF] px-3 py-2.5">
+                      <p className="text-[11px] uppercase tracking-wide text-[#6B7C8F]">Distance</p>
+                      <p className="text-[#0B1F33]">{distance.toFixed(1)} km away</p>
+                    </div>
+                  )}
+                  {otherUser.phone && (
+                    <div className="rounded-xl border border-[#E6EEF6] bg-[#FAFCFF] px-3 py-2.5">
+                      <p className="text-[11px] uppercase tracking-wide text-[#6B7C8F]">Phone</p>
+                      <p className="text-[#0B1F33]">{otherUser.phone}</p>
+                    </div>
+                  )}
+                </div>
                 <Link
                   href={`/dashboard/u/${otherUser.uid}`}
-                  className="flex items-center gap-3 p-3 rounded-xl hover:bg-[#F7FAFC] dark:hover:bg-[#1a2332] transition group"
+                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2.5 bg-[#2F6FED] text-white rounded-xl text-xs font-semibold hover:bg-[#2158C7] transition"
                 >
-                  <div className="w-10 h-10 bg-[#2F6FED] rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                    {otherUser.displayName?.charAt(0)?.toUpperCase() || "?"}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-[#0B1F33] group-hover:text-[#2F6FED] transition truncate">{otherUser.displayName}</p>
-                    <p className="text-xs text-[#6B7C8F]">
-                      {otherUser.city}, {otherUser.province}
-                      {distance !== null && ` • ${distance.toFixed(1)} km away`}
-                    </p>
-                  </div>
-                  <Star className="w-4 h-4 text-[#6B7C8F] group-hover:text-[#2F6FED] transition" />
+                  Open Full Profile <ExternalLink className="w-3.5 h-3.5" />
                 </Link>
               </div>
+            )}
+
+            {rightPanelView === "profile" && !otherUser && (
+              <p className="text-sm text-[#6B7C8F]">Profile info unavailable.</p>
             )}
           </div>
         </div>
@@ -1880,14 +2181,19 @@ export default function ChatPage() {
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="h-[50vh] min-h-[320px] bg-[#EFF4FB]">
-              <iframe
-                title="Google Maps address preview"
-                src={`https://www.google.com/maps?q=${mapQuery}&output=embed`}
-                className="w-full h-full border-0"
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-              />
+            <div className="h-[50vh] min-h-[320px] bg-[#EFF4FB] overflow-hidden">
+              {mapStaticUrl ? (
+                <img
+                  src={mapStaticUrl}
+                  alt="Google Maps address preview"
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-sm text-[#6B7C8F]">
+                  Map preview unavailable
+                </div>
+              )}
             </div>
             <div className="px-4 py-3 border-t border-[var(--border-soft)] flex items-center justify-end">
               <button
@@ -1898,6 +2204,71 @@ export default function ChatPage() {
                 Open Full Map <ExternalLink className="w-3.5 h-3.5" />
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showCameraQrModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowCameraQrModal(false)}>
+          <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-[#0B1F33]">Send Photo From Phone</h3>
+              <button
+                type="button"
+                onClick={() => setShowCameraQrModal(false)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-[#6B7C8F] mt-1.5">Scan the QR code on your phone, open the chat page, then tap Open Camera and submit.</p>
+            <div className="mt-4 rounded-xl border border-[#E6EEF6] bg-[#F8FAFD] p-3 flex items-center justify-center">
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(mobileCameraUrl)}`}
+                alt="QR code for mobile camera upload"
+                className="w-[220px] h-[220px]"
+              />
+            </div>
+            <div className="mt-3 flex items-center gap-2">
+              <a
+                href={mobileCameraUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 inline-flex items-center justify-center px-3 py-2.5 rounded-xl bg-[#2F6FED] text-white text-sm font-semibold hover:bg-[#2158C7]"
+              >
+                Open Link
+              </a>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(mobileCameraUrl);
+                    alert("Mobile upload link copied.");
+                  } catch {
+                    alert("Could not copy link. Use Open Link instead.");
+                  }
+                }}
+                className="px-3 py-2.5 rounded-xl border border-[#DCE8FF] text-[#2F6FED] text-sm font-semibold hover:bg-[#F3F8FF]"
+              >
+                Copy
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {mobileCameraMode && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 px-4 w-[min(92vw,420px)]">
+          <div className="bg-white border border-[#DCE8FF] shadow-[0_10px_30px_rgba(47,111,237,0.18)] rounded-2xl p-3.5">
+            <p className="text-xs text-[#6B7C8F]">Mobile upload mode</p>
+            <p className="text-sm text-[#0B1F33] font-medium mt-0.5">Use your phone camera to send a chat photo.</p>
+            <button
+              type="button"
+              onClick={() => chatPhotoInputRef.current?.click()}
+              className="mt-2 w-full inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-[#2F6FED] text-white text-sm font-semibold hover:bg-[#2158C7]"
+            >
+              <Camera className="w-4 h-4" /> Open Camera
+            </button>
           </div>
         </div>
       )}

@@ -9,6 +9,7 @@ import { doc, updateDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "@/lib/firebase";
 import { sendAdminNotif } from "@/lib/adminNotifications";
+import { buildGoogleMapsEmbedUrl } from "@/lib/googleMaps";
 import {
   UserProfile,
   ClientProfile,
@@ -48,6 +49,8 @@ import {
   ImagePlus,
   Trash2,
   Briefcase,
+  AlertCircle,
+  Search,
 } from "lucide-react";
 
 export default function SettingsPage() {
@@ -60,6 +63,7 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [activeTab, setActiveTab] = useState<"general" | "appearance" | "payment" | "notifications" | "verification" | "branding">("general");
   const [stripeConnecting, setStripeConnecting] = useState(false);
+  const [stripeConfigError, setStripeConfigError] = useState<string | null>(null);
   const [stripeStatus, setStripeStatus] = useState<{
     chargesEnabled?: boolean;
     payoutsEnabled?: boolean;
@@ -82,6 +86,27 @@ export default function SettingsPage() {
   const [serviceRadius, setServiceRadius] = useState(operatorProfile?.serviceRadius || 10);
 
   const isOperator = profile?.role === "operator";
+  const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const requiredGeneralFields: { key: string; label: string; value: string }[] = [
+    { key: "displayName", label: "Display Name", value: displayName || "" },
+    { key: "phone", label: "Phone", value: phone || "" },
+    { key: "address", label: "Street Address", value: address || "" },
+    { key: "city", label: "City", value: city || "" },
+    { key: "province", label: "Province", value: province || "" },
+    { key: "postalCode", label: "Postal Code", value: postalCode || "" },
+    ...(isOperator
+      ? [
+          { key: "businessName", label: "Business Name", value: businessName || "" },
+          { key: "bio", label: "Bio", value: bio || "" },
+        ]
+      : []),
+  ];
+  const missingGeneralFields = requiredGeneralFields.filter((field) => !field.value.trim());
+  const missingGeneralFieldSet = new Set(missingGeneralFields.map((field) => field.key));
+  const completionPercent = Math.round(
+    ((requiredGeneralFields.length - missingGeneralFields.length) / requiredGeneralFields.length) * 100
+  );
 
   // Verification state
   const [uploadingId, setUploadingId] = useState(false);
@@ -99,6 +124,9 @@ export default function SettingsPage() {
   const [logoUrl, setLogoUrl] = useState((profile as OperatorProfile & { logoUrl?: string })?.logoUrl || "");
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
+  const verificationStatus = (profile as UserProfile & { verificationStatus?: string })?.verificationStatus;
+  const verificationNote = (profile as UserProfile & { verificationNote?: string })?.verificationNote;
+
   const handleIdUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !profile?.uid) return;
@@ -110,7 +138,9 @@ export default function SettingsPage() {
       await updateDoc(doc(db, "users", profile.uid), {
         idPhotoUrl: url,
         idVerified: false,
+        accountApproved: false,
         verificationStatus: "pending",
+        verificationNote: "",
       });
       setIdPhotoUrl(url);
       await refreshProfile();
@@ -207,13 +237,19 @@ export default function SettingsPage() {
   // Save branding info
   const saveBranding = async () => {
     if (!profile?.uid) return;
+    setSaved(false);
     setSaving(true);
+    const startedAt = Date.now();
     try {
       await updateDoc(doc(db, "users", profile.uid), {
         tagline: brandingTagline,
         brandDescription: brandingDescription,
       });
       await refreshProfile();
+      const remaining = 2000 - (Date.now() - startedAt);
+      if (remaining > 0) {
+        await wait(remaining);
+      }
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
@@ -263,7 +299,15 @@ export default function SettingsPage() {
           body: JSON.stringify({ accountId }),
         });
         const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data?.error || "Failed to check Stripe account status");
+        }
+        if (data?.configured === false) {
+          setStripeConfigError(data?.error || "Stripe is not configured on this environment");
+          return;
+        }
         if (!data.error) {
+          setStripeConfigError(null);
           setStripeStatus(data);
           // If Stripe is fully ready, mark the profile
           if (data.fullyReady && profile?.uid) {
@@ -282,6 +326,34 @@ export default function SettingsPage() {
     setStripeConnecting(true);
 
     try {
+      const startNewStripeOnboarding = async () => {
+        const createRes = await fetch("/api/stripe/create-connect-account", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: user.email,
+            operatorId: profile.uid,
+            businessName: (profile as OperatorProfile).businessName || profile.displayName,
+          }),
+        });
+        const createData = await createRes.json();
+        if (!createRes.ok) {
+          throw new Error(createData?.error || "Failed to create Stripe account");
+        }
+        if (createData?.configured === false) {
+          setStripeConfigError(createData?.error || "Stripe is not configured on this environment");
+          return;
+        }
+        if (createData.error) throw new Error(createData.error);
+        setStripeConfigError(null);
+
+        await updateDoc(doc(db, "users", profile.uid), {
+          stripeConnectAccountId: createData.accountId,
+        });
+
+        window.location.href = createData.onboardingUrl;
+      };
+
       const existingAccountId = (profile as OperatorProfile & { stripeConnectAccountId?: string })?.stripeConnectAccountId;
 
       if (existingAccountId) {
@@ -292,33 +364,33 @@ export default function SettingsPage() {
           body: JSON.stringify({ accountId: existingAccountId }),
         });
         const data = await res.json();
+        if (!res.ok) {
+          const msg = data?.error || "Failed to create Stripe account link";
+          // Recover when a stale Stripe account ID is stored on the profile.
+          if (/no such account|does not exist|invalid account/i.test(msg)) {
+            await updateDoc(doc(db, "users", profile.uid), {
+              stripeConnectAccountId: null,
+              stripeReady: false,
+            });
+            await startNewStripeOnboarding();
+            return;
+          }
+          throw new Error(data?.error || "Failed to create Stripe account link");
+        }
+        if (data?.configured === false) {
+          setStripeConfigError(data?.error || "Stripe is not configured on this environment");
+          return;
+        }
         if (data.error) throw new Error(data.error);
+        setStripeConfigError(null);
         window.location.href = data.onboardingUrl;
       } else {
-        // Create new Connect account
-        const res = await fetch("/api/stripe/create-connect-account", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: user.email,
-            operatorId: profile.uid,
-            businessName: (profile as OperatorProfile).businessName || profile.displayName,
-          }),
-        });
-        const data = await res.json();
-        if (data.error) throw new Error(data.error);
-
-        // Save account ID
-        await updateDoc(doc(db, "users", profile.uid), {
-          stripeConnectAccountId: data.accountId,
-        });
-
-        // Redirect to Stripe onboarding
-        window.location.href = data.onboardingUrl;
+        await startNewStripeOnboarding();
       }
     } catch (error) {
       console.error("Stripe connect error:", error);
-      alert("Failed to start Stripe setup. Please try again.");
+      const message = error instanceof Error ? error.message : "Failed to start Stripe setup. Please try again.";
+      alert(message);
     } finally {
       setStripeConnecting(false);
     }
@@ -346,7 +418,9 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     if (!profile?.uid) return;
+    setSaved(false);
     setSaving(true);
+    const startedAt = Date.now();
     try {
       const updates: Record<string, unknown> = {
         displayName,
@@ -366,6 +440,10 @@ export default function SettingsPage() {
       }
       await updateDoc(doc(db, "users", profile.uid), updates);
       await refreshProfile();
+      const remaining = 2000 - (Date.now() - startedAt);
+      if (remaining > 0) {
+        await wait(remaining);
+      }
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
 
@@ -442,51 +520,110 @@ export default function SettingsPage() {
     ...(isOperator ? [{ key: "branding" as const, label: "Branding", icon: Palette }] : []),
   ];
 
+  const TAB_DESCRIPTIONS: Record<string, string> = {
+    general: "Manage profile, contact details, and service location",
+    appearance: "Customize visual display and theme preference",
+    payment: "Review cards, payouts, and Stripe setup",
+    verification: "Upload and manage your verification documents",
+    notifications: "Control updates, alerts, and communication",
+    branding: "Configure business identity and portfolio",
+  };
+
+  const activeTabMeta = TABS.find((tab) => tab.key === activeTab);
+
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+    <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4">
+      <div className="rounded-[24px] border border-[#DDE3EC] bg-[#F6F7FB] shadow-[0_24px_60px_rgba(16,24,40,0.12)] overflow-hidden">
+        <div className="h-12 border-b border-[#E3E8F1] bg-[#ECEFF5] px-4 flex items-center justify-between">
           <Link
             href="/dashboard"
-            className="p-2 hover:bg-gray-100 rounded-lg transition"
+            className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-sm text-[#5C6472] hover:bg-white transition"
             title="Back to dashboard"
           >
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
+            <ArrowLeft className="w-4 h-4" /> Back
           </Link>
-          <h1 className="text-2xl font-bold text-[#0B1F33]">Settings</h1>
+          <p className="text-xs text-[#5C6472] font-medium tracking-wide">System Settings</p>
+          {saved ? (
+            <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-1">
+              <CheckCircle className="w-3.5 h-3.5" /> Saved
+            </div>
+          ) : (
+            <div className="w-[68px]" />
+          )}
         </div>
-        {saved && (
-          <div className="flex items-center gap-2 text-green-600 text-sm font-medium">
-            <CheckCircle className="w-4 h-4" />
-            Saved
-          </div>
-        )}
-      </div>
 
-      {/* Tab Navigation */}
-      <div className="flex gap-1 bg-[#F7FAFC] rounded-xl p-1 overflow-x-auto">
-        {TABS.map((tab) => {
-          const Icon = tab.icon;
-          return (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
-                activeTab === tab.key
-                  ? "bg-white text-[#2F6FED] shadow-sm"
-                  : "text-[#6B7C8F] hover:text-[#0B1F33]"
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
+        <div className="grid grid-cols-1 md:grid-cols-[290px_minmax(0,1fr)] min-h-[calc(100vh-10rem)]">
+          <aside className="bg-[linear-gradient(180deg,#F4F6FB_0%,#ECEFF6_100%)] border-r border-[#E3E8F1] p-3 md:p-4">
+            <div className="relative mb-3">
+              <Search className="w-4 h-4 text-[#8A93A3] absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                value={activeTabMeta?.label || ""}
+                readOnly
+                className="w-full h-9 rounded-lg bg-white border border-[#D8DEE8] pl-9 pr-3 text-sm text-[#4B5565] outline-none"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              {TABS.map((tab) => {
+                const Icon = tab.icon;
+                const selected = activeTab === tab.key;
+
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveTab(tab.key)}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-[10px] text-sm transition ${
+                      selected
+                        ? "bg-[#0A84FF] text-white"
+                        : "text-[#4F5968] hover:bg-white"
+                    }`}
+                  >
+                    <Icon className={`w-4 h-4 ${selected ? "text-white" : "text-[#7A8596]"}`} />
+                    <span className="font-medium text-left">{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </aside>
+
+          <main className="bg-[radial-gradient(circle_at_20%_10%,rgba(255,255,255,0.92),transparent_26%),linear-gradient(180deg,#F9FAFD_0%,#F2F5FA_100%)] p-3 sm:p-5 lg:p-7">
+            <div className="max-w-3xl mx-auto space-y-6">
+              <div className="rounded-2xl bg-white border border-[#E3E8F1] px-5 py-6 text-center shadow-sm">
+                <h2 className="text-3xl font-semibold text-[#1F2937] mb-1.5">{activeTabMeta?.label || "Settings"}</h2>
+                <p className="text-sm text-[#6B7280]">{TAB_DESCRIPTIONS[activeTab] || "Manage your account preferences"}</p>
+              </div>
 
       {/* General Settings */}
       {activeTab === "general" && (
         <div className="space-y-6">
+          <div className={`rounded-2xl border p-4 ${
+            missingGeneralFields.length === 0
+              ? "bg-green-50 border-green-200"
+              : "bg-amber-50 border-amber-200"
+          }`}>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className={`text-sm font-semibold ${
+                  missingGeneralFields.length === 0 ? "text-green-800" : "text-amber-800"
+                }`}>
+                  Profile completion: {completionPercent}%
+                </p>
+                {missingGeneralFields.length === 0 ? (
+                  <p className="text-xs text-green-700 mt-1">Everything needed is complete.</p>
+                ) : (
+                  <p className="text-xs text-amber-700 mt-1">
+                    Complete these fields: {missingGeneralFields.map((field) => field.label).join(", ")}
+                  </p>
+                )}
+              </div>
+              {missingGeneralFields.length === 0 ? (
+                <CheckCircle className="w-5 h-5 text-green-600 shrink-0" />
+              ) : (
+                <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+              )}
+            </div>
+          </div>
+
           {/* Profile Info */}
           <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
             <h3 className="text-lg font-semibold text-[#0B1F33] mb-4 flex items-center gap-2">
@@ -500,7 +637,9 @@ export default function SettingsPage() {
                   type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none"
+                  className={`w-full px-4 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none ${
+                    missingGeneralFieldSet.has("displayName") ? "border-amber-300 bg-amber-50" : "border-[#E6EEF6]"
+                  }`}
                 />
               </div>
               <div>
@@ -518,7 +657,9 @@ export default function SettingsPage() {
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none"
+                  className={`w-full px-4 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none ${
+                    missingGeneralFieldSet.has("phone") ? "border-amber-300 bg-amber-50" : "border-[#E6EEF6]"
+                  }`}
                 />
               </div>
               {!isOperator && (
@@ -545,7 +686,9 @@ export default function SettingsPage() {
                     type="text"
                     value={businessName}
                     onChange={(e) => setBusinessName(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none"
+                    className={`w-full px-4 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none ${
+                      missingGeneralFieldSet.has("businessName") ? "border-amber-300 bg-amber-50" : "border-[#E6EEF6]"
+                    }`}
                   />
                 </div>
               )}
@@ -557,7 +700,9 @@ export default function SettingsPage() {
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
                   rows={3}
-                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none resize-none"
+                  className={`w-full px-4 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none resize-none ${
+                    missingGeneralFieldSet.has("bio") ? "border-amber-300 bg-amber-50" : "border-[#E6EEF6]"
+                  }`}
                 />
               </div>
             )}
@@ -576,7 +721,9 @@ export default function SettingsPage() {
                   type="text"
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none"
+                  className={`w-full px-4 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none ${
+                    missingGeneralFieldSet.has("address") ? "border-amber-300 bg-amber-50" : "border-[#E6EEF6]"
+                  }`}
                 />
               </div>
               <div>
@@ -585,7 +732,9 @@ export default function SettingsPage() {
                   type="text"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none"
+                  className={`w-full px-4 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none ${
+                    missingGeneralFieldSet.has("city") ? "border-amber-300 bg-amber-50" : "border-[#E6EEF6]"
+                  }`}
                 />
               </div>
               <div>
@@ -593,7 +742,9 @@ export default function SettingsPage() {
                 <select
                   value={province}
                   onChange={(e) => setProvince(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm bg-white focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none"
+                  className={`w-full px-4 py-2.5 border rounded-xl text-sm bg-white focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none ${
+                    missingGeneralFieldSet.has("province") ? "border-amber-300 bg-amber-50" : "border-[#E6EEF6]"
+                  }`}
                 >
                   {CANADIAN_PROVINCES.map((p) => (
                     <option key={p.code} value={p.code}>{p.name}</option>
@@ -607,7 +758,9 @@ export default function SettingsPage() {
                   value={postalCode}
                   onChange={(e) => setPostalCode(e.target.value.toUpperCase())}
                   maxLength={7}
-                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none"
+                  className={`w-full px-4 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none ${
+                    missingGeneralFieldSet.has("postalCode") ? "border-amber-300 bg-amber-50" : "border-[#E6EEF6]"
+                  }`}
                 />
               </div>
             </div>
@@ -652,7 +805,7 @@ export default function SettingsPage() {
                     style={{ border: 0 }}
                     loading="lazy"
                     referrerPolicy="no-referrer-when-downgrade"
-                    src={`https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""}&q=${encodeURIComponent(`${address}, ${city}, ${province} ${postalCode}, Canada`)}&zoom=15`}
+                    src={buildGoogleMapsEmbedUrl(`${address}, ${city}, ${province} ${postalCode}, Canada`, 15)}
                   />
                 </div>
                 <p className="text-xs text-[#6B7C8F] mt-2">
@@ -666,10 +819,18 @@ export default function SettingsPage() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="btn-primary w-full flex items-center justify-center gap-2 px-6 py-3 bg-[#2F6FED] text-white rounded-xl font-semibold text-sm hover:bg-[#2158C7] transition disabled:opacity-50"
+            className={`btn-primary w-full flex items-center justify-center gap-2 px-6 py-3 text-white rounded-xl font-semibold text-sm transition disabled:opacity-50 ${
+              saved ? "bg-green-600 hover:bg-green-700" : "bg-[#2F6FED] hover:bg-[#2158C7]"
+            }`}
           >
-            <Save className="w-4 h-4" />
-            {saving ? "Saving..." : "Save Changes"}
+            {saving ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : saved ? (
+              <CheckCircle className="w-4 h-4" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            {saving ? "Saving changes..." : saved ? "Saved" : "Save Changes"}
           </button>
 
           {/* Sign Out */}
@@ -785,6 +946,13 @@ export default function SettingsPage() {
                 <Building2 className="w-5 h-5 text-[#2F6FED]" />
                 Payout Information
               </h3>
+
+              {stripeConfigError && (
+                <div className="mb-4 flex items-start gap-2 p-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-800">
+                  <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                  <p className="text-sm">{stripeConfigError}</p>
+                </div>
+              )}
 
               {stripeStatus?.chargesEnabled && stripeStatus?.payoutsEnabled ? (
                 <div className="space-y-3">
@@ -926,7 +1094,9 @@ export default function SettingsPage() {
                     <div>
                       <h3 className="font-bold text-amber-900">Account Not Public Yet</h3>
                       <p className="text-sm text-amber-700">
-                        {!(profile as UserProfile & { idPhotoUrl?: string })?.idPhotoUrl
+                        {verificationStatus === "rejected"
+                          ? "Your previous submission was rejected. Review the feedback below and upload a new ID photo."
+                          : !(profile as UserProfile & { idPhotoUrl?: string })?.idPhotoUrl
                           ? "Upload your government ID below to start the verification process."
                           : "Your ID is under review. Once approved, your account will go public."}
                       </p>
@@ -954,6 +1124,10 @@ export default function SettingsPage() {
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-50 text-green-700 text-xs font-medium">
                   <ShieldCheck className="w-3.5 h-3.5" /> Verified
                 </span>
+              ) : verificationStatus === "rejected" ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 text-red-700 text-xs font-medium">
+                  <AlertCircle className="w-3.5 h-3.5" /> Rejected
+                </span>
               ) : idPhotoUrl ? (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-medium">
                   <Loader2 className="w-3.5 h-3.5" /> Pending Review
@@ -964,6 +1138,13 @@ export default function SettingsPage() {
                 </span>
               )}
             </div>
+
+            {verificationStatus === "rejected" && verificationNote && (
+              <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4">
+                <p className="text-xs font-semibold text-red-900 uppercase tracking-wide mb-1">Admin feedback</p>
+                <p className="text-sm text-red-700">{verificationNote}</p>
+              </div>
+            )}
 
             {/* Preview */}
             {idPhotoUrl && (
@@ -977,6 +1158,10 @@ export default function SettingsPage() {
               {uploadingId ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" /> Uploading...
+                </>
+              ) : verificationStatus === "rejected" ? (
+                <>
+                  <Upload className="w-4 h-4" /> Upload New ID Photo
                 </>
               ) : (
                 <>
@@ -1126,10 +1311,18 @@ export default function SettingsPage() {
               <button
                 onClick={saveBranding}
                 disabled={saving}
-                className="flex items-center gap-2 px-5 py-2.5 bg-[#2F6FED] text-white rounded-xl text-sm font-semibold hover:bg-[#2158C7] transition disabled:opacity-50"
+                className={`flex items-center gap-2 px-5 py-2.5 text-white rounded-xl text-sm font-semibold transition disabled:opacity-50 ${
+                  saved ? "bg-green-600 hover:bg-green-700" : "bg-[#2F6FED] hover:bg-[#2158C7]"
+                }`}
               >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                Save Changes
+                {saving ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : saved ? (
+                  <CheckCircle className="w-4 h-4" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                {saving ? "Saving changes..." : saved ? "Saved" : "Save Changes"}
               </button>
             </div>
           </div>
@@ -1192,6 +1385,10 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+            </div>
+          </main>
+        </div>
+      </div>
     </div>
   );
 }

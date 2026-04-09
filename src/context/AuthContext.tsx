@@ -7,6 +7,7 @@ import {
   signOut as firebaseSignOut,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithEmailAndPassword,
   deleteUser,
 } from "firebase/auth";
 import { doc, getDoc, onSnapshot, deleteDoc } from "firebase/firestore";
@@ -19,6 +20,7 @@ interface AuthContextType {
   profile: UserProfile | ClientProfile | OperatorProfile | null;
   loading: boolean;
   signInWithGoogle: () => Promise<User>;
+  signInWithEmailPassword: (email: string, password: string) => Promise<User>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   deleteAccount: () => Promise<void>;
@@ -63,20 +65,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (firebaseUser) {
-        // Set up real-time listener for profile changes
         const docRef = doc(db, "users", firebaseUser.uid);
-        profileUnsubscribe = onSnapshot(docRef, (docSnap) => {
-          if (docSnap.exists()) {
-            setProfile(docSnap.data() as UserProfile);
+
+        // Gate watch setup behind a readable one-time fetch to avoid repeating
+        // watch-stream permission errors when Firestore rules are stale/deployed incorrectly.
+        try {
+          const initialSnap = await getDoc(docRef);
+          if (initialSnap.exists()) {
+            setProfile(initialSnap.data() as UserProfile);
           } else {
             setProfile(null);
           }
-          setLoading(false);
-        }, (error) => {
-          console.error("Error listening to profile:", error);
+
+          profileUnsubscribe = onSnapshot(
+            docRef,
+            (docSnap) => {
+              if (docSnap.exists()) {
+                setProfile(docSnap.data() as UserProfile);
+              } else {
+                setProfile(null);
+              }
+              setLoading(false);
+            },
+            (error) => {
+              const code = (error as { code?: string }).code || "";
+              if (code === "permission-denied") {
+                console.warn("Profile realtime listener disabled due to Firestore permission-denied.");
+              } else {
+                console.error("Error listening to profile:", error);
+              }
+              setLoading(false);
+            }
+          );
+        } catch (error) {
+          const code = (error as { code?: string }).code || "";
+          if (code === "permission-denied") {
+            console.warn("Profile read denied by Firestore rules. Falling back to auth-only session state.");
+          } else {
+            console.error("Error fetching initial profile:", error);
+          }
           setProfile(null);
           setLoading(false);
-        });
+        }
       } else {
         setProfile(null);
         setLoading(false);
@@ -116,6 +146,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return cred.user;
   };
 
+  const signInWithEmailPassword = async (email: string, password: string) => {
+    if (!isFirebaseConfigured || !auth) {
+      throw new Error("Firebase is not configured. Add valid NEXT_PUBLIC_FIREBASE_* values in .env.local");
+    }
+
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+    sendAdminNotif({
+      type: "login",
+      message: `User logged in: ${cred.user.email ?? "email user"}`,
+      uid: cred.user.uid,
+      meta: { email: cred.user.email ?? "" },
+    });
+    return cred.user;
+  };
+
   const signOut = async () => {
     if (!isFirebaseConfigured || !auth) return;
 
@@ -149,7 +194,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, profile, loading, signInWithGoogle, signOut, refreshProfile, deleteAccount }}
+      value={{ user, profile, loading, signInWithGoogle, signInWithEmailPassword, signOut, refreshProfile, deleteAccount }}
     >
       {children}
     </AuthContext.Provider>

@@ -20,7 +20,7 @@ import StatusBadge from "@/components/StatusBadge";
 import ProgressTracker from "@/components/ProgressTracker";
 import CelebrationOverlay from "@/components/CelebrationOverlay";
 import CancellationPopup from "@/components/CancellationPopup";
-import { WeatherCard } from "@/context/WeatherContext";
+import { WeatherCard, useWeather } from "@/context/WeatherContext";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Snowflake,
@@ -40,6 +40,8 @@ import {
   MessageCircle,
   ExternalLink,
   Shield,
+  Plus,
+  ArrowRight,
   Camera,
   CreditCard,
   FileText,
@@ -97,6 +99,7 @@ function OperatorMiniCalendar() {
 
 export default function OperatorDashboard() {
   const { profile } = useAuth();
+  const { weather, loading: weatherLoading } = useWeather();
   const operatorProfile = profile as OperatorProfile;
   const [pendingJobs, setPendingJobs] = useState<Job[]>([]);
   const [activeJobs, setActiveJobs] = useState<Job[]>([]);
@@ -456,41 +459,43 @@ export default function OperatorDashboard() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-[linear-gradient(120deg,#0B1F33_0%,#12395C_45%,#2F6FED_100%)] rounded-2xl p-6 md:p-8 text-white relative overflow-hidden shadow-lg"
+        className="bg-[linear-gradient(118deg,#2F6FED_0%,#4D8BFB_42%,#6EA7F4_100%)] rounded-3xl p-5 md:p-6 text-white shadow-[0_16px_30px_rgba(47,111,237,0.24)] relative overflow-hidden border border-white/20"
       >
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-4 right-8 text-6xl">❄️</div>
-          <div className="absolute bottom-4 left-12 text-3xl">❄️</div>
+        <div className="absolute inset-0 opacity-20 pointer-events-none">
+          <div className="absolute -top-14 right-6 h-40 w-40 rounded-full bg-white/20 blur-2xl" />
+          <div className="absolute -bottom-12 left-[35%] h-32 w-48 rounded-full bg-white/10 blur-2xl" />
         </div>
-        <div className="relative z-10">
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-extrabold drop-shadow-sm">
+        <div className="relative z-10 grid grid-cols-1 md:grid-cols-[1.1fr_0.9fr] gap-4 md:gap-6 items-stretch">
+          <div className="min-w-0">
+            <h1 className="text-3xl md:text-[2.2rem] font-headline font-extrabold drop-shadow-sm leading-tight">
                 {greeting()}, {operatorProfile?.displayName?.split(" ")[0] || "there"}!
-              </h1>
-              <p className="mt-1 text-white/90 text-sm">Your operator control center for jobs, earnings, and reputation.</p>
-              <div className="mt-1 flex items-center gap-3 flex-wrap">
-                <p className="text-white/80 flex items-center gap-1">
-                  <MapPin className="w-4 h-4" />
-                  {operatorProfile?.city}, {operatorProfile?.province}
-                </p>
-                {/* Account Status Badge */}
-                {isAccountPublic ? (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-green-400/20 text-green-200 rounded-full text-xs font-semibold">
-                    <BadgeCheck className="w-3.5 h-3.5" /> Public
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-400/20 text-amber-200 rounded-full text-xs font-semibold">
-                    <AlertCircle className="w-3.5 h-3.5" /> Not Public
-                  </span>
-                )}
-              </div>
-            </div>
-            <Snowflake className="w-10 h-10 text-white/20" />
-          </div>
+            </h1>
+            <p className="mt-1.5 text-white/90 text-sm md:text-base">Your operator control center for jobs, earnings, and reputation.</p>
+            <p className="mt-1.5 text-white/80 text-base md:text-lg">
+              <MapPin className="w-4 h-4 inline mr-1" />
+              {operatorProfile?.city}, {operatorProfile?.province}
+            </p>
 
-          {/* Availability Toggle */}
-          <div className="mt-5 flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3">
+            <div className="mt-4 flex items-center gap-2 flex-wrap">
+              <Link
+                href="/dashboard/jobs"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-[#2F6FED] rounded-2xl font-bold text-base md:text-lg leading-none transition shadow-md hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.99]"
+              >
+                <Plus className="w-5 h-5" />
+                View Job Requests
+              </Link>
+              {isAccountPublic ? (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-400/20 text-green-100 rounded-full text-xs font-semibold border border-green-200/30">
+                  <BadgeCheck className="w-3.5 h-3.5" /> Public
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-400/20 text-amber-100 rounded-full text-xs font-semibold border border-amber-200/30">
+                  <AlertCircle className="w-3.5 h-3.5" /> Not Public
+                </span>
+              )}
+            </div>
+
+            <div className="mt-3 flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 w-fit">
             <button
               onClick={toggleAvailability}
               className={`relative w-14 h-7 rounded-full transition-colors ${isAvailable ? "bg-green-400" : "bg-gray-400"}`}
@@ -503,6 +508,33 @@ export default function OperatorDashboard() {
               {isAvailable ? "Available for new requests" : "Paused"}
             </span>
           </div>
+          </div>
+
+          <Link
+            href="/dashboard/calendar"
+            className="group w-full rounded-2xl border border-white/30 bg-[linear-gradient(145deg,rgba(123,166,255,0.33),rgba(59,117,240,0.56))] px-5 py-4 backdrop-blur-sm hover:border-white/50 transition"
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-white/80 text-sm md:text-base font-medium">Today&apos;s Weather</p>
+              <ArrowRight className="w-4 h-4 text-white/80 group-hover:translate-x-0.5 transition-transform" />
+            </div>
+            {weatherLoading ? (
+              <p className="mt-2 text-white/80">Loading weather...</p>
+            ) : weather ? (
+              <div className="mt-1 flex items-end justify-between">
+                <div>
+                  <p className="text-5xl font-headline font-bold leading-none">{weather.temp}°C</p>
+                  <p className="text-lg text-white/90 mt-0.5">Feels {weather.feelsLike}°</p>
+                  <p className="text-2xl font-semibold mt-1.5">{weather.condition}</p>
+                </div>
+                <div className="text-5xl" aria-hidden>
+                  {weather.icon}
+                </div>
+              </div>
+            ) : (
+              <p className="mt-2 text-white/80">Weather unavailable</p>
+            )}
+          </Link>
         </div>
       </motion.div>
 

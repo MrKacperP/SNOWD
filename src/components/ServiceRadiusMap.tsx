@@ -2,7 +2,12 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { GoogleMap, Circle, useJsApiLoader } from "@react-google-maps/api";
-import { GOOGLE_MAPS_LIBRARIES, GOOGLE_MAPS_API_KEY } from "@/lib/googleMaps";
+import {
+  GOOGLE_MAPS_LIBRARIES,
+  GOOGLE_MAPS_API_KEY,
+  hasGoogleMapsApiKey,
+  buildGoogleMapsEmbedUrl,
+} from "@/lib/googleMaps";
 
 interface ServiceRadiusMapProps {
   address: string;
@@ -52,6 +57,47 @@ export default function ServiceRadiusMap({
   postalCode,
   radiusKm,
 }: ServiceRadiusMapProps) {
+  const fullAddress = `${address}, ${city}, ${province}, ${postalCode}, Canada`;
+
+  if (!hasGoogleMapsApiKey) {
+    return (
+      <div className="relative">
+        <iframe
+          title="Service area map"
+          width="100%"
+          height="400"
+          style={{ border: 0 }}
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+          src={buildGoogleMapsEmbedUrl(fullAddress, 12)}
+        />
+        <div className="mt-2 text-xs text-gray-500 text-center">
+          Service area: {radiusKm} km radius
+          {!address && " • Enter your address to see location"}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <ServiceRadiusMapWithApi
+      address={address}
+      city={city}
+      province={province}
+      postalCode={postalCode}
+      radiusKm={radiusKm}
+    />
+  );
+}
+
+function ServiceRadiusMapWithApi({
+  address,
+  city,
+  province,
+  postalCode,
+  radiusKm,
+}: ServiceRadiusMapProps) {
+  const fullAddress = `${address}, ${city}, ${province}, ${postalCode}, Canada`;
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
     libraries: GOOGLE_MAPS_LIBRARIES,
@@ -68,7 +114,6 @@ export default function ServiceRadiusMap({
     setIsGeocoding(true);
     try {
       const geocoder = new google.maps.Geocoder();
-      const fullAddress = `${address}, ${city}, ${province}, ${postalCode}, Canada`;
       const result = await geocoder.geocode({ address: fullAddress });
 
       if (result.results[0]) {
@@ -81,7 +126,7 @@ export default function ServiceRadiusMap({
     } finally {
       setIsGeocoding(false);
     }
-  }, [isLoaded, address, city, province, postalCode]);
+  }, [isLoaded, address, city, province, postalCode, fullAddress]);
 
   useEffect(() => {
     geocodeAddress();

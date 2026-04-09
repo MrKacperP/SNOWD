@@ -1,244 +1,224 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { collection, getDocs, doc, updateDoc, deleteDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { UserProfile } from "@/lib/types";
-import { Users, Search, Edit3, Trash2, Shield, Eye, X, Save, ExternalLink, FileText } from "lucide-react";
-import Link from "next/link";
-import DeleteConfirmPopup from "@/components/DeleteConfirmPopup";
+import React, { useMemo, useState } from "react";
+import { Download, Eye, Pencil, ShieldAlert, ShieldCheck } from "lucide-react";
+import { AdminCard, ConfirmModal, EmptyState, SideDrawer, SortHeader, StatusTag, tableCell, tableHead } from "@/components/admin/AdminUI";
+import { useAdminData } from "@/components/admin/AdminProvider";
+import { csvFromRows, downloadCsv } from "@/lib/admin/utils";
+
+type SortKey = "name" | "email" | "role" | "status" | "joinDate";
 
 export default function AdminUsersPage() {
-  const [users, setUsers] = useState<UserProfile[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [roleFilter, setRoleFilter] = useState<"all" | "client" | "operator" | "admin">("all");
-  const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
-  const [editFields, setEditFields] = useState<Record<string, unknown>>({});
-  const [deletingUser, setDeletingUser] = useState<UserProfile | null>(null);
-  const [deleteLoading, setDeleteLoading] = useState(false);
+  const { users, setUsers, jobs, transactions, supportTickets } = useAdminData();
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [roleFilter, setRoleFilter] = useState("All");
+  const [sortKey, setSortKey] = useState<SortKey>("joinDate");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [suspendTarget, setSuspendTarget] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const snap = await getDocs(collection(db, "users"));
-        setUsers(snap.docs.map(d => ({ ...d.data(), uid: d.id } as UserProfile)).sort((a, b) => a.displayName.localeCompare(b.displayName)));
-      } catch (error) {
-        console.error("Error fetching users:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchUsers();
-  }, []);
+  const selectedUser = users.find((u) => u.id === selectedUserId) || null;
 
-  const filtered = users.filter(u => {
-    if (roleFilter !== "all" && u.role !== roleFilter) return false;
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      return u.displayName?.toLowerCase().includes(term) || u.email?.toLowerCase().includes(term) || u.city?.toLowerCase().includes(term);
+  const rows = useMemo(() => {
+    let list = [...users];
+
+    if (query.trim()) {
+      const q = query.toLowerCase();
+      list = list.filter((u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
     }
-    return true;
-  });
+    if (statusFilter !== "All") list = list.filter((u) => u.status === statusFilter);
+    if (roleFilter !== "All") list = list.filter((u) => u.role === roleFilter);
 
-  const handleEdit = (user: UserProfile) => {
-    setEditingUser(user);
-    setEditFields({
-      displayName: user.displayName,
-      email: user.email,
-      phone: user.phone,
-      role: user.role,
-      city: user.city,
-      province: user.province,
-      idVerified: (user as unknown as Record<string, unknown>).idVerified || false,
-      accountApproved: (user as unknown as Record<string, unknown>).accountApproved || false,
+    list.sort((a, b) => {
+      const aVal = a[sortKey];
+      const bVal = b[sortKey];
+      if (aVal < bVal) return sortDir === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortDir === "asc" ? 1 : -1;
+      return 0;
     });
+
+    return list;
+  }, [query, roleFilter, sortDir, sortKey, statusFilter, users]);
+
+  const setSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortKey(key);
+    setSortDir("asc");
   };
 
-  const handleSave = async () => {
-    if (!editingUser) return;
-    try {
-      await updateDoc(doc(db, "users", editingUser.uid), editFields);
-      setUsers(users.map(u => u.uid === editingUser.uid ? { ...u, ...editFields } as UserProfile : u));
-      setEditingUser(null);
-    } catch (error) {
-      console.error("Error updating user:", error);
-      alert("Failed to update user.");
-    }
+  const toggleSuspend = (id: string) => {
+    setUsers((prev) =>
+      prev.map((u) => {
+        if (u.id !== id) return u;
+        if (u.status === "Suspended") return { ...u, status: "Active" };
+        return { ...u, status: "Suspended" };
+      })
+    );
+    setSuspendTarget(null);
   };
 
-  const handleDelete = async () => {
-    if (!deletingUser) return;
-    setDeleteLoading(true);
-    try {
-      await deleteDoc(doc(db, "users", deletingUser.uid));
-      setUsers(users.filter(u => u.uid !== deletingUser.uid));
-      setDeletingUser(null);
-    } catch (error) {
-      console.error("Error deleting user:", error);
-    } finally {
-      setDeleteLoading(false);
-    }
+  const exportCsv = () => {
+    const csv = csvFromRows(
+      rows.map((u) => ({
+        Name: u.name,
+        Email: u.email,
+        Role: u.role,
+        Status: u.status,
+        JoinDate: u.joinDate,
+      }))
+    );
+    downloadCsv("snowd-admin-users.csv", csv);
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      <div className="flex items-center gap-3">
-        <Users className="w-6 h-6 text-[#2F6FED]" />
-        <h1 className="text-2xl font-bold">Manage Users</h1>
-        <span className="text-sm text-gray-500">({users.length} total)</span>
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="flex-1 relative">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+    <div className="space-y-4">
+      <AdminCard className="p-4">
+        <div className="flex flex-wrap items-center gap-2">
           <input
-            type="text"
-            placeholder="Search users..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2F6FED]/20"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search users"
+            className="h-10 px-3 rounded-lg border border-[#E5E7EB] bg-[#F8F9FA] text-sm min-w-[220px]"
           />
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-10 px-3 rounded-lg border border-[#E5E7EB] bg-white text-sm">
+            <option>All</option>
+            <option>Active</option>
+            <option>Suspended</option>
+            <option>Pending</option>
+          </select>
+          <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="h-10 px-3 rounded-lg border border-[#E5E7EB] bg-white text-sm">
+            <option>All</option>
+            <option>Client</option>
+            <option>Operator</option>
+            <option>Admin</option>
+            <option>Employee</option>
+          </select>
+          <button onClick={exportCsv} className="ml-auto h-10 px-3 rounded-lg bg-[#3B82F6] text-white text-sm font-semibold inline-flex items-center gap-1.5">
+            <Download className="w-4 h-4" /> Export CSV
+          </button>
         </div>
-        <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
-          {(["all", "client", "operator", "admin"] as const).map(r => (
-            <button
-              key={r}
-              onClick={() => setRoleFilter(r)}
-              className={`px-3 py-2 rounded-lg text-xs font-medium capitalize transition ${roleFilter === r ? "bg-white text-[#2F6FED] shadow-sm" : "text-gray-500"}`}
-            >
-              {r}
-            </button>
-          ))}
-        </div>
-      </div>
+      </AdminCard>
 
-      {/* Users List */}
-      {loading ? (
-        <div className="text-center py-12 text-gray-400">Loading users...</div>
-      ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden divide-y divide-gray-50">
-          {filtered.map(user => (
-            <div key={user.uid} className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition">
-              <div className="w-10 h-10 bg-[#2F6FED]/10 rounded-full flex items-center justify-center text-[#2F6FED] font-bold shrink-0">
-                {user.displayName?.charAt(0)?.toUpperCase() || "?"}
+      <AdminCard className="overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[980px]">
+            <thead>
+              <tr>
+                <th className={tableHead}>Avatar</th>
+                <th className={tableHead}><SortHeader label="Name" active={sortKey === "name"} direction={sortDir} onClick={() => setSort("name")} /></th>
+                <th className={tableHead}><SortHeader label="Email" active={sortKey === "email"} direction={sortDir} onClick={() => setSort("email")} /></th>
+                <th className={tableHead}><SortHeader label="Role" active={sortKey === "role"} direction={sortDir} onClick={() => setSort("role")} /></th>
+                <th className={tableHead}><SortHeader label="Status" active={sortKey === "status"} direction={sortDir} onClick={() => setSort("status")} /></th>
+                <th className={tableHead}><SortHeader label="Join Date" active={sortKey === "joinDate"} direction={sortDir} onClick={() => setSort("joinDate")} /></th>
+                <th className={tableHead}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((u) => (
+                <tr key={u.id} className="border-b border-[#E5E7EB] hover:bg-[#F9FAFB]">
+                  <td className={tableCell}>
+                    <div className="w-8 h-8 rounded-full bg-[#DBEAFE] text-[#3B82F6] font-semibold text-xs flex items-center justify-center">{u.avatar}</div>
+                  </td>
+                  <td className={tableCell}>
+                    <button onClick={() => setSelectedUserId(u.id)} className="font-medium text-[#1A1A2E] hover:text-[#3B82F6]">{u.name}</button>
+                  </td>
+                  <td className={tableCell}>{u.email}</td>
+                  <td className={tableCell}>{u.role}</td>
+                  <td className={tableCell}>
+                    <StatusTag
+                      label={u.status}
+                      tone={u.status === "Active" ? "green" : u.status === "Pending" ? "yellow" : "red"}
+                    />
+                  </td>
+                  <td className={tableCell}>{u.joinDate}</td>
+                  <td className={tableCell}>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => setSelectedUserId(u.id)} className="w-8 h-8 rounded-lg border border-[#E5E7EB] inline-flex items-center justify-center"><Eye className="w-4 h-4" /></button>
+                      <button className="w-8 h-8 rounded-lg border border-[#E5E7EB] inline-flex items-center justify-center"><Pencil className="w-4 h-4" /></button>
+                      <button
+                        onClick={() => setSuspendTarget(u.id)}
+                        className="w-8 h-8 rounded-lg border border-[#E5E7EB] inline-flex items-center justify-center"
+                      >
+                        {u.status === "Suspended" ? <ShieldCheck className="w-4 h-4 text-[#16A34A]" /> : <ShieldAlert className="w-4 h-4 text-[#DC2626]" />}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {rows.length === 0 && <EmptyState title="No users found" subtitle="Try adjusting search or filters." />}
+      </AdminCard>
+
+      <SideDrawer open={!!selectedUser} title={selectedUser?.name || "User profile"} onClose={() => setSelectedUserId(null)}>
+        {selectedUser && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-[#DBEAFE] text-[#3B82F6] font-bold text-sm flex items-center justify-center">{selectedUser.avatar}</div>
+              <div>
+                <p className="text-lg font-semibold text-[#1A1A2E]">{selectedUser.name}</p>
+                <p className="text-sm text-[#6B7280]">{selectedUser.email}</p>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-gray-900 truncate">{user.displayName}</p>
-                <p className="text-xs text-gray-500 truncate">{user.email}</p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                    user.role === "admin" ? "bg-red-100 text-red-600" :
-                    user.role === "operator" ? "bg-purple-100 text-purple-600" :
-                    "bg-[#2F6FED]/10 text-[#2F6FED]"
-                  }`}>{user.role}</span>
-                  <span className="text-xs text-gray-400">{user.city}, {user.province}</span>
-                  {(user as unknown as Record<string, unknown>).accountApproved === false && (
-                    <span className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-medium">Pending Approval</span>
-                  )}
-                  {(user as unknown as Record<string, unknown>).idVerified === true && (
-                    <span className="text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full font-medium">ID Verified</span>
-                  )}
-                  {Boolean((user as unknown as Record<string, unknown>).idPhotoUrl) && !(user as unknown as Record<string, unknown>).idVerified && (
-                    <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-                      <FileText className="w-3 h-3" /> ID Pending Review
-                    </span>
-                  )}
-                </div>
+            </div>
+            <AdminCard className="p-3">
+              <p className="text-xs text-[#6B7280]">Role</p>
+              <p className="text-sm font-medium">{selectedUser.role}</p>
+              <p className="text-xs text-[#6B7280] mt-2">Join Date</p>
+              <p className="text-sm font-medium">{selectedUser.joinDate}</p>
+            </AdminCard>
+            <AdminCard className="p-3">
+              <p className="text-sm font-semibold mb-2">Job History</p>
+              <div className="space-y-1.5">
+                {jobs.filter((j) => j.postedBy === selectedUser.name).map((j) => (
+                  <div key={j.id} className="text-sm text-[#374151]">{j.title}</div>
+                ))}
+                {jobs.filter((j) => j.postedBy === selectedUser.name).length === 0 && <p className="text-sm text-[#9CA3AF]">No jobs found.</p>}
               </div>
-              <div className="flex gap-1.5 shrink-0">
-                <Link href={`/dashboard/u/${user.uid}`} className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg transition" title="View public profile">
-                  <Eye className="w-4 h-4" />
-                </Link>
-                <Link href={`/admin/users/${user.uid}`} className="p-2 text-[#2F6FED] hover:bg-[#2F6FED]/10 rounded-lg transition" title="Full edit mode">
-                  <ExternalLink className="w-4 h-4" />
-                </Link>
-                <button onClick={() => handleEdit(user)} className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition" title="Quick edit">
-                  <Edit3 className="w-4 h-4" />
-                </button>
-                {user.role !== "admin" && (
-                  <button onClick={() => setDeletingUser(user)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition" title="Delete">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+            </AdminCard>
+            <AdminCard className="p-3">
+              <p className="text-sm font-semibold mb-2">Transaction History</p>
+              <div className="space-y-1.5">
+                {transactions
+                  .filter((t) => t.fromUser === selectedUser.name || t.toUser === selectedUser.name)
+                  .map((t) => (
+                    <div key={t.id} className="text-sm text-[#374151]">{t.id.toUpperCase()} • ${t.amount.toFixed(2)} • {t.status}</div>
+                  ))}
+                {transactions.filter((t) => t.fromUser === selectedUser.name || t.toUser === selectedUser.name).length === 0 && (
+                  <p className="text-sm text-[#9CA3AF]">No transactions found.</p>
                 )}
               </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Delete Confirmation */}
-      <DeleteConfirmPopup
-        isOpen={!!deletingUser}
-        onConfirm={handleDelete}
-        onCancel={() => setDeletingUser(null)}
-        title="Delete this user?"
-        itemName={deletingUser ? `${deletingUser.displayName} (${deletingUser.email})` : undefined}
-        message="This will permanently remove this user and all their associated data from the platform."
-        loading={deleteLoading}
-      />
-
-      {/* Edit Modal */}
-      {editingUser && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold">Edit User</h3>
-              <button onClick={() => setEditingUser(null)} className="p-1 text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
-            </div>
-            {[
-              { key: "displayName", label: "Display Name" },
-              { key: "phone", label: "Phone" },
-              { key: "city", label: "City" },
-              { key: "province", label: "Province" },
-            ].map(({ key, label }) => (
-              <div key={key}>
-                <label className="block text-xs text-gray-500 mb-1">{label}</label>
-                <input
-                  type="text"
-                  value={(editFields[key] as string) || ""}
-                  onChange={e => setEditFields({ ...editFields, [key]: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#2F6FED]/20 focus:outline-none"
-                />
+            </AdminCard>
+            <AdminCard className="p-3">
+              <p className="text-sm font-semibold mb-2">Open Support Tickets</p>
+              <div className="space-y-1.5">
+                {supportTickets
+                  .filter((s) => s.userName === selectedUser.name && s.status !== "Resolved")
+                  .map((s) => (
+                    <div key={s.id} className="text-sm text-[#374151]">{s.subject} • {s.status}</div>
+                  ))}
+                {supportTickets.filter((s) => s.userName === selectedUser.name && s.status !== "Resolved").length === 0 && (
+                  <p className="text-sm text-[#9CA3AF]">No open tickets.</p>
+                )}
               </div>
-            ))}
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Role</label>
-              <select
-                value={(editFields.role as string) || "client"}
-                onChange={e => setEditFields({ ...editFields, role: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
-              >
-                <option value="client">Client</option>
-                <option value="operator">Operator</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={Boolean(editFields.accountApproved)}
-                onChange={e => setEditFields({ ...editFields, accountApproved: e.target.checked })}
-                className="rounded"
-              />
-              <span className="text-sm text-gray-700">Account Approved</span>
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={Boolean(editFields.idVerified)}
-                onChange={e => setEditFields({ ...editFields, idVerified: e.target.checked })}
-                className="rounded"
-              />
-              <span className="text-sm text-gray-700">ID Verified</span>
-            </label>
-            <button onClick={handleSave} className="w-full py-2.5 bg-[#2F6FED] text-white rounded-xl font-medium hover:bg-[#2158C7] transition flex items-center justify-center gap-2">
-              <Save className="w-4 h-4" /> Save Changes
-            </button>
+            </AdminCard>
           </div>
-        </div>
-      )}
+        )}
+      </SideDrawer>
+
+      <ConfirmModal
+        open={!!suspendTarget}
+        title="Confirm account status change"
+        description="This will change the user account status between Active and Suspended."
+        confirmLabel="Confirm"
+        confirmTone="danger"
+        onConfirm={() => suspendTarget && toggleSuspend(suspendTarget)}
+        onClose={() => setSuspendTarget(null)}
+      />
     </div>
   );
 }

@@ -68,15 +68,16 @@ export function isClientWithinOperatorRadius(client: ClientProfile, operator: Op
   if (!client) return false;
   const distance = getDistanceKm(client, operator);
 
-  // If both users have coordinates, use true radius filtering.
-  if (distance != null) {
-    const radius = toFiniteNumber(operator.serviceRadius) ?? 0;
-    if (radius <= 0) return false;
-    return distance <= radius;
+  // Fallback when coordinates are missing on one side: treat same city/province as discoverable.
+  if (distance == null) {
+    const clientCity = (client.city || "").trim().toLowerCase();
+    const clientProvince = (client.province || "").trim().toLowerCase();
+    const operatorCity = (operator.city || "").trim().toLowerCase();
+    const operatorProvince = (operator.province || "").trim().toLowerCase();
+    return Boolean(clientCity && clientProvince && clientCity === operatorCity && clientProvince === operatorProvince);
   }
 
-  // Fallback for profiles missing coordinates: same city+province at least keeps local discovery working.
-  const sameCity = (client.city || "").trim().toLowerCase() === (operator.city || "").trim().toLowerCase();
-  const sameProvince = (client.province || "").trim().toLowerCase() === (operator.province || "").trim().toLowerCase();
-  return sameCity && sameProvince;
+  const radius = toFiniteNumber(operator.serviceRadius) ?? 0;
+  if (radius <= 0) return false;
+  return distance <= radius;
 }

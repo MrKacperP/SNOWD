@@ -11,15 +11,41 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == uid;
     }
 
+    function hasOwnUserDoc() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
     // Helper: caller is admin or employee
     function isAdminOrEmployee() {
-      return isSignedIn() &&
+      return hasOwnUserDoc() &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ["admin", "employee"];
     }
 
     function isAdmin() {
-      return isSignedIn() &&
+      return hasOwnUserDoc() &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+    }
+
+    function changedUserKeys() {
+      return request.resource.data.diff(resource.data).changedKeys();
+    }
+
+    function selfCanUpdateUser(userId) {
+      return isSelf(userId)
+        && !changedUserKeys().hasAny([
+          "accountApproved",
+          "idVerified",
+          "verificationNote",
+          "verificationReasonCategory",
+          "approvedAt",
+          "rejectedAt",
+          "approvedByAdmin",
+          "reviewedByAdminUid",
+          "employeePermissions",
+          "addedByAdmin"
+        ])
+        && (!changedUserKeys().hasAny(["verificationStatus"]) || request.resource.data.verificationStatus in ["pending", "not-submitted"]);
     }
 
     // Generic participant helper to support multiple schema shapes.
@@ -39,7 +65,17 @@ service cloud.firestore {
     // ── Users ──────────────────────────────────────────────────────────────
     match /users/{userId} {
       // Private-by-default user documents.
-      allow read, create, update, delete: if isSelf(userId) || isAdminOrEmployee();
+      allow read: if isSelf(userId);
+      allow read: if isAdminOrEmployee();
+      allow create, delete: if isSelf(userId) || isAdminOrEmployee();
+      allow update: if isAdminOrEmployee() || selfCanUpdateUser(userId);
+    }
+
+    // ── Admin Activity (append-only audit log) ────────────────────────────
+    match /adminActivity/{eventId} {
+      allow read: if isAdminOrEmployee();
+      allow create: if isAdminOrEmployee();
+      allow update, delete: if isAdmin();
     }
 
     // ── Jobs ───────────────────────────────────────────────────────────────

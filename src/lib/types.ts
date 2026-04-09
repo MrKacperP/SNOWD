@@ -71,6 +71,10 @@ export interface UserProfile {
   accountApproved?: boolean;
   verificationStatus?: "not-submitted" | "pending" | "approved" | "rejected";
   verificationNote?: string; // Admin note on rejection
+  verificationReasonCategory?: "document-quality" | "name-mismatch" | "expired-id" | "unsupported-document" | "other";
+  approvedByAdmin?: string;
+  reviewedByAdminUid?: string;
+  rejectedAt?: Date;
   approvedAt?: Date;
   // Student verification
   studentVerified?: boolean;
@@ -79,6 +83,8 @@ export interface UserProfile {
   addedByAdmin?: string;
   // Stripe Connect (operators)
   stripeConnectAccountId?: string;
+  stripeAccountStatus?: "connected" | "pending" | "disabled" | "failed";
+  stripeEnabledJobsOnly?: boolean;
 }
 
 export interface ClientProfile extends UserProfile {
@@ -137,6 +143,8 @@ export interface Job {
   city: string;
   province: string;
   postalCode: string;
+  clientLat?: number | null;
+  clientLng?: number | null;
   specialInstructions?: string;
   scheduledDate: Date;
   scheduledTime: string;
@@ -145,6 +153,9 @@ export interface Job {
   paymentMethod: PaymentMethod;
   paymentStatus: "pending" | "held" | "paid" | "refunded";
   stripePaymentIntentId?: string;
+  requiresCardPayment?: boolean;
+  paymentCapturedAt?: Date;
+  paymentCaptureAttempts?: number;
   completionPhotoUrl?: string;
   eta?: number; // minutes
   startTime?: Date;

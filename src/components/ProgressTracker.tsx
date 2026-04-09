@@ -89,9 +89,9 @@ export default function ProgressTracker({
   }
 
   return (
-    <div className="bg-white dark:bg-[#151c24] rounded-xl border border-gray-100 dark:border-[#1e2d3d] p-4">
+    <div className="bg-white rounded-xl border border-gray-100 p-4">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">Job Progress</h3>
+        <h3 className="font-semibold text-sm text-gray-900">Job Progress</h3>
         {paymentStatus && (
           <span
             className={`text-xs px-2 py-0.5 rounded-full font-medium ${

@@ -7,7 +7,7 @@ import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { CheckCircle, Shield } from "lucide-react";
+import { Shield, Snowflake, MessageCircle, PhoneCall, Mail, Globe, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function SignUpPage() {
@@ -16,6 +16,20 @@ export default function SignUpPage() {
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [previewName, setPreviewName] = useState("");
+  const [previewPostalCode, setPreviewPostalCode] = useState("");
+
+  const normalizePostalCode = (value: string) =>
+    value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+
+  const formatPostalCode = (value: string) => {
+    const normalized = normalizePostalCode(value);
+    if (normalized.length <= 3) return normalized;
+    return `${normalized.slice(0, 3)} ${normalized.slice(3)}`;
+  };
+
+  const isValidCanadianPostalCode = (value: string) =>
+    /^[A-Z]\d[A-Z] ?\d[A-Z]\d$/.test(value.trim().toUpperCase());
 
   useEffect(() => {
     if (!authLoading && user && profile?.onboardingComplete) {
@@ -37,6 +51,23 @@ export default function SignUpPage() {
   };
 
   const handleGoogleSignUp = async () => {
+    const trimmedName = previewName.trim();
+    const formattedPostal = formatPostalCode(previewPostalCode);
+
+    if (!trimmedName) {
+      setError("Please enter your name to continue.");
+      return;
+    }
+    if (!isValidCanadianPostalCode(formattedPostal)) {
+      setError("Please enter a valid postal code (e.g. K1A 0B1).");
+      return;
+    }
+
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("snowd_signup_name", trimmedName);
+      sessionStorage.setItem("snowd_signup_postal", formattedPostal);
+    }
+
     setError("");
     setLoading(true);
 
@@ -56,107 +87,127 @@ export default function SignUpPage() {
   if (!authLoading && user && profile?.onboardingComplete) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#a3d5f7] to-[#e0f2ff] relative overflow-hidden">
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute -top-40 -left-40 h-96 w-96 rounded-full bg-white/30 blur-[120px]" />
-        <div className="absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-white/30 blur-[120px]" />
-      </div>
-
-      <div className="relative z-10 min-h-screen flex items-center justify-center px-4 py-10">
-        <div className="w-full max-w-5xl grid md:grid-cols-[1.1fr_1fr] gap-6">
+    <div className="min-h-screen bg-[#EEF3FA]">
+      <div className="min-h-screen grid lg:grid-cols-[minmax(520px,560px)_minmax(0,1fr)]">
+        <section className="px-6 sm:px-10 py-8 lg:py-12 flex items-center justify-center">
           <motion.div
-            className="rounded-3xl p-8 md:p-10 bg-white/80 backdrop-blur-lg border border-white/50 shadow-2xl"
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35 }}
+            className="w-full max-w-[470px]"
           >
-            <Link href="/" className="inline-flex items-center gap-2 mb-6">
-              <Image src="/logo.png" alt="snowd logo" width={44} height={44} />
-              <div className="text-left">
-                <p className="text-lg font-bold text-blue-600 leading-none">snowd</p>
-                <p className="text-xs text-gray-500">Student + neighborhood snow help</p>
-              </div>
+            <Link href="/" className="flex items-center gap-2.5 mb-10">
+              <Image src="/logo.png" alt="snowd logo" width={36} height={36} />
+              <span className="font-headline font-bold text-[#1342A1] text-2xl leading-none">snowd</span>
             </Link>
 
-            <h1 className="text-3xl md:text-4xl font-bold font-headline text-gray-800 mb-3">Create your account</h1>
-            <p className="text-gray-600 text-sm md:text-base max-w-sm">
-              One tap with Google, then a short guided setup with our penguin helper.
+            <h1 className="text-[42px] leading-[1.05] font-headline font-bold text-[#101B2D]">Create account</h1>
+            <p className="mt-2 text-[#5B6B84]">Start with your name and postal code, then continue to guided onboarding.</p>
+
+            <div className="mt-8 space-y-5">
+              <div>
+                <label className="text-[15px] font-semibold text-[#1C2B43]">Full name</label>
+                <input
+                  type="text"
+                  value={previewName}
+                  onChange={(e) => {
+                    setPreviewName(e.target.value);
+                    if (error) setError("");
+                  }}
+                  placeholder="Alex Johnson"
+                  className="mt-2 w-full h-12 rounded-xl border border-[#D2DBE7] bg-white px-4 text-[#101B2D] outline-none focus:border-[#2F6FED]"
+                />
+              </div>
+
+              <div>
+                <label className="text-[15px] font-semibold text-[#1C2B43]">Postal code</label>
+                <input
+                  type="text"
+                  value={previewPostalCode}
+                  onChange={(e) => {
+                    setPreviewPostalCode(formatPostalCode(e.target.value));
+                    if (error) setError("");
+                  }}
+                  placeholder="K1A 0B1"
+                  className="mt-2 w-full h-12 rounded-xl border border-[#D2DBE7] bg-white px-4 text-[#101B2D] outline-none focus:border-[#2F6FED]"
+                />
+              </div>
+
+              {error && (
+                <div className="p-3 bg-red-100 border border-red-200 rounded-xl text-red-700 text-sm">
+                  {error}
+                </div>
+              )}
+
+              <button
+                onClick={handleGoogleSignUp}
+                disabled={loading}
+                className="w-full h-12 rounded-xl bg-[#2F6FED] hover:bg-[#2158C7] text-white font-semibold transition disabled:opacity-50"
+              >
+                {loading ? "Connecting..." : "Continue with Google"}
+              </button>
+            </div>
+
+            <p className="text-xs text-[#6D7E95] mt-4 inline-flex items-center gap-1.5">
+              <Shield className="w-3.5 h-3.5" />
+              Secure signup powered by Firebase Auth.
             </p>
 
-            <div className="mt-6 space-y-3 text-sm text-gray-600">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-emerald-500" />
-                Student-friendly operator onboarding in under 2 minutes
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-emerald-500" />
-                Easy booking flow for neighbors and seniors
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-emerald-500" />
-                Secure chat, tracking, and payments
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            className="rounded-3xl p-8 bg-white/80 backdrop-blur-lg border border-white/50 shadow-2xl"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: 0.05 }}
-          >
-            <div className="text-left mb-5">
-              <h2 className="text-xl font-bold text-gray-800">Sign up</h2>
-              <p className="text-gray-500 text-sm mt-1">Choose Google to continue. We will guide you by role right after.</p>
-            </div>
-
-            <div className="mb-5 grid grid-cols-2 gap-2 text-xs">
-              <div className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-blue-700 font-semibold text-center">
-                Student operator
-              </div>
-              <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-emerald-700 font-semibold text-center">
-                Home client
-              </div>
-            </div>
-
-            {error && (
-              <div className="p-3 mb-4 bg-red-100 border border-red-200 rounded-xl text-red-700 text-sm text-center">
-                {error}
-              </div>
-            )}
-
-            <button
-              onClick={handleGoogleSignUp}
-              disabled={loading}
-              className="w-full flex items-center justify-center gap-3 p-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl transition-all duration-200 group disabled:opacity-50"
-            >
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
-                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-              </svg>
-              <span className="font-semibold text-base">{loading ? "Connecting..." : "Sign in with Google"}</span>
-            </button>
-
-            <p className="text-gray-500 text-xs text-center mt-4">
-              <Shield className="w-3 h-3 inline mr-1" />
-              We use secure Google authentication.
-            </p>
-
-            <motion.p
-              className="text-center mt-6 text-sm text-gray-500"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.15 }}
-            >
+            <p className="mt-6 text-sm text-[#5B6B84]">
               Already have an account?{" "}
-              <Link href="/login" className="text-[var(--accent)] font-semibold hover:text-[var(--accent-dark)] transition">
-                Sign in
+              <Link href="/login" className="font-semibold text-[#2F6FED] hover:text-[#2158C7]">
+                Log in
               </Link>
-            </motion.p>
+            </p>
           </motion.div>
-        </div>
+        </section>
+
+        <section className="hidden lg:flex relative overflow-hidden bg-[linear-gradient(145deg,#8AB6FF_0%,#5E8FE8_36%,#4577D8_100%)]">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_10%,rgba(255,255,255,0.38),transparent_40%),radial-gradient(circle_at_10%_80%,rgba(255,255,255,0.2),transparent_35%)]" />
+          <div className="absolute top-16 left-16 text-white/50"><MessageCircle className="w-10 h-10" /></div>
+          <div className="absolute top-28 right-20 text-white/50"><PhoneCall className="w-9 h-9" /></div>
+          <div className="absolute bottom-40 left-20 text-white/50"><Mail className="w-9 h-9" /></div>
+          <div className="absolute bottom-20 right-24 text-white/50"><Globe className="w-10 h-10" /></div>
+
+          <div className="relative z-10 w-full h-full flex items-center justify-center p-12">
+            <motion.div
+              animate={{ y: [0, -8, 0] }}
+              transition={{ duration: 4.8, repeat: Infinity, ease: "easeInOut" }}
+              className="w-full max-w-[440px] rounded-[34px] bg-white/12 border border-white/30 backdrop-blur-md p-8"
+            >
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <p className="text-white/90 font-semibold">SNOWD Dispatch</p>
+                  <p className="text-white/70 text-sm">Live winter operations</p>
+                </div>
+                <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center">
+                  <Image src="/logo.png" alt="snowd logo icon" width={24} height={24} />
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-white/10 border border-white/25 px-4 py-3">
+                {[
+                  "Chat with operators in real time",
+                  "Track service updates and ETAs",
+                  "Manage jobs from one dashboard",
+                ].map((item, index) => (
+                  <div
+                    key={item}
+                    className={`flex items-center gap-2.5 text-white/90 text-sm py-2 ${index > 0 ? "border-t border-white/20" : ""}`}
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-white/95 shrink-0" />
+                    <span>{item}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-10 flex items-center gap-2 text-white/80 text-sm">
+                <Snowflake className="w-4 h-4" />
+                Winter-ready support for clients and operators.
+              </div>
+            </motion.div>
+          </div>
+        </section>
       </div>
     </div>
   );

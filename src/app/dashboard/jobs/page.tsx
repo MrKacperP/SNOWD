@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { collection, query, where, onSnapshot, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Job, UserProfile } from "@/lib/types";
+import { getDistanceKm } from "@/lib/operatorDiscovery";
 import StatusBadge from "@/components/StatusBadge";
 import {
   Briefcase,
@@ -24,16 +25,6 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-
-function getDistanceKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
 
 type QueueSort = "time" | "distance";
 
@@ -114,15 +105,23 @@ export default function JobsPage() {
     [jobs]
   );
 
+  const getClientCoords = (job: Job): { lat: number; lng: number } | null => {
+    if (typeof job.clientLat === "number" && Number.isFinite(job.clientLat) && typeof job.clientLng === "number" && Number.isFinite(job.clientLng)) {
+      return { lat: job.clientLat, lng: job.clientLng };
+    }
+    const fromProfile = clientLocations[job.clientId];
+    return fromProfile || null;
+  };
+
   // Queue = pending + accepted, sorted by time or distance
   const queueJobs = useMemo(() => {
     const queue = [...pendingJobs, ...acceptedJobs];
     if (queueSort === "distance" && profile?.lat && profile?.lng) {
       return queue.sort((a, b) => {
-        const aLoc = clientLocations[a.clientId];
-        const bLoc = clientLocations[b.clientId];
-        const aDist = aLoc ? getDistanceKm(profile.lat!, profile.lng!, aLoc.lat, aLoc.lng) : 9999;
-        const bDist = bLoc ? getDistanceKm(profile.lat!, profile.lng!, bLoc.lat, bLoc.lng) : 9999;
+        const aLoc = getClientCoords(a);
+        const bLoc = getClientCoords(b);
+        const aDist = aLoc ? getDistanceKm({ lat: profile.lat, lng: profile.lng }, aLoc) ?? 9999 : 9999;
+        const bDist = bLoc ? getDistanceKm({ lat: profile.lat, lng: profile.lng }, bLoc) ?? 9999 : 9999;
         return aDist - bDist;
       });
     }
@@ -147,9 +146,9 @@ export default function JobsPage() {
 
   const getJobDistance = (job: Job): number | null => {
     if (!profile?.lat || !profile?.lng) return null;
-    const loc = clientLocations[job.clientId];
+    const loc = getClientCoords(job);
     if (!loc) return null;
-    return getDistanceKm(profile.lat, profile.lng, loc.lat, loc.lng);
+    return getDistanceKm({ lat: profile.lat, lng: profile.lng }, loc);
   };
 
   const formatJobDate = (job: Job): string => {
