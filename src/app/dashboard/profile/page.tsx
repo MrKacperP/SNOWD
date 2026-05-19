@@ -130,21 +130,21 @@ export default function ProfilePage() {
   if (!profile) return null;
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="mx-auto max-w-4xl space-y-5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button onClick={() => router.back()} className="p-2 hover:bg-gray-100 rounded-lg transition">
+          <button onClick={() => router.back()} className="rounded-full bg-white p-2 transition hover:bg-[var(--bg-secondary)]">
             <ArrowLeft className="w-5 h-5 text-gray-600" />
           </button>
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <User className="w-6 h-6 text-[#2F6FED]" />
+            <User className="w-6 h-6 text-[var(--text-primary)]" />
             Profile
           </h1>
         </div>
         {!editing ? (
           <button
             onClick={() => setEditing(true)}
-            className="px-4 py-2 text-sm font-medium text-[#2F6FED] hover:bg-[#2F6FED]/10 rounded-lg transition"
+            className="rounded-xl bg-white px-4 py-2 text-sm font-medium text-[var(--text-primary)] transition hover:bg-[var(--bg-secondary)]"
           >
             Edit Profile
           </button>
@@ -160,7 +160,7 @@ export default function ProfilePage() {
               onClick={handleSave}
               disabled={saving}
               className={`flex items-center gap-1 px-4 py-2 text-sm font-medium text-white rounded-lg transition disabled:opacity-50 ${
-                saved ? "bg-green-600 hover:bg-green-700" : "bg-[#2F6FED] hover:bg-[#2158C7]"
+                saved ? "bg-green-600 hover:bg-green-700" : "bg-[#111111] hover:bg-black"
               }`}
             >
               {saving ? (
@@ -212,11 +212,10 @@ export default function ProfilePage() {
       )}
 
       {/* Profile Card */}
-      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-        {/* Header */}
-        <div className="bg-[#2F6FED] px-6 py-8">
+      <div className="surface-card overflow-hidden">
+        <div className="bg-[#111111] px-6 py-8">
           <div className="flex items-center gap-4">
-            <div className="w-20 h-20 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center text-white font-bold text-3xl">
+            <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-white/12 text-3xl font-bold text-white">
               {profile.displayName?.charAt(0)?.toUpperCase() || "U"}
             </div>
             <div className="text-white">
@@ -225,16 +224,16 @@ export default function ProfilePage() {
                   type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className={`backdrop-blur px-3 py-1.5 rounded-lg text-white placeholder-white/60 outline-none text-xl font-bold ${
-                    missingProfileFieldSet.has("displayName")
-                      ? "bg-amber-200/40 border border-amber-200"
-                      : "bg-white/20"
-                  }`}
-                />
-              ) : (
-                <h2 className="text-xl font-bold">{profile.displayName}</h2>
-              )}
-              <p className="text-[#2F6FED]/20 capitalize mt-0.5">
+                    className={`rounded-lg px-3 py-1.5 text-xl font-bold text-white outline-none placeholder-white/60 ${
+                      missingProfileFieldSet.has("displayName")
+                        ? "bg-amber-200/40 border border-amber-200"
+                        : "bg-white/12"
+                    }`}
+                  />
+                ) : (
+                  <h2 className="text-xl font-bold">{profile.displayName}</h2>
+                )}
+              <p className="mt-0.5 capitalize text-white/60">
                 {isOperator ? (
                   <>
                     {operatorProfile.isStudent && (
@@ -249,7 +248,7 @@ export default function ProfilePage() {
               {isOperator && (
                 <div className="flex items-center gap-2 mt-1">
                   <StarRating rating={operatorProfile.rating || 0} size="sm" />
-                  <span className="text-[#2F6FED]/30 text-sm">
+                  <span className="text-sm text-white/50">
                     ({operatorProfile.reviewCount || 0})
                   </span>
                 </div>
@@ -259,7 +258,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Details */}
-        <div className="p-6 space-y-5">
+          <div className="space-y-5 p-6">
           {/* Contact */}
           <div className="space-y-3">
             <h3 className="font-semibold text-gray-700">Contact Information</h3>

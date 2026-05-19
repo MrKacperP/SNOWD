@@ -1,26 +1,26 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { collection, query, where, onSnapshot, doc, getDoc } from "firebase/firestore";
+import { collection, doc, getDoc, onSnapshot, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Job, UserProfile } from "@/lib/types";
 import { getDistanceKm } from "@/lib/operatorDiscovery";
 import StatusBadge from "@/components/StatusBadge";
 import {
-  Briefcase,
-  MapPin,
-  Calendar,
-  Snowflake,
-  ArrowLeft,
-  Clock,
-  Zap,
-  ListOrdered,
-  CheckCircle,
-  Navigation,
   AlertTriangle,
+  ArrowLeft,
+  Briefcase,
+  Calendar,
+  CheckCircle,
+  Clock,
   Compass,
+  ListOrdered,
+  MapPin,
+  Navigation,
+  Snowflake,
   TrendingUp,
+  Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -38,13 +38,9 @@ export default function JobsPage() {
   const [queueSort, setQueueSort] = useState<QueueSort>("time");
   const [loading, setLoading] = useState(true);
 
-  // Real-time job listener
   useEffect(() => {
     if (!profile?.uid) return;
-    const q = query(
-      collection(db, "jobs"),
-      where("operatorId", "==", profile.uid)
-    );
+    const q = query(collection(db, "jobs"), where("operatorId", "==", profile.uid));
     const unsubscribe = onSnapshot(q, async (snapshot) => {
       const allJobs = snapshot.docs.map((d) => {
         const data = d.data();
@@ -60,10 +56,9 @@ export default function JobsPage() {
       });
       setJobs(allJobs);
 
-      // Fetch client names for all jobs
-      const clientIds = [...new Set(allJobs.map((j) => j.clientId))];
+      const clientIds = [...new Set(allJobs.map((job) => job.clientId))];
       const names: Record<string, string> = {};
-      const locs: Record<string, { lat: number; lng: number }> = {};
+      const locations: Record<string, { lat: number; lng: number }> = {};
       await Promise.all(
         clientIds.map(async (id) => {
           try {
@@ -71,49 +66,35 @@ export default function JobsPage() {
             if (userDoc.exists()) {
               const data = userDoc.data() as UserProfile;
               names[id] = data.displayName || "Client";
-              if (data.lat && data.lng) locs[id] = { lat: data.lat, lng: data.lng };
+              if (data.lat && data.lng) locations[id] = { lat: data.lat, lng: data.lng };
             }
           } catch {}
         })
       );
       setClientNames(names);
-      setClientLocations(locs);
+      setClientLocations(locations);
       setLoading(false);
     });
     return () => unsubscribe();
   }, [profile?.uid]);
 
-  // Categorize jobs
-  const activeJob = useMemo(
-    () => jobs.find((j) => ["en-route", "in-progress"].includes(j.status)),
-    [jobs]
-  );
-  const acceptedJobs = useMemo(
-    () => jobs.filter((j) => j.status === "accepted"),
-    [jobs]
-  );
-  const pendingJobs = useMemo(
-    () => jobs.filter((j) => j.status === "pending"),
-    [jobs]
-  );
-  const completedJobs = useMemo(
-    () => jobs.filter((j) => j.status === "completed"),
-    [jobs]
-  );
-  const cancelledJobs = useMemo(
-    () => jobs.filter((j) => j.status === "cancelled"),
-    [jobs]
-  );
+  const activeJob = useMemo(() => jobs.find((job) => ["en-route", "in-progress"].includes(job.status)), [jobs]);
+  const acceptedJobs = useMemo(() => jobs.filter((job) => job.status === "accepted"), [jobs]);
+  const pendingJobs = useMemo(() => jobs.filter((job) => job.status === "pending"), [jobs]);
+  const completedJobs = useMemo(() => jobs.filter((job) => job.status === "completed"), [jobs]);
 
   const getClientCoords = (job: Job): { lat: number; lng: number } | null => {
-    if (typeof job.clientLat === "number" && Number.isFinite(job.clientLat) && typeof job.clientLng === "number" && Number.isFinite(job.clientLng)) {
+    if (
+      typeof job.clientLat === "number" &&
+      Number.isFinite(job.clientLat) &&
+      typeof job.clientLng === "number" &&
+      Number.isFinite(job.clientLng)
+    ) {
       return { lat: job.clientLat, lng: job.clientLng };
     }
-    const fromProfile = clientLocations[job.clientId];
-    return fromProfile || null;
+    return clientLocations[job.clientId] || null;
   };
 
-  // Queue = pending + accepted, sorted by time or distance
   const queueJobs = useMemo(() => {
     const queue = [...pendingJobs, ...acceptedJobs];
     if (queueSort === "distance" && profile?.lat && profile?.lng) {
@@ -125,24 +106,23 @@ export default function JobsPage() {
         return aDist - bDist;
       });
     }
-    // FCFS - sort by creation time
     return queue.sort((a, b) => {
       const aTime = a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
       const bTime = b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
       return aTime - bTime;
     });
-  }, [pendingJobs, acceptedJobs, queueSort, profile?.lat, profile?.lng, clientLocations]);
+  }, [acceptedJobs, pendingJobs, queueSort, profile?.lat, profile?.lng, clientLocations]);
 
   const filteredJobs = useMemo(() => {
     if (filter === "queue") return queueJobs;
     if (filter === "active") return activeJob ? [activeJob] : [];
     if (filter === "completed") return completedJobs;
-    return jobs.sort((a, b) => {
+    return [...jobs].sort((a, b) => {
       const aTime = a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
       const bTime = b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
       return bTime - aTime;
     });
-  }, [filter, jobs, queueJobs, activeJob, completedJobs]);
+  }, [activeJob, completedJobs, filter, jobs, queueJobs]);
 
   const getJobDistance = (job: Job): number | null => {
     if (!profile?.lat || !profile?.lng) return null;
@@ -161,143 +141,164 @@ export default function JobsPage() {
     }
   };
 
-  const totalEarnings = completedJobs.reduce((sum, j) => sum + (j.price || 0), 0);
+  const totalEarnings = completedJobs.reduce((sum, job) => sum + (job.price || 0), 0);
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      <div className="flex items-center gap-3">
-        <button onClick={() => router.back()} className="p-2 hover:bg-gray-100 rounded-lg transition">
-          <ArrowLeft className="w-5 h-5 text-gray-600" />
-        </button>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Briefcase className="w-6 h-6 text-[#3B82F6]" />
-          My Jobs
-        </h1>
-      </div>
-
-      {/* Stats Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <button onClick={() => setFilter("active")} className="bg-white rounded-xl border border-gray-100 p-3 text-center hover:border-orange-200 hover:bg-orange-50 transition">
-          <Zap className="w-4 h-4 text-orange-500 mx-auto mb-1" />
-          <p className="text-lg font-bold text-gray-900">{activeJob ? 1 : 0}</p>
-          <p className="text-[10px] text-gray-500">Active</p>
-        </button>
-        <button onClick={() => setFilter("queue")} className="bg-white rounded-xl border border-gray-100 p-3 text-center hover:border-[#3B82F6]/30 hover:bg-[#3B82F6]/5 transition">
-          <ListOrdered className="w-4 h-4 text-[#3B82F6] mx-auto mb-1" />
-          <p className="text-lg font-bold text-gray-900">{queueJobs.length}</p>
-          <p className="text-[10px] text-gray-500">In Queue</p>
-        </button>
-        <button onClick={() => setFilter("completed")} className="bg-white rounded-xl border border-gray-100 p-3 text-center hover:border-green-200 hover:bg-green-50 transition">
-          <CheckCircle className="w-4 h-4 text-green-500 mx-auto mb-1" />
-          <p className="text-lg font-bold text-gray-900">{completedJobs.length}</p>
-          <p className="text-[10px] text-gray-500">Done</p>
-        </button>
-        <Link href="/dashboard/transactions" className="bg-white rounded-xl border border-gray-100 p-3 text-center hover:border-emerald-200 hover:bg-emerald-50 transition">
-          <TrendingUp className="w-4 h-4 text-emerald-500 mx-auto mb-1" />
-          <p className="text-lg font-bold text-gray-900">${totalEarnings}</p>
-          <p className="text-[10px] text-gray-500">Earned</p>
-        </Link>
-      </div>
-
-      {/* Active Job Banner */}
-      {activeJob && (
-        <Link
-          href={`/dashboard/messages/${activeJob.chatId}`}
-          className="block bg-[#3B82F6] rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all"
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse" />
-            <span className="text-sm font-bold uppercase tracking-wider opacity-90">
-              {activeJob.status === "in-progress" ? "Currently Working" : "En Route"}
-            </span>
+    <div className="mx-auto max-w-6xl space-y-5">
+      <section className="surface-card overflow-hidden p-4 md:p-5">
+        <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
+          <div className="rounded-[1.8rem] bg-[#111111] p-5 text-white md:p-6">
+            <div className="flex items-center gap-3">
+              <button onClick={() => router.back()} className="rounded-full bg-white/10 p-2 transition hover:bg-white/16">
+                <ArrowLeft className="h-5 w-5" />
+              </button>
+              <div className="chip border border-white/10 bg-white/8 text-white">
+                <Briefcase className="h-4 w-4" />
+                Work orders
+              </div>
+            </div>
+            <h1 className="mt-5 text-3xl font-headline font-bold leading-none md:text-5xl">Run your route from one work order board.</h1>
+            <p className="mt-4 max-w-xl text-sm leading-6 text-white/72 md:text-base">
+              New requests, accepted jobs, active service, and completed payouts all live in one operator board tailored to snow removal work.
+            </p>
+            <div className="mt-6 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-[1.2rem] border border-white/10 bg-white/8 px-4 py-4">
+                <div className="text-xs uppercase tracking-[0.16em] text-white/48">Active</div>
+                <div className="mt-2 text-2xl font-headline font-bold">{activeJob ? 1 : 0}</div>
+                <div className="mt-1 text-xs text-white/62">job in motion</div>
+              </div>
+              <div className="rounded-[1.2rem] border border-white/10 bg-white/8 px-4 py-4">
+                <div className="text-xs uppercase tracking-[0.16em] text-white/48">Queue</div>
+                <div className="mt-2 text-2xl font-headline font-bold">{queueJobs.length}</div>
+                <div className="mt-1 text-xs text-white/62">awaiting action</div>
+              </div>
+              <div className="rounded-[1.2rem] border border-white/10 bg-white/8 px-4 py-4">
+                <div className="text-xs uppercase tracking-[0.16em] text-white/48">Gross</div>
+                <div className="mt-2 text-2xl font-headline font-bold">${totalEarnings}</div>
+                <div className="mt-1 text-xs text-white/62">completed earnings</div>
+              </div>
+            </div>
           </div>
-          <p className="text-lg font-bold capitalize">
-            {activeJob.serviceTypes?.map((s) => s.replace("-", " ")).join(", ")}
-          </p>
-          <div className="flex items-center gap-4 mt-2 text-sm opacity-90">
-            <span className="flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5" />
-              {activeJob.address}, {activeJob.city}
-            </span>
-            <span className="flex items-center gap-1">
-              <Navigation className="w-3.5 h-3.5" />
-              {clientNames[activeJob.clientId] || "Client"}
-            </span>
-          </div>
-          <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/20">
-            <span className="text-2xl font-bold">${activeJob.price} CAD</span>
-            <span className="px-3 py-1 bg-white/20 rounded-full text-xs font-bold backdrop-blur-sm">
-              Tap to view →
-            </span>
-          </div>
-        </Link>
-      )}
 
-      {/* Max 1 Active Job Notice */}
-      {activeJob && queueJobs.length > 0 && (
-        <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl">
-          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-          <p className="text-xs text-amber-700">
-            <span className="font-semibold">One job at a time.</span> Complete your current job to start the next one in your queue.
-          </p>
+          <div className="surface-panel p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.16em] text-[var(--text-muted)]">Summary</p>
+                <p className="mt-1 text-2xl font-headline font-bold text-[var(--text-primary)]">Today&apos;s route</p>
+              </div>
+              <Link href="/dashboard/transactions" className="rounded-full bg-[var(--bg-secondary)] px-3 py-1.5 text-xs font-semibold text-[var(--text-primary)]">
+                Payouts
+              </Link>
+            </div>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button onClick={() => setFilter("active")} className="rounded-[1.2rem] bg-[var(--bg-secondary)] p-4 text-left transition hover:bg-[#edf8f1]">
+                <Zap className="mb-2 h-4 w-4 text-[#17994f]" />
+                <p className="text-2xl font-headline font-bold text-[var(--text-primary)]">{activeJob ? 1 : 0}</p>
+                <p className="mt-1 text-xs uppercase tracking-[0.14em] text-[var(--text-muted)]">In motion</p>
+              </button>
+              <button onClick={() => setFilter("queue")} className="rounded-[1.2rem] bg-[var(--bg-secondary)] p-4 text-left transition hover:bg-[#eef2fb]">
+                <ListOrdered className="mb-2 h-4 w-4 text-[#2e6bff]" />
+                <p className="text-2xl font-headline font-bold text-[var(--text-primary)]">{queueJobs.length}</p>
+                <p className="mt-1 text-xs uppercase tracking-[0.14em] text-[var(--text-muted)]">Waiting</p>
+              </button>
+              <button onClick={() => setFilter("completed")} className="rounded-[1.2rem] bg-[var(--bg-secondary)] p-4 text-left transition hover:bg-[#edf8f1]">
+                <CheckCircle className="mb-2 h-4 w-4 text-[#17994f]" />
+                <p className="text-2xl font-headline font-bold text-[var(--text-primary)]">{completedJobs.length}</p>
+                <p className="mt-1 text-xs uppercase tracking-[0.14em] text-[var(--text-muted)]">Completed</p>
+              </button>
+              <Link href="/dashboard/transactions" className="rounded-[1.2rem] bg-[var(--bg-secondary)] p-4 text-left transition hover:bg-[#f2f1eb]">
+                <TrendingUp className="mb-2 h-4 w-4 text-[var(--text-primary)]" />
+                <p className="text-2xl font-headline font-bold text-[var(--text-primary)]">${totalEarnings}</p>
+                <p className="mt-1 text-xs uppercase tracking-[0.14em] text-[var(--text-muted)]">Earnings</p>
+              </Link>
+            </div>
+          </div>
         </div>
-      )}
+      </section>
 
-      {/* Filter Tabs */}
-      <div className="flex gap-2 bg-gray-100 rounded-xl p-1">
-        {([
-          { key: "all" as const, label: "All", count: jobs.length },
-          { key: "queue" as const, label: "Queue", count: queueJobs.length },
-          { key: "active" as const, label: "Active", count: activeJob ? 1 : 0 },
-          { key: "completed" as const, label: "Done", count: completedJobs.length },
-        ]).map((f) => (
-          <button
-            key={f.key}
-            onClick={() => setFilter(f.key)}
-            className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition ${
-              filter === f.key ? "bg-white text-[#3B82F6] shadow-sm" : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            {f.label} ({f.count})
-          </button>
-        ))}
+      {activeJob ? (
+        <Link href={`/dashboard/messages/${activeJob.chatId}`} className="surface-card block overflow-hidden p-5 md:p-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <div className="h-2.5 w-2.5 rounded-full bg-[#17994f]" />
+                <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[#17994f]">
+                  {activeJob.status === "in-progress" ? "in service" : "en route"}
+                </span>
+              </div>
+              <p className="mt-3 text-2xl font-headline font-bold capitalize text-[var(--text-primary)]">
+                {activeJob.serviceTypes?.map((service) => service.replace("-", " ")).join(", ")}
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-[var(--text-muted)]">
+                <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{activeJob.address}, {activeJob.city}</span>
+                <span className="inline-flex items-center gap-1"><Navigation className="h-3.5 w-3.5" />{clientNames[activeJob.clientId] || "Client"}</span>
+              </div>
+            </div>
+            <div className="rounded-[1.4rem] bg-[#111111] px-5 py-4 text-white">
+              <p className="text-xs uppercase tracking-[0.14em] text-white/48">Work order value</p>
+              <p className="mt-1 text-3xl font-headline font-bold">${activeJob.price}</p>
+              <p className="mt-1 text-xs text-white/62">Open the job thread to continue</p>
+            </div>
+          </div>
+        </Link>
+      ) : null}
+
+      {activeJob && queueJobs.length > 0 ? (
+        <div className="rounded-[1.4rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+          <span className="font-semibold">One active job at a time.</span> Complete the current work order before starting the next queued request.
+        </div>
+      ) : null}
+
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex gap-2 rounded-[1.3rem] bg-[var(--bg-secondary)] p-1">
+          {([
+            { key: "all" as const, label: "All", count: jobs.length },
+            { key: "queue" as const, label: "Queue", count: queueJobs.length },
+            { key: "active" as const, label: "Active", count: activeJob ? 1 : 0 },
+            { key: "completed" as const, label: "Done", count: completedJobs.length },
+          ]).map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setFilter(tab.key)}
+              className={`rounded-[1rem] px-4 py-2 text-sm font-semibold transition ${
+                filter === tab.key ? "bg-white text-[var(--text-primary)] shadow-sm" : "text-[var(--text-muted)]"
+              }`}
+            >
+              {tab.label} ({tab.count})
+            </button>
+          ))}
+        </div>
+
+        {filter === "queue" && queueJobs.length > 1 ? (
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Sort</span>
+            <button
+              onClick={() => setQueueSort("time")}
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${queueSort === "time" ? "bg-[#111111] text-white" : "bg-white text-[var(--text-muted)]"}`}
+            >
+              <Clock className="mr-1 inline h-3 w-3" />
+              First come
+            </button>
+            <button
+              onClick={() => setQueueSort("distance")}
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${queueSort === "distance" ? "bg-[#111111] text-white" : "bg-white text-[var(--text-muted)]"}`}
+            >
+              <Compass className="mr-1 inline h-3 w-3" />
+              Nearest
+            </button>
+          </div>
+        ) : null}
       </div>
 
-      {/* Queue Sort Options */}
-      {filter === "queue" && queueJobs.length > 1 && (
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500 font-medium">Sort by:</span>
-          <button
-            onClick={() => setQueueSort("time")}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
-              queueSort === "time" ? "bg-[#3B82F6] text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}
-          >
-            <Clock className="w-3 h-3 inline mr-1" />
-            First Come
-          </button>
-          <button
-            onClick={() => setQueueSort("distance")}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
-              queueSort === "distance" ? "bg-[#3B82F6] text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}
-          >
-            <Compass className="w-3 h-3 inline mr-1" />
-            Nearest
-          </button>
-        </div>
-      )}
-
-      {/* Job List */}
       {loading ? (
-        <div className="text-center py-12 text-gray-400">Loading jobs...</div>
+        <div className="surface-panel py-14 text-center text-[var(--text-muted)]">Loading jobs...</div>
       ) : filteredJobs.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
-          <Snowflake className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-600">
+        <div className="surface-panel p-12 text-center">
+          <Snowflake className="mx-auto mb-4 h-12 w-12 text-[var(--text-muted)]/35" />
+          <h3 className="text-lg font-semibold text-[var(--text-primary)]">
             {filter === "queue" ? "Queue is empty" : filter === "active" ? "No active job" : filter === "completed" ? "No completed jobs yet" : "No jobs yet"}
           </h3>
-          <p className="text-gray-400 mt-1">
+          <p className="mt-2 text-sm text-[var(--text-muted)]">
             {filter === "queue"
               ? "New requests will appear here when clients book you."
               : filter === "active"
@@ -311,44 +312,43 @@ export default function JobsPage() {
             const dist = getJobDistance(job);
             const isQueued = ["pending", "accepted"].includes(job.status);
             return (
-              <Link
-                key={job.id}
-                href={`/dashboard/messages/${job.chatId}`}
-                className="block bg-white rounded-xl border border-gray-100 p-4 hover:shadow-md transition relative"
-              >
-                {/* Queue position badge */}
-                {filter === "queue" && isQueued && (
-                  <div className="absolute -top-2 -left-2 w-7 h-7 bg-[#3B82F6] rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md">
+              <Link key={job.id} href={`/dashboard/messages/${job.chatId}`} className="surface-panel relative block overflow-hidden p-5 transition hover:-translate-y-0.5">
+                {filter === "queue" && isQueued ? (
+                  <div className="absolute left-5 top-5 flex h-7 min-w-7 items-center justify-center rounded-full bg-[#111111] px-2 text-xs font-bold text-white">
                     #{index + 1}
                   </div>
-                )}
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="font-semibold text-gray-900">
+                ) : null}
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className={`font-semibold text-[var(--text-primary)] ${filter === "queue" && isQueued ? "ml-12" : ""}`}>
                         {clientNames[job.clientId] || "Client"}
                       </p>
-                      {dist !== null && (
-                        <span className="px-2 py-0.5 bg-[#3B82F6]/10 text-[#3B82F6] rounded-full text-[10px] font-bold">
+                      {dist !== null ? (
+                        <span className="rounded-full bg-[var(--bg-secondary)] px-2.5 py-1 text-[10px] font-bold text-[var(--text-primary)]">
                           {dist.toFixed(1)} km
                         </span>
-                      )}
+                      ) : null}
+                      <StatusBadge status={job.status} />
                     </div>
-                    <p className="text-sm text-gray-600 capitalize">
-                      {job.serviceTypes?.map((s) => s.replace("-", " ")).join(", ")}
+                    <p className="mt-2 text-base font-headline font-bold capitalize text-[var(--text-primary)]">
+                      {job.serviceTypes?.map((service) => service.replace("-", " ")).join(", ")}
                     </p>
-                    <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
-                      <MapPin className="w-3.5 h-3.5" />
+                    <p className="mt-2 flex items-center gap-1 text-sm text-[var(--text-muted)]">
+                      <MapPin className="h-3.5 w-3.5" />
                       {job.address}, {job.city}
                     </p>
-                    <p className="text-sm text-gray-500 flex items-center gap-1 mt-0.5">
-                      <Calendar className="w-3.5 h-3.5" />
+                    <p className="mt-1 flex items-center gap-1 text-sm text-[var(--text-muted)]">
+                      <Calendar className="h-3.5 w-3.5" />
                       {formatJobDate(job)}
                     </p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-green-600">${job.price}</p>
-                    <StatusBadge status={job.status} />
+                  <div className="rounded-[1.25rem] bg-[var(--bg-secondary)] px-4 py-4 text-left md:min-w-[160px] md:text-right">
+                    <p className="text-xs uppercase tracking-[0.14em] text-[var(--text-muted)]">Payout</p>
+                    <p className="mt-1 text-2xl font-headline font-bold text-[#17994f]">${job.price}</p>
+                    <p className="mt-1 text-xs text-[var(--text-muted)]">
+                      {job.paymentMethod === "cash" ? "Cash collection" : "Platform payment"}
+                    </p>
                   </div>
                 </div>
               </Link>

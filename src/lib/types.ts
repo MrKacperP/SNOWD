@@ -170,7 +170,7 @@ export interface Job {
 }
 
 // -- Messaging --
-export type MessageType = "text" | "system" | "payment" | "eta-update" | "status-update" | "image" | "payment-request" | "completion-photo" | "progress-update";
+export type MessageType = "text" | "system" | "payment" | "eta-update" | "status-update" | "image" | "voice" | "payment-request" | "completion-photo" | "progress-update";
 
 export interface ChatMessage {
   id: string;
@@ -185,6 +185,8 @@ export interface ChatMessage {
     newStatus?: JobStatus;
     eta?: number;
     imageUrl?: string;
+    audioUrl?: string;
+    durationMs?: number;
     paymentIntentId?: string;
     completionPhotoUrl?: string;
     progressStep?: string;

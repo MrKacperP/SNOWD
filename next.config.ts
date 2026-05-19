@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  turbopack: {
+    root: process.cwd(),
+  },
   async headers() {
     return [
       {
@@ -22,7 +25,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=(self), payment=(self)",
+            value: "camera=(self), microphone=(self), geolocation=(self), payment=(self)",
           },
           {
             key: "Strict-Transport-Security",

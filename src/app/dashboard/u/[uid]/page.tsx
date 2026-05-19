@@ -204,7 +204,7 @@ export default function PublicProfilePage() {
     : new Date().getFullYear();
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="mx-auto max-w-4xl">
       {/* Back button */}
       <button
         onClick={() => router.back()}
@@ -215,14 +215,12 @@ export default function PublicProfilePage() {
       </button>
 
       {/* Profile Header - Instagram-like */}
-      <div className="bg-white rounded-2xl border border-[#E6EEF6] overflow-hidden">
-        {/* Cover / Gradient */}
-        <div className="h-32 bg-[#2F6FED] relative">
-          <div className="absolute inset-0 bg-[url('/logo.png')] bg-center bg-no-repeat opacity-10" style={{ backgroundSize: "60px" }} />
+      <div className="surface-card overflow-hidden">
+        <div className="relative h-40 bg-[#111111]">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(125,220,122,0.18),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(46,107,255,0.16),transparent_30%)]" />
         </div>
 
-        {/* Avatar & Info */}
-        <div className="px-6 -mt-12 pb-6">
+        <div className="-mt-12 px-6 pb-6">
           <div className="flex items-end gap-4 mb-4">
             <div className="relative">
               <UserAvatar
@@ -233,15 +231,15 @@ export default function PublicProfilePage() {
                 rounded="2xl"
                 className="border-4 border-white shadow-lg"
               />
-              <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white ${isOnline ? "bg-green-500" : "bg-gray-400"}`} />
+              <div className={`absolute -bottom-1 -right-1 h-5 w-5 rounded-full border-2 border-white ${isOnline ? "bg-green-500" : "bg-gray-400"}`} />
             </div>
             <div className="flex-1 min-w-0 pb-1">
-              <h1 className="text-xl font-bold text-[#0B1F33] truncate">{profileData.displayName}</h1>
-              <p className="text-sm text-[#6B7C8F] flex items-center gap-1">
+              <h1 className="truncate text-2xl font-headline font-bold text-[var(--text-primary)]">{profileData.displayName}</h1>
+              <p className="flex items-center gap-1 text-sm text-[var(--text-muted)]">
                 <MapPin className="w-3.5 h-3.5" />
                 {profileData.city}, {profileData.province} area
                 {distance !== null && (
-                  <span className="ml-2 text-[#2F6FED] font-medium">
+                  <span className="ml-2 font-medium text-[var(--text-primary)]">
                     • {distance.toFixed(1)} km away
                   </span>
                 )}
@@ -250,35 +248,34 @@ export default function PublicProfilePage() {
           </div>
 
           {/* Stats Row */}
-          <div className="flex items-center gap-6 mb-4">
+          <div className="mb-5 flex items-center gap-6">
             {isOperator && (
               <>
                 <div className="text-center">
-                  <p className="text-lg font-bold text-[#0B1F33]">{operatorProfile.completedJobs || 0}</p>
-                  <p className="text-xs text-[#6B7C8F]">Jobs</p>
+                  <p className="text-lg font-bold text-[var(--text-primary)]">{operatorProfile.completedJobs || 0}</p>
+                  <p className="text-xs text-[var(--text-muted)]">Jobs</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-lg font-bold text-[#0B1F33] flex items-center gap-1">
+                  <p className="flex items-center gap-1 text-lg font-bold text-[var(--text-primary)]">
                     <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
                     {operatorProfile.rating?.toFixed(1) || "–"}
                   </p>
-                  <p className="text-xs text-[#6B7C8F]">{operatorProfile.reviewCount || 0} reviews</p>
+                  <p className="text-xs text-[var(--text-muted)]">{operatorProfile.reviewCount || 0} reviews</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-lg font-bold text-[#0B1F33]">{operatorProfile.serviceRadius || 0}</p>
-                  <p className="text-xs text-[#6B7C8F]">km radius</p>
+                  <p className="text-lg font-bold text-[var(--text-primary)]">{operatorProfile.serviceRadius || 0}</p>
+                  <p className="text-xs text-[var(--text-muted)]">km radius</p>
                 </div>
               </>
             )}
             <div className="text-center">
-              <p className="text-lg font-bold text-[#0B1F33]">{memberSince}</p>
-              <p className="text-xs text-[#6B7C8F]">Joined</p>
+              <p className="text-lg font-bold text-[var(--text-primary)]">{memberSince}</p>
+              <p className="text-xs text-[var(--text-muted)]">Joined</p>
             </div>
           </div>
 
-          {/* Badges */}
           <div className="flex flex-wrap gap-2 mb-4">
-            <span className="px-3 py-1 bg-[#D6E8F5] text-[#2F6FED] rounded-full text-xs font-semibold capitalize">
+            <span className="rounded-full bg-[var(--bg-secondary)] px-3 py-1 text-xs font-semibold capitalize text-[var(--text-primary)]">
               {isOperator ? "Snow Removal Operator" : "Client"}
             </span>
             {isOperator && operatorProfile.isStudent && (
@@ -309,7 +306,7 @@ export default function PublicProfilePage() {
                       // In future: create a chat/job with this operator
                       router.push("/dashboard/find");
                     }}
-                    className="btn-primary flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#2F6FED] text-white rounded-xl font-semibold text-sm hover:bg-[#2158C7] transition"
+                    className="btn-primary flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold"
                   >
                     <Briefcase className="w-4 h-4" />
                     Hire
@@ -344,10 +341,10 @@ export default function PublicProfilePage() {
                       }
                     }}
                     disabled={togglingFavorite}
-                    className={`px-4 py-2.5 border rounded-xl font-semibold text-sm transition ${
+                    className={`rounded-xl border px-4 py-2.5 text-sm font-semibold transition ${
                       isFavorite
                         ? "bg-red-50 border-red-200 text-red-600 hover:bg-red-100"
-                        : "border-[#E6EEF6] text-[#0B1F33] hover:bg-[#F7FAFC]"
+                        : "border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
                     } disabled:opacity-50`}
                   >
                     <Heart className={`w-4 h-4 ${isFavorite ? "fill-red-600" : ""}`} />
@@ -356,7 +353,7 @@ export default function PublicProfilePage() {
               )}
               <button
                 onClick={() => router.push("/dashboard/messages")}
-                className="btn-secondary flex items-center justify-center gap-2 px-4 py-2.5 border border-[#E6EEF6] text-[#0B1F33] rounded-xl font-semibold text-sm hover:bg-[#F7FAFC] transition"
+                className="btn-secondary flex items-center justify-center gap-2 rounded-xl border border-[var(--border-color)] px-4 py-2.5 text-sm font-semibold"
               >
                 <MessageSquare className="w-4 h-4" />
                 Message
@@ -366,7 +363,7 @@ export default function PublicProfilePage() {
           {isOwnProfile && (
             <Link
               href="/dashboard/settings"
-              className="btn-secondary flex items-center justify-center gap-2 px-4 py-2.5 border border-[#E6EEF6] text-[#0B1F33] rounded-xl font-semibold text-sm hover:bg-[#F7FAFC] transition w-full"
+              className="btn-secondary flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--border-color)] px-4 py-2.5 text-sm font-semibold"
             >
               Edit Profile
               <ChevronRight className="w-4 h-4" />
@@ -377,7 +374,7 @@ export default function PublicProfilePage() {
 
       {/* Tab Navigation */}
       {isOperator ? (
-        <div className="flex gap-1 mt-4 bg-white rounded-xl border border-[#E6EEF6] p-1">
+        <div className="mt-4 flex gap-1 rounded-xl border border-[var(--border-color)] bg-white p-1">
           {[
             { key: "about" as const, label: "About" },
             { key: "services" as const, label: "Services" },
@@ -388,16 +385,16 @@ export default function PublicProfilePage() {
               onClick={() => setActiveTab(tab.key)}
               className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition ${
                 activeTab === tab.key
-                  ? "bg-[#D6E8F5] text-[#2F6FED]"
-                  : "text-[#6B7C8F] hover:text-[#0B1F33]"
-              }`}
+                  ? "bg-[#111111] text-white"
+                  : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                }`}
             >
               {tab.label}
             </button>
           ))}
         </div>
       ) : (
-        <div className="flex gap-1 mt-4 bg-white rounded-xl border border-[#E6EEF6] p-1">
+        <div className="mt-4 flex gap-1 rounded-xl border border-[var(--border-color)] bg-white p-1">
           {[
             { key: "about" as const, label: "About" },
             { key: "reviews" as const, label: `Reviews (${reviews.length})` },
@@ -407,9 +404,9 @@ export default function PublicProfilePage() {
               onClick={() => setActiveTab(tab.key)}
               className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition ${
                 activeTab === tab.key
-                  ? "bg-[#D6E8F5] text-[#2F6FED]"
-                  : "text-[#6B7C8F] hover:text-[#0B1F33]"
-              }`}
+                  ? "bg-[#111111] text-white"
+                  : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                }`}
             >
               {tab.label}
             </button>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useEffect, useCallback } from "react";
+import React, { useEffect, useRef } from "react";
 import { useJsApiLoader } from "@react-google-maps/api";
 import {
   GOOGLE_MAPS_LIBRARIES,
@@ -16,26 +16,30 @@ interface AddressAutocompleteProps {
   className?: string;
 }
 
-export default function AddressAutocomplete({
+export default function AddressAutocomplete(props: AddressAutocompleteProps) {
+  if (!hasGoogleMapsApiKey) {
+    return (
+      <input
+        type="text"
+        value={props.value}
+        onChange={(e) => props.onChange(e.target.value)}
+        placeholder={props.placeholder || "123 Main St"}
+        className={props.className || ""}
+        autoComplete="street-address"
+      />
+    );
+  }
+
+  return <AddressAutocompleteWithApi {...props} />;
+}
+
+function AddressAutocompleteWithApi({
   value,
   onChange,
   onPlaceSelected,
   placeholder = "123 Main St",
   className = "",
 }: AddressAutocompleteProps) {
-  if (!hasGoogleMapsApiKey) {
-    return (
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className={className}
-        autoComplete="street-address"
-      />
-    );
-  }
-
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
     libraries: GOOGLE_MAPS_LIBRARIES,
@@ -43,17 +47,20 @@ export default function AddressAutocomplete({
 
   const inputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
-  // Keep a ref to the callbacks so the listener always has the latest
   const onPlaceSelectedRef = useRef(onPlaceSelected);
   const onChangeRef = useRef(onChange);
 
-  useEffect(() => { onPlaceSelectedRef.current = onPlaceSelected; }, [onPlaceSelected]);
-  useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
+  useEffect(() => {
+    onPlaceSelectedRef.current = onPlaceSelected;
+  }, [onPlaceSelected]);
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   useEffect(() => {
     if (!isLoaded || !inputRef.current) return;
 
-    // Destroy existing autocomplete if already initialized and re-init
     if (autocompleteRef.current) {
       google.maps.event.clearInstanceListeners(autocompleteRef.current);
       autocompleteRef.current = null;
@@ -85,21 +92,14 @@ export default function AddressAutocomplete({
         autocompleteRef.current = null;
       }
     };
-  // Re-initialize only when isLoaded changes (not on every render)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded]);
-
-  // Sync the input value (controlled input) while also allowing Google to update it
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onChange(e.target.value);
-  };
 
   return (
     <input
       ref={inputRef}
       type="text"
       value={value}
-      onChange={handleChange}
+      onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       className={className}
       autoComplete="off"

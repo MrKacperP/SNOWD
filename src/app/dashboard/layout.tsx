@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { Suspense, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import LoadingScreen from "@/components/LoadingScreen";
 import SupportChatButton from "@/components/SupportChatButton";
@@ -16,21 +16,25 @@ import { storage, db } from "@/lib/firebase";
 import { doc, updateDoc } from "firebase/firestore";
 import { sendAdminNotif } from "@/lib/adminNotifications";
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const { user, profile, loading, refreshProfile } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [uploadingId, setUploadingId] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!loading) {
       if (!user) {
-        router.push("/login");
+        const query = searchParams.toString();
+        const redirectPath = `${pathname}${query ? `?${query}` : ""}`;
+        router.push(`/login?redirect=${encodeURIComponent(redirectPath)}`);
       } else if (!profile?.onboardingComplete) {
         router.push("/onboarding");
       }
     }
-  }, [user, profile, loading, router]);
+  }, [user, profile, loading, router, pathname, searchParams]);
 
   const handleIdUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -70,26 +74,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <WeatherProvider>
       <div className="min-h-screen bg-[var(--bg-primary)] transition-colors">
         <Navbar />
-        {/* Main content with sidebar offset */}
-        <main className="md:ml-64 pt-16 md:pt-0 pb-20 md:pb-0 min-h-screen">
-        {/* Admin Back Banner */}
+        <main className="min-h-screen pb-28 pt-20 md:ml-[288px] md:pb-10 md:pt-8">
           {isAdmin && (
-            <div className="mx-4 md:mx-8 mt-4 md:mt-6 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3">
+            <div className="container-app mt-2 md:mt-0">
+              <div className="flex items-center gap-3 rounded-[1.4rem] border border-red-200 bg-red-50 px-4 py-3">
               <Shield className="w-4 h-4 text-red-500 shrink-0" />
               <p className="flex-1 text-xs font-medium text-red-700">Admin mode — viewing live app</p>
               <Link
                 href="/admin"
-                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-red-500 text-white rounded-lg text-xs font-semibold hover:bg-red-600 transition"
+                className="shrink-0 flex items-center gap-1.5 rounded-xl bg-red-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-600"
               >
                 <ArrowLeft className="w-3 h-3" />
                 Back to Admin
               </Link>
+              </div>
             </div>
           )}
 
-          {/* Account Approval Banner */}
           {!accountApproved && !isAdmin && (
-            <div className="mx-4 md:mx-8 mt-4 md:mt-6 p-5 bg-blue-50 border border-blue-200 rounded-2xl">
+            <div className="container-app mt-2 md:mt-0">
+              <div className="rounded-[1.6rem] border border-blue-200 bg-blue-50 p-5">
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center shrink-0">
                   <Shield className="w-6 h-6 text-blue-600" />
@@ -111,7 +115,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       <button
                         onClick={() => fileInputRef.current?.click()}
                         disabled={uploadingId}
-                        className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-50"
+                        className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
                       >
                         {uploadingId ? (
                           <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -130,15 +134,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   )}
                 </div>
               </div>
+              </div>
             </div>
           )}
 
-
-          <div className="p-4 md:p-8">{children}</div>
+          <div className="container-app mt-4 md:mt-6">{children}</div>
         </main>
         <SupportChatButton />
         <TutorialOverlay />
       </div>
     </WeatherProvider>
+  );
+}
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={<LoadingScreen />}>
+      <DashboardLayoutInner>{children}</DashboardLayoutInner>
+    </Suspense>
   );
 }

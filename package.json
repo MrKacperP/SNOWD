@@ -10,6 +10,7 @@
     "seed:dev-users": "npx tsx scripts/seed-dev-users.ts"
   },
   "dependencies": {
+    "@opentelemetry/api": "^1.9.1",
     "@react-google-maps/api": "^2.20.8",
     "@stripe/react-stripe-js": "^5.6.0",
     "@stripe/stripe-js": "^8.7.0",

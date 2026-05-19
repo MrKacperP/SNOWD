@@ -18,6 +18,7 @@ import { Job, UserProfile, OperatorProfile, ClientProfile } from "@/lib/types";
 import StatusBadge from "@/components/StatusBadge";
 import StarRating from "@/components/StarRating";
 import BackButton from "@/components/BackButton";
+import { useWeather } from "@/context/WeatherContext";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CalendarDays,
@@ -68,26 +69,34 @@ const WEATHER_ICONS = {
   mix: Snowflake,
 };
 
-function generateMockWeather(): WeatherDay[] {
+function generateSeasonalWeather(): WeatherDay[] {
   const days: WeatherDay[] = [];
   const today = new Date();
-  const conditions: Array<{ icon: "snow" | "cloud" | "sun" | "mix"; desc: string; snowChance: number }> = [
-    { icon: "snow", desc: "Heavy snow expected", snowChance: 85 },
-    { icon: "snow", desc: "Light snow showers", snowChance: 60 },
-    { icon: "mix", desc: "Rain/snow mix", snowChance: 40 },
-    { icon: "cloud", desc: "Overcast", snowChance: 15 },
-    { icon: "sun", desc: "Clear skies", snowChance: 5 },
-    { icon: "cloud", desc: "Partly cloudy", snowChance: 10 },
-    { icon: "snow", desc: "Snow flurries", snowChance: 55 },
-  ];
+  const month = today.getMonth();
+  const isWinter = month <= 2 || month >= 10;
+  const conditions: Array<{ icon: "snow" | "cloud" | "sun" | "mix"; desc: string; snowChance: number }> = isWinter
+    ? [
+        { icon: "snow", desc: "Snow possible", snowChance: 55 },
+        { icon: "cloud", desc: "Cloudy", snowChance: 20 },
+        { icon: "mix", desc: "Mixed precipitation", snowChance: 35 },
+        { icon: "sun", desc: "Clear and cold", snowChance: 5 },
+      ]
+    : [
+        { icon: "sun", desc: "Sunny", snowChance: 0 },
+        { icon: "cloud", desc: "Partly cloudy", snowChance: 0 },
+        { icon: "cloud", desc: "Warm with clouds", snowChance: 0 },
+        { icon: "sun", desc: "Clear", snowChance: 0 },
+      ];
   for (let i = 0; i < 7; i++) {
     const date = addDays(today, i);
     const c = conditions[i % conditions.length];
+    const highBase = isWinter ? -2 : month >= 5 && month <= 8 ? 24 : 12;
+    const lowBase = isWinter ? -9 : month >= 5 && month <= 8 ? 15 : 5;
     days.push({
       date: format(date, "yyyy-MM-dd"),
       icon: c.icon,
-      high: Math.round(-5 + Math.random() * 10),
-      low: Math.round(-15 + Math.random() * 8),
+      high: highBase + (i % 4),
+      low: lowBase + (i % 3),
       snowChance: c.snowChance,
       description: c.desc,
     });
@@ -95,16 +104,28 @@ function generateMockWeather(): WeatherDay[] {
   return days;
 }
 
+const weatherCodeToDay = (code: number, high: number, snow: number, precipitationChance: number): Pick<WeatherDay, "icon" | "description" | "snowChance"> => {
+  if (snow > 0 || [71, 73, 75, 77, 85, 86].includes(code)) {
+    return { icon: "snow", description: "Snow possible", snowChance: Math.max(35, precipitationChance) };
+  }
+  if ([51, 53, 55, 61, 63, 65, 80, 81, 82].includes(code)) {
+    return { icon: "cloud", description: high > 0 ? "Rain possible" : "Precipitation possible", snowChance: 0 };
+  }
+  if ([1, 2].includes(code)) return { icon: "sun", description: "Partly sunny", snowChance: 0 };
+  if ([3, 45, 48].includes(code)) return { icon: "cloud", description: "Cloudy", snowChance: 0 };
+  return { icon: "sun", description: "Clear", snowChance: 0 };
+};
+
 export default function CalendarPage() {
   const { user, profile } = useAuth();
   const router = useRouter();
   const clientProfile = profile as ClientProfile;
+  const { weather: currentWeather } = useWeather();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [jobs, setJobs] = useState<Job[]>([]);
   const [userNames, setUserNames] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
-  const [weather] = useState<WeatherDay[]>(generateMockWeather);
+  const [weather, setWeather] = useState<WeatherDay[]>(generateSeasonalWeather);
 
   // Operator picker modal
   const [showOperatorPicker, setShowOperatorPicker] = useState(false);
@@ -116,6 +137,51 @@ export default function CalendarPage() {
   const [bookingInProgress, setBookingInProgress] = useState(false);
 
   const isOperator = profile?.role === "operator";
+
+  useEffect(() => {
+    const lat = profile?.lat;
+    const lng = profile?.lng;
+    if (!lat || !lng) return;
+
+    let cancelled = false;
+
+    const fetchForecast = async () => {
+      try {
+        const response = await fetch(
+          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,snowfall_sum&timezone=auto&forecast_days=7`,
+          { cache: "no-store" }
+        );
+        if (!response.ok) throw new Error("Forecast unavailable");
+
+        const data = await response.json();
+        const daily = data.daily;
+        const liveForecast: WeatherDay[] = daily.time.map((date: string, index: number) => {
+          const high = Math.round(daily.temperature_2m_max[index]);
+          const low = Math.round(daily.temperature_2m_min[index]);
+          const snow = Number(daily.snowfall_sum?.[index] || 0);
+          const precipitationChance = Number(daily.precipitation_probability_max?.[index] || 0);
+          const mapped = weatherCodeToDay(Number(daily.weather_code[index]), high, snow, precipitationChance);
+
+          return {
+            date,
+            high,
+            low,
+            ...mapped,
+          };
+        });
+
+        if (!cancelled) setWeather(liveForecast);
+      } catch {
+        if (!cancelled) setWeather(generateSeasonalWeather());
+      }
+    };
+
+    fetchForecast();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.lat, profile?.lng]);
 
   useEffect(() => {
     const fetchJobs = async () => {
@@ -152,8 +218,6 @@ export default function CalendarPage() {
         setUserNames(names);
       } catch (error) {
         console.error("Error fetching calendar jobs:", error);
-      } finally {
-        setLoading(false);
       }
     };
     fetchJobs();
@@ -281,7 +345,7 @@ export default function CalendarPage() {
 
   const getJobsForDay = (date: Date) =>
     jobs.filter((j) => {
-      const jobDate = j.scheduledDate instanceof Date ? j.scheduledDate : j.createdAt;
+      const jobDate = getJobDisplayDate(j);
       return jobDate instanceof Date && isSameDay(jobDate, date);
     });
 
@@ -290,75 +354,113 @@ export default function CalendarPage() {
 
   const selectedDayJobs = getJobsForDay(selectedDate);
   const selectedWeather = getWeatherForDay(selectedDate);
+  const upcomingJobs = jobs
+    .filter((j) => !["completed", "cancelled"].includes(j.status))
+    .sort((a, b) => getJobDisplayDate(a).getTime() - getJobDisplayDate(b).getTime());
+  const completedJobs = jobs
+    .filter((j) => j.status === "completed")
+    .sort((a, b) => getJobDisplayDate(b).getTime() - getJobDisplayDate(a).getTime());
+  const selectedActiveJobs = selectedDayJobs.filter((j) => j.status !== "completed");
+  const selectedCompletedJobs = selectedDayJobs.filter((j) => j.status === "completed");
 
   const isBusyDay = (date: Date) =>
     getJobsForDay(date).some((j) => ["accepted", "en-route", "in-progress"].includes(j.status));
 
+  function getJobDisplayDate(job: Job): Date {
+    const rawDate = job.scheduledDate || job.completionTime || job.createdAt;
+    if (rawDate instanceof Date) return rawDate;
+    return new Date(rawDate as string);
+  }
+
+  const getJobTime = (job: Job) =>
+    job.scheduledTime || format(getJobDisplayDate(job), "h:mm a");
+
+  const getOtherName = (job: Job) => {
+    const otherId = isOperator ? job.clientId : job.operatorId;
+    return userNames[otherId] || (isOperator ? "Client" : "Operator");
+  };
+
+  const renderService = (job: Job) =>
+    job.serviceTypes?.map((s) => s.replace("-", " ")).join(", ") || "Snow removal";
+
   return (
-    <div className="max-w-4xl mx-auto space-y-5">
-      <div className="flex items-center gap-3">
-        <BackButton href="/dashboard" />
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <CalendarDays className="w-6 h-6 text-[#2F6FED]" />
-          Calendar
-        </h1>
+    <div className="mx-auto max-w-6xl space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <BackButton href="/dashboard" />
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <CalendarDays className="w-6 h-6 text-[var(--accent-sun)]" />
+              Calendar
+            </h1>
+            <p className="text-sm text-[var(--text-muted)]">Bookings, completed work, and local weather by date</p>
+          </div>
+        </div>
+        {!isOperator && (
+          <button onClick={openOperatorPicker} className="inline-flex items-center gap-2 rounded-xl bg-[#111111] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-black">
+            <Plus className="h-4 w-4" />
+            New Booking
+          </button>
+        )}
       </div>
 
       {/* Location Bar */}
       <div className="bg-[var(--bg-card-solid)] rounded-xl border border-[var(--border-color)] px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
-          <MapPin className="w-4 h-4 text-[#2F6FED]" />
+          <MapPin className="w-4 h-4 text-[var(--accent-sun)]" />
           <span className="font-medium text-[var(--text-primary)]">{profile?.city || "Unknown city"}, {profile?.province || ""}</span>
           {profile?.address && <span className="text-[var(--text-muted)] text-xs hidden sm:inline">• {profile.address}</span>}
         </div>
         <div className="text-xs text-[var(--text-muted)]">{format(new Date(), "EEEE, MMM d, yyyy")}</div>
       </div>
 
-      {/* Weather Forecast */}
-      <div className="bg-[var(--bg-card-solid)] rounded-2xl border border-[var(--border-color)] p-4 overflow-hidden">
-        <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3 flex items-center gap-2">
-          <CloudSnow className="w-4 h-4 text-[#2F6FED]" />
-          7-Day Snow Forecast
-          <a href="https://www.google.com/search?q=snow+forecast+this+week" target="_blank" rel="noopener noreferrer" className="ml-auto text-xs text-[#2F6FED] hover:underline">
-            Full forecast →
-          </a>
-        </h3>
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {weather.map((day) => {
-            const WeatherIcon = WEATHER_ICONS[day.icon];
-            const isSnowy = day.snowChance > 40;
-            return (
-              <button key={day.date} onClick={() => setSelectedDate(new Date(day.date + "T12:00:00"))}
-                className={`flex-shrink-0 flex flex-col items-center gap-1 p-3 rounded-xl min-w-[72px] transition-all ${isSnowy ? "bg-[#2F6FED]/10 border border-[#2F6FED]/20" : "bg-[var(--bg-secondary)] border border-transparent hover:border-[var(--border-color)]"}`}
-              >
-                <span className="text-[10px] font-semibold text-[var(--text-muted)]">{format(new Date(day.date + "T12:00:00"), "EEE")}</span>
-                <WeatherIcon className={`w-5 h-5 ${isSnowy ? "text-[#2F6FED]" : "text-[var(--text-muted)]"}`} />
-                <span className="text-xs font-bold text-[var(--text-primary)]">{day.high}°/{day.low}°</span>
-                {isSnowy && <span className="text-[9px] font-bold text-[#2F6FED] bg-[#2F6FED]/10 px-1.5 py-0.5 rounded-full">{day.snowChance}% ❄️</span>}
-              </button>
-            );
-          })}
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card-solid)] p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Upcoming</p>
+          <p className="mt-1 text-3xl font-bold text-[var(--text-primary)]">{upcomingJobs.length}</p>
+        </div>
+        <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card-solid)] p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Completed</p>
+          <p className="mt-1 text-3xl font-bold text-[var(--text-primary)]">{completedJobs.length}</p>
+        </div>
+        <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card-solid)] p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Weather Now</p>
+          <p className="mt-1 text-lg font-bold text-[var(--text-primary)]">
+            {currentWeather ? `${currentWeather.temp}°C, ${currentWeather.condition}` : "Forecast available by date"}
+          </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
         {/* Calendar Grid */}
-        <div className="lg:col-span-2 bg-[var(--bg-card-solid)] rounded-2xl border border-[var(--border-color)] p-5">
-          <div className="flex items-center justify-between mb-4">
-            <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="p-2 hover:bg-[var(--bg-secondary)] rounded-lg transition">
-              <ChevronLeft className="w-5 h-5 text-[var(--text-secondary)]" />
-            </button>
-            <h2 className="text-lg font-bold text-[var(--text-primary)]">{format(currentMonth, "MMMM yyyy")}</h2>
-            <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="p-2 hover:bg-[var(--bg-secondary)] rounded-lg transition">
-              <ChevronRight className="w-5 h-5 text-[var(--text-secondary)]" />
+        <div className="bg-[var(--bg-card-solid)] rounded-2xl border border-[var(--border-color)] overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-color)] px-4 py-3">
+            <div className="flex items-center gap-2">
+              <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="p-2 hover:bg-[var(--bg-secondary)] rounded-lg transition" aria-label="Previous month">
+                <ChevronLeft className="w-5 h-5 text-[var(--text-secondary)]" />
+              </button>
+              <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="p-2 hover:bg-[var(--bg-secondary)] rounded-lg transition" aria-label="Next month">
+                <ChevronRight className="w-5 h-5 text-[var(--text-secondary)]" />
+              </button>
+              <h2 className="ml-1 text-lg font-bold text-[var(--text-primary)]">{format(currentMonth, "MMMM yyyy")}</h2>
+            </div>
+            <button
+              onClick={() => {
+                const today = new Date();
+                setSelectedDate(today);
+                setCurrentMonth(today);
+              }}
+              className="rounded-lg border border-[var(--border-color)] px-3 py-1.5 text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+            >
+              Today
             </button>
           </div>
-          <div className="grid grid-cols-7 gap-1 mb-1">
+          <div className="grid grid-cols-7 border-b border-[var(--border-color)]">
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-              <div key={d} className="text-center text-xs font-semibold text-[var(--text-muted)] py-1">{d}</div>
+              <div key={d} className="px-2 py-2 text-center text-xs font-semibold text-[var(--text-muted)]">{d}</div>
             ))}
           </div>
-          <div className="grid grid-cols-7 gap-1">
+          <div className="grid grid-cols-7">
             {calendarDays.map((day, i) => {
               const dayJobs = getJobsForDay(day);
               const dayWeather = getWeatherForDay(day);
@@ -366,14 +468,32 @@ export default function CalendarPage() {
               const todayDay = isToday(day);
               const inMonth = isSameMonth(day, currentMonth);
               const busy = isBusyDay(day);
+              const WeatherIcon = dayWeather ? WEATHER_ICONS[dayWeather.icon] : null;
+              const completedCount = dayJobs.filter((j) => j.status === "completed").length;
               return (
                 <button key={i} onClick={() => setSelectedDate(day)}
-                  className={`relative aspect-square flex flex-col items-center justify-center rounded-lg text-sm transition-all ${selected ? "bg-[#2F6FED] text-white shadow-md" : todayDay ? "bg-[#2F6FED]/10 text-[#2F6FED] font-bold" : inMonth ? "hover:bg-[var(--bg-secondary)] text-[var(--text-primary)]" : "text-[var(--text-muted)]"}`}
+                  className={`relative min-h-[108px] border-b border-r border-[var(--border-color)] p-2 text-left text-sm transition-all ${selected ? "bg-[#F7FAFF] shadow-[inset_0_0_0_2px_#2F6FED]" : inMonth ? "hover:bg-[var(--bg-secondary)] text-[var(--text-primary)]" : "bg-[var(--bg-secondary)]/35 text-[var(--text-muted)]"}`}
                 >
-                  <span className="text-xs font-medium">{format(day, "d")}</span>
-                  <div className="flex gap-0.5 mt-0.5">
-                    {dayJobs.length > 0 && <span className={`w-1.5 h-1.5 rounded-full ${selected ? "bg-white" : busy ? "bg-green-500" : "bg-[#2F6FED]"}`} />}
-                    {dayWeather && dayWeather.snowChance > 40 && <span className={`w-1.5 h-1.5 rounded-full ${selected ? "bg-white/60" : "bg-blue-300"}`} />}
+                  <div className="flex items-start justify-between gap-1">
+                    <span className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-xs font-semibold ${todayDay ? "bg-[#2F6FED] text-white" : ""}`}>{format(day, "d")}</span>
+                    {dayWeather && WeatherIcon && (
+                      <span className="flex items-center gap-1 text-[10px] font-semibold text-[var(--text-muted)]">
+                        <WeatherIcon className="h-3.5 w-3.5" />
+                        {dayWeather.high}°
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-2 space-y-1">
+                    {dayJobs.slice(0, 2).map((job) => {
+                      const done = job.status === "completed";
+                      return (
+                        <span key={job.id} className={`block truncate rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${done ? "bg-gray-100 text-gray-600" : busy ? "bg-green-50 text-green-700" : "bg-[#F0F5FF] text-[#2F6FED]"}`}>
+                          {getJobTime(job)} {getOtherName(job)}
+                        </span>
+                      );
+                    })}
+                    {dayJobs.length > 2 && <span className="block text-[10px] text-[var(--text-muted)]">+{dayJobs.length - 2} more</span>}
+                    {completedCount > 0 && <span className="block text-[10px] font-medium text-[var(--text-muted)]">{completedCount} completed</span>}
                   </div>
                 </button>
               );
@@ -384,27 +504,26 @@ export default function CalendarPage() {
         {/* Selected Day Panel */}
         <div className="space-y-4">
           <div className="bg-[var(--bg-card-solid)] rounded-2xl border border-[var(--border-color)] p-5">
-            <h3 className="font-bold text-[var(--text-primary)] mb-1">{format(selectedDate, "EEEE, MMM d")}</h3>
-            <p className="text-xs text-[var(--text-muted)] mb-3 flex items-center gap-1">
-              <MapPin className="w-3 h-3" />
-              {profile?.city || "Your area"}, {profile?.province || ""}
-              {selectedDayJobs.length > 0 && (
-                <span className="ml-2 px-1.5 py-0.5 bg-[#2F6FED]/10 text-[#2F6FED] rounded-full text-[10px] font-semibold">
-                  {selectedDayJobs.length} job{selectedDayJobs.length !== 1 ? "s" : ""}
-                </span>
-              )}
-            </p>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="font-bold text-[var(--text-primary)] mb-1">{format(selectedDate, "EEEE, MMM d")}</h3>
+                <p className="text-xs text-[var(--text-muted)] flex items-center gap-1">
+                  <MapPin className="w-3 h-3" />
+                  {profile?.city || "Your area"}, {profile?.province || ""}
+                </p>
+              </div>
+              <span className="rounded-full bg-[var(--bg-secondary)] px-2 py-1 text-xs font-semibold text-[var(--text-secondary)]">
+                {selectedDayJobs.length} item{selectedDayJobs.length !== 1 ? "s" : ""}
+              </span>
+            </div>
 
             {selectedWeather && (
-              <div className={`p-3 rounded-xl mb-3 ${selectedWeather.snowChance > 40 ? "bg-[#2F6FED]/10 border border-[#2F6FED]/15" : "bg-[var(--bg-secondary)]"}`}>
+              <div className="mt-4 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-3">
                 <div className="flex items-center gap-2">
-                  {React.createElement(WEATHER_ICONS[selectedWeather.icon], { className: `w-5 h-5 ${selectedWeather.snowChance > 40 ? "text-[#2F6FED]" : "text-[var(--text-muted)]"}` })}
+                    {React.createElement(WEATHER_ICONS[selectedWeather.icon], { className: "w-5 h-5 text-[var(--accent-sun)]" })}
                   <span className="text-sm font-semibold text-[var(--text-primary)]">{selectedWeather.description}</span>
                 </div>
-                <p className="text-xs text-[var(--text-secondary)] mt-1">{selectedWeather.high}°C / {selectedWeather.low}°C • {selectedWeather.snowChance}% snow chance</p>
-                {selectedWeather.snowChance > 40 && (
-                  <p className="text-xs font-medium text-[#2F6FED] mt-1">❄️ {isOperator ? "Get ready for requests!" : "Consider booking snow removal!"}</p>
-                )}
+                <p className="text-xs text-[var(--text-secondary)] mt-1">{selectedWeather.high}°C high / {selectedWeather.low}°C low • {selectedWeather.snowChance}% snow chance</p>
               </div>
             )}
 
@@ -413,36 +532,59 @@ export default function CalendarPage() {
                 <CalendarDays className="w-8 h-8 text-[var(--text-muted)] mx-auto mb-2" />
                 <p className="text-sm text-[var(--text-secondary)]">No jobs scheduled</p>
                 {!isOperator && (
-                  <button onClick={openOperatorPicker} className="inline-flex items-center gap-1.5 mt-3 px-4 py-2 bg-[#2F6FED] text-white rounded-lg text-sm font-semibold hover:bg-[#2158C7] transition">
+                  <button onClick={openOperatorPicker} className="inline-flex items-center gap-1.5 mt-3 px-4 py-2 bg-[#111111] text-white rounded-lg text-sm font-semibold hover:bg-black transition">
                     <Plus className="w-4 h-4" /> Book for {format(selectedDate, "MMM d")}
                   </button>
                 )}
               </div>
             ) : (
-              <div className="space-y-2">
-                {selectedDayJobs.map((job) => {
-                  const otherId = isOperator ? job.clientId : job.operatorId;
-                  return (
-                    <Link key={job.id} href={`/dashboard/messages/${job.chatId}`}
-                      className="block p-3 rounded-xl border border-[var(--border-color)] hover:border-[#2F6FED]/20 hover:shadow-sm transition"
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-semibold text-[var(--text-primary)]">{userNames[otherId] || (isOperator ? "Client" : "Operator")}</span>
-                        <StatusBadge status={job.status} />
-                      </div>
-                      <p className="text-xs text-[var(--text-secondary)] capitalize">{job.serviceTypes?.map((s) => s.replace("-", " ")).join(", ")}</p>
-                      {job.address && (
-                        <p className="text-xs text-[var(--text-muted)] flex items-center gap-1 mt-1"><MapPin className="w-3 h-3" />{job.address}{job.city ? `, ${job.city}` : ""}</p>
-                      )}
-                      <div className="flex items-center gap-3 mt-1">
-                        <span className="text-xs text-[var(--text-muted)] flex items-center gap-1"><Clock className="w-3 h-3" />{job.scheduledTime || "ASAP"}</span>
-                        <span className="text-xs font-bold text-green-600">${job.price}</span>
-                      </div>
-                      {job.status === "in-progress" && <div className="mt-1.5 text-[10px] font-semibold text-[#2F6FED] bg-[#2F6FED]/10 px-2 py-0.5 rounded-full inline-block">🔵 Currently Working</div>}
-                      {job.status === "accepted" && <div className="mt-1.5 text-[10px] font-semibold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full inline-block">⏳ Queued — Tap for details</div>}
-                    </Link>
-                  );
-                })}
+              <div className="mt-4 space-y-4">
+                {selectedActiveJobs.length > 0 && (
+                  <div>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Bookings</p>
+                    <div className="space-y-2">
+                      {selectedActiveJobs.map((job) => (
+                        <Link key={job.id} href={`/dashboard/messages/${job.chatId}`}
+                          className="block rounded-xl border border-[var(--border-color)] p-3 transition hover:border-[#2F6FED]/30 hover:shadow-sm"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{getOtherName(job)}</p>
+                              <p className="mt-0.5 text-xs capitalize text-[var(--text-secondary)]">{renderService(job)}</p>
+                            </div>
+                            <StatusBadge status={job.status} />
+                          </div>
+                          <div className="mt-2 grid gap-1 text-xs text-[var(--text-muted)]">
+                            <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{getJobTime(job)}</span>
+                            {job.address && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{job.address}{job.city ? `, ${job.city}` : ""}</span>}
+                          </div>
+                          <p className="mt-2 text-sm font-bold text-[var(--text-primary)]">${job.price} CAD</p>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {selectedCompletedJobs.length > 0 && (
+                  <div>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Completed</p>
+                    <div className="space-y-2">
+                      {selectedCompletedJobs.map((job) => (
+                        <Link key={job.id} href={`/dashboard/messages/${job.chatId}`}
+                          className="block rounded-xl border border-[var(--border-color)] bg-gray-50 p-3 transition hover:border-[#2F6FED]/30"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{getOtherName(job)}</p>
+                              <p className="mt-0.5 text-xs capitalize text-[var(--text-secondary)]">{renderService(job)}</p>
+                            </div>
+                            <StatusBadge status={job.status} />
+                          </div>
+                          <p className="mt-2 text-xs text-[var(--text-muted)]">{getJobTime(job)} • ${job.price} CAD</p>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {!isOperator && (
                   <button onClick={openOperatorPicker} className="w-full flex items-center justify-center gap-1.5 mt-1 py-2.5 border border-dashed border-[var(--border-color)] text-[var(--text-muted)] rounded-xl text-sm hover:border-[#2F6FED]/50 hover:text-[#2F6FED] transition">
                     <Plus className="w-4 h-4" /> Add booking for {format(selectedDate, "MMM d")}
@@ -465,6 +607,25 @@ export default function CalendarPage() {
               </div>
             </div>
           )}
+
+          <div className="bg-[var(--bg-card-solid)] rounded-2xl border border-[var(--border-color)] p-5">
+            <h3 className="font-bold text-[var(--text-primary)] mb-3 text-sm">Upcoming Schedule</h3>
+            {upcomingJobs.length === 0 ? (
+              <p className="text-sm text-[var(--text-muted)]">No upcoming jobs.</p>
+            ) : (
+              <div className="space-y-2">
+                {upcomingJobs.slice(0, 4).map((job) => (
+                  <Link key={job.id} href={`/dashboard/messages/${job.chatId}`} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border-color)] px-3 py-2.5 hover:bg-[var(--bg-secondary)]">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{getOtherName(job)}</p>
+                      <p className="text-xs text-[var(--text-muted)]">{format(getJobDisplayDate(job), "MMM d")} at {getJobTime(job)}</p>
+                    </div>
+                    <StatusBadge status={job.status} />
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -486,7 +647,7 @@ export default function CalendarPage() {
               className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden max-h-[85vh] flex flex-col"
             >
               {/* Header */}
-              <div className="bg-[#2F6FED] p-5 text-white shrink-0 relative">
+              <div className="bg-[#111111] p-5 text-white shrink-0 relative">
                 <button onClick={() => setShowOperatorPicker(false)} className="absolute top-3 right-3 p-1 rounded-lg hover:bg-white/20 transition">
                   <X className="w-5 h-5" />
                 </button>
@@ -601,4 +762,3 @@ export default function CalendarPage() {
     </div>
   );
 }
-

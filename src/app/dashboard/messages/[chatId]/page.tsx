@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import {
   collection,
@@ -19,7 +19,6 @@ import {
 import { db } from "@/lib/firebase";
 import {
   ChatMessage,
-  Chat,
   Job,
   UserProfile,
   JobStatus,
@@ -33,7 +32,6 @@ import UserAvatar from "@/components/UserAvatar";
 import {
   Send,
   ArrowLeft,
-  Search,
   MapPin,
   Clock,
   DollarSign,
@@ -41,7 +39,6 @@ import {
   Navigation,
   Play,
   CreditCard,
-  ChevronDown,
   Camera,
   Shield,
   X,
@@ -52,30 +49,13 @@ import {
   AlertTriangle,
   Briefcase,
   ExternalLink,
+  Paperclip,
+  Mic,
+  Square,
 } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
 import CancellationPopup from "@/components/CancellationPopup";
-
-type ChatWithOtherUser = Chat & {
-  otherUser?: UserProfile;
-};
-
-const formatChatTime = (ts: unknown): string => {
-  if (!ts) return "";
-
-  try {
-    if (ts instanceof Date) return format(ts, "MMM d");
-    if (typeof ts === "object" && ts !== null && "toDate" in ts) {
-      return format((ts as Timestamp).toDate(), "MMM d");
-    }
-    if (typeof ts === "string") return format(new Date(ts), "MMM d");
-  } catch {
-    return "";
-  }
-
-  return "";
-};
 
 // Haversine distance between two coords
 function getDistanceKm(
@@ -96,14 +76,12 @@ function getDistanceKm(
 export default function ChatPage() {
   const params = useParams();
   const chatId = params.chatId as string;
-  const router = useRouter();
-  const searchParams = useSearchParams();
   const { user, profile } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [job, setJob] = useState<Job | null>(null);
   const [otherUser, setOtherUser] = useState<UserProfile | null>(null);
-  const [showActions, setShowActions] = useState(false);
+  const [showMobileTasksSheet, setShowMobileTasksSheet] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sendingMessage, setSendingMessage] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -117,7 +95,13 @@ export default function ChatPage() {
   const [completionPhoto, setCompletionPhoto] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const chatPhotoInputRef = useRef<HTMLInputElement>(null);
+  const chatAttachInputRef = useRef<HTMLInputElement>(null);
+  const chatCameraInputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordingStreamRef = useRef<MediaStream | null>(null);
+  const recordingChunksRef = useRef<Blob[]>([]);
+  const recordingStartedAtRef = useRef<number>(0);
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
 
   // Review state
   const [reviewRating, setReviewRating] = useState(0);
@@ -135,23 +119,23 @@ export default function ChatPage() {
 
   // Payment gate popup
   const [showPaymentGateModal, setShowPaymentGateModal] = useState(false);
-  const [pendingStatus, setPendingStatus] = useState<JobStatus | null>(null);
 
   // Report / claim state
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportType, setReportType] = useState<ClaimType>("other");
   const [reportDescription, setReportDescription] = useState("");
   const [submittingReport, setSubmittingReport] = useState(false);
-  const [reportSubmitted, setReportSubmitted] = useState(false);
   const [showMapModal, setShowMapModal] = useState(false);
   const [showCameraQrModal, setShowCameraQrModal] = useState(false);
+  const [mobileOrigin, setMobileOrigin] = useState<string>("");
+  const [mobileOrigins, setMobileOrigins] = useState<string[]>([]);
+  const [guestUploadPath, setGuestUploadPath] = useState<string>("");
+  const [guestUploadSessionId, setGuestUploadSessionId] = useState<string>("");
+  const [selectedGuestUploadUrl, setSelectedGuestUploadUrl] = useState<string>("");
+  const [creatingGuestUploadLink, setCreatingGuestUploadLink] = useState(false);
   const [rightPanelView, setRightPanelView] = useState<"updates" | "profile">("updates");
-  const [chatList, setChatList] = useState<ChatWithOtherUser[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [chatListLoading, setChatListLoading] = useState(true);
 
   const isOperator = profile?.role === "operator";
-  const mobileCameraMode = searchParams.get("mobileCamera") === "1";
   const mapAddress = [job?.address, job?.city, job?.province].filter(Boolean).join(", ");
   const mapQuery = encodeURIComponent(mapAddress || "Canada");
   const mapLink = `https://maps.google.com/?q=${mapQuery}`;
@@ -159,7 +143,112 @@ export default function ChatPage() {
   const mapStaticUrl = mapsApiKey
     ? `https://maps.googleapis.com/maps/api/staticmap?center=${mapQuery}&zoom=15&size=1200x600&scale=2&maptype=roadmap&markers=color:0x2F6FED|${mapQuery}&key=${mapsApiKey}`
     : null;
-  const mobileCameraUrl = `https://snowd.ca/dashboard/messages/${chatId}?mobileCamera=1`;
+  const guestUploadUrls = guestUploadPath
+    ? (mobileOrigins.length ? mobileOrigins : [mobileOrigin || ""]).filter(Boolean).map((origin) => `${origin}${guestUploadPath}`)
+    : [];
+  const primaryGuestUploadUrl = selectedGuestUploadUrl || guestUploadUrls[0] || "";
+
+  useEffect(() => {
+    if (!guestUploadUrls.length) {
+      setSelectedGuestUploadUrl("");
+      return;
+    }
+
+    if (!selectedGuestUploadUrl || !guestUploadUrls.includes(selectedGuestUploadUrl)) {
+      setSelectedGuestUploadUrl(guestUploadUrls[0]);
+    }
+  }, [guestUploadUrls, selectedGuestUploadUrl]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const hostname = window.location.hostname;
+    const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1";
+
+    // For normal hosts, keep current origin. For localhost, ask the server for LAN IP.
+    if (!isLocalhost) {
+      setMobileOrigin(window.location.origin);
+      return;
+    }
+
+    let isCancelled = false;
+
+    const resolveLanOrigin = async () => {
+      try {
+        const response = await fetch("/api/network-origin", { cache: "no-store" });
+        if (!response.ok) throw new Error("Failed to resolve network origin");
+
+        const data = (await response.json()) as { origin?: string; origins?: string[] };
+        if (!isCancelled) {
+          const origins = Array.isArray(data.origins) && data.origins.length
+            ? data.origins
+            : [data.origin || window.location.origin];
+          setMobileOrigins(origins);
+          setMobileOrigin(origins[0] || window.location.origin);
+        }
+      } catch {
+        if (!isCancelled) {
+          setMobileOrigins([window.location.origin]);
+          setMobileOrigin(window.location.origin);
+        }
+      }
+    };
+
+    resolveLanOrigin();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!showCameraQrModal || !guestUploadSessionId) return;
+
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const pollForPhoto = async () => {
+      if (cancelled) return;
+
+      try {
+        const response = await fetch("/api/mobile-upload/session/consume", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId: guestUploadSessionId }),
+        });
+
+        const data = (await response.json()) as { imageDataUrl?: string; pending?: boolean };
+        if (data.imageDataUrl) {
+          await sendMessage("Sent a photo", "image", { imageUrl: data.imageDataUrl });
+          setShowCameraQrModal(false);
+          alert("Photo uploaded successfully.");
+          return;
+        }
+      } catch {
+        // Keep polling while modal is open.
+      }
+
+      timer = setTimeout(pollForPhoto, 1500);
+    };
+
+    timer = setTimeout(pollForPhoto, 800);
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [showCameraQrModal, guestUploadSessionId]);
+
+  useEffect(() => {
+    return () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+      if (recordingStreamRef.current) {
+        recordingStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, []);
 
   // Compute distance between operator and client address
   const distance = React.useMemo(() => {
@@ -265,84 +354,6 @@ export default function ChatPage() {
   useEffect(() => {
     setRightPanelView("updates");
   }, [chatId]);
-
-  // Left-side conversations list for full Telegram-style layout.
-  useEffect(() => {
-    if (!user?.uid) return;
-
-    const q = query(
-      collection(db, "chats"),
-      where("participants", "array-contains", user.uid)
-    );
-
-    const unsubscribe = onSnapshot(
-      q,
-      async (snapshot) => {
-        const list = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as ChatWithOtherUser);
-
-        list.sort((a, b) => {
-          const aTime = a.lastMessageTime;
-          const bTime = b.lastMessageTime;
-          if (!aTime) return 1;
-          if (!bTime) return -1;
-
-          const aDate =
-            aTime instanceof Date
-              ? aTime
-              : typeof aTime === "object" && "toDate" in aTime
-              ? (aTime as Timestamp).toDate()
-              : new Date(aTime as string);
-
-          const bDate =
-            bTime instanceof Date
-              ? bTime
-              : typeof bTime === "object" && "toDate" in bTime
-              ? (bTime as Timestamp).toDate()
-              : new Date(bTime as string);
-
-          return bDate.getTime() - aDate.getTime();
-        });
-
-        const enriched = await Promise.all(
-          list.map(async (chat) => {
-            const otherUid = chat.participants.find((p) => p !== user.uid);
-            if (!otherUid) return chat;
-
-            try {
-              const otherUserDoc = await getDoc(doc(db, "users", otherUid));
-              if (otherUserDoc.exists()) {
-                return {
-                  ...chat,
-                  otherUser: otherUserDoc.data() as UserProfile,
-                };
-              }
-            } catch {
-              // Keep chat row even if profile fetch fails.
-            }
-
-            return chat;
-          })
-        );
-
-        setChatList(enriched);
-        setChatListLoading(false);
-      },
-      () => setChatListLoading(false)
-    );
-
-    return () => unsubscribe();
-  }, [user?.uid]);
-
-  const filteredChatList = React.useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
-    if (!term) return chatList;
-
-    return chatList.filter((chat) => {
-      const name = chat.otherUser?.displayName?.toLowerCase() || "";
-      const preview = chat.lastMessage?.toLowerCase() || "";
-      return name.includes(term) || preview.includes(term);
-    });
-  }, [chatList, searchTerm]);
 
   // Auto scroll to bottom
   useEffect(() => {
@@ -471,7 +482,6 @@ export default function ChatPage() {
 
       // ── Guard: payment must be made before proceeding past accepted (credit/e-transfer) ──
       if ((newStatus === "en-route" || newStatus === "in-progress" || newStatus === "completed") && job.paymentMethod !== "cash" && job.paymentStatus === "pending") {
-        setPendingStatus(newStatus);
         setShowPaymentGateModal(true);
         return;
       }
@@ -533,7 +543,7 @@ export default function ChatPage() {
         }
       }
 
-      setShowActions(false);
+      setShowMobileTasksSheet(false);
     } catch (error) {
       console.error("Error updating status:", error);
     }
@@ -560,7 +570,7 @@ export default function ChatPage() {
         "status-update",
         { newStatus: "cancelled" }
       );
-      setShowActions(false);
+      setShowMobileTasksSheet(false);
       setShowCancelPopup(false);
     } catch (error) {
       console.error("Error cancelling job:", error);
@@ -684,7 +694,7 @@ export default function ChatPage() {
     await sendMessage(`Estimated arrival: ${minutes} minutes`, "eta-update", {
       eta: minutes,
     });
-    setShowActions(false);
+    setShowMobileTasksSheet(false);
   };
 
   const captureStripePaymentIfNeeded = async (activeJob: Job) => {
@@ -841,6 +851,65 @@ export default function ChatPage() {
       reader.readAsDataURL(file);
     } catch (error) {
       console.error("Chat photo upload error:", error);
+    } finally {
+      e.target.value = "";
+    }
+  };
+
+  const stopVoiceRecorder = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+  };
+
+  const startVoiceRecorder = async () => {
+    try {
+      if (typeof window === "undefined" || !("MediaRecorder" in window)) {
+        alert("Voice recording is not supported on this device.");
+        return;
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      recordingStreamRef.current = stream;
+      recordingChunksRef.current = [];
+      recordingStartedAtRef.current = Date.now();
+
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          recordingChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onstop = async () => {
+        setIsRecordingVoice(false);
+
+        const streamToStop = recordingStreamRef.current;
+        if (streamToStop) {
+          streamToStop.getTracks().forEach((track) => track.stop());
+          recordingStreamRef.current = null;
+        }
+
+        const blob = new Blob(recordingChunksRef.current, { type: "audio/webm" });
+        if (blob.size === 0) return;
+
+        const durationMs = Math.max(1000, Date.now() - recordingStartedAtRef.current);
+
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          const audioUrl = reader.result as string;
+          await sendMessage("Sent a voice clip", "voice", { audioUrl, durationMs });
+        };
+        reader.readAsDataURL(blob);
+      };
+
+      recorder.start();
+      setIsRecordingVoice(true);
+    } catch (error) {
+      console.error("Voice recorder start error:", error);
+      alert("Microphone access was denied or unavailable.");
     }
   };
 
@@ -951,10 +1020,54 @@ export default function ChatPage() {
 
   const handleOpenCameraUpload = () => {
     if (typeof window === "undefined") return;
-    const opened = window.open(mobileCameraUrl, "_blank", "noopener,noreferrer");
-    if (!opened) {
-      window.location.href = mobileCameraUrl;
-    }
+
+    const createGuestUploadLink = async (): Promise<string> => {
+      if (!chatId) return "";
+
+      try {
+        setCreatingGuestUploadLink(true);
+        const response = await fetch("/api/mobile-upload/session/create", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        const data = (await response.json()) as { sessionId?: string; error?: string };
+        if (!response.ok || !data.sessionId) {
+          throw new Error(data.error || "Failed to create temporary upload link");
+        }
+
+        const path = `/mobile-upload?session=${encodeURIComponent(data.sessionId)}`;
+        setGuestUploadPath(path);
+        setGuestUploadSessionId(data.sessionId);
+
+        const origin = mobileOrigin || window.location.origin;
+        return `${origin}${path}`;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to create temporary upload link";
+        alert(message);
+        return "";
+      } finally {
+        setCreatingGuestUploadLink(false);
+      }
+    };
+
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      navigator.userAgent
+    );
+
+    void (async () => {
+      if (isMobileDevice) {
+        chatCameraInputRef.current?.click();
+        return;
+      }
+
+      const targetUrl = await createGuestUploadLink();
+      if (!targetUrl) return;
+
+      setShowCameraQrModal(true);
+    })();
   };
 
   // Report / File Claim
@@ -978,7 +1091,6 @@ export default function ChatPage() {
         `A report has been filed. Our admin team will review this shortly.`,
         "system"
       );
-      setReportSubmitted(true);
       setShowReportModal(false);
       setReportDescription("");
     } catch (error) {
@@ -1023,7 +1135,7 @@ export default function ChatPage() {
       return (
         <div
           key={msg.id}
-          className={`flex ${isOwn ? "justify-end" : "justify-start"} mb-3 chat-bubble`}
+          className={`mb-4 flex ${isOwn ? "justify-end" : "justify-start"} chat-bubble`}
         >
           {!isOwn && otherUser && (
             <Link href={`/dashboard/u/${msg.senderId}`} className="shrink-0 mr-2 self-end">
@@ -1032,21 +1144,47 @@ export default function ChatPage() {
               </div>
             </Link>
           )}
-          <div
-            className={`max-w-[70%] rounded-2xl overflow-hidden ${
-              isOwn ? "rounded-br-md" : "rounded-bl-md"
-            }`}
-          >
+          <div className={`max-w-[72%] overflow-hidden rounded-[1.4rem] ${isOwn ? "rounded-br-md" : "rounded-bl-md"}`}>
             <img
               src={msg.metadata.imageUrl}
               alt="Shared photo"
-              className="w-full max-h-80 object-cover cursor-pointer rounded-2xl"
+              className="max-h-80 w-full cursor-pointer rounded-[1.4rem] object-cover shadow-[0_18px_30px_rgba(18,18,18,0.12)]"
               onClick={() => window.open(msg.metadata!.imageUrl!, "_blank")}
             />
-            <div className={`mt-1 flex items-center gap-1.5 text-[10px] ${isOwn ? "justify-end text-[#6B7C8F]" : "text-[#6B7C8F]"}`}>
+            <div className={`mt-1 flex items-center gap-1.5 text-[10px] ${isOwn ? "justify-end text-[var(--text-muted)]" : "text-[var(--text-muted)]"}`}>
               <span>{formatTimestamp(msg.createdAt)}</span>
               {showDeliveryState && (
                 <span className={`font-semibold ${msg.read ? "text-emerald-600" : "text-[#6B7C8F]"}`}>
+                  {msg.read ? "Read" : "Sent"}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (msg.type === "voice" && msg.metadata?.audioUrl) {
+      return (
+        <div
+          key={msg.id}
+          className={`mb-4 flex ${isOwn ? "justify-end" : "justify-start"} chat-bubble`}
+        >
+          <div
+            className={`max-w-[78%] rounded-[1.4rem] border px-3 py-2.5 shadow-sm ${
+              isOwn
+                ? "border-[#111111] bg-[#111111] text-white rounded-tr-sm"
+                : "border-[var(--border-color)] bg-white rounded-tl-sm"
+            }`}
+          >
+            <audio controls preload="metadata" className="w-full h-10">
+              <source src={msg.metadata.audioUrl} />
+            </audio>
+            <div className={`mt-1 flex items-center justify-end gap-1.5 text-[10px] ${isOwn ? "text-white/65" : "text-[var(--text-muted)]"}`}>
+              <span>{msg.metadata.durationMs ? `${Math.max(1, Math.round(msg.metadata.durationMs / 1000))}s` : "Voice"}</span>
+              <span>{formatTimestamp(msg.createdAt)}</span>
+              {showDeliveryState && (
+                <span className={`font-semibold ${isOwn && msg.read ? "text-emerald-600" : ""}`}>
                   {msg.read ? "Read" : "Sent"}
                 </span>
               )}
@@ -1069,8 +1207,8 @@ export default function ChatPage() {
       const meta = statusMeta[statusValue] || statusMeta.accepted;
 
       return (
-        <div key={msg.id} className="flex justify-center my-4 chat-bubble">
-          <div className={`${meta.bg} border rounded-full px-4 py-1.5 flex items-center gap-2`}>
+        <div key={msg.id} className="my-4 flex justify-center chat-bubble">
+          <div className={`${meta.bg} flex items-center gap-2 rounded-full border px-4 py-1.5`}>
             <CheckCircle className={`w-3.5 h-3.5 ${meta.color}`} />
             <span className={`text-xs font-semibold ${meta.color}`}>{meta.label}</span>
             <span className="text-[10px] text-gray-400">{formatTimestamp(msg.createdAt)}</span>
@@ -1081,8 +1219,8 @@ export default function ChatPage() {
 
     if (msg.type === "completion-photo") {
       return (
-        <div key={msg.id} className="flex justify-center my-4 chat-bubble">
-          <div className="bg-white rounded-2xl shadow-sm border border-green-100 p-4 max-w-[280px] w-full">
+        <div key={msg.id} className="my-4 flex justify-center chat-bubble">
+          <div className="w-full max-w-[300px] rounded-[1.4rem] border border-green-100 bg-white p-4 shadow-sm">
             <div className="flex items-center gap-2 mb-3">
               <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
                 <Camera className="w-4 h-4 text-green-600" />
@@ -1110,9 +1248,9 @@ export default function ChatPage() {
     if (isSystem) {
       const isPay = msg.type === "payment" || msg.type === "payment-request";
       return (
-        <div key={msg.id} className="flex justify-center my-3 chat-bubble">
+        <div key={msg.id} className="my-3 flex justify-center chat-bubble">
           {isPay ? (
-            <div className={`bg-white rounded-2xl shadow-sm border p-4 max-w-[280px] w-full ${
+            <div className={`w-full max-w-[300px] rounded-[1.4rem] border bg-white p-4 shadow-sm ${
               msg.type === "payment" ? "border-green-100" : "border-amber-100"
             }`}>
               <div className="flex items-center gap-2 mb-1">
@@ -1134,16 +1272,16 @@ export default function ChatPage() {
                 <button
                   onClick={initiatePayment}
                   disabled={processingPayment}
-                  className="mt-3 w-full px-4 py-2.5 bg-[#2F6FED] text-white rounded-xl text-sm font-semibold hover:bg-[#2158C7] transition disabled:opacity-50"
-                >
+                    className="mt-3 w-full rounded-xl bg-[#111111] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-black disabled:opacity-50"
+                  >
                   {processingPayment ? "Processing..." : `Pay $${job?.price} CAD Now`}
                 </button>
               )}
               <p className="text-[10px] text-gray-400 mt-2 text-right">{formatTimestamp(msg.createdAt)}</p>
             </div>
           ) : (
-            <div className="px-3 py-1.5 bg-gray-100 rounded-full">
-              <span className="text-xs text-gray-500">
+            <div className="rounded-full bg-[var(--bg-secondary)] px-3 py-1.5">
+              <span className="text-xs text-[var(--text-muted)]">
                 {msg.type === "eta-update" && <><Clock className="w-3 h-3 inline mr-1" />{msg.content}</>}
                 {msg.type !== "eta-update" && msg.content}
               </span>
@@ -1154,19 +1292,16 @@ export default function ChatPage() {
     }
     // Regular text message with clickable avatar
     return (
-      <div
-        key={msg.id}
-        className={`flex ${isOwn ? "justify-end" : "justify-start"} mb-1 chat-bubble`}
-      >
+      <div key={msg.id} className={`mb-2 flex ${isOwn ? "justify-end" : "justify-start"} chat-bubble`}>
         <div
-          className={`max-w-[72%] px-3.5 py-2 rounded-2xl shadow-sm ${
+          className={`max-w-[76%] px-4 py-3 rounded-[1.4rem] shadow-sm ${
             isOwn
-              ? "bg-[#DCF8C6] text-[#102030] rounded-tr-sm border border-[#CDECB7]"
-              : "bg-white text-gray-900 rounded-tl-sm border border-[#E2E8F0]"
+              ? "bg-[#111111] text-white rounded-tr-sm border border-[#111111]"
+              : "bg-white text-[var(--text-primary)] rounded-tl-sm border border-[var(--border-color)]"
           }`}
         >
           <p className="text-sm leading-relaxed">{msg.content}</p>
-          <div className={`mt-1 flex items-center gap-1.5 text-[10px] ${isOwn ? "justify-end text-[#60737f]" : "justify-end text-gray-400"}`}>
+          <div className={`mt-1 flex items-center gap-1.5 text-[10px] ${isOwn ? "justify-end text-white/65" : "justify-end text-[var(--text-muted)]"}`}>
             <span>{formatTimestamp(msg.createdAt)}</span>
             {showDeliveryState && (
               <span className={`font-semibold ${isOwn && msg.read ? "text-emerald-600" : ""}`}>
@@ -1193,103 +1328,23 @@ export default function ChatPage() {
   const otherUserId = otherUser?.uid || (messages.find((m) => m.senderId !== user?.uid)?.senderId);
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] md:h-[calc(100vh-4rem)] gap-0 md:gap-4 md:items-stretch overflow-hidden min-h-0">
-      {/* Left Column — Conversations */}
-      <aside className="hidden md:flex flex-col w-[320px] shrink-0 min-h-0 rounded-2xl overflow-hidden border border-[var(--border-color)] bg-white shadow-[0_20px_40px_rgba(15,23,42,0.08)]">
-        <div className="px-3 py-3 border-b border-[#E2E8F0] bg-[#F4F4F5]">
-          <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search"
-              className="w-full bg-white border border-[#DCE3EC] rounded-xl pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3B82F6]/20 focus:border-[#3B82F6]"
-            />
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto">
-          {chatListLoading ? (
-            <div className="p-4 text-sm text-slate-500">Loading chats...</div>
-          ) : filteredChatList.length === 0 ? (
-            <div className="p-4 text-sm text-slate-500">No conversations found.</div>
-          ) : (
-            <ul className="divide-y divide-[#EDF2F7]">
-              {filteredChatList.map((chat) => {
-                const unread = chat.unreadCount?.[user?.uid || ""] || 0;
-                const title = chat.otherUser?.displayName || "User";
-                const isActive = chat.id === chatId;
-
-                return (
-                  <li key={chat.id}>
-                    <Link
-                      href={`/dashboard/messages/${chat.id}`}
-                      className={`block px-3 py-2.5 transition ${
-                        isActive ? "bg-[#4A9BD6] text-white" : "hover:bg-[#F8FBFF]"
-                      }`}
-                    >
-                      <div className="flex items-start gap-2.5">
-                        <div className={`w-9 h-9 rounded-full flex items-center justify-center font-semibold shrink-0 border ${
-                          isActive
-                            ? "bg-white/20 text-white border-white/30"
-                            : "bg-[#EAF2FF] text-[#2F6FED] border-[#D8E7FF]"
-                        }`}>
-                          {title.charAt(0).toUpperCase()}
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className={`text-sm font-semibold truncate ${isActive ? "text-white" : "text-slate-900"}`}>
-                              {title}
-                            </p>
-                            <p className={`text-[11px] shrink-0 ${isActive ? "text-white/85" : "text-slate-400"}`}>
-                              {formatChatTime(chat.lastMessageTime)}
-                            </p>
-                          </div>
-
-                          <div className="flex items-center justify-between gap-2 mt-0.5">
-                            <p className={`text-xs truncate ${isActive ? "text-white/90" : unread > 0 ? "text-slate-900 font-medium" : "text-slate-500"}`}>
-                              {chat.lastMessage || "No messages yet"}
-                            </p>
-                            {unread > 0 && (
-                              <span className={`h-5 min-w-5 px-1.5 rounded-full text-[11px] font-semibold flex items-center justify-center ${isActive ? "bg-white text-[#2F6FED]" : "bg-[#3B82F6] text-white"}`}>
-                                {unread > 9 ? "9+" : unread}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-      </aside>
-
+    <div className="relative left-1/2 flex h-[calc(100dvh-6rem)] w-screen -translate-x-1/2 min-h-0 gap-0 overflow-hidden md:h-[calc(100vh-3.5rem)] md:w-[calc(100vw-288px)] md:items-stretch">
       {/* Chat Column */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-0 rounded-2xl overflow-hidden border border-[var(--border-color)] bg-[var(--bg-card-solid)] shadow-[0_20px_40px_rgba(15,23,42,0.08)]">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-y border-r border-[var(--border-color)] bg-[var(--bg-card-solid)] md:border-l">
         {/* Chat Header */}
-        <div className="bg-[#F4F4F5] px-4 py-3 flex items-center gap-3 shrink-0 border-b border-[#DFE4EA]">
+        <div className="flex shrink-0 items-center gap-3 border-b border-[var(--border-soft)] bg-white px-4 py-4">
           <Link
             href="/dashboard/messages"
-            className="p-1.5 text-[#6B7C8F] hover:text-[#0B1F33] rounded-lg hover:bg-[#EEF4FF]"
+            className="rounded-lg p-1.5 text-[var(--text-muted)] transition hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]"
           >
             <ArrowLeft className="w-5 h-5" />
           </Link>
           {/* Desktop: open profile panel. Mobile: route to profile page. */}
-          <button
-            type="button"
-            onClick={() => setRightPanelView("profile")}
-            className="hidden md:flex w-10 h-10 bg-[#2F6FED] rounded-full items-center justify-center text-white font-semibold hover:ring-2 hover:ring-[#2F6FED]/30 transition cursor-pointer shadow-sm"
-            title="Show profile details"
-          >
+          <button type="button" onClick={() => setRightPanelView("profile")} className="hidden h-11 w-11 cursor-pointer items-center justify-center rounded-2xl bg-[#111111] font-semibold text-white transition md:flex" title="Show profile details">
             {otherUser?.displayName?.charAt(0)?.toUpperCase() || "?"}
           </button>
           <Link href={`/dashboard/u/${otherUserId || ""}`} className="md:hidden">
-            <div className="w-10 h-10 bg-[#2F6FED] rounded-full flex items-center justify-center text-white font-semibold hover:ring-2 hover:ring-[#2F6FED]/30 transition cursor-pointer shadow-sm">
+            <div className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-2xl bg-[#111111] font-semibold text-white shadow-sm transition">
               {otherUser?.displayName?.charAt(0)?.toUpperCase() || "?"}
             </div>
           </Link>
@@ -1299,20 +1354,20 @@ export default function ChatPage() {
               onClick={() => setRightPanelView("profile")}
               className="hidden md:block hover:underline underline-offset-2"
             >
-              <p className="font-semibold text-[#0B1F33] truncate">
+              <p className="truncate font-semibold text-[var(--text-primary)]">
                 {otherUser?.displayName || "User"}
               </p>
             </button>
             <Link href={`/dashboard/u/${otherUserId || ""}`} className="md:hidden hover:underline underline-offset-2">
-              <p className="font-semibold text-[#0B1F33] truncate">
+              <p className="truncate font-semibold text-[var(--text-primary)]">
                 {otherUser?.displayName || "User"}
               </p>
             </Link>
-            <p className="text-xs text-[#6B7C8F] flex items-center gap-1.5">
+            <p className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
               <MapPin className="w-3 h-3" />
               {otherUser?.city}, {otherUser?.province}
               {distance !== null && (
-                <span className="flex items-center gap-0.5 ml-2 text-[#2F6FED] font-semibold">
+                <span className="ml-2 flex items-center gap-0.5 font-semibold text-[var(--text-primary)]">
                   <Compass className="w-3 h-3" />
                   {distance.toFixed(1)} km away
                 </span>
@@ -1335,7 +1390,7 @@ export default function ChatPage() {
 
         {/* Address bar for operator — show client address */}
         {isOperator && job && (
-          <div className="bg-[#F8FAFD] border-b border-[var(--border-soft)] px-4 py-2.5 flex items-center gap-2 text-xs">
+          <div className="flex items-center gap-2 border-b border-[var(--border-soft)] bg-[var(--bg-secondary)] px-4 py-3 text-xs">
             <a
               href={mapLink}
               target="_blank"
@@ -1343,12 +1398,12 @@ export default function ChatPage() {
               className="inline-flex items-center"
               title="Open in Google Maps"
             >
-              <MapPin className="w-3.5 h-3.5 text-[#2F6FED] shrink-0" />
+              <MapPin className="h-3.5 w-3.5 shrink-0 text-[var(--text-primary)]" />
             </a>
-            <span className="text-[#0B1F33] font-medium truncate">{job.address}</span>
-            <span className="text-[#6B7C8F]">{job.city}, {job.province}</span>
+            <span className="truncate font-medium text-[var(--text-primary)]">{job.address}</span>
+            <span className="text-[var(--text-muted)]">{job.city}, {job.province}</span>
             {distance !== null && (
-              <span className="ml-auto shrink-0 px-2.5 py-0.5 bg-[#E8F0FF] text-[#2F6FED] rounded-full font-semibold">
+              <span className="ml-auto shrink-0 rounded-full bg-white px-2.5 py-0.5 font-semibold text-[var(--text-primary)]">
                 {distance.toFixed(1)} km
               </span>
             )}
@@ -1357,7 +1412,7 @@ export default function ChatPage() {
 
         {/* Client address bar — for client to see their own address */}
         {!isOperator && job && (
-          <div className="bg-[#F8FAFD] border-b border-[var(--border-soft)] px-4 py-2.5 flex items-center gap-2 text-xs">
+          <div className="flex items-center gap-2 border-b border-[var(--border-soft)] bg-[var(--bg-secondary)] px-4 py-3 text-xs">
             <a
               href={mapLink}
               target="_blank"
@@ -1365,22 +1420,22 @@ export default function ChatPage() {
               className="inline-flex items-center"
               title="Open in Google Maps"
             >
-              <MapPin className="w-3.5 h-3.5 text-[#2F6FED] shrink-0" />
+              <MapPin className="h-3.5 w-3.5 shrink-0 text-[var(--text-primary)]" />
             </a>
-            <span className="text-[#0B1F33] font-medium truncate">{job.address}</span>
-            <span className="text-[#6B7C8F]">{job.city}, {job.province}</span>
+            <span className="truncate font-medium text-[var(--text-primary)]">{job.address}</span>
+            <span className="text-[var(--text-muted)]">{job.city}, {job.province}</span>
           </div>
         )}
 
         {/* Job Info Bar */}
         {job && (
-          <div className="bg-[#F7FAFF] border-b border-[#DCE8FF] px-4 py-3">
+          <div className="border-b border-[var(--border-soft)] bg-[#f7f7f4] px-4 py-4">
             <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_220px] gap-3 items-stretch">
-              <div className="rounded-xl bg-white border border-[#E6EEF6] px-3.5 py-3">
-                <p className="text-[11px] uppercase tracking-wide text-[#6B7C8F] font-semibold">Service Details</p>
+              <div className="rounded-[1.3rem] border border-[var(--border-color)] bg-white px-4 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Work order</p>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   {job.serviceTypes?.map((s) => (
-                    <span key={s} className="px-2.5 py-1 bg-[#2F6FED]/10 text-[#2F6FED] rounded-full text-xs font-semibold capitalize">
+                    <span key={s} className="rounded-full bg-[var(--bg-secondary)] px-2.5 py-1 text-xs font-semibold capitalize text-[var(--text-primary)]">
                       {s.replace("-", " ")}
                     </span>
                   ))}
@@ -1398,13 +1453,13 @@ export default function ChatPage() {
                 </div>
               </div>
 
-              <div className="rounded-xl bg-white border border-[#E6EEF6] px-3.5 py-3 flex flex-col justify-between">
-                <p className="text-[11px] uppercase tracking-wide text-[#6B7C8F] font-semibold">Price & Payment</p>
+              <div className="flex flex-col justify-between rounded-[1.3rem] border border-[var(--border-color)] bg-[#111111] px-4 py-4 text-white">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45">Price & payment</p>
                 <div className="mt-2">
                   <div className="flex items-center gap-1.5">
-                    <DollarSign className="w-4 h-4 text-[#2F6FED]" />
-                    <span className="text-xl font-extrabold text-[#0B1F33] leading-none">{job.price}</span>
-                    <span className="text-xs text-[#6B7C8F] font-semibold mt-1">CAD</span>
+                    <DollarSign className="h-4 w-4 text-white" />
+                    <span className="text-2xl font-extrabold leading-none">{job.price}</span>
+                    <span className="mt-1 text-xs font-semibold text-white/55">CAD</span>
                   </div>
                 </div>
                 <div className="mt-2.5">
@@ -1429,26 +1484,42 @@ export default function ChatPage() {
           </div>
         )}
 
-        {/* Compact progress tracker on mobile */}
+        {/* Mobile progress strip */}
         {job && (
-          <div className="md:hidden px-4 py-2 bg-white border-b border-[var(--border-soft)]">
-            <ProgressTracker
-              status={job.status}
-              paymentStatus={job.paymentStatus as "pending" | "held" | "paid" | "refunded" | undefined}
-              compact
-            />
+          <div className="md:hidden px-3 py-2.5 bg-white border-b border-[var(--border-soft)]">
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+              <span className="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#EAF1FF] text-[#2F6FED]">
+                {job.status.replace("-", " ")}
+              </span>
+              <span
+                className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+                  job.paymentStatus === "paid"
+                    ? "bg-green-50 text-green-700"
+                    : job.paymentStatus === "held"
+                    ? "bg-amber-50 text-amber-700"
+                    : "bg-gray-100 text-gray-600"
+                }`}
+              >
+                Payment: {job.paymentStatus}
+              </span>
+              {job.eta ? (
+                <span className="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#F2F6FB] text-[#5B6B84]">
+                  ETA {job.eta} min
+                </span>
+              ) : null}
+            </div>
           </div>
         )}
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 bg-[radial-gradient(circle_at_20%_20%,rgba(175,217,163,0.35),transparent_30%),radial-gradient(circle_at_80%_70%,rgba(159,206,255,0.25),transparent_35%),linear-gradient(180deg,#EAF4DD_0%,#E7F1DA_45%,#E2EED5_100%)] space-y-1">
+        <div className="flex-1 space-y-1 overflow-y-auto bg-[linear-gradient(180deg,#f5f5f0_0%,#f1f0ea_100%)] px-3 pb-28 pt-4 sm:px-4 md:pb-4">
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center py-12 text-[#6B7C8F]">
-              <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-[var(--border-soft)] mb-3">
-                <CheckCircle className="w-7 h-7 text-[#2F6FED]" />
+              <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--border-soft)] bg-white shadow-sm">
+                <CheckCircle className="h-7 w-7 text-[#111111]" />
               </div>
-              <p className="font-medium text-sm text-gray-700">Conversation started</p>
-              <p className="text-xs text-gray-500 mt-1">Messages will appear here</p>
+              <p className="text-sm font-medium text-gray-700">Conversation started</p>
+              <p className="mt-1 text-xs text-gray-500">Messages and status updates will appear here</p>
             </div>
           )}
           {messages.map(renderMessage)}
@@ -1457,7 +1528,7 @@ export default function ChatPage() {
 
         {/* Review Prompt — Auto-shows when job is completed */}
         {job?.status === "completed" && !reviewSubmitted && (
-          <div className="bg-yellow-50 border-x border-[#E6EEF6] px-4 py-4 border-t border-yellow-200">
+          <div className="hidden md:block bg-yellow-50 border-x border-[#E6EEF6] px-4 py-4 border-t border-yellow-200">
             <div className="text-center mb-3">
               <Star className="w-6 h-6 text-yellow-500 mx-auto mb-1" />
               <p className="text-sm font-semibold text-gray-900">
@@ -1509,7 +1580,7 @@ export default function ChatPage() {
           </div>
         )}
         {job?.status === "completed" && reviewSubmitted && (
-          <div className="bg-green-50 border-x border-[#E6EEF6] px-4 py-3 border-t border-green-200 text-center">
+          <div className="hidden md:block bg-green-50 border-x border-[#E6EEF6] px-4 py-3 border-t border-green-200 text-center">
             <div className="flex items-center justify-center gap-2 text-green-700">
               <CheckCircle className="w-4 h-4" />
               <span className="text-sm font-medium">Thank you for your review!</span>
@@ -1517,117 +1588,9 @@ export default function ChatPage() {
           </div>
         )}
 
-        {/* Operator Quick Actions */}
-        {isOperator && showActions && job && job.status !== "completed" && job.status !== "cancelled" && (
-          <div className="bg-white border-x border-[#E6EEF6] border-t border-gray-100 px-4 py-3 md:hidden">
-            <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-widest mb-2.5">Job Actions</p>
-            <div className="grid grid-cols-2 gap-2">
-              {job.status === "pending" && (
-                <button
-                  onClick={() => updateJobStatus("accepted")}
-                  className="flex items-center justify-center gap-2 px-3 py-2.5 bg-green-500 text-white rounded-xl text-sm font-semibold hover:bg-green-600 transition shadow-sm"
-                >
-                  <CheckCircle className="w-4 h-4" /> Accept Job
-                </button>
-              )}
-              {job.status === "accepted" && (
-                <button
-                  onClick={() => updateJobStatus("en-route")}
-                  className="flex items-center justify-center gap-2 px-3 py-2.5 bg-[#2F6FED] text-white rounded-xl text-sm font-semibold hover:bg-[#2158C7] transition shadow-sm"
-                >
-                  <Navigation className="w-4 h-4" /> I&apos;m On My Way
-                </button>
-              )}
-              {job.status === "en-route" && (
-                <>
-                  <button
-                    onClick={() => updateJobStatus("in-progress")}
-                    className="flex items-center justify-center gap-2 px-3 py-2.5 bg-[#2F6FED] text-white rounded-xl text-sm font-semibold hover:bg-[#2158C7] transition shadow-sm"
-                  >
-                    <Play className="w-4 h-4" /> Start Job
-                  </button>
-                  <button
-                    onClick={() => updateJobStatus("accepted")}
-                    className="flex items-center justify-center gap-2 px-3 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-200 transition"
-                  >
-                    <ArrowLeft className="w-4 h-4" /> Go Back
-                  </button>
-                </>
-              )}
-              {job.status === "in-progress" && (
-                <>
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploadingPhoto}
-                    className="flex items-center justify-center gap-2 px-3 py-2.5 bg-[#2F6FED] text-white rounded-xl text-sm font-semibold hover:bg-[#2158C7] transition shadow-sm disabled:opacity-50 col-span-2"
-                  >
-                    <Camera className="w-4 h-4" />
-                    {uploadingPhoto ? "Uploading Photo..." : "Submit Photo Proof & Complete"}
-                  </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={handlePhotoUpload}
-                    className="hidden"
-                  />
-                  <button
-                    onClick={() => updateJobStatus("en-route")}
-                    className="flex items-center justify-center gap-2 px-3 py-2 bg-gray-100 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-200 transition col-span-2"
-                  >
-                    <ArrowLeft className="w-3.5 h-3.5" /> Go Back to En Route
-                  </button>
-                </>
-              )}
-
-              {(job.status === "accepted" || job.status === "en-route") && (
-                <>
-                  <div className="col-span-2 border-t border-gray-100 my-1" />
-                  <p className="col-span-2 text-[10px] text-gray-400 font-semibold uppercase tracking-widest">Send ETA</p>
-                  <button onClick={() => sendEtaUpdate(10)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-[#2F6FED]/8 text-[#2F6FED] rounded-xl text-xs font-semibold hover:bg-[#2F6FED]/15 transition">
-                    <Clock className="w-3.5 h-3.5" /> 10 min
-                  </button>
-                  <button onClick={() => sendEtaUpdate(20)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-[#2F6FED]/8 text-[#2F6FED] rounded-xl text-xs font-semibold hover:bg-[#2F6FED]/15 transition">
-                    <Clock className="w-3.5 h-3.5" /> 20 min
-                  </button>
-                  <button onClick={() => sendEtaUpdate(30)} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-[#2F6FED]/8 text-[#2F6FED] rounded-xl text-xs font-semibold hover:bg-[#2F6FED]/15 transition">
-                    <Clock className="w-3.5 h-3.5" /> 30 min
-                  </button>
-                </>
-              )}
-
-              {job.status === "accepted" && job.paymentStatus === "pending" && (
-                <button
-                  onClick={async () => {
-                    await sendMessage(
-                      `${profile?.displayName} is requesting payment of $${job.price} CAD for this job. Tap Pay Now to hold funds securely with snowd.ca.`,
-                      "payment-request",
-                      { amount: job.price }
-                    );
-                    setShowActions(false);
-                  }}
-                  className="flex items-center justify-center gap-2 px-3 py-2.5 bg-amber-500 text-white rounded-xl text-sm font-semibold hover:bg-amber-600 transition"
-                >
-                  <CreditCard className="w-4 h-4" /> Request Payment
-                </button>
-              )}
-
-              <div className="col-span-2 border-t border-gray-100 mt-1 pt-2">
-                <button
-                  onClick={cancelJob}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 text-red-500 rounded-xl text-sm font-medium hover:bg-red-50 transition"
-                >
-                  <X className="w-4 h-4" /> Cancel Job
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Client cancel button for pending jobs */}
         {!isOperator && job?.status === "pending" && (
-          <div className="bg-gray-50 border-x border-gray-100 px-4 py-3 border-t border-gray-200">
+          <div className="hidden md:block bg-gray-50 border-x border-gray-100 px-4 py-3 border-t border-gray-200">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-800">Job Request Pending</p>
@@ -1646,7 +1609,7 @@ export default function ChatPage() {
 
         {/* Client payment banner */}
         {!isOperator && job?.status === "accepted" && job?.paymentStatus === "pending" && (
-          <div className="bg-yellow-50 border-x border-yellow-100 px-4 py-3 border-t border-yellow-200">
+          <div className="hidden md:block bg-yellow-50 border-x border-yellow-100 px-4 py-3 border-t border-yellow-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Shield className="w-5 h-5 text-yellow-600" />
@@ -1678,7 +1641,7 @@ export default function ChatPage() {
 
         {/* Completed Job — Rehire option (clients only, once) */}
         {job?.status === "completed" && reviewSubmitted && !isOperator && !rehireSent && (
-          <div className="bg-[#2F6FED]/5 border-x border-[#2F6FED]/10 px-4 py-3 border-t border-[#2F6FED]/20">
+          <div className="hidden md:block bg-[#2F6FED]/5 border-x border-[#2F6FED]/10 px-4 py-3 border-t border-[#2F6FED]/20">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-900">Job Complete</p>
@@ -1698,7 +1661,7 @@ export default function ChatPage() {
 
         {/* Cancelled Job — Clients can reopen within 5 min, or either side can rehire. Operators cannot reopen. */}
         {job?.status === "cancelled" && (
-          <div className="bg-red-50 border-x border-red-100 px-4 py-3 border-t border-red-200">
+          <div className="hidden md:block bg-red-50 border-x border-red-100 px-4 py-3 border-t border-red-200">
             {/* Only clients can reopen within 5-minute window */}
             {!isOperator && reopenTimeLeft !== null && reopenTimeLeft > 0 ? (
               <div className="flex items-center justify-between">
@@ -1740,49 +1703,120 @@ export default function ChatPage() {
         )}
 
         {/* Message Input */}
-        <div className="bg-[#F4F4F5] px-3 sm:px-4 py-3 shrink-0 border-t border-[#DFE4EA]">
-          <form onSubmit={handleSubmit} className="flex items-center gap-2 rounded-2xl border border-[#D7DDE5] bg-white p-2">
-            {isOperator && (
-              <button
-                type="button"
-                onClick={() => setShowActions(!showActions)}
-                className={`p-2 rounded-lg transition ${
-                  showActions
-                    ? "bg-[#D6E8F5] text-[#2F6FED]"
-                    : "text-[#6B7C8F] hover:text-[#0B1F33] hover:bg-[#EEF4FF]"
-                }`}
-              >
-                <ChevronDown className={`w-5 h-5 transition-transform ${showActions ? "rotate-180" : ""}`} />
-              </button>
-            )}
-            {/* Photo upload button */}
+        <div className="sticky bottom-0 z-20 shrink-0 border-t border-[var(--border-soft)] bg-white px-2.5 pb-[max(10px,env(safe-area-inset-bottom))] pt-2.5 sm:px-4">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handlePhotoUpload}
+            className="hidden"
+          />
+          <input
+            ref={chatAttachInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleChatPhotoUpload}
+            className="hidden"
+          />
+          <input
+            ref={chatCameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handleChatPhotoUpload}
+            className="hidden"
+          />
+
+          <form onSubmit={handleSubmit} className="flex items-center gap-2 rounded-[1.4rem] border border-[var(--border-color)] bg-[var(--bg-card-solid)] px-2 py-1.5 shadow-sm md:hidden">
             <button
               type="button"
-                onClick={handleOpenCameraUpload}
+              onClick={() => setShowMobileTasksSheet(true)}
+              className="rounded-full bg-[var(--bg-secondary)] px-3 py-1.5 text-xs font-semibold text-[var(--text-primary)]"
+            >
+              Work order
+            </button>
+            <button
+              type="button"
+              onClick={() => chatAttachInputRef.current?.click()}
+              className="p-2 rounded-lg text-[#6B7C8F] hover:bg-[#EEF4FF] hover:text-[#2F6FED]"
+              title="Attach photo"
+            >
+              <Paperclip className="w-4.5 h-4.5" />
+            </button>
+            <button
+              type="button"
+              onClick={handleOpenCameraUpload}
+              disabled={creatingGuestUploadLink}
+              className="p-2 rounded-lg text-[#6B7C8F] hover:bg-[#EEF4FF] hover:text-[#2F6FED] disabled:opacity-50"
+              title="Take photo"
+            >
+              <Camera className="w-4.5 h-4.5" />
+            </button>
+            <input
+              type="text"
+              value={newMessage}
+              onFocus={() => setShowMobileTasksSheet(false)}
+              onChange={(e) => setNewMessage(e.target.value)}
+              placeholder="Write a message..."
+              className="flex-1 min-w-0 px-2 py-2 bg-transparent outline-none text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
+            />
+
+            {newMessage.trim() ? (
+              <button
+                type="submit"
+                disabled={sendingMessage}
+                className="rounded-full bg-[#111111] p-2.5 text-white transition hover:bg-black disabled:opacity-40"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  if (isRecordingVoice) {
+                    stopVoiceRecorder();
+                  } else {
+                    void startVoiceRecorder();
+                  }
+                }}
+                className={`rounded-full p-2.5 transition ${isRecordingVoice ? "bg-red-500 text-white" : "bg-[var(--bg-secondary)] text-[var(--text-primary)]"}`}
+                title={isRecordingVoice ? "Stop recording" : "Record voice"}
+              >
+                {isRecordingVoice ? <Square className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              </button>
+            )}
+          </form>
+
+          <form onSubmit={handleSubmit} className="hidden items-center gap-2 rounded-[1.4rem] border border-[var(--border-color)] bg-[var(--bg-card-solid)] p-2 md:flex">
+            <button
+              type="button"
+              onClick={() => chatAttachInputRef.current?.click()}
               className="p-2 text-[#6B7C8F] hover:text-[#2F6FED] hover:bg-[#EEF4FF] rounded-lg transition"
-              title="Send photo"
+              title="Attach photo"
+            >
+              <Paperclip className="w-5 h-5" />
+            </button>
+            <button
+              type="button"
+              onClick={handleOpenCameraUpload}
+              disabled={creatingGuestUploadLink}
+              className="p-2 text-[#6B7C8F] hover:text-[#2F6FED] hover:bg-[#EEF4FF] rounded-lg transition"
+              title="Take photo"
             >
               <Camera className="w-5 h-5" />
             </button>
-            <input
-              ref={chatPhotoInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handleChatPhotoUpload}
-              className="hidden"
-            />
             <input
               type="text"
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               placeholder="Type a message..."
-              className="flex-1 px-4 py-2.5 bg-white rounded-xl outline-none focus:ring-2 focus:ring-[#2F6FED]/30 text-sm border border-[var(--border-color)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
+              className="flex-1 rounded-xl border border-[var(--border-color)] bg-[#fbfbf8] px-4 py-2.5 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
             />
             <button
               type="submit"
               disabled={!newMessage.trim() || sendingMessage}
-              className="px-4 py-2.5 bg-[#2F6FED] text-white rounded-xl hover:bg-[#2158C7] transition disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#111111] px-4 py-2.5 text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-40"
             >
               <Send className="w-5 h-5" />
               <span className="hidden sm:inline text-sm font-semibold">
@@ -1795,14 +1829,14 @@ export default function ChatPage() {
 
       {/* Desktop Right Panel — dynamic: updates by default, profile on demand */}
         {(job || otherUser) && (
-        <div className="hidden md:flex flex-col w-80 shrink-0 h-full min-h-0">
-          <div className="bg-[var(--bg-card-solid)] rounded-2xl border border-[var(--border-color)] p-5 h-full overflow-y-auto min-h-0">
-            <div className="mb-4 flex items-center gap-2 rounded-xl bg-[#F4F8FF] p-1 border border-[#E3ECFA]">
+        <div className="hidden md:flex flex-col w-[360px] shrink-0 h-full min-h-0">
+          <div className="h-full min-h-0 overflow-y-auto border-y border-r border-[var(--border-color)] bg-[var(--bg-card-solid)] p-5">
+            <div className="mb-4 flex items-center gap-2 rounded-xl border border-[var(--border-soft)] bg-[var(--bg-secondary)] p-1">
               <button
                 type="button"
                 onClick={() => setRightPanelView("updates")}
                 className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                  rightPanelView === "updates" ? "bg-white text-[#2F6FED] shadow-sm" : "text-[#6B7C8F] hover:text-[#0B1F33]"
+                  rightPanelView === "updates" ? "bg-white text-[var(--text-primary)] shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                 }`}
               >
                 Updates
@@ -1811,7 +1845,7 @@ export default function ChatPage() {
                 type="button"
                 onClick={() => setRightPanelView("profile")}
                 className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                  rightPanelView === "profile" ? "bg-white text-[#2F6FED] shadow-sm" : "text-[#6B7C8F] hover:text-[#0B1F33]"
+                  rightPanelView === "profile" ? "bg-white text-[var(--text-primary)] shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                 }`}
               >
                 Profile
@@ -1820,7 +1854,7 @@ export default function ChatPage() {
 
             {rightPanelView === "updates" && job && (
               <>
-                <h3 className="text-sm font-semibold text-[#6B7C8F] uppercase tracking-wide mb-4">Job Progress</h3>
+                <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-[var(--text-muted)]">Work order progress</h3>
             <ProgressTracker
               status={job.status}
               paymentStatus={job.paymentStatus as "pending" | "held" | "paid" | "refunded" | undefined}
@@ -1829,7 +1863,7 @@ export default function ChatPage() {
             {/* Operator Update Buttons */}
             {isOperator && job.status !== "completed" && job.status !== "cancelled" && (
               <div className="mt-4 pt-3 border-t border-[#E6EEF6] space-y-2">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Update Progress</p>
+                <p className="mb-3 text-xs font-bold uppercase tracking-widest text-gray-400">Update Progress</p>
                 {job.status === "pending" && (
                   <div className="grid grid-cols-2 gap-2">
                     <button
@@ -1892,23 +1926,23 @@ export default function ChatPage() {
 
             {isOperator && (job.status === "accepted" || job.status === "en-route") && (
               <div className="mt-4 pt-3 border-t border-[#E6EEF6] space-y-2">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Quick Comms</p>
+                <p className="mb-2 text-xs font-bold uppercase tracking-widest text-gray-400">Quick Comms</p>
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     onClick={() => sendEtaUpdate(10)}
-                    className="flex items-center justify-center gap-1 px-2 py-2 bg-[#2F6FED]/8 text-[#2F6FED] rounded-xl text-xs font-semibold hover:bg-[#2F6FED]/15 transition"
+                    className="flex items-center justify-center gap-1 rounded-xl bg-[var(--bg-secondary)] px-2 py-2 text-xs font-semibold text-[var(--text-primary)] transition hover:bg-[#e5e4dc]"
                   >
                     10m
                   </button>
                   <button
                     onClick={() => sendEtaUpdate(20)}
-                    className="flex items-center justify-center gap-1 px-2 py-2 bg-[#2F6FED]/8 text-[#2F6FED] rounded-xl text-xs font-semibold hover:bg-[#2F6FED]/15 transition"
+                    className="flex items-center justify-center gap-1 rounded-xl bg-[var(--bg-secondary)] px-2 py-2 text-xs font-semibold text-[var(--text-primary)] transition hover:bg-[#e5e4dc]"
                   >
                     20m
                   </button>
                   <button
                     onClick={() => sendEtaUpdate(30)}
-                    className="flex items-center justify-center gap-1 px-2 py-2 bg-[#2F6FED]/8 text-[#2F6FED] rounded-xl text-xs font-semibold hover:bg-[#2F6FED]/15 transition"
+                    className="flex items-center justify-center gap-1 rounded-xl bg-[var(--bg-secondary)] px-2 py-2 text-xs font-semibold text-[var(--text-primary)] transition hover:bg-[#e5e4dc]"
                   >
                     30m
                   </button>
@@ -2004,11 +2038,11 @@ export default function ChatPage() {
               </div>
             </div>
 
-                <div className="mt-4 pt-3 border-t border-[#E6EEF6]">
+                <div className="mt-4 border-t border-[#E6EEF6] pt-3">
                   <button
                     type="button"
                     onClick={() => setRightPanelView("profile")}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-[#F3F7FF] text-[#2F6FED] rounded-xl text-xs font-semibold hover:bg-[#EAF1FF] transition"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--bg-secondary)] px-3 py-2.5 text-xs font-semibold text-[var(--text-primary)] transition hover:bg-[#e5e4dc]"
                   >
                     <User className="w-3.5 h-3.5" /> View profile details
                   </button>
@@ -2064,6 +2098,118 @@ export default function ChatPage() {
         </div>
       )}
 
+
+      {/* Mobile Tasks Sheet */}
+      {showMobileTasksSheet && job && (
+        <div className="fixed inset-0 z-50 md:hidden" onClick={() => setShowMobileTasksSheet(false)}>
+          <div className="absolute inset-0 bg-black/45" />
+          <div
+            className="absolute bottom-0 left-0 right-0 rounded-t-3xl bg-white border-t border-[#E6EEF6] p-4 pb-[max(16px,env(safe-area-inset-bottom))] shadow-2xl max-h-[78dvh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-[#DCE8FF]" />
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-base font-bold text-[#0B1F33]">Work order</h3>
+              <button
+                type="button"
+                onClick={() => setShowMobileTasksSheet(false)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex flex-wrap gap-2 mb-4">
+              <span className="rounded-full bg-[var(--bg-secondary)] px-2.5 py-1 text-[11px] font-semibold text-[var(--text-primary)]">{job.status.replace("-", " ")}</span>
+              <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+                job.paymentStatus === "paid"
+                  ? "bg-green-50 text-green-700"
+                  : job.paymentStatus === "held"
+                  ? "bg-amber-50 text-amber-700"
+                  : "bg-gray-100 text-gray-600"
+              }`}>
+                Payment: {job.paymentStatus}
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => window.open(mapLink, "_blank", "noopener,noreferrer")}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--bg-secondary)] px-3 py-2.5 text-sm font-semibold text-[var(--text-primary)]"
+              >
+                <MapPin className="w-4 h-4" /> Open Map
+              </button>
+
+              {isOperator && job.status === "pending" && (
+                <button onClick={() => updateJobStatus("accepted")} className="w-full px-3 py-2.5 rounded-xl bg-green-600 text-white text-sm font-semibold">Accept Job</button>
+              )}
+              {isOperator && job.status === "accepted" && (
+                <button onClick={() => updateJobStatus("en-route")} className="w-full px-3 py-2.5 rounded-xl bg-[#2F6FED] text-white text-sm font-semibold">I&apos;m On My Way</button>
+              )}
+              {isOperator && job.status === "en-route" && (
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={() => updateJobStatus("in-progress")} className="px-3 py-2.5 rounded-xl bg-[#2F6FED] text-white text-sm font-semibold">Start Job</button>
+                  <button onClick={() => updateJobStatus("accepted")} className="px-3 py-2.5 rounded-xl bg-gray-100 text-gray-700 text-sm font-semibold">Go Back</button>
+                </div>
+              )}
+              {isOperator && job.status === "in-progress" && (
+                <>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingPhoto}
+                    className="w-full px-3 py-2.5 rounded-xl bg-[#2F6FED] text-white text-sm font-semibold disabled:opacity-50"
+                  >
+                    {uploadingPhoto ? "Uploading..." : "Submit Photo Proof & Complete"}
+                  </button>
+                  <button onClick={() => updateJobStatus("en-route")} className="w-full px-3 py-2.5 rounded-xl bg-gray-100 text-gray-700 text-sm font-semibold">Back to En Route</button>
+                </>
+              )}
+
+              {isOperator && (job.status === "accepted" || job.status === "en-route") && (
+                <div className="grid grid-cols-3 gap-2">
+                  <button onClick={() => sendEtaUpdate(10)} className="px-2 py-2 rounded-xl bg-[#EEF4FF] text-[#2F6FED] text-xs font-semibold">ETA 10m</button>
+                  <button onClick={() => sendEtaUpdate(20)} className="px-2 py-2 rounded-xl bg-[#EEF4FF] text-[#2F6FED] text-xs font-semibold">ETA 20m</button>
+                  <button onClick={() => sendEtaUpdate(30)} className="px-2 py-2 rounded-xl bg-[#EEF4FF] text-[#2F6FED] text-xs font-semibold">ETA 30m</button>
+                </div>
+              )}
+
+              {!isOperator && job.status === "accepted" && job.paymentStatus === "pending" && (
+                <button onClick={initiatePayment} disabled={processingPayment} className="w-full px-3 py-2.5 rounded-xl bg-[#2F6FED] text-white text-sm font-semibold disabled:opacity-50">
+                  {processingPayment ? "Processing..." : `Pay $${job.price} CAD`}
+                </button>
+              )}
+
+              {!isOperator && job.status === "pending" && (
+                <button onClick={cancelJob} className="w-full px-3 py-2.5 rounded-xl bg-red-50 text-red-700 text-sm font-semibold">Cancel Request</button>
+              )}
+
+              {!isOperator && job.status === "cancelled" && reopenTimeLeft !== null && reopenTimeLeft > 0 && (
+                <button onClick={reopenJob} className="w-full px-3 py-2.5 rounded-xl bg-[#2F6FED] text-white text-sm font-semibold">Reopen Job</button>
+              )}
+
+              {!isOperator && (job.status === "completed" || job.status === "cancelled") && !rehireSent && (
+                <button onClick={rehireOperator} disabled={rehiring} className="w-full px-3 py-2.5 rounded-xl bg-[#EAF1FF] text-[#2F6FED] text-sm font-semibold disabled:opacity-50">
+                  {rehiring ? "Creating..." : "Rehire"}
+                </button>
+              )}
+
+              {job.status === "completed" && !reviewSubmitted && !isOperator && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMobileTasksSheet(false);
+                    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+                  }}
+                  className="w-full px-3 py-2.5 rounded-xl bg-yellow-50 text-yellow-800 text-sm font-semibold"
+                >
+                  Leave Review Below
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Cancellation Popup */}
       <CancellationPopup
@@ -2148,14 +2294,13 @@ export default function ChatPage() {
                     { amount: job.price }
                   );
                   setShowPaymentGateModal(false);
-                  setPendingStatus(null);
                 }}
                 className="w-full py-3 bg-[#2F6FED] text-white rounded-xl font-semibold text-sm hover:bg-[#2158C7] transition flex items-center justify-center gap-2"
               >
                 <CreditCard className="w-4 h-4" /> Send Payment Request to Client
               </button>
               <button
-                onClick={() => { setShowPaymentGateModal(false); setPendingStatus(null); }}
+                onClick={() => setShowPaymentGateModal(false)}
                 className="w-full py-2.5 text-gray-500 text-sm font-medium hover:text-gray-700 transition"
               >
                 Cancel
@@ -2221,54 +2366,88 @@ export default function ChatPage() {
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <p className="text-xs text-[#6B7C8F] mt-1.5">Scan the QR code on your phone, open the chat page, then tap Open Camera and submit.</p>
+            <p className="text-xs text-[#6B7C8F] mt-1.5">Scan on your phone, take one photo, and keep this window open until the upload appears in chat.</p>
             <div className="mt-4 rounded-xl border border-[#E6EEF6] bg-[#F8FAFD] p-3 flex items-center justify-center">
-              <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(mobileCameraUrl)}`}
-                alt="QR code for mobile camera upload"
-                className="w-[220px] h-[220px]"
-              />
+              {primaryGuestUploadUrl ? (
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(primaryGuestUploadUrl)}`}
+                  alt="QR code for mobile camera upload"
+                  className="w-[240px] h-[240px]"
+                />
+              ) : (
+                <p className="text-sm text-[#6B7C8F]">Preparing temporary link...</p>
+              )}
             </div>
+            {guestUploadUrls.length > 1 && (
+              <div className="mt-3 space-y-1.5">
+                <p className="text-[11px] font-semibold text-[#6B7C8F] uppercase tracking-wide">Try another link</p>
+                {guestUploadUrls.map((url, index) => (
+                  <div key={url} className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedGuestUploadUrl(url)}
+                      className={`flex-1 text-left truncate px-2.5 py-2 rounded-lg border text-xs ${
+                        primaryGuestUploadUrl === url
+                          ? "border-[#2F6FED] bg-[#EEF4FF] text-[#2F6FED]"
+                          : "border-[#E6EEF6] text-[#0B1F33] hover:bg-[#F3F8FF]"
+                      }`}
+                      title={url}
+                    >
+                      Link {index + 1}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(url);
+                          alert(`Link ${index + 1} copied.`);
+                        } catch {
+                          alert("Could not copy link.");
+                        }
+                      }}
+                      className="px-2.5 py-2 rounded-lg border border-[#E6EEF6] text-xs text-[#2F6FED] hover:bg-[#F3F8FF]"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="mt-3 flex items-center gap-2">
-              <a
-                href={mobileCameraUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 inline-flex items-center justify-center px-3 py-2.5 rounded-xl bg-[#2F6FED] text-white text-sm font-semibold hover:bg-[#2158C7]"
-              >
-                Open Link
-              </a>
+              {primaryGuestUploadUrl ? (
+                <a
+                  href={primaryGuestUploadUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 inline-flex items-center justify-center px-3 py-2.5 rounded-xl bg-[#2F6FED] text-white text-sm font-semibold hover:bg-[#2158C7]"
+                >
+                  Open Link
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="flex-1 inline-flex items-center justify-center px-3 py-2.5 rounded-xl bg-[#A8BCEB] text-white text-sm font-semibold cursor-not-allowed"
+                >
+                  Open Link
+                </button>
+              )}
               <button
                 type="button"
                 onClick={async () => {
                   try {
-                    await navigator.clipboard.writeText(mobileCameraUrl);
+                    await navigator.clipboard.writeText(primaryGuestUploadUrl);
                     alert("Mobile upload link copied.");
                   } catch {
                     alert("Could not copy link. Use Open Link instead.");
                   }
                 }}
+                disabled={!primaryGuestUploadUrl}
                 className="px-3 py-2.5 rounded-xl border border-[#DCE8FF] text-[#2F6FED] text-sm font-semibold hover:bg-[#F3F8FF]"
               >
                 Copy
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {mobileCameraMode && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 px-4 w-[min(92vw,420px)]">
-          <div className="bg-white border border-[#DCE8FF] shadow-[0_10px_30px_rgba(47,111,237,0.18)] rounded-2xl p-3.5">
-            <p className="text-xs text-[#6B7C8F]">Mobile upload mode</p>
-            <p className="text-sm text-[#0B1F33] font-medium mt-0.5">Use your phone camera to send a chat photo.</p>
-            <button
-              type="button"
-              onClick={() => chatPhotoInputRef.current?.click()}
-              className="mt-2 w-full inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-[#2F6FED] text-white text-sm font-semibold hover:bg-[#2158C7]"
-            >
-              <Camera className="w-4 h-4" /> Open Camera
-            </button>
           </div>
         </div>
       )}

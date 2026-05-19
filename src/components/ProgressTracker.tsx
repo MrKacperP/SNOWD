@@ -117,9 +117,9 @@ export default function ProgressTracker({
 
       <div className="relative">
         {/* Progress line */}
-        <div className="absolute left-[15px] top-0 bottom-0 w-0.5 bg-gray-200" />
+        <div className="absolute left-[15px] top-4 bottom-4 w-0.5 bg-gray-200" />
         <div
-          className="absolute left-[15px] top-0 w-0.5 bg-[#2F6FED] transition-all duration-500"
+          className="absolute left-[15px] top-4 w-0.5 bg-[#2F6FED] transition-all duration-500"
           style={{
             height: `${Math.min(100, (currentIndex / (STEPS.length - 1)) * 100)}%`,
           }}

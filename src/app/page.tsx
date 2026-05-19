@@ -1,917 +1,284 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useMemo } from "react";
-import Link from "next/link";
 import Image from "next/image";
-import { motion, useInView, AnimatePresence } from "framer-motion";
+import Link from "next/link";
 import {
-  Snowflake,
+  ArrowRight,
+  Banknote,
   MapPin,
   MessageSquare,
-  Shield,
-  DollarSign,
-  ChevronRight,
+  Snowflake,
   Star,
-  ArrowRight,
-  Truck,
-  CreditCard,
-  Banknote,
-  Clock,
-  Lock,
-  CheckCircle,
-  Send,
-  Navigation,
-  Search,
 } from "lucide-react";
 
-/* ── Fade-up on scroll ─────────────────────────────────────────────── */
-function FadeUp({
-  children,
-  className = "",
-  delay = 0,
-}: {
-  children: React.ReactNode;
-  className?: string;
-  delay?: number;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-60px" });
+const steps = [
+  {
+    label: "Step 01",
+    title: "Drop your address",
+    body: "Set your driveway, walkway, and timing. We ping nearby shovelers the second snow needs clearing.",
+    icon: MapPin,
+  },
+  {
+    label: "Step 02",
+    title: "Chat. Clear.",
+    body: "Message in-app, lock the price, show up, move snow, and snap the before/after.",
+    icon: MessageSquare,
+    dark: true,
+  },
+  {
+    label: "Step 03",
+    title: "Cash lands",
+    body: "Payment releases once the homeowner approves. No awkward porch convos. No chasing.",
+    icon: Banknote,
+  },
+];
+
+const stats = [
+  ["$847", "Avg / winter"],
+  ["4 min", "Match time"],
+  ["90%", "Payout to you"],
+  ["0", "Dads to Venmo"],
+];
+
+function BrandLogo() {
   return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 32 }}
-      animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.55, ease: "easeOut", delay }}
-      className={className}
-    >
-      {children}
-    </motion.div>
+    <Link href="/" className="flex items-center gap-3">
+      <Image src="/logo.png" alt="" width={64} height={68} priority className="h-12 w-12 object-contain sm:h-14 sm:w-14" />
+      <span className="font-headline text-4xl font-black leading-none tracking-normal text-[#061321]">
+        snowd<span className="text-[#ff820e]">.</span>
+      </span>
+    </Link>
   );
 }
 
-/* ── Animated counter ──────────────────────────────────────────────── */
-function Counter({ target, suffix = "" }: { target: number; suffix?: string }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const inView = useInView(ref, { once: true });
-  const [count, setCount] = useState(0);
-
-  useEffect(() => {
-    if (!inView) return;
-    let val = 0;
-    const step = target / (1800 / 16);
-    const timer = setInterval(() => {
-      val += step;
-      if (val >= target) {
-        setCount(target);
-        clearInterval(timer);
-      } else setCount(Math.floor(val));
-    }, 16);
-    return () => clearInterval(timer);
-  }, [inView, target]);
+function FallingSnow() {
+  const flakes = [
+    "left-[14%] top-[-8%] [animation-delay:0s] [animation-duration:13s]",
+    "left-[28%] top-[-12%] [animation-delay:2s] [animation-duration:16s]",
+    "left-[46%] top-[-10%] [animation-delay:5s] [animation-duration:14s]",
+    "left-[67%] top-[-14%] [animation-delay:1s] [animation-duration:18s]",
+    "left-[88%] top-[-9%] [animation-delay:4s] [animation-duration:15s]",
+  ];
 
   return (
-    <span ref={ref}>
-      {count}
-      {suffix}
-    </span>
-  );
-}
-
-/* ── Subtle snowflakes ─────────────────────────────────────────────── */
-function SnowBG() {
-  const [flakes, setFlakes] = useState<
-    { id: number; left: number; delay: number; dur: number; size: number; op: number }[]
-  >([]);
-
-  useEffect(() => {
-    setFlakes(
-      Array.from({ length: 18 }, (_, i) => ({
-        id: i,
-        left: Math.random() * 100,
-        delay: Math.random() * 10,
-        dur: 8 + Math.random() * 12,
-        size: 6 + Math.random() * 10,
-        op: 0.04 + Math.random() * 0.08,
-      }))
-    );
-  }, []);
-
-  if (flakes.length === 0) return null;
-
-  return (
-    <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-      {flakes.map((f) => (
-        <motion.div
-          key={f.id}
-          className="absolute text-[var(--accent)]"
-          style={{ left: `${f.left}%`, top: -20 }}
-          animate={{ y: ["0vh", "110vh"], rotate: [0, 360] }}
-          transition={{
-            duration: f.dur,
-            repeat: Infinity,
-            delay: f.delay,
-            ease: "linear",
-          }}
-        >
-          <Snowflake
-            style={{ width: f.size, height: f.size, opacity: f.op }}
-          />
-        </motion.div>
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+      {flakes.map((flake) => (
+        <Snowflake
+          key={flake}
+          className={`absolute h-6 w-6 animate-[snowd-fall_linear_infinite] text-[#061321]/12 ${flake}`}
+          strokeWidth={2.5}
+        />
       ))}
     </div>
   );
 }
 
-/* ── Widget: Animated Job Progress ─────────────────────────────────── */
-function JobProgressWidget() {
-  const steps = [
-    { label: "Request", sub: "Finding operators near you…", icon: Search },
-    { label: "Matched", sub: "Jake accepted your job!", icon: CheckCircle },
-    { label: "En Route", sub: "Arriving in 8 min", icon: Navigation },
-    { label: "Clearing", sub: "Driveway being cleared", icon: Truck },
-    { label: "Done", sub: "All done — leave a review ⭐", icon: Star },
-  ];
-  const [active, setActive] = useState(-1);
-  const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-40px" });
-
-  useEffect(() => {
-    if (!inView) return;
-    setActive(0);
-    const t = setInterval(
-      () => setActive((p) => (p >= steps.length - 1 ? 0 : p + 1)),
-      2200
-    );
-    return () => clearInterval(t);
-  }, [inView, steps.length]);
-
+export default function HomePage() {
   return (
-    <div
-      ref={ref}
-      className="bg-[var(--card)] rounded-2xl p-6 border border-[var(--border)] shadow-[0_12px_28px_rgba(15,23,42,0.08)] w-full max-w-md mx-auto"
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between mb-5">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-          Job #1042
-        </p>
-        <AnimatePresence mode="wait">
-          {active >= 0 && (
-            <motion.span
-              key={active}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="px-2.5 py-0.5 text-[10px] font-semibold bg-[var(--accent-soft)] text-[var(--accent)] rounded-full"
-            >
-              {steps[active].label}
-            </motion.span>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* Progress steps */}
-      <div className="flex items-center gap-1 mb-6">
-        {steps.map((s, i) => (
-          <React.Fragment key={i}>
-            <motion.div
-              animate={{
-                scale: i === active ? 1.18 : 1,
-                backgroundColor: i <= active ? "var(--accent)" : "#f3f4f6",
-              }}
-              transition={{ type: "spring", stiffness: 500, damping: 30 }}
-              className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
-            >
-              <s.icon
-                className={`w-4 h-4 transition-colors ${
-                  i <= active ? "text-white" : "text-gray-400"
-                }`}
-              />
-            </motion.div>
-            {i < steps.length - 1 && (
-              <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
-                <motion.div
-                  animate={{ width: i < active ? "100%" : "0%" }}
-                  transition={{ duration: 0.4, ease: "easeOut" }}
-                  className="h-full bg-[var(--accent)] rounded-full"
-                />
-              </div>
-            )}
-          </React.Fragment>
-        ))}
-      </div>
-
-      {/* Status */}
-      <AnimatePresence mode="wait">
-        {active >= 0 && (
-          <motion.div
-            key={active}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.2 }}
-            className="text-center"
-          >
-            <p className="font-semibold text-gray-900 font-headline text-sm">
-              {steps[active].label}
-            </p>
-            <p className="text-xs text-gray-400 mt-0.5">
-              {steps[active].sub}
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-/* ── Widget: Live Chat ─────────────────────────────────────────────── */
-function ChatWidget() {
-  const [idx, setIdx] = useState(0);
-  const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-40px" });
-  const msgs = useMemo(
-    () => [
-      { from: "op", text: "On my way! 🚛" },
-      { from: "system", text: "ETA: 8 min" },
-      { from: "client", text: "Perfect, thanks!" },
-      { from: "op", text: "Starting now 💪" },
-      { from: "system", text: "Job in progress" },
-      { from: "client", text: "Looks great!" },
-    ],
-    []
-  );
-
-  useEffect(() => {
-    if (!inView || idx >= msgs.length) return;
-    const t = setTimeout(() => setIdx((i) => i + 1), 1800);
-    return () => clearTimeout(t);
-  }, [inView, idx, msgs.length]);
-
-  return (
-    <div
-      ref={ref}
-      className="bg-[var(--card)] rounded-2xl border border-[var(--border)] shadow-[0_12px_28px_rgba(15,23,42,0.08)] w-full max-w-sm mx-auto overflow-hidden"
-    >
-      {/* Header */}
-      <div className="flex items-center gap-2.5 px-5 py-3 border-b border-[var(--border)]">
-        <div className="w-8 h-8 bg-[var(--accent)] rounded-full flex items-center justify-center text-white text-xs font-bold">
-          J
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-gray-900 font-headline">
-            Jake
-          </p>
-          <p className="text-[10px] text-emerald-500 font-medium">● Online</p>
-        </div>
-      </div>
-
-      {/* Messages */}
-      <div className="px-4 py-4 space-y-2 min-h-[180px]">
-        <AnimatePresence>
-          {msgs.slice(0, idx).map((m, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 8, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ duration: 0.2 }}
-              className={`flex ${
-                m.from === "client"
-                  ? "justify-end"
-                  : m.from === "system"
-                    ? "justify-center"
-                    : "justify-start"
-              }`}
-            >
-              {m.from === "system" ? (
-                <span className="bg-[var(--accent-soft)] text-[var(--accent)] border border-[rgba(47,111,237,0.2)] px-2.5 py-1 rounded-full text-[10px] font-medium">
-                  <Clock className="w-3 h-3 inline mr-1" />
-                  {m.text}
-                </span>
-              ) : (
-                <div
-                  className={`px-3 py-2 rounded-2xl text-xs max-w-[80%] ${
-                    m.from === "client"
-                      ? "bg-[var(--accent)] text-white rounded-br-sm"
-                      : "bg-[var(--bg-secondary)] text-[var(--text-secondary)] rounded-bl-sm"
-                  }`}
-                >
-                  {m.text}
-                </div>
-              )}
-            </motion.div>
-          ))}
-        </AnimatePresence>
-        {idx < msgs.length && (
-          <motion.div
-            animate={{ opacity: [0.3, 1, 0.3] }}
-            transition={{ repeat: Infinity, duration: 1 }}
-            className="flex justify-start"
-          >
-            <div className="bg-[var(--bg-secondary)] px-3 py-2 rounded-2xl rounded-bl-sm text-xs text-[var(--text-muted)]">
-              ···
-            </div>
-          </motion.div>
-        )}
-      </div>
-
-      {/* Input */}
-      <div className="px-4 pb-4 flex items-center gap-2">
-        <div className="flex-1 text-[10px] px-3 py-2 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border)] text-[var(--text-muted)]">
-          Message…
-        </div>
-        <div className="w-7 h-7 bg-[var(--accent)] rounded-xl flex items-center justify-center">
-          <Send className="w-3 h-3 text-white" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ── Widget: Operator Browser ──────────────────────────────────────── */
-function OperatorWidget() {
-  const ops = useMemo(
-    () => [
-      {
-        name: "Jake",
-        rating: 5,
-        reviews: 47,
-        price: "$25",
-        type: "Student",
-        dist: "4.2 km",
-        initial: "J",
-      },
-      {
-        name: "Paul",
-        rating: 5,
-        reviews: 132,
-        price: "$60",
-        type: "Pro",
-        dist: "1.8 km",
-        initial: "P",
-      },
-      {
-        name: "Sam",
-        rating: 4,
-        reviews: 23,
-        price: "$35",
-        type: "Student",
-        dist: "6.0 km",
-        initial: "S",
-      },
-    ],
-    []
-  );
-  const [selected, setSelected] = useState(0);
-  const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-40px" });
-
-  useEffect(() => {
-    if (!inView) return;
-    const t = setInterval(
-      () => setSelected((p) => (p + 1) % ops.length),
-      3000
-    );
-    return () => clearInterval(t);
-  }, [inView, ops.length]);
-
-  return (
-    <div
-      ref={ref}
-      className="bg-[var(--card)] rounded-2xl p-5 border border-[var(--border)] shadow-[0_12px_28px_rgba(15,23,42,0.08)] w-full max-w-sm mx-auto"
-    >
-      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">
-        Nearby operators
-      </p>
-      <div className="space-y-2.5">
-        {ops.map((op, i) => (
-          <motion.div
-            key={i}
-            animate={{
-              scale: i === selected ? 1.02 : 1,
-              borderColor: i === selected ? "var(--accent)" : "#f3f4f6",
-            }}
-            transition={{ type: "spring", stiffness: 400, damping: 25 }}
-            className="flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer"
-            onClick={() => setSelected(i)}
-          >
-            <motion.div
-              animate={{
-                backgroundColor:
-                  i === selected ? "var(--accent)" : "var(--accent-soft)",
-                color: i === selected ? "#ffffff" : "var(--accent)",
-              }}
-              className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shrink-0"
-            >
-              {op.initial}
-            </motion.div>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm text-gray-900 font-headline">
-                {op.name}
-              </p>
-              <div className="flex items-center gap-0.5">
-                {Array.from({ length: 5 }, (_, j) => (
-                  <Star
-                    key={j}
-                    className={`w-3 h-3 ${
-                      j < op.rating
-                        ? "fill-yellow-400 text-yellow-400"
-                        : "text-gray-200"
-                    }`}
-                  />
-                ))}
-                <span className="text-[10px] text-gray-400 ml-0.5">
-                  ({op.reviews})
-                </span>
-              </div>
-            </div>
-            <div className="text-right shrink-0">
-              <p className="font-bold text-sm text-gray-900 font-headline">
-                {op.price}
-              </p>
-              <p className="text-[10px] text-gray-400">{op.dist}</p>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={selected}
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0 }}
-          className="mt-4"
-        >
-          <motion.button
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            className="w-full py-2.5 bg-[var(--accent)] text-white text-sm font-semibold rounded-xl shadow-[0_10px_20px_rgba(47,111,237,0.25)]"
-          >
-            Book {ops[selected].name}
-          </motion.button>
-        </motion.div>
-      </AnimatePresence>
-    </div>
-  );
-}
-
-/* ── Widget: Payment ───────────────────────────────────────────────── */
-function PaymentWidget() {
-  const methods = useMemo(
-    () => [
-      {
-        icon: Banknote,
-        label: "Cash",
-        color: "text-green-600",
-        bg: "bg-green-50",
-      },
-      {
-        icon: CreditCard,
-        label: "Card",
-        color: "text-[var(--accent)]",
-        bg: "bg-[var(--accent-soft)]",
-      },
-      {
-        icon: DollarSign,
-        label: "e-Transfer",
-        color: "text-purple-600",
-        bg: "bg-purple-50",
-      },
-    ],
-    []
-  );
-  const [selected, setSelected] = useState(1);
-  const [paid, setPaid] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-40px" });
-
-  useEffect(() => {
-    if (!inView) return;
-    const sequence = [0, 1, 2, 1];
-    let step = 0;
-    const t = setInterval(() => {
-      if (step < sequence.length) {
-        setSelected(sequence[step]);
-        setPaid(false);
-        step++;
-      } else {
-        setPaid(true);
-        step = 0;
-        setTimeout(() => {
-          setPaid(false);
-          setSelected(0);
-        }, 2000);
-      }
-    }, 1400);
-    return () => clearInterval(t);
-  }, [inView]);
-
-  return (
-    <div
-      ref={ref}
-      className="bg-[var(--card)] rounded-2xl p-6 border border-[var(--border)] shadow-[0_12px_28px_rgba(15,23,42,0.08)] w-full max-w-xs mx-auto"
-    >
-      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-        Payment
-      </p>
-      <p className="text-2xl font-bold text-gray-900 font-headline mb-4">
-        $45.00
-      </p>
-      <div className="flex gap-2 mb-4">
-        {methods.map((m, i) => (
-          <motion.div
-            key={i}
-            animate={{
-              scale: i === selected && !paid ? 1.05 : 1,
-              borderColor:
-                i === selected && !paid ? "var(--accent)" : "#f3f4f6",
-            }}
-            transition={{ type: "spring", stiffness: 400, damping: 25 }}
-            className="flex-1 p-3 rounded-xl border-2 flex flex-col items-center gap-1.5 cursor-pointer"
-            onClick={() => {
-              setSelected(i);
-              setPaid(false);
-            }}
-          >
-            <div
-              className={`w-8 h-8 rounded-lg ${m.bg} flex items-center justify-center`}
-            >
-              <m.icon className={`w-4 h-4 ${m.color}`} />
-            </div>
-            <span className="text-[10px] font-medium text-gray-600">
-              {m.label}
-            </span>
-          </motion.div>
-        ))}
-      </div>
-      <AnimatePresence mode="wait">
-        {paid ? (
-          <motion.div
-            key="done"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0 }}
-            className="w-full py-2.5 bg-emerald-500 text-white text-sm font-semibold rounded-xl flex items-center justify-center gap-2"
-          >
-            <CheckCircle className="w-4 h-4" /> Paid!
-          </motion.div>
-        ) : (
-          <motion.button
-            key="pay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            className="w-full py-2.5 bg-[var(--accent)] text-white text-sm font-semibold rounded-xl shadow-[0_10px_20px_rgba(47,111,237,0.25)]"
-          >
-            Pay now
-          </motion.button>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-/* ── Button ────────────────────────────────────────────────────────── */
-function Btn({
-  href,
-  children,
-  variant = "primary",
-  className = "",
-}: {
-  href: string;
-  children: React.ReactNode;
-  variant?: "primary" | "outline";
-  className?: string;
-}) {
-  return (
-    <motion.div
-      whileHover={{ scale: 1.04 }}
-      whileTap={{ scale: 0.96 }}
-      transition={{ type: "spring", stiffness: 400, damping: 20 }}
-    >
-      <Link
-        href={href}
-        className={`inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl font-semibold text-base transition ${
-          variant === "primary"
-            ? "bg-[var(--accent)] text-white hover:bg-[var(--accent-dark)] shadow-lg shadow-[rgba(47,111,237,0.22)]"
-            : "border-2 border-[var(--border)] text-[var(--text-secondary)] hover:border-[rgba(47,111,237,0.35)] hover:bg-[var(--bg-secondary)]"
-        } ${className}`}
-      >
-        {children}
-      </Link>
-    </motion.div>
-  );
-}
-
-/* ══════════════════════════════════════════════════════════════════════
-   PAGE
-   ══════════════════════════════════════════════════════════════════════ */
-export default function LandingPage() {
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  const sectionContrastCard = "rounded-3xl border border-white/20 bg-[rgba(3,10,24,0.45)] backdrop-blur-[3px] shadow-[0_16px_38px_rgba(0,0,0,0.35)]";
-
-  return (
-    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] relative overflow-x-hidden isolate">
-      <div
-        className="fixed inset-0 -z-20 bg-cover bg-center"
-        style={{ backgroundImage: "url('/space-hero.png')" }}
-      />
-      <SnowBG />
-
-      {/* ── NAV ──────────────────────────────────────────────────── */}
-      <motion.nav
-        initial={{ y: -80, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
-        className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${
-          scrolled
-            ? "bg-[var(--card)]/90 backdrop-blur-md border-b border-[var(--border)] shadow-sm"
-            : "bg-transparent border-b border-transparent"
-        }`}
-      >
-        <div className="max-w-6xl mx-auto px-5 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5">
-            <Image src="/logo.png" alt="snowd logo" width={40} height={44} />
-            <span className="text-xl font-bold text-[var(--accent)] font-headline">
-              snowd<span className={`font-light transition-colors duration-300 ${scrolled ? "text-[var(--text-muted)]" : "text-white/70"}`}>.ca</span>
-            </span>
+    <main className="min-h-screen overflow-hidden bg-[#f3f8fb] text-[#061321]">
+      <nav className="flex min-h-20 items-center justify-between border-b-[3px] border-[#061321] px-4 py-2 sm:px-8 lg:px-14">
+        <BrandLogo />
+        <div className="hidden items-center gap-9 text-lg font-black md:flex">
+          <Link href="#how">How it works</Link>
+          <Link href="#paid">Get paid</Link>
+          <Link href="/signup" className="rounded-full bg-[#061321] px-8 py-4 !text-white">
+            Open app
           </Link>
-          <div className="flex items-center gap-3">
-            <Link
-              href="/login"
-              className={`hidden sm:block px-4 py-2 text-sm font-medium transition-colors duration-300 ${
-                scrolled ? "text-[var(--text-secondary)] hover:text-[var(--text-primary)]" : "text-white/80 hover:text-white"
+        </div>
+      </nav>
+
+      <section className="relative flex min-h-[calc(100svh-5rem)] overflow-hidden px-4 pb-6 pt-8 sm:px-8 sm:pt-12 lg:px-14 lg:pt-14">
+        <FallingSnow />
+        <div className="relative z-10 flex w-full flex-col justify-between gap-6">
+          <div className="inline-flex w-fit max-w-full items-center gap-3 rounded-full border-[3px] border-[#061321] bg-[#dfeef8] px-4 py-3 text-[0.68rem] font-black uppercase tracking-[0.26em] sm:px-6 sm:text-sm lg:text-base">
+            <span className="h-3 w-3 rounded-full bg-[#ffae72]" />
+            Now matching shovelers near you
+          </div>
+
+          <h1 className="relative max-w-[76rem] font-headline text-[clamp(4.25rem,13vw,13.4rem)] font-black lowercase leading-[0.78] tracking-normal">
+            <span className="relative inline-block">
+              clear
+              <span className="absolute -right-8 -top-3 grid h-9 w-12 rotate-[-8deg] grid-cols-[1fr_1.35fr_1fr] overflow-hidden rounded-sm border-2 border-[#061321] bg-white shadow-[4px_4px_0_#061321] sm:-right-12 sm:h-12 sm:w-16">
+                <span className="bg-[#e31b23]" />
+                <span className="grid place-items-center text-[10px] font-black uppercase leading-none text-[#e31b23] sm:text-xs">CA</span>
+                <span className="bg-[#e31b23]" />
+              </span>
+            </span>
+            <span className="block">
+              the
+              <span className="relative mx-[0.04em] inline-block h-[0.72em] w-[0.72em] align-[-0.1em]">
+                <Image src="/logo.png" alt="SNOWD penguin mascot" fill priority sizes="24vw" className="object-contain" />
+              </span>
+              block<span className="text-[#ff820e]">.</span>
+            </span>
+          </h1>
+
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(390px,0.7fr)] lg:items-end">
+            <p className="max-w-3xl text-[clamp(1.2rem,2.05vw,2.25rem)] font-black leading-[1.12] tracking-normal">
+              SNOWD is the neighborhood marketplace where{" "}
+              <span className="rounded-lg bg-[#ff820e] px-2">locals</span>{" "}
+              clear driveways and homeowners stop pretending the snow is not there.
+            </p>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Link href="/signup" className="flex min-h-28 items-center justify-center rounded-[1.5rem] bg-[#061321] px-5 text-center text-xl font-black !text-white lg:min-h-32 lg:text-2xl">
+                I want to shovel <ArrowRight className="ml-2 h-6 w-6" />
+              </Link>
+              <Link href="/signup" className="flex min-h-28 items-center justify-center rounded-[1.5rem] border-[3px] border-[#061321] px-5 text-center text-xl font-black lg:min-h-32 lg:text-2xl">
+                I need shoveling
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="relative grid gap-6 px-4 py-16 sm:px-8 lg:grid-cols-[1.2fr_0.9fr] lg:px-14">
+        <div className="relative overflow-hidden rounded-[1.6rem] bg-[#061321] p-6 text-white sm:p-8 lg:p-10">
+          <div className="relative z-10">
+            <p className="text-sm font-black uppercase tracking-[0.22em] text-white/58">New request · 2 min ago</p>
+            <div className="mt-5 flex flex-wrap items-start justify-between gap-5">
+              <div>
+                <h2 className="font-headline text-[clamp(2rem,3.6vw,3.8rem)] font-black leading-none">Driveway + front steps</h2>
+                <p className="mt-3 text-xl font-bold text-white/70">14 Maple St · 0.3 mi from you</p>
+              </div>
+              <div className="text-left lg:text-right">
+                <div className="text-[clamp(3rem,5vw,5rem)] font-black leading-none text-[#ff820e]">$32</div>
+                <p className="text-sm font-black uppercase tracking-[0.2em] text-white/58">Est. payout</p>
+              </div>
+            </div>
+
+            <div className="mt-8 grid gap-3 sm:grid-cols-3">
+              {[
+                ["Snow", "4\""],
+                ["Size", "Medium"],
+                ["ETA", "45m"],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-2xl border border-white/20 bg-white/5 p-4">
+                  <p className="text-xs font-black uppercase tracking-[0.22em] text-white/58">{label}</p>
+                  <p className="mt-3 text-3xl font-black">{value}</p>
+                </div>
+              ))}
+            </div>
+
+            <Link href="/signup" className="mt-8 flex min-h-16 items-center justify-center rounded-2xl border-[3px] border-white bg-[#ff820e] text-2xl font-black text-[#061321]">
+              Accept job <ArrowRight className="ml-3 h-7 w-7" />
+            </Link>
+          </div>
+          <Image src="/logo.png" alt="" width={360} height={386} className="absolute -bottom-24 -right-14 h-72 w-72 rotate-[-9deg] object-contain opacity-35" />
+        </div>
+
+        <div className="rounded-[1.6rem] border-[3px] border-[#061321] bg-[#dfeef8] p-6 sm:p-8">
+          <div className="flex items-center gap-4 border-b-[3px] border-[#061321]/10 pb-5">
+            <div className="grid h-14 w-14 place-items-center rounded-full border-[3px] border-[#061321] text-xl font-black">M</div>
+            <div>
+              <h3 className="text-2xl font-black">Mrs. Patel</h3>
+              <p className="text-lg font-black text-[#6e7883]">Homeowner · online</p>
+            </div>
+          </div>
+          <div className="mt-6 grid gap-4 text-xl font-black">
+            <div className="max-w-[86%] rounded-2xl border-[3px] border-[#061321] bg-[#f3f8fb] px-5 py-4">Hey! Could you also do the back patio?</div>
+            <div className="ml-auto max-w-[86%] rounded-2xl border-[3px] border-[#061321] bg-[#ff820e] px-5 py-4">Sure — +$8 for the patio. Cool?</div>
+            <div className="max-w-[86%] rounded-2xl border-[3px] border-[#061321] bg-[#f3f8fb] px-5 py-4">Deal. Door&apos;s unlocked, hot cocoa inside.</div>
+          </div>
+          <div className="mt-7 flex gap-3">
+            <div className="flex min-h-14 flex-1 items-center rounded-full border-[3px] border-[#061321] px-5 text-xl font-bold text-[#061321]/42">Message Mrs. Patel...</div>
+            <button className="grid h-14 w-14 place-items-center rounded-full bg-[#061321] text-white" type="button" aria-label="Send message">
+              <ArrowRight className="h-7 w-7" />
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <div className="overflow-hidden border-y-[3px] border-[#061321] bg-[#ff820e] py-5 text-[clamp(1.5rem,3vw,3.2rem)] font-black uppercase leading-none">
+        <div className="flex w-max animate-[snowd-marquee_18s_linear_infinite] items-center gap-10 px-5">
+          {[0, 1, 2].map((item) => (
+            <div key={item} className="flex items-center gap-10">
+              <span>Snow days = pay days</span>
+              <Star className="h-9 w-9 fill-[#061321]" />
+              <span>Your block, your bag</span>
+              <Star className="h-9 w-9 fill-[#061321]" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <section id="how" className="px-4 py-20 sm:px-8 lg:px-14">
+        <h2 className="max-w-5xl font-headline text-[clamp(3.4rem,8vw,9rem)] font-black lowercase leading-[0.84] tracking-normal">
+          three steps<span className="text-[#ff820e]">.</span>
+          <br />
+          that&apos;s the app<span className="text-[#ff820e]">.</span>
+        </h2>
+
+        <div className="mt-14 grid gap-5 lg:grid-cols-3">
+          {steps.map(({ label, title, body, icon: Icon, dark }) => (
+            <article
+              key={label}
+              className={`min-h-[24rem] rounded-[1.6rem] border-[3px] border-[#061321] p-6 sm:p-8 ${
+                dark ? "bg-[#061321] text-white" : "bg-[#f3f8fb] text-[#061321]"
               }`}
             >
-              Sign In
-            </Link>
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Link
-                href="/signup"
-                className="px-5 py-2.5 text-sm font-semibold bg-[var(--accent)] text-white rounded-xl hover:bg-[var(--accent-dark)] transition shadow-sm shadow-[rgba(47,111,237,0.25)]"
-              >
-                Get Started
-              </Link>
-            </motion.div>
-          </div>
-        </div>
-      </motion.nav>
-
-      {/* ── HERO ─────────────────────────────────────────────────── */}
-      <section className="relative z-0 pt-32 pb-14 md:pt-40 md:pb-20 px-5 min-h-screen flex items-center overflow-hidden">
-        <div className="relative z-10 max-w-6xl mx-auto w-full">
-          <div className="max-w-2xl text-center md:text-left rounded-3xl border border-white/20 bg-[rgba(3,10,24,0.45)] backdrop-blur-[3px] px-5 py-6 sm:px-7 sm:py-8 shadow-[0_16px_38px_rgba(0,0,0,0.35)]">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/16 border border-white/40 text-white rounded-full text-sm font-medium mb-8 backdrop-blur-sm"
-          >
-            <Snowflake className="w-3.5 h-3.5" /> Built for students, families, and seniors next door
-          </motion.div>
-
-          <motion.h1
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.65 }}
-            className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold text-white leading-[1.02] tracking-tight font-headline"
-          >
-            Snow gone.
-            <br />
-            <span className="text-[#9FD3FF]">Money earned.</span>
-          </motion.h1>
-
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="mt-6 text-lg md:text-xl text-slate-100 max-w-xl md:mx-0 mx-auto"
-          >
-            High school students earn real money helping nearby homes, while neighbors book trusted local help in minutes.
-          </motion.p>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.65 }}
-            className="flex flex-col sm:flex-row items-center md:items-start justify-center md:justify-start gap-3 mt-10"
-          >
-            <Btn href="/signup">
-              I&apos;m a Student Operator <ArrowRight className="w-4 h-4" />
-            </Btn>
-            <Btn href="/signup" variant="outline" className="!border-white/50 !text-white hover:!bg-white/14">
-              <Truck className="w-4 h-4" /> I Need Help at Home
-            </Btn>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.85 }}
-            className="flex flex-wrap items-center justify-center md:justify-start gap-6 mt-10 text-sm text-slate-100"
-          >
-            <span className="flex items-center gap-1.5">
-              <MapPin className="w-4 h-4" /> Jobs near you
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Shield className="w-4 h-4" /> Verified local community
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Lock className="w-4 h-4" /> Senior-friendly booking flow
-            </span>
-          </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── WIDGET: Job Progress ─────────────────────────────────── */}
-      <section className="py-16 md:py-24 px-5">
-        <div className={`max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 items-center ${sectionContrastCard} p-6 md:p-10`}>
-          <FadeUp>
-            <h2 className="text-3xl md:text-4xl font-bold text-white font-headline leading-tight">
-              Know what&apos;s happening
-            </h2>
-            <p className="text-slate-200 mt-3 max-w-sm text-lg">
-              Students and neighbors stay in sync from request to completion.
-            </p>
-          </FadeUp>
-          <FadeUp delay={0.15}>
-            <JobProgressWidget />
-          </FadeUp>
-        </div>
-      </section>
-
-      {/* ── WIDGET: Live Chat ────────────────────────────────────── */}
-      <section className="py-16 md:py-24 px-5 bg-[var(--bg-secondary)]">
-        <div className={`max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 items-center ${sectionContrastCard} p-6 md:p-10`}>
-          <FadeUp className="md:order-2">
-            <h2 className="text-3xl md:text-4xl font-bold text-white font-headline leading-tight">
-              Quick, friendly chat
-            </h2>
-            <p className="text-slate-200 mt-3 max-w-sm text-lg">
-              Confirm details, swap photos, and get live ETA updates.
-            </p>
-          </FadeUp>
-          <FadeUp delay={0.15} className="md:order-1">
-            <ChatWidget />
-          </FadeUp>
-        </div>
-      </section>
-
-      {/* ── WIDGET: Find Operator ────────────────────────────────── */}
-      <section className="py-16 md:py-24 px-5">
-        <div className={`max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 items-center ${sectionContrastCard} p-6 md:p-10`}>
-          <FadeUp>
-            <h2 className="text-3xl md:text-4xl font-bold text-white font-headline leading-tight">
-              Choose the right helper
-            </h2>
-            <p className="text-slate-200 mt-3 max-w-sm text-lg">
-              Browse verified locals — including students who live nearby.
-            </p>
-          </FadeUp>
-          <FadeUp delay={0.15}>
-            <OperatorWidget />
-          </FadeUp>
-        </div>
-      </section>
-
-      {/* ── WIDGET: Payment ──────────────────────────────────────── */}
-      <section className="py-16 md:py-24 px-5 bg-[var(--bg-secondary)]">
-        <div className={`max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 items-center ${sectionContrastCard} p-6 md:p-10`}>
-          <FadeUp className="md:order-2">
-            <h2 className="text-3xl md:text-4xl font-bold text-white font-headline leading-tight">
-              Get paid fast
-            </h2>
-            <p className="text-slate-200 mt-3 max-w-sm text-lg">
-              Safe, secure payments with clear payout tracking.
-            </p>
-          </FadeUp>
-          <FadeUp delay={0.15} className="md:order-1">
-            <PaymentWidget />
-          </FadeUp>
-        </div>
-      </section>
-
-      {/* ── STATS ────────────────────────────────────────────────── */}
-      <section className="py-14 px-5">
-        <div className={`max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 text-center text-white ${sectionContrastCard} p-6 md:p-8`}>
-          {[
-            { val: 500, sfx: "+", lbl: "Jobs Done" },
-            { val: 120, sfx: "+", lbl: "Student Helpers" },
-            { val: 4, sfx: " min", lbl: "Avg. Match" },
-            { val: 98, sfx: "%", lbl: "Happy Neighbors" },
-          ].map((s, i) => (
-            <FadeUp key={i} delay={i * 0.1} className="flex flex-col items-center">
-              <span className="text-3xl md:text-4xl font-bold font-headline">
-                <Counter target={s.val} suffix={s.sfx} />
-              </span>
-              <span className="text-sm text-white/70 mt-1">{s.lbl}</span>
-            </FadeUp>
+              <div className="flex items-start justify-between gap-6">
+                <p className={`text-base font-black uppercase tracking-[0.18em] ${dark ? "text-white/52" : "text-[#061321]/48"}`}>{label}</p>
+                <div className={`grid h-16 w-16 place-items-center rounded-2xl border-[3px] border-[#061321] ${dark ? "bg-[#f3f8fb] text-[#061321]" : "bg-[#ff820e]"}`}>
+                  <Icon className="h-7 w-7" />
+                </div>
+              </div>
+              <h3 className="mt-16 text-[clamp(2rem,3vw,3.1rem)] font-black leading-none">{title}</h3>
+              <p className={`mt-6 text-xl font-bold leading-snug ${dark ? "text-white/70" : "text-[#5e6873]"}`}>{body}</p>
+            </article>
           ))}
         </div>
       </section>
 
-      {/* ── CTA ──────────────────────────────────────────────────── */}
-      <section className="py-20 md:py-28 px-5">
-        <FadeUp className={`max-w-4xl mx-auto ${sectionContrastCard} p-3 md:p-4`}>
-          <div className="bg-[var(--accent)] rounded-3xl p-10 md:p-16 text-center text-white relative overflow-hidden shadow-[0_30px_60px_rgba(47,111,237,0.3)]">
-            <motion.div
-              className="absolute top-6 right-10 opacity-10"
-              animate={{ rotate: 360 }}
-              transition={{
-                duration: 22,
-                repeat: Infinity,
-                ease: "linear",
-              }}
-            >
-              <Snowflake className="w-28 h-28" />
-            </motion.div>
-            <motion.div
-              className="absolute bottom-6 left-10 opacity-10"
-              animate={{ rotate: -360 }}
-              transition={{
-                duration: 28,
-                repeat: Infinity,
-                ease: "linear",
-              }}
-            >
-              <Snowflake className="w-20 h-20" />
-            </motion.div>
-
-            <div className="relative z-10">
-              <h2 className="text-3xl md:text-5xl font-bold mb-4 font-headline">
-                Join your neighborhood snow crew
-              </h2>
-              <p className="text-white/70 text-lg mb-10 max-w-md mx-auto">
-                Students get flexible paid work. Families and seniors get reliable, trusted help.
-              </p>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <Link
-                    href="/signup"
-                    className="inline-flex items-center gap-2 px-8 py-4 bg-white text-[var(--accent)] rounded-xl font-semibold text-lg hover:bg-[var(--bg-secondary)] transition shadow-lg"
-                  >
-                    Create My Account <ChevronRight className="w-5 h-5" />
-                  </Link>
-                </motion.div>
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <Link
-                    href="/login"
-                    className="inline-flex items-center px-8 py-4 border-2 border-white/30 text-white rounded-xl font-semibold text-lg hover:bg-white/10 transition"
-                  >
-                    I Already Use snowd
-                  </Link>
-                </motion.div>
-              </div>
+      <section id="paid" className="grid gap-10 px-4 py-20 sm:px-8 lg:grid-cols-[1.1fr_0.82fr] lg:items-center lg:px-14">
+        <div>
+          <h2 className="max-w-4xl font-headline text-[clamp(3.8rem,8vw,10rem)] font-black lowercase leading-[0.84] tracking-normal">
+            move
+            <br />
+            snow<span className="text-[#ff820e]">.</span>
+            <br />
+            not money<span className="text-[#ff820e]">.</span>
+          </h2>
+          <p className="mt-8 max-w-3xl text-[clamp(1.35rem,2.1vw,2.35rem)] font-black leading-snug text-[#5e6873]">
+            Homeowners pay in-app. Shovelers keep 90%. We hold funds until both sides give the thumbs up.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          {stats.map(([value, label]) => (
+            <div key={label} className="rounded-[1.4rem] border-[3px] border-[#061321] p-5 sm:p-6">
+              <p className="text-[clamp(2.4rem,4.5vw,4rem)] font-black leading-none">{value}</p>
+              <p className="mt-4 text-sm font-black uppercase tracking-[0.16em] text-[#061321]/52">{label}</p>
             </div>
-          </div>
-        </FadeUp>
+          ))}
+        </div>
       </section>
 
-      {/* ── FOOTER ───────────────────────────────────────────────── */}
-      <footer className="border-t border-[var(--border)] py-8 px-5 bg-[var(--card)] relative z-10">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <Snowflake className="w-5 h-5 text-[var(--accent)]" />
-            <span className="font-bold text-[var(--accent)] font-headline">
-              snowd
-            </span>
-            <span className="font-light text-[var(--text-muted)]">.ca</span>
+      <section className="px-4 py-20 sm:px-8 lg:px-14">
+        <div className="relative overflow-hidden rounded-[1.8rem] bg-[#061321] p-8 text-white sm:p-12 lg:min-h-[28rem]">
+          <div className="relative z-10 max-w-4xl">
+            <p className="text-base font-black uppercase tracking-[0.22em] text-[#ff820e]">It&apos;s snowing</p>
+            <h2 className="mt-6 font-headline text-[clamp(3.3rem,7vw,7.8rem)] font-black lowercase leading-[0.84] tracking-normal">
+              snowd over.
+              <br />
+              get the bag<span className="text-[#ff820e]">.</span>
+            </h2>
+            <div className="mt-9 flex flex-col gap-4 sm:flex-row">
+              <Link href="/signup" className="inline-flex min-h-16 items-center justify-center rounded-2xl border-[3px] border-white bg-[#ff820e] px-8 text-2xl font-black text-[#061321]">
+                Get the app <ArrowRight className="ml-3 h-7 w-7" />
+              </Link>
+              <Link href="/signup" className="inline-flex min-h-16 items-center justify-center rounded-2xl border-[3px] border-white px-8 text-2xl font-black !text-white">
+                Post a driveway
+              </Link>
+            </div>
           </div>
-          <p className="text-sm text-[var(--text-muted)]">
-            &copy; 2026 snowd.ca &mdash; Made in Canada
-          </p>
-          <div className="flex items-center gap-5 text-sm text-[var(--text-muted)]">
-            <Link href="#" className="hover:text-[var(--text-primary)] transition">
-              Privacy
-            </Link>
-            <Link href="#" className="hover:text-[var(--text-primary)] transition">
-              Terms
-            </Link>
-            <Link href="#" className="hover:text-[var(--text-primary)] transition">
-              Contact
-            </Link>
-          </div>
+          <Image src="/logo.png" alt="SNOWD penguin mascot" width={760} height={814} className="absolute -bottom-32 -right-20 h-[28rem] w-[28rem] object-contain sm:h-[36rem] sm:w-[36rem]" />
         </div>
+      </section>
+
+      <footer className="flex flex-col gap-6 border-t-[3px] border-[#061321] px-5 py-10 sm:px-10 md:flex-row md:items-center md:justify-between lg:px-16">
+        <BrandLogo />
+        <p className="text-xl font-black text-[#061321]/56">© 2026 SNOWD Inc. · Built for people who hate driveways.</p>
       </footer>
-    </div>
+    </main>
   );
 }

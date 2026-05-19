@@ -459,19 +459,15 @@ export default function OperatorDashboard() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-[linear-gradient(118deg,#2F6FED_0%,#4D8BFB_42%,#6EA7F4_100%)] rounded-3xl p-5 md:p-6 text-white shadow-[0_16px_30px_rgba(47,111,237,0.24)] relative overflow-hidden border border-white/20"
+        className="rounded-3xl border border-[var(--border-color)] bg-white p-5 text-[var(--text-primary)] shadow-[0_16px_30px_rgba(15,23,42,0.08)] md:p-6"
       >
-        <div className="absolute inset-0 opacity-20 pointer-events-none">
-          <div className="absolute -top-14 right-6 h-40 w-40 rounded-full bg-white/20 blur-2xl" />
-          <div className="absolute -bottom-12 left-[35%] h-32 w-48 rounded-full bg-white/10 blur-2xl" />
-        </div>
-        <div className="relative z-10 grid grid-cols-1 md:grid-cols-[1.1fr_0.9fr] gap-4 md:gap-6 items-stretch">
+        <div className="grid grid-cols-1 md:grid-cols-[1.1fr_0.9fr] gap-4 md:gap-6 items-stretch">
           <div className="min-w-0">
-            <h1 className="text-3xl md:text-[2.2rem] font-headline font-extrabold drop-shadow-sm leading-tight">
+            <h1 className="text-3xl md:text-[2.2rem] font-headline font-extrabold leading-tight">
                 {greeting()}, {operatorProfile?.displayName?.split(" ")[0] || "there"}!
             </h1>
-            <p className="mt-1.5 text-white/90 text-sm md:text-base">Your operator control center for jobs, earnings, and reputation.</p>
-            <p className="mt-1.5 text-white/80 text-base md:text-lg">
+            <p className="mt-1.5 text-[var(--text-secondary)] text-sm md:text-base">Ready for nearby requests and active jobs.</p>
+            <p className="mt-1.5 text-[var(--text-muted)] text-base">
               <MapPin className="w-4 h-4 inline mr-1" />
               {operatorProfile?.city}, {operatorProfile?.province}
             </p>
@@ -479,23 +475,23 @@ export default function OperatorDashboard() {
             <div className="mt-4 flex items-center gap-2 flex-wrap">
               <Link
                 href="/dashboard/jobs"
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-[#2F6FED] rounded-2xl font-bold text-base md:text-lg leading-none transition shadow-md hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.99]"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#111111] text-white rounded-2xl font-bold text-base md:text-lg leading-none transition shadow-md hover:bg-black hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.99]"
               >
                 <Plus className="w-5 h-5" />
                 View Job Requests
               </Link>
               {isAccountPublic ? (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-400/20 text-green-100 rounded-full text-xs font-semibold border border-green-200/30">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-50 text-green-700 rounded-full text-xs font-semibold border border-green-100">
                   <BadgeCheck className="w-3.5 h-3.5" /> Public
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-400/20 text-amber-100 rounded-full text-xs font-semibold border border-amber-200/30">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-semibold border border-amber-100">
                   <AlertCircle className="w-3.5 h-3.5" /> Not Public
                 </span>
               )}
             </div>
 
-            <div className="mt-3 flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 w-fit">
+            <div className="mt-3 flex items-center gap-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 w-fit">
             <button
               onClick={toggleAvailability}
               className={`relative w-14 h-7 rounded-full transition-colors ${isAvailable ? "bg-green-400" : "bg-gray-400"}`}
@@ -504,7 +500,7 @@ export default function OperatorDashboard() {
                 className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${isAvailable ? "left-7" : "left-0.5"}`}
               />
             </button>
-            <span className="text-sm font-medium">
+            <span className="text-sm font-medium text-[var(--text-primary)]">
               {isAvailable ? "Available for new requests" : "Paused"}
             </span>
           </div>
@@ -512,19 +508,19 @@ export default function OperatorDashboard() {
 
           <Link
             href="/dashboard/calendar"
-            className="group w-full rounded-2xl border border-white/30 bg-[linear-gradient(145deg,rgba(123,166,255,0.33),rgba(59,117,240,0.56))] px-5 py-4 backdrop-blur-sm hover:border-white/50 transition"
+            className="group w-full rounded-2xl border border-[var(--border-color)] bg-[#f7f7f4] px-5 py-4 hover:border-[#111111]/20 transition"
           >
             <div className="flex items-center justify-between">
-              <p className="text-white/80 text-sm md:text-base font-medium">Today&apos;s Weather</p>
-              <ArrowRight className="w-4 h-4 text-white/80 group-hover:translate-x-0.5 transition-transform" />
+              <p className="text-[var(--text-muted)] text-sm md:text-base font-medium">Today&apos;s Weather</p>
+              <ArrowRight className="w-4 h-4 text-[var(--text-muted)] group-hover:translate-x-0.5 transition-transform" />
             </div>
             {weatherLoading ? (
-              <p className="mt-2 text-white/80">Loading weather...</p>
+              <p className="mt-2 text-[var(--text-muted)]">Loading weather...</p>
             ) : weather ? (
               <div className="mt-1 flex items-end justify-between">
                 <div>
                   <p className="text-5xl font-headline font-bold leading-none">{weather.temp}°C</p>
-                  <p className="text-lg text-white/90 mt-0.5">Feels {weather.feelsLike}°</p>
+                  <p className="text-lg text-[var(--text-secondary)] mt-0.5">Feels {weather.feelsLike}°</p>
                   <p className="text-2xl font-semibold mt-1.5">{weather.condition}</p>
                 </div>
                 <div className="text-5xl" aria-hidden>
@@ -532,7 +528,7 @@ export default function OperatorDashboard() {
                 </div>
               </div>
             ) : (
-              <p className="mt-2 text-white/80">Weather unavailable</p>
+              <p className="mt-2 text-[var(--text-muted)]">Weather unavailable</p>
             )}
           </Link>
         </div>
@@ -603,62 +599,43 @@ export default function OperatorDashboard() {
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-[var(--bg-card-solid)] rounded-2xl border border-[var(--border-color)] overflow-hidden"
+          className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card-solid)] p-4"
         >
-          <div className="px-5 py-4 border-b border-[var(--border-color)]">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-[var(--text-primary)]">Profile Setup</h3>
-                <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                  {completedSetupCount} of {totalSetupSteps} steps done - {!isAccountPublic ? "complete all steps to become bookable" : "finish remaining steps"}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-[#2F6FED]">
-                  {Math.round((completedSetupCount / totalSetupSteps) * 100)}%
-                </span>
-              </div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h3 className="font-bold text-[var(--text-primary)]">Profile Setup</h3>
+              <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                {completedSetupCount} of {totalSetupSteps} complete
+              </p>
             </div>
-            {/* Progress bar */}
-            <div className="mt-3 h-2 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
-              <motion.div
-                className="h-full bg-[#2F6FED] rounded-full"
-                initial={{ width: 0 }}
-                animate={{ width: `${(completedSetupCount / totalSetupSteps) * 100}%` }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
-              />
-            </div>
+            <span className="text-sm font-bold text-[var(--accent-sun)]">
+              {Math.round((completedSetupCount / totalSetupSteps) * 100)}%
+            </span>
           </div>
-          <div className="divide-y divide-[var(--border-color)]">
-            {setupSteps.map((step) => (
+          <div className="mt-3 h-2 rounded-full bg-[var(--bg-secondary)]">
+            <motion.div
+              className="h-full rounded-full bg-[var(--accent-sun)]"
+              initial={{ width: 0 }}
+              animate={{ width: `${(completedSetupCount / totalSetupSteps) * 100}%` }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+            />
+          </div>
+          {setupSteps.find((step) => !step.done) && (
+            <div className="mt-3">
               <Link
-                key={step.key}
-                href={step.href}
-                className={`flex items-center gap-3 px-5 py-3 transition hover:bg-[var(--bg-secondary)]/50 ${
-                  step.done ? "opacity-60" : ""
-                }`}
+                href={setupSteps.find((step) => !step.done)?.href || "/dashboard/settings"}
+                className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-2.5 transition hover:bg-[var(--accent-soft)]"
               >
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                  step.done
-                    ? "bg-green-100 text-green-600"
-                    : step.key === "approval" && (operatorProfile as OperatorProfile & { idPhotoUrl?: string })?.idPhotoUrl && !isAccountPublic
-                    ? "bg-amber-100 text-amber-600"
-                    : "bg-[#2F6FED]/10 text-[#2F6FED]"
-                }`}>
-                  {step.done ? <CheckCircle className="w-4 h-4" /> : step.icon}
-                </div>
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-semibold ${step.done ? "line-through text-[var(--text-muted)]" : "text-[var(--text-primary)]"}`}>
-                    {step.label}
+                  <p className="text-xs font-semibold text-[var(--text-muted)]">Next step</p>
+                  <p className="truncate text-sm font-semibold text-[var(--text-primary)]">
+                    {setupSteps.find((step) => !step.done)?.label}
                   </p>
-                  <p className="text-xs text-[var(--text-muted)]">{step.description}</p>
                 </div>
-                {!step.done && (
-                  <ExternalLink className="w-4 h-4 text-[var(--text-muted)] shrink-0" />
-                )}
+                <ExternalLink className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
               </Link>
-            ))}
-          </div>
+            </div>
+          )}
         </motion.div>
       )}
 
