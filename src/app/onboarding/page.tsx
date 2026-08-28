@@ -73,6 +73,7 @@ export default function OnboardingPage() {
   const [showIntro, setShowIntro] = useState(true);
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [draftLoaded, setDraftLoaded] = useState(false);
 
   // Auto-redirect if user already onboarded
   useEffect(() => {
@@ -111,6 +112,108 @@ export default function OnboardingPage() {
   // Geocoded coordinates
   const [lat, setLat] = useState<number | undefined>();
   const [lng, setLng] = useState<number | undefined>();
+
+  const draftKey = user ? `snowd_onboarding_draft_${user.uid}` : null;
+
+  useEffect(() => {
+    if (!draftKey || typeof window === "undefined") return;
+
+    try {
+      const draft = JSON.parse(localStorage.getItem(draftKey) || "null") as Partial<{
+        role: UserRole | null;
+        phone: string;
+        province: string;
+        city: string;
+        postalCode: string;
+        address: string;
+        propertySize: PropertySize;
+        serviceTypes: ServiceType[];
+        specialInstructions: string;
+        businessName: string;
+        isStudent: boolean;
+        age: number;
+        bio: string;
+        equipment: string[];
+        serviceRadius: number;
+        pricingSmall: number;
+        pricingMedium: number;
+        pricingLarge: number;
+        pricingWalkway: number;
+        pricingSidewalk: number;
+        operatorServiceTypes: ServiceType[];
+        lat: number;
+        lng: number;
+        step: number;
+      }> | null;
+
+      if (draft) {
+        if (draft.role !== undefined) setRole(draft.role);
+        if (draft.phone !== undefined) setPhone(draft.phone);
+        if (draft.province !== undefined) setProvince(draft.province);
+        if (draft.city !== undefined) setCity(draft.city);
+        if (draft.postalCode !== undefined) setPostalCode(draft.postalCode);
+        if (draft.address !== undefined) setAddress(draft.address);
+        if (draft.propertySize !== undefined) setPropertySize(draft.propertySize);
+        if (draft.serviceTypes !== undefined) setServiceTypes(draft.serviceTypes);
+        if (draft.specialInstructions !== undefined) setSpecialInstructions(draft.specialInstructions);
+        if (draft.businessName !== undefined) setBusinessName(draft.businessName);
+        if (draft.isStudent !== undefined) setIsStudent(draft.isStudent);
+        if (draft.age !== undefined) setAge(draft.age);
+        if (draft.bio !== undefined) setBio(draft.bio);
+        if (draft.equipment !== undefined) setEquipment(draft.equipment);
+        if (draft.serviceRadius !== undefined) setServiceRadius(draft.serviceRadius);
+        if (draft.pricingSmall !== undefined) setPricingSmall(draft.pricingSmall);
+        if (draft.pricingMedium !== undefined) setPricingMedium(draft.pricingMedium);
+        if (draft.pricingLarge !== undefined) setPricingLarge(draft.pricingLarge);
+        if (draft.pricingWalkway !== undefined) setPricingWalkway(draft.pricingWalkway);
+        if (draft.pricingSidewalk !== undefined) setPricingSidewalk(draft.pricingSidewalk);
+        if (draft.operatorServiceTypes !== undefined) setOperatorServiceTypes(draft.operatorServiceTypes);
+        if (draft.lat !== undefined) setLat(draft.lat);
+        if (draft.lng !== undefined) setLng(draft.lng);
+        if (draft.step !== undefined) setStep(draft.step);
+      }
+    } catch (error) {
+      console.warn("Could not restore onboarding draft:", error);
+    } finally {
+      setDraftLoaded(true);
+    }
+  }, [draftKey]);
+
+  useEffect(() => {
+    if (!draftKey || !draftLoaded || typeof window === "undefined") return;
+
+    localStorage.setItem(draftKey, JSON.stringify({
+      role,
+      phone,
+      province,
+      city,
+      postalCode,
+      address,
+      propertySize,
+      serviceTypes,
+      specialInstructions,
+      businessName,
+      isStudent,
+      age,
+      bio,
+      equipment,
+      serviceRadius,
+      pricingSmall,
+      pricingMedium,
+      pricingLarge,
+      pricingWalkway,
+      pricingSidewalk,
+      operatorServiceTypes,
+      lat,
+      lng,
+      step,
+    }));
+  }, [
+    draftKey, draftLoaded, role, phone, province, city, postalCode, address,
+    propertySize, serviceTypes, specialInstructions, businessName, isStudent,
+    age, bio, equipment, serviceRadius, pricingSmall, pricingMedium, pricingLarge,
+    pricingWalkway, pricingSidewalk, operatorServiceTypes, lat, lng, step,
+  ]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -229,10 +332,16 @@ export default function OnboardingPage() {
         user.displayName ||
         "User";
       const normalizedEmail = (user.email || "").trim().toLowerCase();
-      const accountHistorySnap = await getDoc(doc(db, "accountHistory", encodeURIComponent(normalizedEmail)));
-      const deletedAccountIds = accountHistorySnap.exists()
-        ? ((accountHistorySnap.data().deletedAccountIds as string[] | undefined) || [])
-        : [];
+      let deletedAccountIds: string[] = [];
+      try {
+        const accountHistorySnap = await getDoc(doc(db, "accountHistory", encodeURIComponent(normalizedEmail)));
+        if (accountHistorySnap.exists()) {
+          deletedAccountIds = (accountHistorySnap.data().deletedAccountIds as string[] | undefined) || [];
+        }
+      } catch (historyError) {
+        // Account history is optional; it must never prevent a new profile from being created.
+        console.warn("Could not load account history:", historyError);
+      }
 
       const baseProfile = {
         uid: user.uid,
@@ -321,6 +430,7 @@ export default function OnboardingPage() {
       if (typeof window !== "undefined") {
         sessionStorage.removeItem("snowd_signup_name");
         sessionStorage.removeItem("snowd_signup_uid");
+        if (draftKey) localStorage.removeItem(draftKey);
       }
       router.push("/dashboard");
     } catch (err) {
