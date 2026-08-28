@@ -17,6 +17,7 @@ import { db } from "@/lib/firebase";
 import { OperatorProfile, ClientProfile, ServiceType } from "@/lib/types";
 import {
   getDistanceKm,
+  isOperatorPublic,
   isClientWithinOperatorRadius,
 } from "@/lib/operatorDiscovery";
 import StarRating from "@/components/StarRating";
@@ -25,10 +26,8 @@ import {
   Search,
   MapPin,
   Snowflake,
-  Truck,
   GraduationCap,
   Filter,
-  DollarSign,
   MessageSquare,
   ChevronDown,
   ChevronUp,
@@ -92,7 +91,7 @@ export default function FindOperatorsPage() {
         const snap = await getDocs(q);
         const fetchedOperators = snap.docs
           .map((d) => ({ uid: d.id, ...d.data() } as OperatorProfile))
-          .filter((op) => !!(op as OperatorProfile & { stripeConnectAccountId?: string }).stripeConnectAccountId);
+          .filter(isOperatorPublic);
         setOperators(fetchedOperators);
         
         // Load user's favorites
@@ -596,16 +595,17 @@ export default function FindOperatorsPage() {
                         </Link>
                         {op.uid === favoriteOperatorId && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-[#111111] px-2.5 py-1 text-xs font-medium text-white">
-                            ⭐ Favorite
+                            <Snowflake className="h-3 w-3 fill-white" />
+                            Favorite
                           </span>
                         )}
                         {op.isStudent && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-[#ede9fe] px-2.5 py-1 text-xs font-medium text-[#5b21b6]">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--bg-secondary)] px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)]">
                             <GraduationCap className="w-3 h-3" /> Student
                           </span>
                         )}
                         {op.verified && (
-                          <span className="inline-flex items-center rounded-full bg-[#eaf7ef] px-2.5 py-1 text-xs font-medium text-[#17994f]">
+                          <span className="inline-flex items-center rounded-full bg-[#eaf7ef] px-2.5 py-1 text-xs font-medium text-[var(--accent-mint)]">
                             Verified
                           </span>
                         )}
@@ -630,7 +630,7 @@ export default function FindOperatorsPage() {
                       </div>
 
                       <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
-                        <span className="rounded-full bg-[#eaf7ef] px-3 py-1 font-semibold text-[#17994f]">
+                        <span className="rounded-full bg-[#eaf7ef] px-3 py-1 font-semibold text-[var(--accent-mint)]">
                           From ${mediumPrice}
                         </span>
                         <span className="rounded-full bg-[var(--bg-secondary)] px-3 py-1 text-xs text-[var(--text-muted)]">
@@ -735,7 +735,7 @@ export default function FindOperatorsPage() {
                       <button
                         onClick={() => bookOperator(op)}
                         disabled={booking}
-                        className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-[#111111] px-4 py-3 text-white font-semibold transition hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50"
+                        className="btn-primary flex-1 px-4 py-3"
                       >
                         <MessageSquare className="w-4 h-4" />
                         {booking ? "Booking..." : "Request & Chat"}
@@ -773,28 +773,28 @@ export default function FindOperatorsPage() {
                   className={`flex flex-col items-center gap-1.5 p-4 rounded-xl border-2 transition ${
                     scheduleType === "asap"
                       ? "border-[#111111] bg-[var(--accent-soft)]"
-                      : "border-gray-200 hover:border-gray-300"
+                      : "border-[var(--border-color)] hover:border-[#111111]/30"
                   }`}
                 >
-                  <Zap className={`w-5 h-5 ${scheduleType === "asap" ? "text-[#111111]" : "text-gray-400"}`} />
-                  <span className={`text-sm font-semibold ${scheduleType === "asap" ? "text-[#111111]" : "text-gray-600"}`}>
+                  <Zap className={`w-5 h-5 ${scheduleType === "asap" ? "text-[#111111]" : "text-[var(--text-muted)]"}`} />
+                  <span className={`text-sm font-semibold ${scheduleType === "asap" ? "text-[#111111]" : "text-[var(--text-secondary)]"}`}>
                     ASAP
                   </span>
-                  <span className="text-[10px] text-gray-400">As soon as possible</span>
+                  <span className="text-[10px] text-[var(--text-muted)]">As soon as possible</span>
                 </button>
                 <button
                   onClick={() => setScheduleType("scheduled")}
                   className={`flex flex-col items-center gap-1.5 p-4 rounded-xl border-2 transition ${
                     scheduleType === "scheduled"
                       ? "border-[#111111] bg-[var(--accent-soft)]"
-                      : "border-gray-200 hover:border-gray-300"
+                      : "border-[var(--border-color)] hover:border-[#111111]/30"
                   }`}
                 >
-                  <CalendarDays className={`w-5 h-5 ${scheduleType === "scheduled" ? "text-[#111111]" : "text-gray-400"}`} />
-                  <span className={`text-sm font-semibold ${scheduleType === "scheduled" ? "text-[#111111]" : "text-gray-600"}`}>
+                  <CalendarDays className={`w-5 h-5 ${scheduleType === "scheduled" ? "text-[#111111]" : "text-[var(--text-muted)]"}`} />
+                  <span className={`text-sm font-semibold ${scheduleType === "scheduled" ? "text-[#111111]" : "text-[var(--text-secondary)]"}`}>
                     Schedule
                   </span>
-                  <span className="text-[10px] text-gray-400">Pick date & time</span>
+                  <span className="text-[10px] text-[var(--text-muted)]">Pick date & time</span>
                 </button>
               </div>
 
@@ -802,18 +802,18 @@ export default function FindOperatorsPage() {
               {scheduleType === "scheduled" && (
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Date</label>
+                    <label className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">Date</label>
                     <input
                       type="date"
                       value={scheduledDate}
                       min={format(new Date(), "yyyy-MM-dd")}
                       max={format(addDays(new Date(), 30), "yyyy-MM-dd")}
                       onChange={(e) => setScheduledDate(e.target.value)}
-                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:border-[#111111] focus:outline-none"
+                      className="w-full rounded-xl border border-[var(--border-color)] px-4 py-3 text-sm focus:border-[#111111] focus:outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Preferred Time</label>
+                    <label className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">Preferred Time</label>
                     <div className="grid grid-cols-3 gap-2">
                       {["07:00", "09:00", "12:00", "14:00", "16:00", "18:00"].map((t) => (
                         <button
@@ -822,7 +822,7 @@ export default function FindOperatorsPage() {
                           className={`flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg border text-xs font-medium transition ${
                             scheduledTime === t
                               ? "border-[#111111] bg-[var(--accent-soft)] text-[#111111]"
-                              : "border-gray-200 text-gray-500 hover:border-gray-300"
+                              : "border-[var(--border-color)] text-[var(--text-muted)] hover:border-[#111111]/30"
                           }`}
                         >
                           <Clock className="w-3 h-3" />
@@ -831,7 +831,7 @@ export default function FindOperatorsPage() {
                       ))}
                     </div>
                   </div>
-                  <p className="text-[10px] text-gray-400 text-center">
+                  <p className="text-center text-[10px] text-[var(--text-muted)]">
                     Scheduled for {format(new Date(scheduledDate + "T12:00:00"), "EEEE, MMM d")} at {scheduledTime}
                   </p>
                 </div>
@@ -840,14 +840,14 @@ export default function FindOperatorsPage() {
               <button
                 onClick={confirmBooking}
                 disabled={booking}
-                className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#111111] px-4 py-3.5 font-semibold text-white transition disabled:opacity-50 shadow-sm hover:bg-black"
+                className="btn-primary w-full px-4 py-3.5"
               >
                 <MessageSquare className="w-4 h-4" />
                 {booking ? "Booking..." : scheduleType === "asap" ? "Request Now" : "Schedule & Chat"}
               </button>
               <button
                 onClick={() => setSchedulingOperator(null)}
-                className="w-full text-sm text-gray-500 hover:text-gray-700 py-1 transition"
+                className="w-full py-1 text-sm text-[var(--text-muted)] transition hover:text-[var(--text-primary)]"
               >
                 Cancel
               </button>

@@ -3,19 +3,19 @@
 import React, { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { CheckCircle2, MessageSquare, Shield, Snowflake, TimerReset, Truck } from "lucide-react";
+import AuthPageShell from "@/components/AuthPageShell";
+import { ArrowRight, Mail, TimerReset } from "lucide-react";
 import { motion } from "framer-motion";
 
 const ADMIN_EMAILS = ["kacperprymicz@gmail.com"];
 
 const benefits = [
-  "Jump back into active booking threads.",
-  "Track approvals, arrivals, and payouts in one place.",
-  "Use the same fast layout across mobile and desktop.",
+  "Jump back into active booking threads and job updates.",
+  "Track approvals, arrivals, and payouts from one dashboard.",
+  "Keep operator and homeowner messages in the same winter workflow.",
 ];
 
 function LoginPageInner() {
@@ -121,79 +121,24 @@ function LoginPageInner() {
   if (!authLoading && user && profile?.onboardingComplete) return null;
 
   return (
-    <div className="min-h-dvh px-4 py-4 md:px-6 md:py-6">
-      <div className="mx-auto grid min-h-[calc(100dvh-2rem)] max-w-[1400px] overflow-hidden rounded-[2rem] border border-[var(--border-color)] bg-white shadow-[0_30px_90px_rgba(18,18,18,0.12)] lg:grid-cols-[minmax(460px,520px)_minmax(0,1fr)]">
-        <section className="bg-[#111111] px-6 py-6 text-white md:px-9 md:py-8">
-          <Link href="/" className="inline-flex items-center gap-3">
-            <Image src="/logo.png" alt="snowd logo" width={36} height={36} />
-            <span className="text-2xl font-headline font-bold">snowd<span className="text-[var(--accent-sun)]">.</span></span>
-          </Link>
-
-          <div className="mt-10 max-w-sm">
-            <div className="chip border border-white/10 bg-white/8 text-white">
-              <Snowflake className="h-4 w-4 text-[var(--accent-sun)]" />
-              Account access
-            </div>
-            <h1 className="mt-6 text-4xl font-headline font-bold leading-none md:text-5xl">Welcome back<span className="text-[var(--accent-sun)]">.</span></h1>
-            <p className="mt-4 text-base leading-7 text-white/68">
-              Sign in to rejoin active requests, operator chats, and your running snow service workflow.
-            </p>
+    <AuthPageShell
+      eyebrow="account access"
+      title="welcome back"
+      body="Sign in to rejoin active requests, operator chats, and your running snow service workflow."
+      features={benefits}
+    >
+      <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="w-full">
+        <div className="rounded-[1.35rem] border-[3px] border-[#061321] bg-white p-4 shadow-[5px_5px_0_#061321] sm:p-5 lg:p-6">
+          <div className="inline-flex rounded-full bg-[#ff820e] px-3.5 py-1.5 text-[11px] font-black uppercase tracking-[0.16em]">
+            Sign in
           </div>
+          <h2 className="mt-3 font-headline text-[clamp(2rem,7vw,3rem)] font-black lowercase leading-none">
+            Access your account<span className="text-[#ff820e]">.</span>
+          </h2>
 
-          <div className="mt-10 grid gap-4">
-            {benefits.map((item) => (
-              <div key={item} className="rounded-[1.4rem] border border-white/10 bg-white/6 px-4 py-4">
-                <div className="flex items-start gap-3">
-                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-[var(--accent-sun)]" />
-                  <p className="text-sm leading-6 text-white/80">{item}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-10 hidden rounded-[1.7rem] border border-white/10 bg-white/7 p-5 lg:block">
-            <div className="flex items-center justify-between">
+          <form onSubmit={handleEmailSignIn} className="mt-4 space-y-3">
               <div>
-                <div className="text-sm font-semibold text-white/66">Dispatch preview</div>
-                <div className="mt-1 text-xl font-headline font-bold">Operator matched</div>
-              </div>
-              <div className="rounded-full bg-[var(--accent-sun)] px-3 py-1 text-xs font-bold text-[#111111]">live</div>
-            </div>
-            <div className="mt-5 space-y-3">
-              <div className="rounded-2xl bg-white px-4 py-3 text-[#111111]">
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                  <Truck className="h-4 w-4" />
-                  Northline Snow
-                </div>
-                <div className="mt-1 text-xs text-[#5b5b5b]">6 minutes away • medium driveway • $48</div>
-              </div>
-              <div className="rounded-2xl bg-white/10 px-4 py-3 text-sm text-white/88">
-                “I can start with the walkway first and message you once I arrive.”
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="map-shell flex items-center justify-center px-5 py-8 md:px-8 md:py-10">
-          <motion.div
-            initial={{ opacity: 0, y: 18 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className="w-full max-w-[460px] rounded-[2rem] bg-white p-6 shadow-[0_24px_50px_rgba(18,18,18,0.14)] md:p-8"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-medium text-[var(--text-muted)]">Sign in</div>
-                <h2 className="mt-1 text-3xl font-headline font-bold">Access your account<span className="text-[var(--accent-sun)]">.</span></h2>
-              </div>
-              <div className="rounded-full bg-[var(--accent-sun-soft)] p-3">
-                <Shield className="h-5 w-5 text-[var(--text-primary)]" />
-              </div>
-            </div>
-
-            <form onSubmit={handleEmailSignIn} className="mt-8 space-y-4">
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">Email</label>
+                <label className="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-[#061321]/60">Email</label>
                 <input
                   type="email"
                   required
@@ -201,11 +146,11 @@ function LoginPageInner() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@email.com"
-                  className="h-13 w-full rounded-2xl border border-[var(--border-color)] bg-[#fbfbf8] px-4 text-[var(--text-primary)] outline-none transition focus:border-[#111111]"
+                  className="h-12 w-full rounded-2xl border-[3px] border-[#061321] bg-[#f3f8fb] px-4 text-base font-bold text-[#061321] outline-none transition placeholder:text-[#061321]/35 focus:bg-white sm:h-13"
                 />
               </div>
               <div>
-                <label className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">Password</label>
+                <label className="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-[#061321]/60">Password</label>
                 <input
                   type="password"
                   required
@@ -213,38 +158,42 @@ function LoginPageInner() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
-                  className="h-13 w-full rounded-2xl border border-[var(--border-color)] bg-[#fbfbf8] px-4 text-[var(--text-primary)] outline-none transition focus:border-[#111111]"
+                  className="h-12 w-full rounded-2xl border-[3px] border-[#061321] bg-[#f3f8fb] px-4 text-base font-bold text-[#061321] outline-none transition placeholder:text-[#061321]/35 focus:bg-white sm:h-13"
                 />
               </div>
 
-              <div className="flex items-center justify-between gap-3 text-sm">
-                <label className="inline-flex items-center gap-2 text-[var(--text-muted)]">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold sm:text-sm">
+                <label className="inline-flex items-center gap-2 text-[#061321]/62">
                   <input
                     type="checkbox"
                     checked={remember}
                     onChange={(e) => setRemember(e.target.checked)}
-                    className="h-4 w-4 rounded border-[var(--border-color)]"
+                    className="h-4 w-4 rounded border-[#061321]"
                   />
-                    Keep me signed in
+                  Keep me signed in
                 </label>
-                <button type="button" className="font-semibold text-[var(--text-primary)]">
+                <button type="button" className="font-black text-[#061321]">
                   Forgot password
                 </button>
               </div>
 
               {error ? (
-                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+                <div className="rounded-2xl border-[3px] border-red-700 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div>
               ) : null}
 
-              <button type="submit" disabled={loading} className="btn-primary h-13 w-full rounded-2xl">
-                {loading ? "Signing in..." : "Sign in"}
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex min-h-12 w-full items-center justify-center rounded-2xl border-[3px] border-[#061321] bg-[#061321] px-5 text-base font-black text-white transition hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-55 sm:min-h-13"
+              >
+                {loading ? "Signing in..." : "Sign in"} {!loading ? <ArrowRight className="ml-2 h-5 w-5" strokeWidth={3} /> : null}
               </button>
             </form>
 
             <button
               onClick={handleGoogleSignIn}
               disabled={loading}
-              className="mt-3 flex h-13 w-full items-center justify-center gap-3 rounded-2xl border border-[var(--border-color)] bg-white font-semibold text-[var(--text-primary)] transition hover:bg-[#f7f7f4]"
+              className="mt-2.5 flex min-h-12 w-full items-center justify-center gap-3 rounded-2xl border-[3px] border-[#061321] bg-white px-5 text-base font-black text-[#061321] transition hover:-translate-y-0.5 hover:bg-[#dfeef8] disabled:translate-y-0 disabled:opacity-55 sm:min-h-13"
             >
               <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1Z" fill="#4285F4" />
@@ -255,38 +204,27 @@ function LoginPageInner() {
               Continue with Google
             </button>
 
-            <div className="mt-5 flex items-center gap-2 text-xs text-[var(--text-muted)]">
+            <div className="mt-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.1em] text-[#061321]/48">
               <TimerReset className="h-4 w-4" />
-              Session security and auth are powered by Firebase.
+              Secure Firebase auth
             </div>
 
-            <p className="mt-6 text-sm text-[var(--text-muted)]">
+            <p className="mt-3 text-sm font-bold text-[#061321]/62">
               Don&apos;t have an account?{" "}
-              <Link href="/signup" className="font-semibold text-[var(--text-primary)]">
+              <Link href="/signup" className="font-black text-[#061321] underline decoration-[#ff820e] decoration-4 underline-offset-4">
                 Create one
               </Link>
             </p>
+        </div>
 
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-[1.2rem] bg-[var(--bg-secondary)] px-4 py-4">
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                  <MessageSquare className="h-4 w-4" />
-                  Live chat
-                </div>
-                <div className="mt-1 text-xs text-[var(--text-muted)]">Operator and client conversation stays central.</div>
-              </div>
-              <div className="rounded-[1.2rem] bg-[var(--bg-secondary)] px-4 py-4">
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                  <Snowflake className="h-4 w-4" />
-                  Dispatch layout
-                </div>
-                <div className="mt-1 text-xs text-[var(--text-muted)]">Same visual system on landing, auth, and app flows.</div>
-              </div>
-            </div>
-          </motion.div>
-        </section>
-      </div>
-    </div>
+        <div className="mt-3 hidden rounded-2xl border-[3px] border-[#061321] bg-[#dfeef8] p-3 sm:block">
+          <div className="flex items-center gap-3 text-xs font-black sm:text-sm">
+            <Mail className="h-5 w-5" strokeWidth={3} />
+            Same dashboard, messages, and dispatch once you are in.
+          </div>
+        </div>
+      </motion.div>
+    </AuthPageShell>
   );
 }
 

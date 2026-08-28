@@ -202,6 +202,117 @@ a {
   }
 }
 
+@keyframes snowd-route {
+  0%,
+  18% {
+    transform: translateX(-110%);
+  }
+  54%,
+  100% {
+    transform: translateX(210%);
+  }
+}
+
+@keyframes snowd-pin {
+  0%,
+  100% {
+    transform: scale(0.82);
+    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0);
+  }
+  45% {
+    transform: scale(1);
+    box-shadow: 0 0 0 12px rgba(22, 163, 74, 0.14);
+  }
+}
+
+@keyframes snowd-shovel-clear {
+  0%,
+  24% {
+    transform: translateX(-100%);
+  }
+  58%,
+  100% {
+    transform: translateX(206%);
+  }
+}
+
+@keyframes snowd-card-cycle {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  45% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes snowd-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-4deg);
+  }
+  50% {
+    transform: translateY(-12px) rotate(2deg);
+  }
+}
+
+@keyframes snowd-demo-step {
+  0%,
+  100% {
+    opacity: 0.76;
+    transform: translateX(0) scale(0.98);
+  }
+  28%,
+  62% {
+    opacity: 1;
+    transform: translateX(8px) scale(1);
+  }
+}
+
+@keyframes snowd-clear-path {
+  0%,
+  18% {
+    transform: translateX(-110%);
+  }
+  58%,
+  100% {
+    transform: translateX(310%);
+  }
+}
+
+@keyframes snowd-progress-sweep {
+  0%,
+  16% {
+    transform: translateX(-120%);
+  }
+  56%,
+  100% {
+    transform: translateX(calc(100vw + 8rem));
+  }
+}
+
+@keyframes snowd-helper-slide {
+  0%,
+  100% {
+    transform: translateX(18px) translateY(12px) rotate(-3deg);
+  }
+  38%,
+  68% {
+    transform: translateX(-18px) translateY(0) rotate(2deg);
+  }
+}
+
+@keyframes snowd-step-fill {
+  0%,
+  100% {
+    transform: translateX(-110%);
+  }
+  38%,
+  72% {
+    transform: translateX(0);
+  }
+}
+
 @keyframes snowd-pile-up {
   0% {
     transform: translateY(100%);
@@ -256,6 +367,16 @@ a {
   box-shadow: var(--glass-shadow);
   border-radius: 1.75rem;
   backdrop-filter: blur(16px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 .surface-panel {

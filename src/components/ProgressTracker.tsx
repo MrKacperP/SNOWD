@@ -42,10 +42,11 @@ export default function ProgressTracker({
   compact = false,
 }: ProgressTrackerProps) {
   const currentIndex = STATUS_ORDER[status] ?? 0;
+  const progressRatio = Math.max(0, Math.min(1, currentIndex / (STEPS.length - 1)));
 
   if (status === "cancelled") {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
+      <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-center">
         <p className="text-red-700 font-semibold">Job Cancelled</p>
         <p className="text-red-500 text-sm mt-1">This job has been cancelled.</p>
       </div>
@@ -65,10 +66,10 @@ export default function ProgressTracker({
               <div
                 className={`flex items-center gap-1 shrink-0 px-2 py-1 rounded-full text-xs font-medium transition-all ${
                   isComplete
-                    ? "bg-green-100 text-green-700"
+                    ? "bg-[#eaf7ef] text-[var(--accent-mint)]"
                     : isCurrent
-                    ? "bg-[#2F6FED]/15 text-[#2F6FED] ring-2 ring-[#2F6FED]/30"
-                    : "bg-gray-100 text-gray-400"
+                    ? "bg-[var(--accent-soft)] text-[var(--text-primary)] ring-2 ring-[var(--accent-glow)]"
+                    : "bg-[var(--bg-secondary)] text-[var(--text-muted)]"
                 }`}
               >
                 <Icon className="w-3 h-3" />
@@ -77,7 +78,7 @@ export default function ProgressTracker({
               {i < STEPS.length - 1 && (
                 <div
                   className={`w-4 h-0.5 shrink-0 ${
-                    i < currentIndex ? "bg-green-400" : "bg-gray-200"
+                    i < currentIndex ? "bg-[var(--accent-mint)]" : "bg-[var(--border-color)]"
                   }`}
                 />
               )}
@@ -89,9 +90,9 @@ export default function ProgressTracker({
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-4">
+    <div className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-card-solid)] p-4">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="font-semibold text-sm text-gray-900">Job Progress</h3>
+        <h3 className="font-semibold text-sm text-[var(--text-primary)]">Job Progress</h3>
         {paymentStatus && (
           <span
             className={`text-xs px-2 py-0.5 rounded-full font-medium ${
@@ -101,7 +102,7 @@ export default function ProgressTracker({
                 ? "bg-green-100 text-green-700"
                 : paymentStatus === "refunded"
                 ? "bg-red-100 text-red-700"
-                : "bg-gray-100 text-gray-600"
+                : "bg-[var(--bg-secondary)] text-[var(--text-secondary)]"
             }`}
           >
             {paymentStatus === "held"
@@ -117,11 +118,11 @@ export default function ProgressTracker({
 
       <div className="relative">
         {/* Progress line */}
-        <div className="absolute left-[15px] top-4 bottom-4 w-0.5 bg-gray-200" />
+        <div className="absolute left-[15px] top-4 bottom-4 w-0.5 bg-[var(--border-color)]" />
         <div
-          className="absolute left-[15px] top-4 w-0.5 bg-[#2F6FED] transition-all duration-500"
+          className="absolute left-[15px] top-4 w-0.5 bg-[var(--accent)] transition-all duration-500"
           style={{
-            height: `${Math.min(100, (currentIndex / (STEPS.length - 1)) * 100)}%`,
+            height: currentIndex <= 0 ? 0 : `calc((100% - 2rem) * ${progressRatio})`,
           }}
         />
 
@@ -137,10 +138,10 @@ export default function ProgressTracker({
                 <div
                   className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 z-10 transition-all ${
                     isComplete
-                      ? "bg-green-500 text-white"
+                      ? "bg-[var(--accent-mint)] text-white"
                       : isCurrent
-                      ? "bg-[#2F6FED] text-white ring-4 ring-[#2F6FED]/15"
-                      : "bg-gray-100 text-gray-400"
+                      ? "bg-[var(--accent)] text-white ring-4 ring-[var(--accent-glow)]"
+                      : "bg-[var(--bg-secondary)] text-[var(--text-muted)]"
                   }`}
                 >
                   <Icon className="w-4 h-4" />
@@ -149,17 +150,17 @@ export default function ProgressTracker({
                   <p
                     className={`text-sm font-medium ${
                       isComplete
-                        ? "text-green-700"
+                        ? "text-[var(--accent-mint)]"
                         : isCurrent
-                        ? "text-[#2F6FED]"
-                        : "text-gray-400"
+                        ? "text-[var(--text-primary)]"
+                        : "text-[var(--text-muted)]"
                     }`}
                   >
                     {step.label}
                   </p>
                   <p
                     className={`text-xs ${
-                      isCurrent ? "text-[#2F6FED]" : "text-gray-400"
+                      isCurrent ? "text-[var(--text-secondary)]" : "text-[var(--text-muted)]"
                     }`}
                   >
                     {step.description}

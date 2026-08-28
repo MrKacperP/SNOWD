@@ -52,6 +52,7 @@ service cloud.firestore {
     function isParticipant(data) {
       return isSignedIn() && data != null && (
         isAdminOrEmployee() ||
+        (data.participants is list && request.auth.uid in data.participants) ||
         (data.participantIds is list && request.auth.uid in data.participantIds) ||
         (data.members is list && request.auth.uid in data.members) ||
         (data.userIds is list && request.auth.uid in data.userIds) ||
@@ -67,6 +68,7 @@ service cloud.firestore {
       // Private-by-default user documents.
       allow read: if isSelf(userId);
       allow read: if isAdminOrEmployee();
+      allow read: if isSignedIn() && resource.data.role in ["client", "operator"];
       allow create, delete: if isSelf(userId) || isAdminOrEmployee();
       allow update: if isAdminOrEmployee() || selfCanUpdateUser(userId);
     }
@@ -104,11 +106,20 @@ service cloud.firestore {
       );
       allow create: if isSignedIn() && (
         isAdminOrEmployee() ||
-        (request.resource.data.senderId is string && request.resource.data.senderId == request.auth.uid)
+        (request.resource.data.senderId is string &&
+          request.resource.data.senderId in [request.auth.uid, "system"])
       ) &&
       (request.resource.data.chatId is string &&
         isParticipant(get(/databases/$(database)/documents/chats/$(request.resource.data.chatId)).data));
-      allow update, delete: if isAdminOrEmployee() ||
+      allow update: if isAdminOrEmployee() ||
+        (
+          resource.data.chatId is string &&
+          isParticipant(get(/databases/$(database)/documents/chats/$(resource.data.chatId)).data) &&
+          request.resource.data.diff(resource.data).changedKeys().hasOnly(["read"]) &&
+          request.resource.data.read == true
+        ) ||
+        (resource.data.senderId is string && resource.data.senderId == request.auth.uid);
+      allow delete: if isAdminOrEmployee() ||
         (resource.data.senderId is string && resource.data.senderId == request.auth.uid);
     }
 

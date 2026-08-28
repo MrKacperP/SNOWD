@@ -3,15 +3,15 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { CheckCircle2, MapPin, Shield, Snowflake, UserRound } from "lucide-react";
+import AuthPageShell from "@/components/AuthPageShell";
+import { ArrowRight, CheckCircle2, MapPin, UserRound } from "lucide-react";
 import { motion } from "framer-motion";
 
 const steps = [
-  "Start with your name and service area.",
+  "Start with your name and Canadian service area.",
   "Continue through guided setup for client or operator details.",
   "Land in the same booking and messaging system used every day.",
 ];
@@ -85,64 +85,29 @@ export default function SignUpPage() {
   if (!authLoading && user && profile?.onboardingComplete) return null;
 
   return (
-    <div className="min-h-dvh px-4 py-4 md:px-6 md:py-6">
-      <div className="mx-auto grid min-h-[calc(100dvh-2rem)] max-w-[1400px] overflow-hidden rounded-[2rem] border border-[var(--border-color)] bg-white shadow-[0_30px_90px_rgba(18,18,18,0.12)] lg:grid-cols-[minmax(0,0.95fr)_minmax(460px,520px)]">
-        <section className="map-shell hidden p-8 lg:block">
-          <div className="flex h-full flex-col justify-between rounded-[2rem] bg-white/70 p-7">
-            <div>
-              <div className="chip">
-                <Snowflake className="h-4 w-4 text-[var(--accent-sun)]" />
-                Guided setup
-              </div>
-              <h1 className="mt-6 max-w-lg text-5xl font-headline font-bold leading-none">
-                Start with a faster, clearer winter service setup<span className="text-[var(--accent-sun)]">.</span>
-              </h1>
-              <p className="mt-4 max-w-lg text-base leading-7 text-[var(--text-muted)]">
-                Create an account, confirm your service area, and move directly into the live snow service flow without extra steps.
-              </p>
-            </div>
-
-            <div className="grid gap-4">
-              {steps.map((item, index) => (
-                <div key={item} className="rounded-[1.5rem] bg-white px-5 py-4 shadow-[0_16px_30px_rgba(18,18,18,0.08)]">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#111111] text-sm font-bold text-white">
-                      {index + 1}
-                    </div>
-                    <div className="text-sm font-medium text-[var(--text-secondary)]">{item}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
+    <AuthPageShell
+      eyebrow="guided setup"
+      title="start clearing"
+      body="Create an account, confirm your service area, and move directly into the live snow service flow."
+      features={steps}
+    >
+      <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="w-full">
+        <div className="rounded-[1.35rem] border-[3px] border-[#061321] bg-white p-4 shadow-[5px_5px_0_#061321] sm:p-5 lg:p-6">
+          <div className="inline-flex rounded-full bg-[#ff820e] px-3.5 py-1.5 text-[11px] font-black uppercase tracking-[0.16em]">
+            Create account
           </div>
-        </section>
+          <h2 className="mt-3 font-headline text-[clamp(2rem,7vw,3rem)] font-black lowercase leading-none">
+            Set up your profile<span className="text-[#ff820e]">.</span>
+          </h2>
+          <p className="mt-2 text-sm font-bold leading-5 text-[#061321]/62 sm:text-base">
+            Add the basics now. We will use them to start onboarding in the right area.
+          </p>
 
-        <section className="bg-[#111111] px-6 py-6 text-white md:px-9 md:py-8">
-          <Link href="/" className="inline-flex items-center gap-3">
-            <Image src="/logo.png" alt="snowd logo" width={36} height={36} />
-            <span className="text-2xl font-headline font-bold">snowd<span className="text-[var(--accent-sun)]">.</span></span>
-          </Link>
-
-          <motion.div
-            initial={{ opacity: 0, y: 18 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className="mx-auto mt-10 w-full max-w-[440px]"
-          >
-            <div className="chip border border-white/10 bg-white/8 text-white">
-              <Shield className="h-4 w-4 text-[var(--accent-sun)]" />
-              Create account
-            </div>
-            <h2 className="mt-6 text-4xl font-headline font-bold leading-none">Set up your marketplace profile<span className="text-[var(--accent-sun)]">.</span></h2>
-            <p className="mt-4 text-base leading-7 text-white/68">
-              Add the basics now, then continue to guided onboarding for service details, communication setup, and booking preferences.
-            </p>
-
-            <div className="mt-8 space-y-4">
+          <div className="mt-4 space-y-3">
               <div>
-                <label className="mb-2 block text-sm font-semibold text-white">Full name</label>
+                <label className="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-[#061321]/60">Full name</label>
                 <div className="relative">
-                  <UserRound className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
+                  <UserRound className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#061321]/38" strokeWidth={3} />
                   <input
                     type="text"
                     value={previewName}
@@ -151,15 +116,15 @@ export default function SignUpPage() {
                       if (error) setError("");
                     }}
                     placeholder="Alex Johnson"
-                    className="h-13 w-full rounded-2xl border border-white/10 bg-white/8 pl-11 pr-4 text-white outline-none transition placeholder:text-white/35 focus:border-white/28"
+                    className="h-12 w-full rounded-2xl border-[3px] border-[#061321] bg-[#f3f8fb] pl-12 pr-4 text-base font-bold text-[#061321] outline-none transition placeholder:text-[#061321]/35 focus:bg-white sm:h-13"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-semibold text-white">Postal code</label>
+                <label className="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-[#061321]/60">Postal code</label>
                 <div className="relative">
-                  <MapPin className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
+                  <MapPin className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#061321]/38" strokeWidth={3} />
                   <input
                     type="text"
                     value={previewPostalCode}
@@ -168,38 +133,41 @@ export default function SignUpPage() {
                       if (error) setError("");
                     }}
                     placeholder="K1A 0B1"
-                    className="h-13 w-full rounded-2xl border border-white/10 bg-white/8 pl-11 pr-4 text-white outline-none transition placeholder:text-white/35 focus:border-white/28"
+                    className="h-12 w-full rounded-2xl border-[3px] border-[#061321] bg-[#f3f8fb] pl-12 pr-4 text-base font-bold text-[#061321] outline-none transition placeholder:text-[#061321]/35 focus:bg-white sm:h-13"
                   />
                 </div>
               </div>
 
               {error ? (
-                <div className="rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">{error}</div>
+                <div className="rounded-2xl border-[3px] border-red-700 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div>
               ) : null}
 
-              <button onClick={handleGoogleSignUp} disabled={loading} className="btn-primary h-13 w-full rounded-2xl bg-white text-black hover:bg-white/92">
-                {loading ? "Connecting..." : "Continue with Google"}
+              <button
+                onClick={handleGoogleSignUp}
+                disabled={loading}
+                className="flex min-h-12 w-full items-center justify-center rounded-2xl border-[3px] border-[#061321] bg-[#061321] px-5 text-base font-black text-white transition hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-55 sm:min-h-13"
+              >
+                {loading ? "Connecting..." : "Continue with Google"} {!loading ? <ArrowRight className="ml-2 h-5 w-5" strokeWidth={3} /> : null}
               </button>
             </div>
 
-            <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-white/7 p-4">
+            <div className="mt-3 rounded-2xl border-[3px] border-[#061321] bg-[#dfeef8] p-3">
               <div className="flex items-start gap-3">
-                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-[var(--accent-sun)]" />
-                <p className="text-sm leading-6 text-white/76">
-                  Your name and postal code are saved locally so onboarding can open in the right city and service flow.
+                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-[#ff820e]" strokeWidth={3} />
+                <p className="text-xs font-black leading-4 text-[#061321]/72 sm:text-sm sm:leading-5">
+                  Your location starts the right local service flow.
                 </p>
               </div>
             </div>
 
-            <p className="mt-6 text-sm text-white/65">
+            <p className="mt-3 text-sm font-bold text-[#061321]/62">
               Already have an account?{" "}
-              <Link href="/login" className="font-semibold text-white">
+              <Link href="/login" className="font-black text-[#061321] underline decoration-[#ff820e] decoration-4 underline-offset-4">
                 Log in
               </Link>
             </p>
-          </motion.div>
-        </section>
-      </div>
-    </div>
+        </div>
+      </motion.div>
+    </AuthPageShell>
   );
 }

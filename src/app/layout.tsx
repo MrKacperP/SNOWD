@@ -5,13 +5,25 @@ import { ThemeProvider } from "@/context/ThemeContext";
 import PageVisitTracker from "@/components/PageVisitTracker";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://snowd.ca"),
   title: {
-    default: "snowd.ca",
+    default: "SNOWD | Neighborhood snow removal",
     template: "%s | snowd.ca",
   },
   description:
-    "Connect with local snow removal operators in your Canadian neighbourhood. From professional plowing services to students with shovels — get your snow cleared fast.",
-  keywords: ["snow removal", "Canada", "snow plowing", "driveway clearing", "snow shovelling"],
+    "Book a nearby shoveler or earn clearing snow in your neighborhood with SNOWD.",
+  keywords: ["snow removal", "Canada", "students", "seniors", "driveway clearing", "snow shovelling"],
+  openGraph: {
+    title: "SNOWD | Snow help, right on your block",
+    description: "Book nearby snow help or earn clearing driveways in your neighborhood.",
+    images: ["/landing/snowd-neighborhood-hero.png"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "SNOWD | Snow help, right on your block",
+    description: "Book nearby snow help or earn clearing driveways in your neighborhood.",
+    images: ["/landing/snowd-neighborhood-hero.png"],
+  },
   icons: {
     icon: "/icon.png",
     apple: "/icon.png",

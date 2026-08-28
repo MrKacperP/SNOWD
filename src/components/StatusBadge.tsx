@@ -4,11 +4,11 @@ import React from "react";
 import { JobStatus } from "@/lib/types";
 
 const statusConfig: Record<JobStatus, { label: string; color: string; bg: string }> = {
-  pending: { label: "Pending", color: "text-yellow-700", bg: "bg-yellow-50 border-yellow-200" },
-  accepted: { label: "Accepted", color: "text-blue-700", bg: "bg-blue-50 border-blue-200" },
-  "en-route": { label: "En Route", color: "text-gray-700", bg: "bg-gray-50 border-gray-200" },
-  "in-progress": { label: "In Progress", color: "text-gray-700", bg: "bg-gray-50 border-gray-200" },
-  completed: { label: "Completed", color: "text-green-700", bg: "bg-green-50 border-green-200" },
+  pending: { label: "Pending", color: "text-[#7a4b00]", bg: "bg-[var(--accent-sun-soft)] border-[#f5c58f]" },
+  accepted: { label: "Accepted", color: "text-[var(--text-primary)]", bg: "bg-[var(--accent-soft)] border-[var(--border-color)]" },
+  "en-route": { label: "En Route", color: "text-[var(--text-primary)]", bg: "bg-[var(--bg-secondary)] border-[var(--border-color)]" },
+  "in-progress": { label: "In Progress", color: "text-[var(--text-primary)]", bg: "bg-[var(--bg-secondary)] border-[var(--border-color)]" },
+  completed: { label: "Completed", color: "text-[var(--accent-mint)]", bg: "bg-[#eaf7ef] border-[#bde4cb]" },
   cancelled: { label: "Cancelled", color: "text-red-700", bg: "bg-red-50 border-red-200" },
 };
 

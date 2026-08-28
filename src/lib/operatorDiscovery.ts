@@ -51,14 +51,12 @@ export function isOperatorPublic(operator: OperatorProfile): boolean {
     isAvailable?: boolean;
   };
 
-  const hasStripe = typeof ext.stripeConnectAccountId === "string" && ext.stripeConnectAccountId.trim().length > 0;
   const profileComplete = Boolean(operator.avatar && operator.phone && operator.address);
 
   return Boolean(
     operator.onboardingComplete &&
       ext.accountApproved &&
       ext.idVerified &&
-      hasStripe &&
       profileComplete &&
       (ext.isAvailable ?? true)
   );

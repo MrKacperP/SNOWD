@@ -16,6 +16,7 @@ import { format } from "date-fns";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
 import { Chat, UserProfile } from "@/lib/types";
+import UserAvatar from "@/components/UserAvatar";
 
 type ChatWithOtherUser = Chat & {
   otherUser?: UserProfile;
@@ -117,9 +118,15 @@ export default function MessagesPage() {
     });
   }, [chatList, searchTerm]);
 
+  const totalUnread = chatList.reduce(
+    (total, chat) => total + (chat.unreadCount?.[user?.uid || ""] || 0),
+    0
+  );
+
   return (
-    <div className="mx-auto max-w-3xl px-4 py-5 md:px-0">
-      <div className="mb-4 flex items-center gap-3">
+    <div className="mx-auto max-w-4xl px-4 py-5 md:px-0">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
         <Link
           href="/dashboard"
           className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-color)] bg-white text-[var(--text-primary)] transition hover:bg-[var(--bg-secondary)]"
@@ -128,21 +135,26 @@ export default function MessagesPage() {
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div>
-          <p className="text-xs uppercase tracking-[0.16em] text-[var(--text-muted)]">Inbox</p>
-          <h1 className="text-2xl font-headline font-bold text-[var(--text-primary)]">Conversations</h1>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Inbox</p>
+          <h1 className="font-headline text-2xl font-bold text-[var(--text-primary)]">Messages</h1>
+        </div>
+        </div>
+        <div className="rounded-full border border-[var(--border-color)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--text-secondary)]">
+          {chatList.length} conversations
+          {totalUnread > 0 && <span className="ml-2 text-[var(--text-primary)]">{totalUnread} unread</span>}
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-[1.8rem] border border-[var(--border-color)] bg-white shadow-[0_20px_40px_rgba(15,23,42,0.08)]">
-        <div className="border-b border-[var(--border-soft)] bg-[#111111] px-4 py-4">
+      <div className="overflow-hidden rounded-[1.4rem] border border-[var(--border-color)] bg-white shadow-[0_20px_40px_rgba(15,23,42,0.08)]">
+        <div className="border-b border-[var(--border-soft)] bg-white px-4 py-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search people or job threads"
-              className="w-full rounded-xl border border-white/10 bg-white/8 py-3 pl-9 pr-3 text-sm text-white placeholder:text-white/35 focus:outline-none"
+              placeholder="Search by person or message"
+              className="w-full rounded-xl border border-[var(--border-color)] bg-[#fbfbf8] py-3 pl-9 pr-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none transition focus:border-[var(--text-primary)] focus:bg-white"
             />
           </div>
         </div>
@@ -164,18 +176,23 @@ export default function MessagesPage() {
             </p>
           </div>
         ) : (
-          <ul className="divide-y divide-[#EDF2F7]">
+          <ul className="divide-y divide-[var(--border-soft)]">
             {filteredChatList.map((chat) => {
               const unread = chat.unreadCount?.[user?.uid || ""] || 0;
               const title = chat.otherUser?.displayName || "User";
 
               return (
                 <li key={chat.id}>
-                  <Link href={`/dashboard/messages/${chat.id}`} className="block px-4 py-4 transition hover:bg-[#f7f7f4]">
+                  <Link href={`/dashboard/messages/${chat.id}`} className="block px-4 py-4 transition hover:bg-[#f7f7f4] focus:bg-[#f7f7f4] focus:outline-none">
                     <div className="flex items-start gap-3">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] font-semibold text-[var(--text-primary)]">
-                        {title.charAt(0).toUpperCase()}
-                      </div>
+                      <UserAvatar
+                        photoURL={(chat.otherUser as unknown as Record<string, string> | undefined)?.avatar}
+                        role={chat.otherUser?.role}
+                        displayName={title}
+                        size={48}
+                        rounded="2xl"
+                        className="border border-[var(--border-color)] bg-[var(--bg-secondary)]"
+                      />
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-3">
@@ -188,7 +205,7 @@ export default function MessagesPage() {
                         </div>
 
                         <div className="mt-1 flex items-center justify-between gap-3">
-                          <p className={`truncate text-sm ${unread > 0 ? "font-medium text-[var(--text-primary)]" : "text-[var(--text-muted)]"}`}>
+                          <p className={`truncate text-sm leading-6 ${unread > 0 ? "font-semibold text-[var(--text-primary)]" : "text-[var(--text-muted)]"}`}>
                             {chat.lastMessage || "No messages yet"}
                           </p>
                           {unread > 0 && (

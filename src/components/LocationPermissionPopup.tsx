@@ -2,9 +2,8 @@
 
 import React from "react";
 import Image from "next/image";
-import { Navigation, Shield } from "lucide-react";
+import { CheckCircle2, MapPin, Navigation, Shield } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Snowflake } from "lucide-react";
 
 interface LocationPermissionPopupProps {
   isOpen: boolean;
@@ -13,6 +12,8 @@ interface LocationPermissionPopupProps {
 }
 
 export default function LocationPermissionPopup({ isOpen, onAllow, onDeny }: LocationPermissionPopupProps) {
+  const benefits = ["Nearby operators first", "More accurate arrival times", "Local snow alerts"];
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -25,71 +26,69 @@ export default function LocationPermissionPopup({ isOpen, onAllow, onDeny }: Loc
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
 
           <motion.div
-            className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden"
+            className="relative w-full max-w-[370px] overflow-hidden rounded-[1.6rem] border-[3px] border-[#061321] bg-[#f3f8fb] shadow-[8px_8px_0_#061321]"
             initial={{ opacity: 0, scale: 0.92, y: 16 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 10 }}
             transition={{ duration: 0.25, ease: "easeOut" }}
           >
-            {/* Google Map */}
-            <div className="relative h-44 w-full bg-[#e8f4fd]">
-              <div className="w-full h-full relative overflow-hidden" aria-label="Location preview">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,#d8ebff_0%,transparent_40%),radial-gradient(circle_at_80%_70%,#c6e2ff_0%,transparent_45%),linear-gradient(135deg,#edf6ff_0%,#dfeefe_100%)]" />
-                <div className="absolute inset-0 opacity-60" style={{
+            <div className="relative h-40 w-full overflow-hidden border-b-[3px] border-[#061321] bg-[#dfeef8]">
+              <div className="absolute inset-0 opacity-70" style={{
                   backgroundImage:
-                    "linear-gradient(to right, rgba(47,111,237,0.08) 1px, transparent 1px), linear-gradient(to bottom, rgba(47,111,237,0.08) 1px, transparent 1px)",
-                  backgroundSize: "28px 28px",
-                }} />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-11 h-11 rounded-full bg-[#2F6FED] text-white flex items-center justify-center shadow-lg shadow-[#2F6FED]/40 border-2 border-white">
-                    <Snowflake className="w-5 h-5" />
+                    "linear-gradient(to right, rgba(6,19,33,0.08) 1px, transparent 1px), linear-gradient(to bottom, rgba(6,19,33,0.08) 1px, transparent 1px)",
+                  backgroundSize: "30px 30px",
+                }}
+              />
+              <div className="absolute left-7 top-6 rounded-2xl border-[3px] border-[#061321] bg-white px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-[#061321]">
+                Local match
+              </div>
+              <div className="absolute inset-0 flex items-center justify-center pt-6">
+                <div className="relative grid h-24 w-24 place-items-center">
+                  <span className="absolute h-24 w-24 rounded-full border-[3px] border-[#ff820e]/70 bg-[#ff820e]/12" />
+                  <span className="absolute h-16 w-16 rounded-full border-[3px] border-[#061321]/18 bg-white/70" />
+                  <div className="relative grid h-12 w-12 place-items-center rounded-full border-[3px] border-[#061321] bg-[#ff820e] text-[#061321] shadow-[4px_4px_0_#061321]">
+                    <MapPin className="h-6 w-6 fill-[#061321]" strokeWidth={3} />
                   </div>
                 </div>
               </div>
-              {/* Gradient overlay at bottom */}
-              <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white to-transparent" />
+              <Image src="/logo.png" alt="" width={130} height={140} className="absolute -bottom-11 -right-8 h-32 w-32 rotate-[-8deg] object-contain opacity-35" />
             </div>
 
-            <div className="px-6 pt-1 pb-6">
-              {/* Logo + heading */}
-              <div className="flex items-center gap-3 mb-3">
-                <motion.div
-                  animate={{ rotate: [0, -8, 8, -4, 4, 0] }}
-                  transition={{ delay: 0.5, duration: 0.7 }}
-                >
-                  <Image src="/logo.png" alt="Snowd mascot" width={44} height={44} className="drop-shadow" />
-                </motion.div>
-                <div>
-                  <h2 className="text-lg font-bold text-[#0B1F33] leading-tight">Allow location access</h2>
-                  <p className="text-xs text-[#6B7C8F] mt-0.5">So I can find operators near you! ❄️</p>
-                </div>
+            <div className="p-5">
+              <div>
+                <h2 className="font-headline text-3xl font-black lowercase leading-none text-[#061321]">
+                  Find help nearby<span className="text-[#ff820e]">.</span>
+                </h2>
+                <p className="mt-3 text-sm font-bold leading-5 text-[#061321]/64">
+                  Share your location so SNOWD can show operators close enough to help today.
+                </p>
               </div>
 
-              <div className="space-y-2 mb-4">
-                {["Find operators near you", "Get local weather updates", "See better timing estimates"].map((item) => (
-                  <div key={item} className="flex items-center gap-3 px-3 py-2 bg-[#F0F7FF] rounded-xl">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#2F6FED] shrink-0" />
-                    <span className="text-sm text-[var(--text-primary)]">{item}</span>
+              <div className="mt-5 grid gap-2">
+                {benefits.map((item) => (
+                  <div key={item} className="flex items-center gap-3 rounded-xl border border-[#061321]/10 bg-white px-3 py-2.5">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-[#1d8f4d]" strokeWidth={3} />
+                    <span className="text-sm font-black text-[#061321]">{item}</span>
                   </div>
                 ))}
               </div>
 
-              <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] mb-5">
-                <Shield className="w-3 h-3 text-[#6B7C8F]" />
-                <span className="text-xs text-[#6B7C8F]">Your location stays private and secure.</span>
+              <div className="mt-4 flex items-center gap-2 text-xs font-bold leading-4 text-[#061321]/54">
+                <Shield className="h-4 w-4 shrink-0 text-[#061321]/48" />
+                <span>Used for matching and weather. Never shown as your exact pin.</span>
               </div>
 
-              <div className="space-y-2.5">
+              <div className="mt-5 space-y-2.5">
                 <button
                   onClick={onAllow}
-                  className="w-full py-3.5 bg-[#2F6FED] hover:bg-[#2158C7] text-white rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-[rgba(47,111,237,0.3)]"
+                  className="flex min-h-13 w-full items-center justify-center gap-2 rounded-2xl border-[3px] border-[#061321] bg-[#ff820e] px-4 py-3 text-base font-black text-[#061321] shadow-[4px_4px_0_#061321] transition hover:-translate-y-0.5"
                 >
-                  <Navigation className="w-4 h-4" />
-                  Allow location
+                  <Navigation className="h-5 w-5" strokeWidth={3} />
+                  Show nearby operators
                 </button>
                 <button
                   onClick={onDeny}
-                  className="w-full py-2.5 text-[#6B7C8F] hover:text-[#0B1F33] text-sm font-medium transition"
+                  className="w-full rounded-xl px-4 py-2.5 text-sm font-black text-[#061321]/55 transition hover:bg-white hover:text-[#061321]"
                 >
                   Not right now
                 </button>

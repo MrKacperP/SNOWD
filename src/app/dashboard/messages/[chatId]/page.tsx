@@ -10,6 +10,7 @@ import {
   orderBy,
   onSnapshot,
   addDoc,
+  setDoc,
   updateDoc,
   doc,
   getDoc,
@@ -52,10 +53,18 @@ import {
   Paperclip,
   Mic,
   Square,
+  MessageSquare,
 } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
 import CancellationPopup from "@/components/CancellationPopup";
+
+type QuickCommConfirmation = {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  onConfirm: () => Promise<void> | void;
+};
 
 // Haversine distance between two coords
 function getDistanceKm(
@@ -134,8 +143,12 @@ export default function ChatPage() {
   const [selectedGuestUploadUrl, setSelectedGuestUploadUrl] = useState<string>("");
   const [creatingGuestUploadLink, setCreatingGuestUploadLink] = useState(false);
   const [rightPanelView, setRightPanelView] = useState<"updates" | "profile">("updates");
+  const [quickCommConfirmation, setQuickCommConfirmation] =
+    useState<QuickCommConfirmation | null>(null);
 
   const isOperator = profile?.role === "operator";
+  const clientName = isOperator ? otherUser?.displayName : profile?.displayName;
+  const operatorName = isOperator ? profile?.displayName : otherUser?.displayName;
   const mapAddress = [job?.address, job?.city, job?.province].filter(Boolean).join(", ");
   const mapQuery = encodeURIComponent(mapAddress || "Canada");
   const mapLink = `https://maps.google.com/?q=${mapQuery}`;
@@ -265,10 +278,15 @@ export default function ChatPage() {
 
   // Fetch chat, job, and other user data
   useEffect(() => {
+    let unsubscribeJob: (() => void) | undefined;
+    let cancelled = false;
+
     const fetchChatData = async () => {
       if (!chatId || !user?.uid) return;
       try {
         const chatDoc = await getDoc(doc(db, "chats", chatId));
+        if (cancelled) return;
+
         if (chatDoc.exists()) {
           const chatData = chatDoc.data();
           if (chatData.rehireSent) setRehireSent(true);
@@ -278,32 +296,38 @@ export default function ChatPage() {
 
           if (otherUid) {
             const userDoc = await getDoc(doc(db, "users", otherUid));
+            if (cancelled) return;
             if (userDoc.exists()) {
               setOtherUser(userDoc.data() as UserProfile);
             }
           }
 
           if (chatData.jobId) {
-            const unsubJob = onSnapshot(doc(db, "jobs", chatData.jobId), (jobDoc) => {
+            unsubscribeJob = onSnapshot(doc(db, "jobs", chatData.jobId), (jobDoc) => {
               if (jobDoc.exists()) {
                 setJob({ id: jobDoc.id, ...jobDoc.data() } as Job);
               }
             });
-            return () => unsubJob();
           }
         }
       } catch (error) {
         console.error("Error fetching chat data:", error);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
     fetchChatData();
+
+    return () => {
+      cancelled = true;
+      unsubscribeJob?.();
+    };
   }, [chatId, user?.uid]);
 
   // Real-time messages listener
   useEffect(() => {
     if (!chatId) return;
+    let fallbackUnsubscribe: (() => void) | undefined;
     const q = query(
       collection(db, "messages"),
       where("chatId", "==", chatId),
@@ -326,7 +350,7 @@ export default function ChatPage() {
             collection(db, "messages"),
             where("chatId", "==", chatId)
           );
-          onSnapshot(fallbackQ, (snapshot) => {
+          fallbackUnsubscribe = onSnapshot(fallbackQ, (snapshot) => {
             const msgs = snapshot.docs
               .map((d) => ({ id: d.id, ...d.data() }))
               .sort((a, b) => {
@@ -348,7 +372,10 @@ export default function ChatPage() {
       }
     );
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      fallbackUnsubscribe?.();
+    };
   }, [chatId]);
 
   useEffect(() => {
@@ -516,6 +543,12 @@ export default function ChatPage() {
       }
 
       await updateDoc(doc(db, "jobs", job.id), updateData);
+      if (newStatus === "completed") {
+        await upsertTransaction(
+          { ...job, paymentStatus: "paid" },
+          "paid"
+        );
+      }
 
       const statusLabels: Record<string, string> = {
         accepted: "accepted this job",
@@ -697,6 +730,42 @@ export default function ChatPage() {
     setShowMobileTasksSheet(false);
   };
 
+  const requestQuickCommConfirmation = (confirmation: QuickCommConfirmation) => {
+    setQuickCommConfirmation(confirmation);
+  };
+
+  const upsertTransaction = async (
+    activeJob: Job,
+    status: "held" | "paid" | "refunded" | "cancelled",
+    paymentIntentId?: string
+  ) => {
+    const resolvedPaymentIntentId = paymentIntentId || activeJob.stripePaymentIntentId || "";
+    const transactionId = resolvedPaymentIntentId || `${activeJob.id}-${activeJob.paymentMethod || "cash"}`;
+    const transactionData: Record<string, unknown> = {
+      jobId: activeJob.id,
+      chatId,
+      clientId: activeJob.clientId,
+      operatorId: activeJob.operatorId,
+      amount: Math.round((activeJob.price || 0) * 100),
+      paymentMethod: resolvedPaymentIntentId ? "credit" : activeJob.paymentMethod,
+      status,
+      stripePaymentIntentId: resolvedPaymentIntentId,
+      description: `Snow removal - ${activeJob.serviceTypes?.join(", ") || "service"} at ${activeJob.address || "client address"}`,
+      serviceTypes: activeJob.serviceTypes || [],
+      address: activeJob.address || "",
+      clientName: clientName || "",
+      operatorName: operatorName || "",
+      createdAt: activeJob.createdAt || Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    };
+
+    if (status === "paid") {
+      transactionData.completedAt = Timestamp.now();
+    }
+
+    await setDoc(doc(db, "transactions", transactionId), transactionData, { merge: true });
+  };
+
   const captureStripePaymentIfNeeded = async (activeJob: Job) => {
     if (!activeJob.stripePaymentIntentId) {
       return { captured: false, skipped: true };
@@ -727,6 +796,7 @@ export default function ChatPage() {
         paymentCaptureAttempts: increment(1),
         updatedAt: Timestamp.now(),
       });
+      await upsertTransaction(activeJob, "paid", activeJob.stripePaymentIntentId);
 
       return { captured: true, skipped: false };
     } catch {
@@ -783,6 +853,11 @@ export default function ChatPage() {
         stripePaymentIntentId: paymentIntentId,
         updatedAt: Timestamp.now(),
       });
+      await upsertTransaction(
+        { ...job, paymentStatus: "held", paymentMethod: "credit", stripePaymentIntentId: paymentIntentId },
+        "held",
+        paymentIntentId
+      );
       await sendMessage(
         `Payment of $${job.price} CAD has been securely held by snowd.ca. Funds will be released when the job is completed and verified.`,
         "payment",
@@ -805,27 +880,14 @@ export default function ChatPage() {
         const base64 = reader.result as string;
         setCompletionPhoto(base64);
         
-        // Update job with photo and mark as completed
+        // Save proof first. Completion and payment release happen from the status action.
         await updateDoc(doc(db, "jobs", job.id), {
           completionPhotoUrl: base64,
-          status: "completed",
-          completionTime: Timestamp.now(),
           updatedAt: Timestamp.now(),
         });
         
-        // If payment was held via Stripe, capture it idempotently.
-        if (job.stripePaymentIntentId) {
-          const captureResult = await captureStripePaymentIfNeeded(job);
-          if (captureResult.error) {
-            console.error("Payment capture error:", captureResult.error);
-          }
-        } else if (!job.stripePaymentIntentId) {
-          // Cash / e-transfer job — mark as paid directly
-          await updateDoc(doc(db, "jobs", job.id), { paymentStatus: "paid" });
-        }
-        
         await sendMessage(
-          `${profile?.displayName} submitted a completion photo for verification.`,
+          `${profile?.displayName} submitted completion photo proof.`,
           "completion-photo",
           { completionPhotoUrl: base64 }
         );
@@ -925,6 +987,7 @@ export default function ChatPage() {
         completionTime: Timestamp.now(),
         updatedAt: Timestamp.now(),
       });
+      await upsertTransaction({ ...job, paymentStatus: "paid" }, "paid");
       await sendMessage(
         `Payment of $${job.price} CAD has been released. Job completed successfully!`,
         "payment",
@@ -1018,6 +1081,15 @@ export default function ChatPage() {
     sendMessage(newMessage);
   };
 
+  const handleComposerKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      if (!sendingMessage && newMessage.trim()) {
+        sendMessage(newMessage);
+      }
+    }
+  };
+
   const handleOpenCameraUpload = () => {
     if (typeof window === "undefined") return;
 
@@ -1076,8 +1148,11 @@ export default function ChatPage() {
     setSubmittingReport(true);
     try {
       await addDoc(collection(db, "claims"), {
-        reporterId: user.uid,
-        reportedId: otherUser.uid,
+        claimantId: user.uid,
+        claimantRole: profile?.role === "operator" ? "operator" : "client",
+        againstId: otherUser.uid,
+        claimantName: profile?.displayName || "User",
+        title: reportType.replace("-", " "),
         jobId: job?.id || "",
         chatId,
         type: reportType,
@@ -1086,6 +1161,7 @@ export default function ChatPage() {
         photoUrls: [],
         adminNotes: "",
         createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
       });
       await sendMessage(
         `A report has been filed. Our admin team will review this shortly.`,
@@ -1112,6 +1188,42 @@ export default function ChatPage() {
     } catch {}
     return "";
   };
+
+  const getMessageDate = (ts: unknown): Date | null => {
+    if (!ts) return null;
+    try {
+      if (ts instanceof Date) return ts;
+      if (typeof ts === "object" && ts !== null && "toDate" in ts) {
+        return (ts as Timestamp).toDate();
+      }
+      if (typeof ts === "string") return new Date(ts);
+      if (typeof ts === "object" && ts !== null && "seconds" in ts) {
+        return new Date((ts as { seconds: number }).seconds * 1000);
+      }
+    } catch {}
+    return null;
+  };
+
+  const formatMessageDay = (ts: unknown): string => {
+    const date = getMessageDate(ts);
+    if (!date) return "";
+
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) return "Today";
+    if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
+    return format(date, "MMM d, yyyy");
+  };
+
+  const quickReplies = React.useMemo(() => {
+    if (isOperator) {
+      return ["On my way now", "I just arrived", "I will send a photo when finished"];
+    }
+
+    return ["Thanks for the update", "Please let me know when you arrive", "I will keep an eye out"];
+  }, [isOperator]);
 
   const latestOwnMessageId = React.useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i -= 1) {
@@ -1292,15 +1404,25 @@ export default function ChatPage() {
     }
     // Regular text message with clickable avatar
     return (
-      <div key={msg.id} className={`mb-2 flex ${isOwn ? "justify-end" : "justify-start"} chat-bubble`}>
+      <div key={msg.id} className={`mb-2 flex items-end gap-2 ${isOwn ? "justify-end" : "justify-start"} chat-bubble`}>
+        {!isOwn && otherUser && (
+          <Link href={`/dashboard/u/${msg.senderId}`} className="hidden shrink-0 sm:block">
+            <UserAvatar
+              photoURL={(otherUser as unknown as Record<string, string>)?.avatar}
+              role={otherUser.role}
+              displayName={otherUser.displayName}
+              size={28}
+            />
+          </Link>
+        )}
         <div
-          className={`max-w-[76%] px-4 py-3 rounded-[1.4rem] shadow-sm ${
+          className={`max-w-[82%] px-4 py-3 rounded-[1.2rem] shadow-sm sm:max-w-[72%] ${
             isOwn
-              ? "bg-[#111111] text-white rounded-tr-sm border border-[#111111]"
-              : "bg-white text-[var(--text-primary)] rounded-tl-sm border border-[var(--border-color)]"
+              ? "bg-[#111111] text-white rounded-br-sm border border-[#111111]"
+              : "bg-white text-[var(--text-primary)] rounded-bl-sm border border-[var(--border-color)]"
           }`}
         >
-          <p className="text-sm leading-relaxed">{msg.content}</p>
+          <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{msg.content}</p>
           <div className={`mt-1 flex items-center gap-1.5 text-[10px] ${isOwn ? "justify-end text-white/65" : "justify-end text-[var(--text-muted)]"}`}>
             <span>{formatTimestamp(msg.createdAt)}</span>
             {showDeliveryState && (
@@ -1332,21 +1454,34 @@ export default function ChatPage() {
       {/* Chat Column */}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-y border-r border-[var(--border-color)] bg-[var(--bg-card-solid)] md:border-l">
         {/* Chat Header */}
-        <div className="flex shrink-0 items-center gap-3 border-b border-[var(--border-soft)] bg-white px-4 py-4">
+        <div className="flex shrink-0 items-center gap-3 border-b border-[var(--border-soft)] bg-white/95 px-3 py-3 backdrop-blur sm:px-4">
           <Link
             href="/dashboard/messages"
-            className="rounded-lg p-1.5 text-[var(--text-muted)] transition hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]"
+            className="rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]"
+            aria-label="Back to messages"
           >
             <ArrowLeft className="w-5 h-5" />
           </Link>
           {/* Desktop: open profile panel. Mobile: route to profile page. */}
-          <button type="button" onClick={() => setRightPanelView("profile")} className="hidden h-11 w-11 cursor-pointer items-center justify-center rounded-2xl bg-[#111111] font-semibold text-white transition md:flex" title="Show profile details">
-            {otherUser?.displayName?.charAt(0)?.toUpperCase() || "?"}
+          <button type="button" onClick={() => setRightPanelView("profile")} className="hidden cursor-pointer transition md:block" title="Show profile details">
+            <UserAvatar
+              photoURL={(otherUser as unknown as Record<string, string> | null)?.avatar}
+              role={otherUser?.role}
+              displayName={otherUser?.displayName}
+              size={44}
+              rounded="2xl"
+              className="border border-[var(--border-color)]"
+            />
           </button>
           <Link href={`/dashboard/u/${otherUserId || ""}`} className="md:hidden">
-            <div className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-2xl bg-[#111111] font-semibold text-white shadow-sm transition">
-              {otherUser?.displayName?.charAt(0)?.toUpperCase() || "?"}
-            </div>
+            <UserAvatar
+              photoURL={(otherUser as unknown as Record<string, string> | null)?.avatar}
+              role={otherUser?.role}
+              displayName={otherUser?.displayName}
+              size={44}
+              rounded="2xl"
+              className="border border-[var(--border-color)]"
+            />
           </Link>
           <div className="flex-1 min-w-0">
             <button
@@ -1363,11 +1498,11 @@ export default function ChatPage() {
                 {otherUser?.displayName || "User"}
               </p>
             </Link>
-            <p className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+            <p className="flex min-w-0 items-center gap-1.5 text-xs text-[var(--text-muted)]">
               <MapPin className="w-3 h-3" />
-              {otherUser?.city}, {otherUser?.province}
+              <span className="truncate">{[otherUser?.city, otherUser?.province].filter(Boolean).join(", ") || "Location unavailable"}</span>
               {distance !== null && (
-                <span className="ml-2 flex items-center gap-0.5 font-semibold text-[var(--text-primary)]">
+                <span className="ml-2 hidden shrink-0 items-center gap-0.5 font-semibold text-[var(--text-primary)] sm:flex">
                   <Compass className="w-3 h-3" />
                   {distance.toFixed(1)} km away
                 </span>
@@ -1375,111 +1510,45 @@ export default function ChatPage() {
             </p>
           </div>
           {job && (
-            <div className="hidden sm:block">
+            <div className="hidden lg:block">
               <StatusBadge status={job.status} />
             </div>
           )}
           <button
             onClick={() => setShowReportModal(true)}
-            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
+            className="rounded-lg p-2 text-gray-400 transition hover:bg-red-50 hover:text-red-500"
             title="Report / File Claim"
+            aria-label="Report issue"
           >
             <Flag className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Address bar for operator — show client address */}
-        {isOperator && job && (
-          <div className="flex items-center gap-2 border-b border-[var(--border-soft)] bg-[var(--bg-secondary)] px-4 py-3 text-xs">
-            <a
-              href={mapLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center"
-              title="Open in Google Maps"
-            >
-              <MapPin className="h-3.5 w-3.5 shrink-0 text-[var(--text-primary)]" />
-            </a>
-            <span className="truncate font-medium text-[var(--text-primary)]">{job.address}</span>
-            <span className="text-[var(--text-muted)]">{job.city}, {job.province}</span>
-            {distance !== null && (
-              <span className="ml-auto shrink-0 rounded-full bg-white px-2.5 py-0.5 font-semibold text-[var(--text-primary)]">
-                {distance.toFixed(1)} km
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Client address bar — for client to see their own address */}
-        {!isOperator && job && (
-          <div className="flex items-center gap-2 border-b border-[var(--border-soft)] bg-[var(--bg-secondary)] px-4 py-3 text-xs">
-            <a
-              href={mapLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center"
-              title="Open in Google Maps"
-            >
-              <MapPin className="h-3.5 w-3.5 shrink-0 text-[var(--text-primary)]" />
-            </a>
-            <span className="truncate font-medium text-[var(--text-primary)]">{job.address}</span>
-            <span className="text-[var(--text-muted)]">{job.city}, {job.province}</span>
-          </div>
-        )}
-
-        {/* Job Info Bar */}
+        {/* Compact Job Context */}
         {job && (
-          <div className="border-b border-[var(--border-soft)] bg-[#f7f7f4] px-4 py-4">
-            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_220px] gap-3 items-stretch">
-              <div className="rounded-[1.3rem] border border-[var(--border-color)] bg-white px-4 py-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Work order</p>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  {job.serviceTypes?.map((s) => (
-                    <span key={s} className="rounded-full bg-[var(--bg-secondary)] px-2.5 py-1 text-xs font-semibold capitalize text-[var(--text-primary)]">
-                      {s.replace("-", " ")}
-                    </span>
-                  ))}
-                  <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                    job.propertySize === "small" ? "bg-emerald-50 text-emerald-700" :
-                    job.propertySize === "medium" ? "bg-amber-50 text-amber-700" :
-                    job.propertySize === "large" ? "bg-orange-50 text-orange-700" :
-                    "bg-purple-50 text-purple-700"
-                  }`}>
-                    {job.propertySize === "small" && "🏠 Small Lot"}
-                    {job.propertySize === "medium" && "🏡 Medium Lot"}
-                    {job.propertySize === "large" && "🏘️ Large Lot"}
-                    {job.propertySize === "commercial" && "🏢 Commercial"}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex flex-col justify-between rounded-[1.3rem] border border-[var(--border-color)] bg-[#111111] px-4 py-4 text-white">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45">Price & payment</p>
-                <div className="mt-2">
-                  <div className="flex items-center gap-1.5">
-                    <DollarSign className="h-4 w-4 text-white" />
-                    <span className="text-2xl font-extrabold leading-none">{job.price}</span>
-                    <span className="mt-1 text-xs font-semibold text-white/55">CAD</span>
-                  </div>
-                </div>
-                <div className="mt-2.5">
-                  {job.paymentStatus === "held" && (
-                    <span className="inline-flex items-center gap-1 text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full font-medium">
-                      <Shield className="w-3 h-3" /> Held
-                    </span>
-                  )}
-                  {job.paymentStatus === "paid" && (
-                    <span className="inline-flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
-                      ✓ Paid
-                    </span>
-                  )}
-                  {job.paymentStatus === "pending" && (
-                    <span className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full font-medium">
-                      Awaiting Payment
-                    </span>
-                  )}
-                </div>
-              </div>
+          <div className="border-b border-[var(--border-soft)] bg-[#f7f7f4] px-3 py-2 sm:px-4">
+            <div className="flex min-w-0 items-center gap-2 overflow-x-auto">
+              <span className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+                Job
+              </span>
+              {job.serviceTypes?.slice(0, 2).map((s) => (
+                <span key={s} className="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-semibold capitalize text-[var(--text-primary)] ring-1 ring-[var(--border-color)]">
+                  {s.replace("-", " ")}
+                </span>
+              ))}
+              <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-semibold capitalize text-[var(--text-secondary)] ring-1 ring-[var(--border-color)]">
+                {job.propertySize?.replace("-", " ")}
+              </span>
+              <span className="shrink-0 rounded-full bg-[#111111] px-2.5 py-1 text-xs font-semibold text-white">
+                ${job.price} CAD
+              </span>
+              <button
+                type="button"
+                onClick={() => setRightPanelView("updates")}
+                className="ml-auto hidden shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold text-[var(--text-muted)] transition hover:bg-white hover:text-[var(--text-primary)] md:inline-flex"
+              >
+                Details
+              </button>
             </div>
           </div>
         )}
@@ -1512,17 +1581,34 @@ export default function ChatPage() {
         )}
 
         {/* Messages */}
-        <div className="flex-1 space-y-1 overflow-y-auto bg-[linear-gradient(180deg,#f5f5f0_0%,#f1f0ea_100%)] px-3 pb-28 pt-4 sm:px-4 md:pb-4">
+        <div className="flex-1 space-y-1 overflow-y-auto bg-[linear-gradient(180deg,#f5f5f0_0%,#f1f0ea_100%)] px-3 pb-36 pt-4 sm:px-4 md:pb-5">
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center py-12 text-[#6B7C8F]">
               <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--border-soft)] bg-white shadow-sm">
-                <CheckCircle className="h-7 w-7 text-[#111111]" />
+                <MessageSquare className="h-7 w-7 text-[#111111]" />
               </div>
-              <p className="text-sm font-medium text-gray-700">Conversation started</p>
-              <p className="mt-1 text-xs text-gray-500">Messages and status updates will appear here</p>
+              <p className="text-sm font-semibold text-gray-800">Start the conversation</p>
+              <p className="mt-1 max-w-xs text-xs leading-5 text-gray-500">Share arrival details, photos, and job updates here.</p>
             </div>
           )}
-          {messages.map(renderMessage)}
+          {messages.map((message, index) => {
+            const currentDay = formatMessageDay(message.createdAt);
+            const previousDay = index > 0 ? formatMessageDay(messages[index - 1].createdAt) : "";
+            const showDayBreak = currentDay && currentDay !== previousDay;
+
+            return (
+              <React.Fragment key={message.id}>
+                {showDayBreak && (
+                  <div className="sticky top-2 z-10 my-3 flex justify-center">
+                    <span className="rounded-full border border-[var(--border-soft)] bg-white/90 px-3 py-1 text-[11px] font-semibold text-[var(--text-muted)] shadow-sm backdrop-blur">
+                      {currentDay}
+                    </span>
+                  </div>
+                )}
+                {renderMessage(message)}
+              </React.Fragment>
+            );
+          })}
           <div ref={messagesEndRef} />
         </div>
 
@@ -1703,7 +1789,7 @@ export default function ChatPage() {
         )}
 
         {/* Message Input */}
-        <div className="sticky bottom-0 z-20 shrink-0 border-t border-[var(--border-soft)] bg-white px-2.5 pb-[max(10px,env(safe-area-inset-bottom))] pt-2.5 sm:px-4">
+        <div className="sticky bottom-0 z-20 shrink-0 border-t border-[var(--border-soft)] bg-white/95 px-2.5 pb-[max(10px,env(safe-area-inset-bottom))] pt-2.5 shadow-[0_-16px_35px_rgba(17,17,17,0.06)] backdrop-blur sm:px-4">
           <input
             ref={fileInputRef}
             type="file"
@@ -1728,18 +1814,33 @@ export default function ChatPage() {
             className="hidden"
           />
 
-          <form onSubmit={handleSubmit} className="flex items-center gap-2 rounded-[1.4rem] border border-[var(--border-color)] bg-[var(--bg-card-solid)] px-2 py-1.5 shadow-sm md:hidden">
+          {!newMessage.trim() && (
+            <div className="mb-2 flex gap-2 overflow-x-auto px-0.5">
+              {quickReplies.map((reply) => (
+                <button
+                  key={reply}
+                  type="button"
+                  onClick={() => setNewMessage(reply)}
+                  className="shrink-0 rounded-full border border-[var(--border-color)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--text-secondary)] transition hover:border-[var(--text-primary)] hover:text-[var(--text-primary)]"
+                >
+                  {reply}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="flex items-end gap-1.5 rounded-[1.2rem] border border-[var(--border-color)] bg-[var(--bg-card-solid)] px-2 py-1.5 shadow-sm md:hidden">
             <button
               type="button"
               onClick={() => setShowMobileTasksSheet(true)}
-              className="rounded-full bg-[var(--bg-secondary)] px-3 py-1.5 text-xs font-semibold text-[var(--text-primary)]"
+              className="mb-1 rounded-full bg-[var(--bg-secondary)] px-3 py-2 text-xs font-semibold text-[var(--text-primary)]"
             >
-              Work order
+              Job
             </button>
             <button
               type="button"
               onClick={() => chatAttachInputRef.current?.click()}
-              className="p-2 rounded-lg text-[#6B7C8F] hover:bg-[#EEF4FF] hover:text-[#2F6FED]"
+              className="mb-1 rounded-lg p-2 text-[#6B7C8F] hover:bg-[#EEF4FF] hover:text-[#2F6FED]"
               title="Attach photo"
             >
               <Paperclip className="w-4.5 h-4.5" />
@@ -1748,25 +1849,26 @@ export default function ChatPage() {
               type="button"
               onClick={handleOpenCameraUpload}
               disabled={creatingGuestUploadLink}
-              className="p-2 rounded-lg text-[#6B7C8F] hover:bg-[#EEF4FF] hover:text-[#2F6FED] disabled:opacity-50"
+              className="mb-1 rounded-lg p-2 text-[#6B7C8F] hover:bg-[#EEF4FF] hover:text-[#2F6FED] disabled:opacity-50"
               title="Take photo"
             >
               <Camera className="w-4.5 h-4.5" />
             </button>
-            <input
-              type="text"
+            <textarea
               value={newMessage}
               onFocus={() => setShowMobileTasksSheet(false)}
               onChange={(e) => setNewMessage(e.target.value)}
+              onKeyDown={handleComposerKeyDown}
               placeholder="Write a message..."
-              className="flex-1 min-w-0 px-2 py-2 bg-transparent outline-none text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
+              rows={1}
+              className="max-h-28 min-h-10 flex-1 resize-none bg-transparent px-2 py-2.5 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
             />
 
             {newMessage.trim() ? (
               <button
                 type="submit"
                 disabled={sendingMessage}
-                className="rounded-full bg-[#111111] p-2.5 text-white transition hover:bg-black disabled:opacity-40"
+                className="mb-0.5 rounded-full bg-[#111111] p-2.5 text-white transition hover:bg-black disabled:opacity-40"
               >
                 <Send className="w-4 h-4" />
               </button>
@@ -1780,7 +1882,7 @@ export default function ChatPage() {
                     void startVoiceRecorder();
                   }
                 }}
-                className={`rounded-full p-2.5 transition ${isRecordingVoice ? "bg-red-500 text-white" : "bg-[var(--bg-secondary)] text-[var(--text-primary)]"}`}
+                className={`mb-0.5 rounded-full p-2.5 transition ${isRecordingVoice ? "bg-red-500 text-white" : "bg-[var(--bg-secondary)] text-[var(--text-primary)]"}`}
                 title={isRecordingVoice ? "Stop recording" : "Record voice"}
               >
                 {isRecordingVoice ? <Square className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
@@ -1788,11 +1890,11 @@ export default function ChatPage() {
             )}
           </form>
 
-          <form onSubmit={handleSubmit} className="hidden items-center gap-2 rounded-[1.4rem] border border-[var(--border-color)] bg-[var(--bg-card-solid)] p-2 md:flex">
+          <form onSubmit={handleSubmit} className="hidden items-end gap-2 rounded-[1.2rem] border border-[var(--border-color)] bg-[var(--bg-card-solid)] p-2 md:flex">
             <button
               type="button"
               onClick={() => chatAttachInputRef.current?.click()}
-              className="p-2 text-[#6B7C8F] hover:text-[#2F6FED] hover:bg-[#EEF4FF] rounded-lg transition"
+              className="rounded-lg p-2.5 text-[#6B7C8F] transition hover:bg-[#EEF4FF] hover:text-[#2F6FED]"
               title="Attach photo"
             >
               <Paperclip className="w-5 h-5" />
@@ -1801,36 +1903,57 @@ export default function ChatPage() {
               type="button"
               onClick={handleOpenCameraUpload}
               disabled={creatingGuestUploadLink}
-              className="p-2 text-[#6B7C8F] hover:text-[#2F6FED] hover:bg-[#EEF4FF] rounded-lg transition"
+              className="rounded-lg p-2.5 text-[#6B7C8F] transition hover:bg-[#EEF4FF] hover:text-[#2F6FED] disabled:opacity-50"
               title="Take photo"
             >
               <Camera className="w-5 h-5" />
             </button>
-            <input
-              type="text"
+            <textarea
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
+              onKeyDown={handleComposerKeyDown}
               placeholder="Type a message..."
-              className="flex-1 rounded-xl border border-[var(--border-color)] bg-[#fbfbf8] px-4 py-2.5 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+              rows={1}
+              className="max-h-32 min-h-11 flex-1 resize-none rounded-xl border border-[var(--border-color)] bg-[#fbfbf8] px-4 py-3 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--text-primary)] focus:bg-white"
             />
-            <button
-              type="submit"
-              disabled={!newMessage.trim() || sendingMessage}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#111111] px-4 py-2.5 text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <Send className="w-5 h-5" />
-              <span className="hidden sm:inline text-sm font-semibold">
-                {sendingMessage ? "Sending" : "Send"}
-              </span>
-            </button>
+            {newMessage.trim() ? (
+              <button
+                type="submit"
+                disabled={sendingMessage}
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#111111] px-4 py-2.5 text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Send className="w-5 h-5" />
+                <span className="hidden sm:inline text-sm font-semibold">
+                  {sendingMessage ? "Sending" : "Send"}
+                </span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  if (isRecordingVoice) {
+                    stopVoiceRecorder();
+                  } else {
+                    void startVoiceRecorder();
+                  }
+                }}
+                className={`min-h-11 rounded-xl px-3 transition ${isRecordingVoice ? "bg-red-500 text-white" : "bg-[var(--bg-secondary)] text-[var(--text-primary)] hover:bg-[#e5e4dc]"}`}
+                title={isRecordingVoice ? "Stop recording" : "Record voice"}
+              >
+                {isRecordingVoice ? <Square className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+              </button>
+            )}
           </form>
+          <p className="mt-1.5 hidden text-center text-[11px] text-[var(--text-muted)] md:block">
+            Press Enter to send. Shift + Enter adds a line.
+          </p>
         </div>
       </div>
 
       {/* Desktop Right Panel — dynamic: updates by default, profile on demand */}
         {(job || otherUser) && (
         <div className="hidden md:flex flex-col w-[360px] shrink-0 h-full min-h-0">
-          <div className="h-full min-h-0 overflow-y-auto border-y border-r border-[var(--border-color)] bg-[var(--bg-card-solid)] p-5">
+          <div className="h-full min-h-0 overflow-hidden border-y border-r border-[var(--border-color)] bg-[var(--bg-card-solid)] p-5">
             <div className="mb-4 flex items-center gap-2 rounded-xl border border-[var(--border-soft)] bg-[var(--bg-secondary)] p-1">
               <button
                 type="button"
@@ -1911,8 +2034,16 @@ export default function ChatPage() {
                       disabled={uploadingPhoto}
                       className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-[#2F6FED] text-white rounded-xl text-xs font-bold hover:bg-[#2158C7] transition shadow-sm disabled:opacity-50"
                     >
-                      <Camera className="w-3.5 h-3.5" /> {uploadingPhoto ? "Uploading..." : "Photo Proof & Complete"}
+                      <Camera className="w-3.5 h-3.5" /> {uploadingPhoto ? "Uploading..." : job.completionPhotoUrl || completionPhoto ? "Update Photo Proof" : "Submit Photo Proof"}
                     </button>
+                    {(job.completionPhotoUrl || completionPhoto) && (
+                      <button
+                        onClick={() => updateJobStatus("completed")}
+                        className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-green-600 text-white rounded-xl text-xs font-bold hover:bg-green-700 transition shadow-sm"
+                      >
+                        <CheckCircle className="w-3.5 h-3.5" /> Complete & Release Payment
+                      </button>
+                    )}
                     <button
                       onClick={() => updateJobStatus("en-route")}
                       className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-100 text-gray-500 rounded-xl text-xs font-medium hover:bg-gray-200 transition"
@@ -1929,19 +2060,40 @@ export default function ChatPage() {
                 <p className="mb-2 text-xs font-bold uppercase tracking-widest text-gray-400">Quick Comms</p>
                 <div className="grid grid-cols-3 gap-2">
                   <button
-                    onClick={() => sendEtaUpdate(10)}
+                    onClick={() => {
+                      requestQuickCommConfirmation({
+                        title: "Send ETA update?",
+                        message: "This will message the client that your estimated arrival is 10 minutes.",
+                        confirmLabel: "Send 10m ETA",
+                        onConfirm: () => sendEtaUpdate(10),
+                      });
+                    }}
                     className="flex items-center justify-center gap-1 rounded-xl bg-[var(--bg-secondary)] px-2 py-2 text-xs font-semibold text-[var(--text-primary)] transition hover:bg-[#e5e4dc]"
                   >
                     10m
                   </button>
                   <button
-                    onClick={() => sendEtaUpdate(20)}
+                    onClick={() => {
+                      requestQuickCommConfirmation({
+                        title: "Send ETA update?",
+                        message: "This will message the client that your estimated arrival is 20 minutes.",
+                        confirmLabel: "Send 20m ETA",
+                        onConfirm: () => sendEtaUpdate(20),
+                      });
+                    }}
                     className="flex items-center justify-center gap-1 rounded-xl bg-[var(--bg-secondary)] px-2 py-2 text-xs font-semibold text-[var(--text-primary)] transition hover:bg-[#e5e4dc]"
                   >
                     20m
                   </button>
                   <button
-                    onClick={() => sendEtaUpdate(30)}
+                    onClick={() => {
+                      requestQuickCommConfirmation({
+                        title: "Send ETA update?",
+                        message: "This will message the client that your estimated arrival is 30 minutes.",
+                        confirmLabel: "Send 30m ETA",
+                        onConfirm: () => sendEtaUpdate(30),
+                      });
+                    }}
                     className="flex items-center justify-center gap-1 rounded-xl bg-[var(--bg-secondary)] px-2 py-2 text-xs font-semibold text-[var(--text-primary)] transition hover:bg-[#e5e4dc]"
                   >
                     30m
@@ -1949,12 +2101,19 @@ export default function ChatPage() {
                 </div>
                 {job.status === "accepted" && job.paymentStatus === "pending" && (
                   <button
-                    onClick={async () => {
-                      await sendMessage(
-                        `${profile?.displayName} is requesting payment of $${job.price} CAD for this job. Tap Pay Now to hold funds securely with snowd.ca.`,
-                        "payment-request",
-                        { amount: job.price }
-                      );
+                    onClick={() => {
+                      requestQuickCommConfirmation({
+                        title: "Send payment request?",
+                        message: `This will ask the client to pay $${job.price} CAD for this job.`,
+                        confirmLabel: "Send Request",
+                        onConfirm: async () => {
+                          await sendMessage(
+                            `${profile?.displayName} is requesting payment of $${job.price} CAD for this job. Tap Pay Now to hold funds securely with snowd.ca.`,
+                            "payment-request",
+                            { amount: job.price }
+                          );
+                        },
+                      });
                     }}
                     className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-amber-500 text-white rounded-xl text-xs font-bold hover:bg-amber-600 transition"
                   >
@@ -1965,77 +2124,45 @@ export default function ChatPage() {
             )}
 
             {/* Job summary */}
-            <div className="mt-5 pt-4 border-t border-[#E6EEF6] space-y-2.5 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-[#6B7C8F]">Service</span>
-                <div className="flex flex-wrap gap-1 justify-end max-w-[180px]">
-                  {job.serviceTypes?.map((s) => (
-                    <span key={s} className="px-2 py-0.5 bg-[#2F6FED]/10 text-[#2F6FED] rounded-full text-xs font-semibold capitalize">{s.replace("-", " ")}</span>
-                  ))}
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[#6B7C8F]">Property</span>
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
-                  job.propertySize === "small" ? "bg-emerald-50 text-emerald-700" :
-                  job.propertySize === "medium" ? "bg-amber-50 text-amber-700" :
-                  job.propertySize === "large" ? "bg-orange-50 text-orange-700" :
-                  "bg-purple-50 text-purple-700"
-                }`}>
-                  {job.propertySize === "small" && "🏠 Small Lot"}
-                  {job.propertySize === "medium" && "🏡 Medium Lot"}
-                  {job.propertySize === "large" && "🏘️ Large Lot"}
-                  {job.propertySize === "commercial" && "🏢 Commercial"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[#6B7C8F]">Price</span>
-                <div className="flex items-center gap-1">
-                  <DollarSign className="w-4 h-4 text-[#2F6FED]" />
-                  <span className="font-bold text-lg text-[#0B1F33]">{job.price}</span>
-                  <span className="text-xs text-[#6B7C8F]">CAD</span>
-                </div>
-              </div>
-              {distance !== null && (
-                <div className="flex items-center justify-between">
-                  <span className="text-[#6B7C8F]">Distance</span>
-                  <span className="font-medium text-[#0B1F33]">{distance.toFixed(1)} km</span>
-                </div>
-              )}
-              <div className="pt-1.5">
-                <div className="rounded-xl overflow-hidden border border-[#E6EEF6] bg-white">
-                  <button
-                    type="button"
-                    onClick={() => setShowMapModal(true)}
-                    className="w-full text-left text-xs text-[#6B7C8F] flex items-start gap-1.5 hover:text-[#2F6FED] transition px-2.5 py-2"
-                  >
-                    <MapPin className="w-3 h-3" />
-                    <span className="line-clamp-2">{job.address}, {job.city}</span>
-                  </button>
-                  <div className="h-32 bg-[#EFF4FB] border-t border-[#E6EEF6] overflow-hidden">
-                    {mapStaticUrl ? (
-                      <img
-                        src={mapStaticUrl}
-                        alt="Map preview"
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-xs text-[#6B7C8F]">
-                        Map preview unavailable
-                      </div>
-                    )}
+            <div className="mt-4 border-t border-[#E6EEF6] pt-4 text-sm">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-xl border border-[#E6EEF6] bg-[#FAFCFF] px-3 py-2.5">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[#6B7C8F]">
+                    {isOperator ? "Profit" : "Price"}
+                  </p>
+                  <div className="mt-1 flex items-center gap-1">
+                    <DollarSign className="h-4 w-4 text-[#2F6FED]" />
+                    <span className="text-lg font-bold text-[#0B1F33]">{job.price}</span>
+                    <span className="text-xs text-[#6B7C8F]">CAD</span>
                   </div>
                 </div>
-                <a
-                  href={mapLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-1 text-[11px] font-semibold text-[#2F6FED] inline-flex items-center gap-1 hover:text-[#2158C7]"
-                >
-                  Open in Google Maps <ExternalLink className="w-3 h-3" />
-                </a>
+                <div className="rounded-xl border border-[#E6EEF6] bg-[#FAFCFF] px-3 py-2.5">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[#6B7C8F]">Payment</p>
+                  <p className="mt-1 text-sm font-semibold capitalize text-[#0B1F33]">{job.paymentStatus}</p>
+                </div>
+                <div className="rounded-xl border border-[#E6EEF6] bg-[#FAFCFF] px-3 py-2.5">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[#6B7C8F]">Service</p>
+                  <p className="mt-1 truncate text-sm font-semibold capitalize text-[#0B1F33]">
+                    {job.serviceTypes?.map((s) => s.replace("-", " ")).join(", ") || "Service"}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-[#E6EEF6] bg-[#FAFCFF] px-3 py-2.5">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[#6B7C8F]">Distance</p>
+                  <p className="mt-1 text-sm font-semibold text-[#0B1F33]">
+                    {distance !== null ? `${distance.toFixed(1)} km` : "Unknown"}
+                  </p>
+                </div>
               </div>
+
+              <button
+                type="button"
+                onClick={() => setShowMapModal(true)}
+                className="mt-2 flex w-full items-center gap-2 rounded-xl border border-[#E6EEF6] bg-white px-3 py-2.5 text-left text-xs text-[#6B7C8F] transition hover:text-[#2F6FED]"
+              >
+                <MapPin className="h-3.5 w-3.5 shrink-0" />
+                <span className="min-w-0 flex-1 truncate">{job.address}, {job.city}</span>
+                <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+              </button>
             </div>
 
                 <div className="mt-4 border-t border-[#E6EEF6] pt-3">
@@ -2160,17 +2287,56 @@ export default function ChatPage() {
                     disabled={uploadingPhoto}
                     className="w-full px-3 py-2.5 rounded-xl bg-[#2F6FED] text-white text-sm font-semibold disabled:opacity-50"
                   >
-                    {uploadingPhoto ? "Uploading..." : "Submit Photo Proof & Complete"}
+                    {uploadingPhoto ? "Uploading..." : job.completionPhotoUrl || completionPhoto ? "Update Photo Proof" : "Submit Photo Proof"}
                   </button>
+                  {(job.completionPhotoUrl || completionPhoto) && (
+                    <button onClick={() => updateJobStatus("completed")} className="w-full px-3 py-2.5 rounded-xl bg-green-600 text-white text-sm font-semibold">Complete & Release Payment</button>
+                  )}
                   <button onClick={() => updateJobStatus("en-route")} className="w-full px-3 py-2.5 rounded-xl bg-gray-100 text-gray-700 text-sm font-semibold">Back to En Route</button>
                 </>
               )}
 
               {isOperator && (job.status === "accepted" || job.status === "en-route") && (
                 <div className="grid grid-cols-3 gap-2">
-                  <button onClick={() => sendEtaUpdate(10)} className="px-2 py-2 rounded-xl bg-[#EEF4FF] text-[#2F6FED] text-xs font-semibold">ETA 10m</button>
-                  <button onClick={() => sendEtaUpdate(20)} className="px-2 py-2 rounded-xl bg-[#EEF4FF] text-[#2F6FED] text-xs font-semibold">ETA 20m</button>
-                  <button onClick={() => sendEtaUpdate(30)} className="px-2 py-2 rounded-xl bg-[#EEF4FF] text-[#2F6FED] text-xs font-semibold">ETA 30m</button>
+                  <button
+                    onClick={() => {
+                      requestQuickCommConfirmation({
+                        title: "Send ETA update?",
+                        message: "This will message the client that your estimated arrival is 10 minutes.",
+                        confirmLabel: "Send 10m ETA",
+                        onConfirm: () => sendEtaUpdate(10),
+                      });
+                    }}
+                    className="px-2 py-2 rounded-xl bg-[#EEF4FF] text-[#2F6FED] text-xs font-semibold"
+                  >
+                    ETA 10m
+                  </button>
+                  <button
+                    onClick={() => {
+                      requestQuickCommConfirmation({
+                        title: "Send ETA update?",
+                        message: "This will message the client that your estimated arrival is 20 minutes.",
+                        confirmLabel: "Send 20m ETA",
+                        onConfirm: () => sendEtaUpdate(20),
+                      });
+                    }}
+                    className="px-2 py-2 rounded-xl bg-[#EEF4FF] text-[#2F6FED] text-xs font-semibold"
+                  >
+                    ETA 20m
+                  </button>
+                  <button
+                    onClick={() => {
+                      requestQuickCommConfirmation({
+                        title: "Send ETA update?",
+                        message: "This will message the client that your estimated arrival is 30 minutes.",
+                        confirmLabel: "Send 30m ETA",
+                        onConfirm: () => sendEtaUpdate(30),
+                      });
+                    }}
+                    className="px-2 py-2 rounded-xl bg-[#EEF4FF] text-[#2F6FED] text-xs font-semibold"
+                  >
+                    ETA 30m
+                  </button>
                 </div>
               )}
 
@@ -2220,6 +2386,52 @@ export default function ChatPage() {
         title="Cancel this job?"
         message={`This will cancel the ${job?.serviceTypes?.map(s => s.replace("-", " ")).join(", ") || "snow removal"} job at ${job?.address || "this address"}. Any held payment of $${job?.price || 0} will be refunded.`}
       />
+
+      {quickCommConfirmation && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4"
+          onClick={() => setQuickCommConfirmation(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EEF4FF] text-[#2F6FED]">
+                <MessageSquare className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-base font-bold text-[#0B1F33]">
+                  {quickCommConfirmation.title}
+                </h3>
+                <p className="mt-1 text-sm leading-6 text-[#6B7C8F]">
+                  {quickCommConfirmation.message}
+                </p>
+              </div>
+            </div>
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setQuickCommConfirmation(null)}
+                className="rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const action = quickCommConfirmation.onConfirm;
+                  setQuickCommConfirmation(null);
+                  await action();
+                }}
+                className="rounded-xl bg-[#111111] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-black"
+              >
+                {quickCommConfirmation.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Report / Claim Modal */}
       {showReportModal && (
@@ -2287,13 +2499,20 @@ export default function ChatPage() {
             </p>
             <div className="space-y-2 pt-1">
               <button
-                onClick={async () => {
-                  await sendMessage(
-                    `${profile?.displayName} is requesting payment of $${job.price} CAD before starting the job. Please pay to confirm — funds are held securely by snowd.ca until completion.`,
-                    "payment-request",
-                    { amount: job.price }
-                  );
-                  setShowPaymentGateModal(false);
+                onClick={() => {
+                  requestQuickCommConfirmation({
+                    title: "Send payment request?",
+                    message: `This will ask the client to pay $${job.price} CAD before the job starts.`,
+                    confirmLabel: "Send Request",
+                    onConfirm: async () => {
+                      await sendMessage(
+                        `${profile?.displayName} is requesting payment of $${job.price} CAD before starting the job. Please pay to confirm — funds are held securely by snowd.ca until completion.`,
+                        "payment-request",
+                        { amount: job.price }
+                      );
+                      setShowPaymentGateModal(false);
+                    },
+                  });
                 }}
                 className="w-full py-3 bg-[#2F6FED] text-white rounded-xl font-semibold text-sm hover:bg-[#2158C7] transition flex items-center justify-center gap-2"
               >

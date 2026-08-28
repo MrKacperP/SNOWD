@@ -469,12 +469,15 @@ export default function SettingsPage() {
   const handleSignOut = async () => {
     try {
       if (profile?.uid) {
-        await updateDoc(doc(db, "users", profile.uid), { isOnline: false });
+        updateDoc(doc(db, "users", profile.uid), { isOnline: false }).catch((error) => {
+          console.warn("Could not update online status before sign out:", error);
+        });
       }
       await signOut();
-      router.push("/login");
     } catch (error) {
       console.error("Sign out error:", error);
+    } finally {
+      router.push("/login");
     }
   };
 

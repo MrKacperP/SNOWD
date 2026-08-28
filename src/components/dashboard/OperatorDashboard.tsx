@@ -40,7 +40,6 @@ import {
   MessageCircle,
   ExternalLink,
   Shield,
-  Plus,
   ArrowRight,
   Camera,
   CreditCard,
@@ -73,7 +72,7 @@ function OperatorMiniCalendar() {
   const days = eachDayOfInterval({ start: calStart, end: calEnd });
 
   return (
-    <div className="bg-[var(--bg-card-solid)] rounded-2xl border border-[var(--border-color)] p-5">
+    <div className="surface-panel p-5">
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-bold text-sm text-[var(--text-primary)]">{format(currentMonth, "MMMM yyyy")}</h3>
         <div className="flex gap-1">
@@ -85,14 +84,14 @@ function OperatorMiniCalendar() {
         {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d => <div key={d} className="py-1 text-[var(--text-muted)] font-medium">{d}</div>)}
         {days.map((day, i) => (
           <div key={i} className={`py-1.5 rounded-lg text-xs ${
-            isToday(day) ? "bg-[#2F6FED] text-white font-bold" :
+            isToday(day) ? "bg-[#111111] text-white font-bold" :
             isSameMonth(day, currentMonth) ? "text-[var(--text-primary)]" : "text-[var(--text-muted)]"
           }`}>
             {format(day, "d")}
           </div>
         ))}
       </div>
-      <Link href="/dashboard/calendar" className="block text-center text-xs text-[#2F6FED] font-medium mt-2 hover:underline">View Full Calendar</Link>
+      <Link href="/dashboard/calendar" className="mt-2 block text-center text-xs font-medium text-[var(--text-primary)] hover:underline">View Full Calendar</Link>
     </div>
   );
 }
@@ -244,6 +243,8 @@ export default function OperatorDashboard() {
   const completedSetupCount = setupSteps.filter((s) => s.done).length;
   const totalSetupSteps = setupSteps.length;
   const allSetupComplete = completedSetupCount === totalSetupSteps;
+  const nextOperatorSetupStep = setupSteps.find((step) => !step.done);
+  const setupPercent = totalSetupSteps ? Math.round((completedSetupCount / totalSetupSteps) * 100) : 100;
   const isAccountPublic = !!(operatorProfile as OperatorProfile & { accountApproved?: boolean })?.accountApproved &&
     !!(operatorProfile as OperatorProfile & { idVerified?: boolean })?.idVerified;
 
@@ -436,9 +437,23 @@ export default function OperatorDashboard() {
   };
 
   const totalEarnings = completedJobs.reduce((sum, j) => sum + (j.price || 0), 0);
+  const firstName = operatorProfile?.displayName?.split(" ")[0] || "there";
+  const locationLabel =
+    [operatorProfile?.city, operatorProfile?.province].filter(Boolean).join(", ") || "Your service area";
+  const primaryOperatorAction = nextOperatorSetupStep
+    ? {
+        href: nextOperatorSetupStep.href,
+        label: nextOperatorSetupStep.label,
+        icon: nextOperatorSetupStep.icon,
+      }
+    : {
+        href: "/dashboard/jobs",
+        label: pendingJobs.length > 0 ? "Review Job Requests" : "View Job Board",
+        icon: <Briefcase className="h-5 w-5" />,
+      };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="mx-auto max-w-[1240px] space-y-4">
       <CelebrationOverlay
         type={celebration.type}
         show={celebration.show}
@@ -459,78 +474,137 @@ export default function OperatorDashboard() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-3xl border border-[var(--border-color)] bg-white p-5 text-[var(--text-primary)] shadow-[0_16px_30px_rgba(15,23,42,0.08)] md:p-6"
+        className="surface-panel overflow-hidden text-[var(--text-primary)]"
       >
-        <div className="grid grid-cols-1 md:grid-cols-[1.1fr_0.9fr] gap-4 md:gap-6 items-stretch">
-          <div className="min-w-0">
-            <h1 className="text-3xl md:text-[2.2rem] font-headline font-extrabold leading-tight">
-                {greeting()}, {operatorProfile?.displayName?.split(" ")[0] || "there"}!
+        <div className="grid grid-cols-1 gap-0 lg:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]">
+          <div className="p-5 md:p-6">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-1.5 text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-secondary)]">
+              {isAccountPublic ? (
+                <BadgeCheck className="h-4 w-4 text-[var(--accent-mint)]" />
+              ) : (
+                <AlertCircle className="h-4 w-4 text-[#7a4b00]" />
+              )}
+              {isAccountPublic ? "Profile live" : "Finish setup"}
+            </div>
+            <h1 className="mt-4 text-3xl md:text-[2.25rem] font-headline font-extrabold leading-tight">
+              {greeting()}, {firstName}
             </h1>
-            <p className="mt-1.5 text-[var(--text-secondary)] text-sm md:text-base">Ready for nearby requests and active jobs.</p>
-            <p className="mt-1.5 text-[var(--text-muted)] text-base">
-              <MapPin className="w-4 h-4 inline mr-1" />
-              {operatorProfile?.city}, {operatorProfile?.province}
+            <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--text-secondary)] md:text-base">
+              This is your operator command center. Finish the essentials first, then keep requests, messages, and payouts moving from one clear place.
+            </p>
+            <p className="mt-3 flex items-center gap-2 text-sm font-medium text-[var(--text-muted)]">
+              <MapPin className="h-4 w-4" />
+              {locationLabel}
             </p>
 
-            <div className="mt-4 flex items-center gap-2 flex-wrap">
+            <div className="mt-5 flex items-center gap-2 flex-wrap">
               <Link
-                href="/dashboard/jobs"
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#111111] text-white rounded-2xl font-bold text-base md:text-lg leading-none transition shadow-md hover:bg-black hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.99]"
+                href={primaryOperatorAction.href}
+                className="inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-2xl bg-[var(--ink)] px-5 py-2.5 text-sm font-bold leading-tight text-white shadow-md ring-1 ring-black/10 transition hover:bg-black hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.99] md:text-base"
               >
-                <Plus className="w-5 h-5" />
-                View Job Requests
+                {primaryOperatorAction.icon}
+                {primaryOperatorAction.label}
               </Link>
               {isAccountPublic ? (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-50 text-green-700 rounded-full text-xs font-semibold border border-green-100">
+                <span className="inline-flex min-h-9 items-center gap-1 rounded-full border border-[#bde4cb] bg-[#eaf7ef] px-3 py-1 text-xs font-semibold text-[var(--accent-mint)]">
                   <BadgeCheck className="w-3.5 h-3.5" /> Public
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-semibold border border-amber-100">
+                <span className="inline-flex min-h-9 items-center gap-1 rounded-full border border-[#f5c58f] bg-[var(--accent-sun-soft)] px-3 py-1 text-xs font-semibold text-[#7a4b00]">
                   <AlertCircle className="w-3.5 h-3.5" /> Not Public
                 </span>
               )}
             </div>
 
-            <div className="mt-3 flex items-center gap-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3 w-fit">
-            <button
-              onClick={toggleAvailability}
-              className={`relative w-14 h-7 rounded-full transition-colors ${isAvailable ? "bg-green-400" : "bg-gray-400"}`}
-            >
-              <span
-                className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${isAvailable ? "left-7" : "left-0.5"}`}
-              />
-            </button>
-            <span className="text-sm font-medium text-[var(--text-primary)]">
-              {isAvailable ? "Available for new requests" : "Paused"}
-            </span>
-          </div>
+            <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-3">
+              {[
+                { icon: Clock, label: "Requests", value: pendingJobs.length ? `${pendingJobs.length} pending` : "None pending" },
+                { icon: CheckCircle2, label: "Active", value: activeJobs.length ? `${activeJobs.length} active` : "No active job" },
+                { icon: DollarSign, label: "Earnings", value: `$${totalEarnings}` },
+              ].map((item) => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.label} className="rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-secondary)] px-4 py-3">
+                    <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+                      <Icon className="h-4 w-4" />
+                      {item.label}
+                    </div>
+                    <p className="mt-1 text-sm font-bold text-[var(--text-primary)]">{item.value}</p>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-4 flex w-fit items-center gap-3 rounded-xl border border-[var(--border-color)] bg-white px-4 py-3">
+              <button
+                onClick={toggleAvailability}
+                className={`relative h-7 w-14 rounded-full transition-colors ${isAvailable ? "bg-[var(--accent-mint)]" : "bg-[var(--text-muted)]"}`}
+                aria-label={isAvailable ? "Pause availability" : "Resume availability"}
+              >
+                <span
+                  className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${isAvailable ? "left-7" : "left-0.5"}`}
+                />
+              </button>
+              <span className="text-sm font-medium text-[var(--text-primary)]">
+                {isAvailable ? "Available for new requests" : "Paused"}
+              </span>
+            </div>
           </div>
 
-          <Link
-            href="/dashboard/calendar"
-            className="group w-full rounded-2xl border border-[var(--border-color)] bg-[#f7f7f4] px-5 py-4 hover:border-[#111111]/20 transition"
-          >
-            <div className="flex items-center justify-between">
-              <p className="text-[var(--text-muted)] text-sm md:text-base font-medium">Today&apos;s Weather</p>
-              <ArrowRight className="w-4 h-4 text-[var(--text-muted)] group-hover:translate-x-0.5 transition-transform" />
-            </div>
-            {weatherLoading ? (
-              <p className="mt-2 text-[var(--text-muted)]">Loading weather...</p>
-            ) : weather ? (
-              <div className="mt-1 flex items-end justify-between">
+          <div className="border-t border-[var(--border-soft)] bg-[var(--bg-secondary)] p-5 md:p-6 lg:border-l lg:border-t-0">
+            <div className="rounded-2xl border border-[var(--border-color)] bg-white p-4">
+              <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-5xl font-headline font-bold leading-none">{weather.temp}°C</p>
-                  <p className="text-lg text-[var(--text-secondary)] mt-0.5">Feels {weather.feelsLike}°</p>
-                  <p className="text-2xl font-semibold mt-1.5">{weather.condition}</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Next best step</p>
+                  <h2 className="mt-1 text-xl font-headline font-bold text-[var(--text-primary)]">
+                    {nextOperatorSetupStep ? nextOperatorSetupStep.label : pendingJobs.length > 0 ? "Review new requests" : "Stay ready for nearby jobs"}
+                  </h2>
                 </div>
-                <div className="text-5xl" aria-hidden>
-                  {weather.icon}
-                </div>
+                <span className="rounded-full bg-[var(--accent-sun-soft)] px-2.5 py-1 text-xs font-bold text-[#7a4b00]">
+                  {setupPercent}%
+                </span>
               </div>
-            ) : (
-              <p className="mt-2 text-[var(--text-muted)]">Weather unavailable</p>
-            )}
-          </Link>
+              <p className="mt-2 text-sm leading-5 text-[var(--text-secondary)]">
+                {nextOperatorSetupStep
+                  ? nextOperatorSetupStep.description
+                  : "Keep availability on, watch incoming requests, and reply quickly when a client books you."}
+              </p>
+              <div className="mt-4 h-2 rounded-full bg-[var(--bg-secondary)]">
+                <motion.div
+                  className="h-full rounded-full bg-[var(--accent-sun)]"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${setupPercent}%` }}
+                  transition={{ duration: 0.8, ease: "easeOut" }}
+                />
+              </div>
+            </div>
+
+            <Link
+              href="/dashboard/calendar"
+              className="group mt-3 block rounded-2xl border border-[var(--border-color)] bg-white px-4 py-4 transition hover:border-[#111111]/20"
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-[var(--text-muted)]">Today&apos;s Weather</p>
+                <ArrowRight className="w-4 h-4 text-[var(--text-muted)] group-hover:translate-x-0.5 transition-transform" />
+              </div>
+              {weatherLoading ? (
+                <p className="mt-2 text-sm text-[var(--text-muted)]">Loading weather...</p>
+              ) : weather ? (
+                <div className="mt-2 flex items-end justify-between">
+                  <div className="min-w-0">
+                    <p className="text-4xl font-headline font-bold leading-none">{weather.temp}°C</p>
+                    <p className="mt-1 text-sm text-[var(--text-secondary)]">Feels {weather.feelsLike}°</p>
+                    <p className="mt-1 truncate text-lg font-semibold">{weather.condition}</p>
+                  </div>
+                  <div className="text-4xl" aria-hidden>
+                    {weather.icon}
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-[var(--text-muted)]">Weather unavailable</p>
+              )}
+            </Link>
+          </div>
         </div>
       </motion.div>
 
@@ -551,28 +625,28 @@ export default function OperatorDashboard() {
                     ? "bg-green-50 border-green-200"
                     : notif.type === "account_rejected"
                     ? "bg-red-50 border-red-200"
-                    : "bg-blue-50 border-blue-200"
+                    : "bg-[var(--accent-soft)] border-[var(--border-color)]"
                 }`}
               >
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                  notif.type === "account_approved" ? "bg-green-100" : notif.type === "account_rejected" ? "bg-red-100" : "bg-blue-100"
+                  notif.type === "account_approved" ? "bg-[#eaf7ef]" : notif.type === "account_rejected" ? "bg-red-100" : "bg-[var(--bg-secondary)]"
                 }`}>
                   {notif.type === "account_approved" ? (
                     <CheckCircle className="w-5 h-5 text-green-600" />
                   ) : notif.type === "account_rejected" ? (
                     <AlertCircle className="w-5 h-5 text-red-600" />
                   ) : (
-                    <Bell className="w-5 h-5 text-blue-600" />
+                    <Bell className="w-5 h-5 text-[var(--text-primary)]" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className={`font-bold text-sm ${
-                    notif.type === "account_approved" ? "text-green-900" : notif.type === "account_rejected" ? "text-red-900" : "text-blue-900"
+                    notif.type === "account_approved" ? "text-green-900" : notif.type === "account_rejected" ? "text-red-900" : "text-[var(--text-primary)]"
                   }`}>
                     {notif.title}
                   </p>
                   <p className={`text-xs mt-0.5 ${
-                    notif.type === "account_approved" ? "text-green-700" : notif.type === "account_rejected" ? "text-red-700" : "text-blue-700"
+                    notif.type === "account_approved" ? "text-green-700" : notif.type === "account_rejected" ? "text-red-700" : "text-[var(--text-secondary)]"
                   }`}>
                     {notif.message}
                   </p>
@@ -586,7 +660,7 @@ export default function OperatorDashboard() {
                   }}
                   className="p-1 hover:bg-black/5 rounded-lg transition shrink-0"
                 >
-                  <X className="w-4 h-4 text-gray-400" />
+                  <X className="w-4 h-4 text-[var(--text-muted)]" />
                 </button>
               </div>
             ))}
@@ -648,10 +722,10 @@ export default function OperatorDashboard() {
       {/* Stats Grid — Clickable */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { icon: Clock, label: "Pending", value: pendingJobs.length, color: "text-[#2F6FED]", bg: "bg-[#2F6FED]/10", href: "/dashboard/jobs" },
-          { icon: CheckCircle2, label: "Active", value: activeJobs.length, color: "text-green-600", bg: "bg-green-50", href: "/dashboard/log" },
-          { icon: DollarSign, label: "Earnings", value: `$${totalEarnings}`, color: "text-orange-500", bg: "bg-orange-50", href: "/dashboard/transactions" },
-          { icon: Star, label: "Rating", value: operatorProfile?.rating?.toFixed(1) || "—", color: "text-yellow-500", bg: "bg-yellow-50", href: "/dashboard/analytics" },
+          { icon: Clock, label: "Pending", value: pendingJobs.length, color: "text-[#7a4b00]", bg: "bg-[var(--accent-sun-soft)]", href: "/dashboard/jobs" },
+          { icon: CheckCircle2, label: "Active", value: activeJobs.length, color: "text-[var(--accent-mint)]", bg: "bg-[#eaf7ef]", href: "/dashboard/log" },
+          { icon: DollarSign, label: "Earnings", value: `$${totalEarnings}`, color: "text-[var(--text-primary)]", bg: "bg-[var(--accent-soft)]", href: "/dashboard/transactions" },
+          { icon: Star, label: "Rating", value: operatorProfile?.rating?.toFixed(1) || "—", color: "text-[#7a4b00]", bg: "bg-[var(--accent-sun-soft)]", href: "/dashboard/analytics" },
         ].map((stat, i) => (
           <motion.div
             key={stat.label}
@@ -676,8 +750,8 @@ export default function OperatorDashboard() {
           href="/dashboard/calendar"
           className="flex items-center gap-3 p-4 bg-[var(--bg-card-solid)] rounded-xl border border-[var(--border-subtle)] hover-lift interactive-card"
         >
-          <div className="w-10 h-10 rounded-xl bg-[#2F6FED]/10 flex items-center justify-center">
-            <CalendarDays className="w-5 h-5 text-[#2F6FED]" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--accent-soft)]">
+            <CalendarDays className="w-5 h-5 text-[var(--text-primary)]" />
           </div>
           <div>
             <p className="text-sm font-semibold text-[var(--text-primary)]">Calendar</p>
@@ -688,8 +762,8 @@ export default function OperatorDashboard() {
           href="/dashboard/log"
           className="flex items-center gap-3 p-4 bg-[var(--bg-card-solid)] rounded-xl border border-[var(--border-subtle)] hover-lift interactive-card"
         >
-          <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center">
-            <ClipboardList className="w-5 h-5 text-purple-600" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--bg-secondary)]">
+            <ClipboardList className="w-5 h-5 text-[var(--text-primary)]" />
           </div>
           <div>
             <p className="text-sm font-semibold text-[var(--text-primary)]">Job Log</p>
@@ -700,8 +774,8 @@ export default function OperatorDashboard() {
           href="/dashboard/analytics"
           className="flex items-center gap-3 p-4 bg-[var(--bg-card-solid)] rounded-xl border border-[var(--border-subtle)] hover-lift interactive-card"
         >
-          <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">
-            <BarChart3 className="w-5 h-5 text-green-600" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#eaf7ef]">
+            <BarChart3 className="w-5 h-5 text-[var(--accent-mint)]" />
           </div>
           <div>
             <p className="text-sm font-semibold text-[var(--text-primary)]">Analytics</p>
@@ -712,27 +786,27 @@ export default function OperatorDashboard() {
 
       {/* Pending Requests */}
       {pendingJobs.length > 0 && (
-        <div className="bg-[var(--bg-card-solid)] rounded-2xl border border-[var(--border-subtle)] overflow-hidden">
-          <div className="px-6 py-4 border-b border-[var(--border-subtle)] flex items-center justify-between">
+        <div className="surface-panel overflow-hidden">
+          <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-6 py-4">
             <div className="flex items-center gap-2">
               <h2 className="font-semibold text-lg">New Requests</h2>
-              <span className="bg-[#2F6FED] text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#111111] text-xs font-bold text-white">
                 {pendingJobs.length}
               </span>
             </div>
-            <Link href="/dashboard/jobs" className="text-sm text-[#2F6FED] hover:underline font-medium">
+            <Link href="/dashboard/jobs" className="text-sm font-medium text-[var(--text-primary)] hover:underline">
               View All
             </Link>
           </div>
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-[var(--border-soft)]">
             {pendingJobs.slice(0, 3).map((job) => (
               <div key={job.id} className="px-6 py-4">
                 <div className="flex items-start justify-between gap-4">
                   <Link href={`/dashboard/u/${job.clientId}`} className="flex-1 group">
                     <div className="flex items-center gap-2 mb-0.5">
-                      <User className="w-4 h-4 text-[#2F6FED]" />
+                      <User className="w-4 h-4 text-[var(--text-primary)]" />
                       <p className="font-semibold text-[var(--text-primary)]">{clientNames[job.clientId] || "Client"}</p>
-                      <ExternalLink className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition" />
+                      <ExternalLink className="w-3 h-3 text-[var(--text-muted)] opacity-0 transition group-hover:opacity-100" />
                     </div>
                     <p className="text-sm text-[var(--text-secondary)]">{job.serviceTypes?.map((s) => s.replace("-", " ")).join(", ")}</p>
                     <div className="flex items-center gap-4 mt-1 text-sm text-[var(--text-muted)]">
@@ -770,10 +844,10 @@ export default function OperatorDashboard() {
       )}
 
       {/* Active Jobs */}
-      <div className="bg-[var(--bg-card-solid)] rounded-2xl border border-[var(--border-subtle)] overflow-hidden">
-        <div className="px-6 py-4 border-b border-[var(--border-subtle)] flex items-center justify-between">
+      <div className="surface-panel overflow-hidden">
+        <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-6 py-4">
           <h2 className="font-semibold text-lg">Active Jobs</h2>
-          <Link href="/dashboard/log" className="text-sm text-[#2F6FED] hover:underline font-medium">
+          <Link href="/dashboard/log" className="text-sm font-medium text-[var(--text-primary)] hover:underline">
             View All
           </Link>
         </div>
@@ -787,14 +861,14 @@ export default function OperatorDashboard() {
         ) : activeJobs.length === 0 ? (
           <div className="p-8 text-center text-[var(--text-muted)] text-sm">No accepted jobs yet. Check your requests above!</div>
         ) : (
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-[var(--border-soft)]">
             {activeJobs.map((job) => (
               <div key={job.id} className="px-6 py-4">
                 <div className="flex items-center justify-between mb-3">
                   <Link href={`/dashboard/u/${job.clientId}`} className="flex items-center gap-2 group">
-                    <User className="w-4 h-4 text-[#2F6FED]" />
+                    <User className="w-4 h-4 text-[var(--text-primary)]" />
                     <span className="font-semibold text-[var(--text-primary)]">{clientNames[job.clientId] || "Client"}</span>
-                    <ExternalLink className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition" />
+                    <ExternalLink className="w-3 h-3 text-[var(--text-muted)] opacity-0 transition group-hover:opacity-100" />
                   </Link>
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-semibold">${job.price}</span>
@@ -817,7 +891,7 @@ export default function OperatorDashboard() {
                   </p>
                   <Link
                     href={`/dashboard/messages/${job.chatId}`}
-                    className="flex items-center gap-1 text-sm text-[#2F6FED] hover:underline"
+                    className="flex items-center gap-1 text-sm text-[var(--text-primary)] hover:underline"
                   >
                     <MessageCircle className="w-4 h-4" />
                     Chat
@@ -830,29 +904,29 @@ export default function OperatorDashboard() {
       </div>
 
       {/* Performance Card */}
-      <div className="bg-[var(--bg-card-solid)] rounded-2xl border border-[var(--border-subtle)] p-6">
+      <div className="surface-panel p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold text-lg">Performance</h2>
-          <Link href="/dashboard/analytics" className="text-sm text-[#2F6FED] hover:underline font-medium flex items-center gap-1">
+          <Link href="/dashboard/analytics" className="flex items-center gap-1 text-sm font-medium text-[var(--text-primary)] hover:underline">
             <TrendingUp className="w-4 h-4" />
             Full Analytics
           </Link>
         </div>
         <div className="grid grid-cols-3 gap-4">
-          <div className="text-center p-4 bg-[#2F6FED]/10 rounded-xl">
-            <p className="text-2xl font-bold text-[#2F6FED]">
+          <div className="rounded-xl bg-[var(--accent-soft)] p-4 text-center">
+            <p className="text-2xl font-bold text-[var(--text-primary)]">
               {operatorProfile?.totalJobsCompleted || 0}
             </p>
             <p className="text-xs text-[var(--text-muted)] mt-1">Jobs Done</p>
           </div>
-          <div className="text-center p-4 bg-yellow-50 rounded-xl">
-            <p className="text-2xl font-bold text-yellow-600">
+          <div className="rounded-xl bg-[var(--accent-sun-soft)] p-4 text-center">
+            <p className="text-2xl font-bold text-[#7a4b00]">
               {operatorProfile?.rating?.toFixed(1) || "—"}
             </p>
             <p className="text-xs text-[var(--text-muted)] mt-1">Avg Rating</p>
           </div>
-          <div className="text-center p-4 bg-green-50 rounded-xl">
-            <p className="text-2xl font-bold text-green-600">
+          <div className="rounded-xl bg-[#eaf7ef] p-4 text-center">
+            <p className="text-2xl font-bold text-[var(--accent-mint)]">
               ${totalEarnings}
             </p>
             <p className="text-xs text-[var(--text-muted)] mt-1">Earned</p>
