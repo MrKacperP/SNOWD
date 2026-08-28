@@ -41,6 +41,7 @@ export interface UserProfile {
   avatar?: string;
   createdAt: Date;
   onboardingComplete: boolean;
+  accountNumber?: number;
   // Canadian-specific
   province: string;
   city: string;

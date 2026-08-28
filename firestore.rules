@@ -73,6 +73,16 @@ service cloud.firestore {
       allow update: if isAdminOrEmployee() || selfCanUpdateUser(userId);
     }
 
+    // Retains account continuity when a user starts over with the same email.
+    match /accountHistory/{historyId} {
+      allow read: if isAdminOrEmployee() ||
+        (isSignedIn() && request.auth.token.email == resource.data.email);
+      allow create: if isSignedIn() && request.auth.token.email == request.resource.data.email;
+      allow update: if isSignedIn() && request.auth.token.email == resource.data.email &&
+        request.resource.data.email == resource.data.email;
+      allow delete: if isAdmin();
+    }
+
     // ── Admin Activity (append-only audit log) ────────────────────────────
     match /adminActivity/{eventId} {
       allow read: if isAdminOrEmployee();

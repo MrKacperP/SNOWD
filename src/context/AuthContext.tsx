@@ -10,7 +10,7 @@ import {
   signInWithEmailAndPassword,
   deleteUser,
 } from "firebase/auth";
-import { doc, getDoc, onSnapshot, deleteDoc } from "firebase/firestore";
+import { arrayUnion, deleteDoc, doc, getDoc, onSnapshot, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db, isFirebaseConfigured } from "@/lib/firebase";
 import { UserProfile, ClientProfile, OperatorProfile } from "@/lib/types";
 import { sendAdminNotif } from "@/lib/adminNotifications";
@@ -171,16 +171,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteAccount = async () => {
-    if (!isFirebaseConfigured || !db) {
+    if (!isFirebaseConfigured || !auth || !db) {
       throw new Error("Firebase is not configured. Add valid NEXT_PUBLIC_FIREBASE_* values in .env.local");
     }
 
     if (!user) throw new Error("No user logged in");
-    // Delete Firestore document first
-    try {
-      await deleteDoc(doc(db, "users", user.uid));
-    } catch {}
-    // Delete Firebase auth user
+
+    const accountHistoryRef = doc(db, "accountHistory", encodeURIComponent((user.email || "").trim().toLowerCase()));
+    await setDoc(
+      accountHistoryRef,
+      {
+        email: (user.email || "").trim().toLowerCase(),
+        deletedAccountIds: arrayUnion(user.uid),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    // Remove the private profile before Auth deletion while the user's credentials
+    // still authorize the Firestore delete.
+    await deleteDoc(doc(db, "users", user.uid));
     await deleteUser(user);
     setUser(null);
     setProfile(null);

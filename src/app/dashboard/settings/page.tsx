@@ -61,6 +61,7 @@ export default function SettingsPage() {
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const [activeTab, setActiveTab] = useState<"general" | "appearance" | "payment" | "notifications" | "verification" | "branding">("general");
   const [stripeConnecting, setStripeConnecting] = useState(false);
   const [stripeConfigError, setStripeConfigError] = useState<string | null>(null);
@@ -490,6 +491,7 @@ export default function SettingsPage() {
       "Final confirmation: your account and all data will be permanently deleted. Are you absolutely sure?"
     );
     if (!doubleConfirmed) return;
+    setDeletingAccount(true);
     try {
       await deleteAccount();
       router.push("/login");
@@ -500,6 +502,8 @@ export default function SettingsPage() {
       } else {
         alert("Failed to delete account. Please try again.");
       }
+    } finally {
+      setDeletingAccount(false);
     }
   };
 
@@ -846,15 +850,27 @@ export default function SettingsPage() {
           </button>
 
           {/* Delete Account */}
-          <div className="border-t border-gray-100 pt-4">
+          <div className="border-t border-red-100 pt-5">
+            <div className="rounded-xl border border-red-200 bg-red-50/60 p-4 mb-3">
+              <div className="flex items-start gap-3">
+                <Trash2 className="w-5 h-5 text-red-600 mt-0.5 shrink-0" />
+                <div>
+                  <h3 className="text-sm font-semibold text-red-800">Start over with a new account</h3>
+                  <p className="text-xs text-red-700 mt-1 leading-5">
+                    This removes your profile and sign-in permanently. Shared job, payment, and support records may be retained for service and legal purposes.
+                  </p>
+                </div>
+              </div>
+            </div>
             <button
               onClick={handleDeleteAccount}
-              className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm border border-red-200 text-red-600 hover:bg-red-50 transition"
+              disabled={deletingAccount}
+              className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm border border-red-200 text-red-600 hover:bg-red-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Trash2 className="w-4 h-4" />
-              Delete Account
+              {deletingAccount ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              {deletingAccount ? "Deleting account..." : "Delete account and start over"}
             </button>
-            <p className="text-center text-xs text-gray-400 mt-2">Permanently deletes your account and all data</p>
+            <p className="text-center text-xs text-gray-400 mt-2">This cannot be undone.</p>
           </div>
 
           <div className="text-center py-2">

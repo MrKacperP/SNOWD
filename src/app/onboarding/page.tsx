@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { sendAdminNotif } from "@/lib/adminNotifications";
 import ServiceRadiusMap from "@/components/ServiceRadiusMap";
@@ -228,10 +228,16 @@ export default function OnboardingPage() {
         (typeof window !== "undefined" && sessionStorage.getItem("snowd_signup_name")) ||
         user.displayName ||
         "User";
+      const normalizedEmail = (user.email || "").trim().toLowerCase();
+      const accountHistorySnap = await getDoc(doc(db, "accountHistory", encodeURIComponent(normalizedEmail)));
+      const deletedAccountIds = accountHistorySnap.exists()
+        ? ((accountHistorySnap.data().deletedAccountIds as string[] | undefined) || [])
+        : [];
 
       const baseProfile = {
         uid: user.uid,
         email: user.email || "",
+        accountNumber: deletedAccountIds.length + 1,
         displayName,
         phone,
         role: role!,
