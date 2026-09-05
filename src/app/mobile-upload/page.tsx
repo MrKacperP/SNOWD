@@ -80,9 +80,9 @@ function MobileUploadPageInner() {
 
   return (
     <main className="min-h-dvh bg-[#EEF3FA] px-4 py-8 flex items-center justify-center">
-      <section className="w-full max-w-sm bg-white border border-[#DCE8FF] rounded-2xl p-5 shadow-lg">
-        <h1 className="text-lg font-bold text-[#0B1F33]">Send Photo</h1>
-        <p className="text-sm text-[#6B7C8F] mt-1">Take a photo and submit it back to your SNOWD chat.</p>
+      <section className="w-full max-w-sm bg-white border-[3px] border-[var(--border)] rounded-2xl p-5 shadow-[var(--surface-shadow)]">
+        <h1 className="text-lg font-bold text-[var(--ink)]">Send Photo</h1>
+        <p className="text-sm text-[var(--text-muted)] mt-1">Take a photo and submit it back to your SNOWD chat.</p>
 
         {!canUpload && (
           <p className="mt-4 text-sm text-red-600">This link is missing a session.</p>
@@ -108,7 +108,7 @@ function MobileUploadPageInner() {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={!canUpload || uploading}
-              className="mt-5 w-full h-11 rounded-xl bg-[#2F6FED] text-white font-semibold hover:bg-[#2158C7] disabled:opacity-50 inline-flex items-center justify-center gap-2"
+              className="mt-5 w-full h-11 rounded-xl bg-[var(--accent)] text-white font-semibold hover:bg-[var(--accent-dark)] disabled:opacity-50 inline-flex items-center justify-center gap-2"
             >
               {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
               {uploading ? "Submitting..." : "Open Camera"}

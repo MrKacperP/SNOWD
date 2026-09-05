@@ -42,7 +42,7 @@ import {
 } from "recharts";
 import { format, subDays, startOfDay, isSameDay } from "date-fns";
 
-const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444"];
+const COLORS = ["#061321", "#10B981", "#F59E0B", "#EF4444"];
 
 export default function AnalyticsPage() {
   const { profile } = useAuth();
@@ -166,7 +166,7 @@ export default function AnalyticsPage() {
   const statusDistribution = useMemo(() => {
     return [
       { name: "Completed", value: stats.completed, color: "#10B981" },
-      { name: "Active", value: stats.active, color: "#3B82F6" },
+      { name: "Active", value: stats.active, color: "#061321" },
       { name: "Pending", value: stats.pending, color: "#F59E0B" },
       { name: "Cancelled", value: stats.cancelled, color: "#EF4444" },
     ].filter((d) => d.value > 0);
@@ -196,7 +196,7 @@ export default function AnalyticsPage() {
         <div className="flex items-center gap-3">
           <BackButton href="/dashboard" />
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <BarChart3 className="w-6 h-6 text-[#3B82F6]" />
+            <BarChart3 className="w-6 h-6 text-[var(--accent)]" />
             Analytics
           </h1>
         </div>
@@ -206,7 +206,7 @@ export default function AnalyticsPage() {
               key={r}
               onClick={() => setTimeRange(r)}
               className={`px-3 py-1.5 rounded-md text-xs font-semibold transition ${
-                timeRange === r ? "bg-white text-[#3B82F6] shadow-sm" : "text-gray-500"
+                timeRange === r ? "bg-white text-[var(--accent)] shadow-[var(--surface-shadow)]" : "text-gray-500"
               }`}
             >
               {r === "7d" ? "7 Days" : r === "30d" ? "30 Days" : "90 Days"}
@@ -222,10 +222,10 @@ export default function AnalyticsPage() {
           {/* Stats Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: "Profile Views", value: stats.profileViews, icon: Eye, color: "text-[#3B82F6]", bg: "bg-[#3B82F6]/10" },
+              { label: "Profile Views", value: stats.profileViews, icon: Eye, color: "text-[var(--accent)]", bg: "bg-[var(--accent)]/10" },
               { label: "Click Rate", value: `${stats.clickRate}%`, icon: MousePointer, color: "text-purple-600", bg: "bg-purple-50" },
               { label: "Accept Rate", value: `${stats.acceptRate}%`, icon: CheckCircle, color: "text-green-600", bg: "bg-green-50" },
-              { label: "Response Rate", value: `${stats.responseRate}%`, icon: MessageSquare, color: "text-[#3B82F6]", bg: "bg-[#3B82F6]/10" },
+              { label: "Response Rate", value: `${stats.responseRate}%`, icon: MessageSquare, color: "text-[var(--accent)]", bg: "bg-[var(--accent)]/10" },
             ].map((stat, i) => (
               <motion.div
                 key={stat.label}
@@ -247,7 +247,7 @@ export default function AnalyticsPage() {
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-[#3B82F6] rounded-2xl p-6 text-white"
+            className="bg-[var(--accent)] rounded-2xl p-6 text-white"
           >
             <div className="flex items-center justify-between">
               <div>
@@ -286,7 +286,7 @@ export default function AnalyticsPage() {
                 <div className="flex items-center gap-3">
                   <div className="flex bg-gray-100 rounded-lg p-0.5">
                     {(["area", "bar", "line"] as const).map((t) => (
-                      <button key={t} onClick={() => setChartType(t)} className={`px-2.5 py-1 text-xs rounded-md capitalize transition ${chartType === t ? "bg-white text-[#3B82F6] font-medium shadow-sm" : "text-gray-500"}`}>{t}</button>
+                      <button key={t} onClick={() => setChartType(t)} className={`px-2.5 py-1 text-xs rounded-md capitalize transition ${chartType === t ? "bg-white text-[var(--accent)] font-medium shadow-[var(--surface-shadow)]" : "text-gray-500"}`}>{t}</button>
                     ))}
                   </div>
                   <p className="text-xl font-bold text-green-600">${stats.totalEarnings}</p>
@@ -298,30 +298,30 @@ export default function AnalyticsPage() {
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#94A3B8" />
                     <YAxis tick={{ fontSize: 11 }} stroke="#94A3B8" tickFormatter={(v) => `$${v}`} />
-                    <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb" }} formatter={(value: number | undefined) => [`$${value ?? 0}`, "Earnings"]} />
-                    <Bar dataKey="earnings" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+                    <Tooltip contentStyle={{ borderRadius: 12, border: "3px solid #061321", boxShadow: "4px 4px 0 #061321" }} formatter={(value: number | undefined) => [`$${value ?? 0}`, "Earnings"]} />
+                    <Bar dataKey="earnings" fill="#061321" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 ) : chartType === "line" ? (
                   <LineChart data={earningsData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#94A3B8" />
                     <YAxis tick={{ fontSize: 11 }} stroke="#94A3B8" tickFormatter={(v) => `$${v}`} />
-                    <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb" }} formatter={(value: number | undefined) => [`$${value ?? 0}`, "Earnings"]} />
-                    <Line type="monotone" dataKey="earnings" stroke="#3B82F6" strokeWidth={2} dot={{ r: 3, fill: "#3B82F6" }} />
+                    <Tooltip contentStyle={{ borderRadius: 12, border: "3px solid #061321", boxShadow: "4px 4px 0 #061321" }} formatter={(value: number | undefined) => [`$${value ?? 0}`, "Earnings"]} />
+                    <Line type="monotone" dataKey="earnings" stroke="#061321" strokeWidth={2} dot={{ r: 3, fill: "#061321" }} />
                   </LineChart>
                 ) : (
                   <AreaChart data={earningsData}>
                     <defs>
                       <linearGradient id="earningsGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
+                        <stop offset="5%" stopColor="#061321" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#061321" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#94A3B8" />
                     <YAxis tick={{ fontSize: 11 }} stroke="#94A3B8" tickFormatter={(v) => `$${v}`} />
-                    <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb" }} formatter={(value: number | undefined) => [`$${value ?? 0}`, "Earnings"]} />
-                    <Area type="monotone" dataKey="earnings" stroke="#3B82F6" strokeWidth={2} fill="url(#earningsGradient)" />
+                    <Tooltip contentStyle={{ borderRadius: 12, border: "3px solid #061321", boxShadow: "4px 4px 0 #061321" }} formatter={(value: number | undefined) => [`$${value ?? 0}`, "Earnings"]} />
+                    <Area type="monotone" dataKey="earnings" stroke="#061321" strokeWidth={2} fill="url(#earningsGradient)" />
                   </AreaChart>
                 )}
               </ResponsiveContainer>
@@ -395,7 +395,7 @@ export default function AnalyticsPage() {
             </div>
             <div className="bg-white rounded-2xl border border-gray-100 p-6">
               <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2 text-sm">
-                <Users className="w-4 h-4 text-[#3B82F6]" />
+                <Users className="w-4 h-4 text-[var(--accent)]" />
                 Total Jobs
               </h3>
               <p className="text-4xl font-extrabold text-gray-900">{stats.totalRequests}</p>
@@ -408,19 +408,19 @@ export default function AnalyticsPage() {
           {/* Snow Day Comparison */}
           <div className="bg-white rounded-2xl border border-gray-100 p-6">
             <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <CloudSnow className="w-5 h-5 text-[#3B82F6]" />
+              <CloudSnow className="w-5 h-5 text-[var(--accent)]" />
               Booking Patterns
             </h3>
             <div className="grid grid-cols-3 gap-4">
-              <div className="text-center p-4 bg-[#3B82F6]/10 rounded-xl">
-                <p className="text-2xl font-bold text-[#3B82F6]">
+              <div className="text-center p-4 bg-[var(--accent)]/10 rounded-xl">
+                <p className="text-2xl font-bold text-[var(--accent)]">
                   {Math.round(stats.totalRequests * 0.4)}
                 </p>
                 <p className="text-xs text-gray-600 mt-1">Before Snow Days</p>
                 <p className="text-[10px] text-gray-400">Advance bookings</p>
               </div>
-              <div className="text-center p-4 bg-[#3B82F6]/10 rounded-xl border border-[#3B82F6]/20">
-                <p className="text-2xl font-bold text-[#3B82F6]">
+              <div className="text-center p-4 bg-[var(--accent)]/10 rounded-xl border border-[var(--accent)]/20">
+                <p className="text-2xl font-bold text-[var(--accent)]">
                   {Math.round(stats.totalRequests * 0.45)}
                 </p>
                 <p className="text-xs text-gray-600 mt-1">During Snow Days</p>
@@ -485,7 +485,7 @@ function HotspotGrid({ jobs }: { jobs: Job[] }) {
           >
             <MapPin className="w-5 h-5 mx-auto mb-1" style={{ color: `rgba(36, 110, 185, ${0.4 + intensity * 0.6})` }} />
             <p className="font-bold text-sm text-gray-900">{city}</p>
-            <p className="text-xs text-[#3B82F6] font-semibold">{data.count} jobs</p>
+            <p className="text-xs text-[var(--accent)] font-semibold">{data.count} jobs</p>
             <p className="text-xs text-gray-500">${data.earnings}</p>
           </div>
         );

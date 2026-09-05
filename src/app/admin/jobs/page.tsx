@@ -50,14 +50,14 @@ export default function AdminJobsPage() {
     <div className="space-y-4">
       <AdminCard className="p-4">
         <div className="flex flex-wrap items-center gap-2">
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search jobs" className="h-10 px-3 rounded-lg border border-[#E5E7EB] bg-[#F8F9FA] text-sm min-w-[220px]" />
-          <select value={category} onChange={(e) => setCategory(e.target.value)} className="h-10 px-3 rounded-lg border border-[#E5E7EB] bg-white text-sm">
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search jobs" className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-[var(--bg-primary)] text-sm min-w-[220px]" />
+          <select value={category} onChange={(e) => setCategory(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-white text-sm">
             <option>All</option>
             <option>Snow Removal</option>
             <option>Salting</option>
             <option>Shoveling</option>
           </select>
-          <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-10 px-3 rounded-lg border border-[#E5E7EB] bg-white text-sm">
+          <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-white text-sm">
             <option>All</option>
             <option>Open</option>
             <option>In Progress</option>
@@ -82,9 +82,9 @@ export default function AdminJobsPage() {
             </thead>
             <tbody>
               {rows.map((job) => (
-                <tr key={job.id} className="border-b border-[#E5E7EB] hover:bg-[#F9FAFB]">
+                <tr key={job.id} className="border-b border-[var(--border)] hover:bg-[var(--bg-primary)]">
                   <td className={tableCell}>
-                    <button onClick={() => setJobDrawerId(job.id)} className="font-medium text-[#1A1A2E] hover:text-[#3B82F6]">{job.title}</button>
+                    <button onClick={() => setJobDrawerId(job.id)} className="font-medium text-[var(--ink)] hover:text-[var(--accent)]">{job.title}</button>
                   </td>
                   <td className={tableCell}>{job.postedBy}</td>
                   <td className={tableCell}>{job.category}</td>
@@ -97,10 +97,10 @@ export default function AdminJobsPage() {
                   <td className={tableCell}>{job.datePosted}</td>
                   <td className={tableCell}>
                     <div className="flex items-center gap-1">
-                      <button onClick={() => setJobDrawerId(job.id)} className="h-8 px-2 rounded-lg border border-[#E5E7EB] text-xs">View</button>
-                      <button className="w-8 h-8 rounded-lg border border-[#E5E7EB] inline-flex items-center justify-center"><Pencil className="w-4 h-4" /></button>
-                      <button onClick={() => setConfirmAction({ type: "flag", id: job.id })} className="w-8 h-8 rounded-lg border border-[#E5E7EB] inline-flex items-center justify-center"><Flag className="w-4 h-4" /></button>
-                      <button onClick={() => setConfirmAction({ type: "delete", id: job.id })} className="w-8 h-8 rounded-lg border border-[#E5E7EB] inline-flex items-center justify-center"><Trash2 className="w-4 h-4 text-[#DC2626]" /></button>
+                      <button onClick={() => setJobDrawerId(job.id)} className="h-8 px-2 rounded-lg border-[3px] border-[var(--border)] text-xs">View</button>
+                      <button className="w-8 h-8 rounded-lg border-[3px] border-[var(--border)] inline-flex items-center justify-center"><Pencil className="w-4 h-4" /></button>
+                      <button onClick={() => setConfirmAction({ type: "flag", id: job.id })} className="w-8 h-8 rounded-lg border-[3px] border-[var(--border)] inline-flex items-center justify-center"><Flag className="w-4 h-4" /></button>
+                      <button onClick={() => setConfirmAction({ type: "delete", id: job.id })} className="w-8 h-8 rounded-lg border-[3px] border-[var(--border)] inline-flex items-center justify-center"><Trash2 className="w-4 h-4 text-[#DC2626]" /></button>
                     </div>
                   </td>
                 </tr>
@@ -115,25 +115,25 @@ export default function AdminJobsPage() {
         {selected && (
           <div className="space-y-3">
             <AdminCard className="p-3">
-              <p className="text-xs text-[#6B7280]">Description</p>
-              <p className="text-sm text-[#1A1A2E] mt-1">{selected.description}</p>
+              <p className="text-xs text-[var(--text-muted)]">Description</p>
+              <p className="text-sm text-[var(--ink)] mt-1">{selected.description}</p>
             </AdminCard>
             <AdminCard className="p-3">
               <p className="text-sm font-semibold">Assigned Users</p>
-              <div className="mt-2 space-y-1 text-sm text-[#374151]">
+              <div className="mt-2 space-y-1 text-sm text-[var(--text-secondary)]">
                 {selected.assignedUsers.length ? selected.assignedUsers.map((u) => <p key={u}>{u}</p>) : <p>No assignees yet.</p>}
               </div>
             </AdminCard>
             <AdminCard className="p-3">
               <p className="text-sm font-semibold">Timeline</p>
-              <div className="mt-2 space-y-1 text-sm text-[#374151]">
+              <div className="mt-2 space-y-1 text-sm text-[var(--text-secondary)]">
                 {selected.timeline.map((t) => <p key={t}>• {t}</p>)}
               </div>
             </AdminCard>
             <AdminCard className="p-3">
               <p className="text-sm font-semibold">Linked Records</p>
-              <p className="text-sm text-[#374151] mt-1">Chat: {selected.chatId || "N/A"}</p>
-              <p className="text-sm text-[#374151]">Transaction: {selected.transactionId || "N/A"}</p>
+              <p className="text-sm text-[var(--text-secondary)] mt-1">Chat: {selected.chatId || "N/A"}</p>
+              <p className="text-sm text-[var(--text-secondary)]">Transaction: {selected.transactionId || "N/A"}</p>
             </AdminCard>
           </div>
         )}

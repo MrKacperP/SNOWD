@@ -1,5 +1,7 @@
 "use client";
 
+import { canAcceptPlatformPayments } from "@/lib/operatorDiscovery";
+
 import React, { Suspense, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -66,15 +68,16 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   if (loading) return <LoadingScreen />;
   if (!user || !profile) return <LoadingScreen />;
 
-  const accountApproved = (profile as unknown as Record<string, unknown>).accountApproved !== false;
+  const accountApproved = profile.role === "operator" ? profile.idVerified === true : profile.accountApproved !== false;
   const hasIdPhoto = !!(profile as unknown as Record<string, unknown>).idPhotoUrl;
   const isAdmin = profile.role === "admin" || profile.role === "employee";
 
   return (
     <WeatherProvider>
       <div className="min-h-screen bg-[var(--bg-primary)] transition-colors">
-        <Navbar />
-        <main className="min-h-screen pb-28 pt-20 md:ml-[288px] md:pb-10 md:pt-8">
+        <a href="#dashboard-content" className="skip-link">Skip to main content</a>
+        <Navbar key={pathname} />
+        <main id="dashboard-content" tabIndex={-1} className="min-h-screen min-w-0 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-20 lg:ml-[248px] lg:pb-10 lg:pt-8">
           {isAdmin && (
             <div className="container-app mt-2 md:mt-0">
               <div className="flex items-center gap-3 rounded-[1.4rem] border border-red-200 bg-red-50 px-4 py-3">
@@ -91,6 +94,15 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
             </div>
           )}
 
+          {profile.role === "operator" && !canAcceptPlatformPayments(profile) && (
+            <div className="container-app mb-4">
+              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+                <p className="font-semibold">{profile.idVerified ? "ID verified · Available for cash jobs" : "Verify your ID to go live for cash jobs"}</p>
+                <p className="mt-1">Until Stripe setup is complete, customers can pay you in cash only. Set up Stripe to accept secure platform payments and bank payouts. Snowd receives a 15% commission on platform payments.</p>
+                <Link href="/dashboard/settings?tab=payment" className="mt-3 inline-block font-semibold underline">Set up Stripe payments</Link>
+              </div>
+            </div>
+          )}
           {!accountApproved && !isAdmin && (
             <div className="container-app mt-2 md:mt-0">
               <div className="rounded-[1.6rem] border border-blue-200 bg-blue-50 p-5">
@@ -104,7 +116,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                     Your account is being reviewed by our team. To speed up the process, please upload a valid government-issued ID.
                   </p>
                   {!hasIdPhoto ? (
-                    <div className="mt-3 flex items-center gap-3">
+                    <div className="mt-3 flex flex-wrap items-center gap-3">
                       <input
                         ref={fileInputRef}
                         type="file"
@@ -115,7 +127,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                       <button
                         onClick={() => fileInputRef.current?.click()}
                         disabled={uploadingId}
-                        className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
+                        className="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-dark)] disabled:opacity-50"
                       >
                         {uploadingId ? (
                           <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />

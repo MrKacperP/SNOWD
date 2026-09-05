@@ -53,14 +53,14 @@ function MiniCalendar() {
         <div className="flex gap-1.5">
           <button
             onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
-            className="h-8 w-8 rounded-lg border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
+            className="h-8 w-8 rounded-lg border-[3px] border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
             aria-label="Previous month"
           >
             ◀
           </button>
           <button
             onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
-            className="h-8 w-8 rounded-lg border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
+            className="h-8 w-8 rounded-lg border-[3px] border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
             aria-label="Next month"
           >
             ▶
@@ -78,7 +78,7 @@ function MiniCalendar() {
             key={i}
             className={`py-1.5 rounded-lg text-xs md:text-sm ${
               isToday(day)
-                ? "bg-[#111111] text-white font-bold"
+                ? "bg-[var(--ink)] text-white font-bold"
                 : isSameMonth(day, currentMonth)
                   ? "text-[var(--text-secondary)]"
                   : "text-[var(--text-muted)]/60"
@@ -98,14 +98,14 @@ function MiniCalendar() {
       <div className="mt-2.5 grid grid-cols-2 gap-2">
         <Link
           href="/dashboard/find"
-          className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-[#061321]/10 bg-[#ff820e] px-3 py-2 text-xs font-black text-[#061321] transition hover:bg-[#f59b3d] active:scale-[0.99]"
+          className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border-[3px] border-[var(--ink)] bg-[#ff820e] px-3 py-2 text-xs font-black text-[#061321] transition hover:bg-[#f59b3d] active:scale-[0.99]"
         >
           <Plus className="w-3.5 h-3.5" />
           Book help
         </Link>
         <Link
           href="/dashboard/log"
-          className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-[#061321]/12 bg-[#f3f8fb] px-3 py-2 text-xs font-black text-[#061321] transition hover:bg-white active:scale-[0.99]"
+          className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border-[3px] border-[var(--ink)] bg-[#f3f8fb] px-3 py-2 text-xs font-black text-[#061321] transition hover:bg-white active:scale-[0.99]"
         >
           Job log
           <ArrowRight className="w-3.5 h-3.5" />
@@ -295,7 +295,7 @@ export default function ClientDashboard() {
       >
         <div className="grid grid-cols-1 gap-0 lg:grid-cols-[minmax(0,1.15fr)_minmax(330px,0.85fr)]">
           <div className="p-5 md:p-6">
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#061321]/10 bg-[#dfeef8] px-3 py-1.5 text-xs font-black uppercase tracking-[0.14em] text-[#061321]/70">
+            <div className="inline-flex items-center gap-2 rounded-full border-[3px] border-[var(--ink)] bg-[#dfeef8] px-3 py-1.5 text-xs font-black uppercase tracking-[0.14em] text-[#061321]/70">
               <Home className="h-4 w-4 text-[#061321]" strokeWidth={3} />
               Home base
             </div>
@@ -317,8 +317,8 @@ export default function ClientDashboard() {
                   href={action.href}
                   className={`group flex min-h-[5.75rem] flex-col justify-between rounded-2xl border px-4 py-3 transition hover:-translate-y-0.5 active:scale-[0.99] ${
                     action.variant === "primary"
-                      ? "border-[#061321]/18 bg-[#ff820e] text-[#061321] shadow-[0_14px_24px_rgba(255,130,14,0.2)]"
-                      : "border-[#061321]/10 bg-white text-[#061321] hover:bg-[#dfeef8]"
+                      ? "border-[var(--ink)] bg-[#ff820e] text-[#061321] shadow-[var(--surface-shadow)]"
+                      : "border-[var(--ink)] bg-white text-[#061321] hover:bg-[#dfeef8]"
                   }`}
                 >
                   <span className="flex items-center justify-between gap-3">
@@ -341,7 +341,7 @@ export default function ClientDashboard() {
               ].map((item) => {
                 const Icon = item.icon;
                 return (
-                  <div key={item.label} className="rounded-2xl border border-[#061321]/8 bg-[#f8fbfd] px-4 py-3">
+                  <div key={item.label} className="rounded-2xl border-[3px] border-[var(--ink)] bg-[var(--bg-primary)] px-4 py-3">
                     <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-[#061321]/48">
                       <Icon className="h-4 w-4" />
                       {item.label}
@@ -353,8 +353,8 @@ export default function ClientDashboard() {
             </div>
           </div>
 
-          <div className="border-t border-[#061321]/8 bg-[#eef5f9] p-5 md:p-6 lg:border-l lg:border-t-0">
-            <div className="rounded-2xl border border-[#061321]/10 bg-white p-4">
+          <div className="border-t border-[#061321]/8 bg-[var(--bg-secondary)] p-5 md:p-6 lg:border-l lg:border-t-0">
+            <div className="rounded-2xl border-[3px] border-[var(--ink)] bg-white p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.14em] text-[#061321]/48">Next step</p>
@@ -381,7 +381,7 @@ export default function ClientDashboard() {
 
             <Link
               href="/dashboard/calendar"
-              className="group mt-3 block rounded-2xl border border-[#061321]/10 bg-white px-4 py-4 transition hover:bg-[#f8fbfd]"
+              className="group mt-3 block rounded-2xl border-[3px] border-[var(--ink)] bg-white px-4 py-4 transition hover:bg-[var(--bg-primary)]"
             >
               <div className="flex items-center justify-between">
                 <p className="text-sm font-black text-[#061321]/52">Weather</p>
@@ -416,7 +416,7 @@ export default function ClientDashboard() {
               <h2 className="font-headline text-lg font-black">Active jobs</h2>
               <Link
                 href="/dashboard/log"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[#061321]/10 bg-[#f3f8fb] px-3 py-1.5 text-xs font-black text-[#061321] transition hover:bg-white active:scale-[0.99]"
+                className="inline-flex items-center gap-1.5 rounded-lg border-[3px] border-[var(--ink)] bg-[#f3f8fb] px-3 py-1.5 text-xs font-black text-[#061321] transition hover:bg-white active:scale-[0.99]"
               >
                 View all
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -430,7 +430,7 @@ export default function ClientDashboard() {
                 <p className="font-bold text-[#061321]/56">No active jobs</p>
                 <Link
                   href="/dashboard/find"
-                  className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-[#061321]/10 bg-[#ff820e] px-4 py-2 text-xs font-black text-[#061321] transition hover:bg-[#f59b3d] active:scale-[0.99]"
+                  className="mt-3 inline-flex items-center gap-1.5 rounded-xl border-[3px] border-[var(--ink)] bg-[#ff820e] px-4 py-2 text-xs font-black text-[#061321] transition hover:bg-[#f59b3d] active:scale-[0.99]"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   Book help
@@ -509,7 +509,7 @@ export default function ClientDashboard() {
                 <div className="mt-3">
                   <Link
                     href={clientSetupSteps.find((step) => !step.done)?.href || "/dashboard/settings"}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-[#061321]/10 bg-[#f3f8fb] px-3 py-2.5 transition hover:bg-white"
+                    className="flex items-center justify-between gap-3 rounded-xl border-[3px] border-[var(--ink)] bg-[#f3f8fb] px-3 py-2.5 transition hover:bg-white"
                   >
                     <div className="flex-1 min-w-0">
                       <p className="text-[11px] font-black uppercase tracking-[0.1em] text-[#061321]/45">Next</p>

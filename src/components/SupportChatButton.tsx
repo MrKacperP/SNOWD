@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { collection, query, orderBy, onSnapshot, addDoc, doc, updateDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -33,6 +34,7 @@ const PROBLEM_CATEGORIES = [
 
 export default function SupportChatButton() {
   const { user, profile } = useAuth();
+  const inConversation = usePathname().startsWith("/dashboard/messages/");
   const [isOpen, setIsOpen] = useState(false);
   const [chatPhase, setChatPhase] = useState<"select" | "urgent" | "chat">("select");
   const [selectedProblem, setSelectedProblem] = useState<string | null>(null);
@@ -169,7 +171,7 @@ export default function SupportChatButton() {
             transition={{ type: "spring", stiffness: 260, damping: 20 }}
             onClick={() => { setIsOpen(true); if (messages.length === 0) setChatPhase("select"); }}
             data-tour="support-chat"
-            className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[100] w-14 h-14 bg-[var(--accent)] hover:bg-[var(--accent-dark)] text-white rounded-full shadow-xl shadow-[#2F6FED]/30 flex items-center justify-center transition-all duration-200 hover:scale-105 group"
+            className={`fixed ${inConversation ? "bottom-[calc(4.25rem+env(safe-area-inset-bottom))] w-11 h-11 lg:w-14 lg:h-14" : "bottom-24 w-14 h-14"} lg:bottom-6 right-4 md:right-6 z-[100] bg-[var(--accent)] hover:bg-[var(--accent-dark)] text-white rounded-full shadow-[var(--surface-shadow)] flex items-center justify-center transition-all duration-200 hover:scale-105 group`}
           >
             <Headphones className="w-6 h-6" />
             {unreadCount > 0 && (
@@ -177,7 +179,7 @@ export default function SupportChatButton() {
                 {unreadCount}
               </span>
             )}
-            <span className="absolute right-full mr-3 bg-[var(--bg-card-solid)] text-[var(--text-primary)] text-xs font-medium px-3 py-1.5 rounded-lg shadow-lg border border-[var(--border-color)] opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none">
+            <span className="absolute right-full mr-3 bg-[var(--bg-card-solid)] text-[var(--text-primary)] text-xs font-medium px-3 py-1.5 rounded-lg shadow-[var(--surface-shadow)] border-[3px] border-[var(--border-color)] opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none">
               Need help?
             </span>
           </motion.button>
@@ -192,8 +194,8 @@ export default function SupportChatButton() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 24, scale: 0.95 }}
             transition={{ type: "spring", duration: 0.4, bounce: 0.15 }}
-            className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[100] w-[370px] max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col"
-            style={{ maxHeight: "80vh", minHeight: 420 }}
+            className="fixed bottom-24 lg:bottom-6 right-4 md:right-6 z-[100] w-[370px] max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-[var(--surface-shadow)] border-[3px] border-[var(--ink)] overflow-hidden flex flex-col"
+            style={{ height: "min(520px, calc(100dvh - 11rem))", maxHeight: "calc(100dvh - 11rem)" }}
           >
             {/* Header — clean, no gradient */}
             <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between shrink-0">
@@ -227,7 +229,7 @@ export default function SupportChatButton() {
               {/* Problem selection */}
               {chatPhase === "select" && (
                 <motion.div key="select" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                  transition={{ duration: 0.18 }} className="flex-1 overflow-y-auto bg-[#F8FAFC]">
+                  transition={{ duration: 0.18 }} className="flex-1 overflow-y-auto bg-[var(--bg-primary)]">
                   <div className="p-4 pb-2">
                     <p className="text-sm font-bold text-gray-900">Hi, {profile.displayName?.split(" ")[0] || "there"}!</p>
                     <p className="text-xs text-gray-500 mt-0.5">What can we help you with? Select a topic below.</p>
@@ -236,7 +238,7 @@ export default function SupportChatButton() {
                     {PROBLEM_CATEGORIES.map((cat, i) => (
                       <motion.button key={cat.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
                         onClick={() => handleSelectProblem(cat.id)}
-                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-white hover:bg-[var(--accent-soft)] border border-gray-100 hover:border-[rgba(47,111,237,0.2)] transition text-left group shadow-sm">
+                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-white hover:bg-[var(--accent-soft)] border-[3px] border-[var(--ink)] hover:border-[var(--ink)] transition text-left group shadow-[var(--surface-shadow)]">
                         <span className="text-lg shrink-0 leading-none">{cat.emoji}</span>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-gray-900 group-hover:text-[var(--accent)] transition">{cat.label}</p>
@@ -269,7 +271,7 @@ export default function SupportChatButton() {
                     </p>
                   </div>
                   <a href={`tel:${SUPPORT_PHONE.replace(/-/g, "")}`}
-                    className="w-full flex items-center justify-center gap-2 py-3.5 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold text-base shadow-sm shadow-red-200 transition">
+                    className="w-full flex items-center justify-center gap-2 py-3.5 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold text-base shadow-[var(--surface-shadow)]  transition">
                     <Phone className="w-4.5 h-4.5" style={{ width: 18, height: 18 }} /> {SUPPORT_PHONE}
                   </a>
                   <p className="text-xs text-gray-400">For urgent matters only.</p>
@@ -284,10 +286,10 @@ export default function SupportChatButton() {
               {chatPhase === "chat" && (
                 <motion.div key="chat" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                   transition={{ duration: 0.18 }} className="flex flex-col flex-1 overflow-hidden">
-                  <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1 bg-[#EBF0F5]">
+                  <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1 bg-[var(--bg-secondary)]">
                     {messages.length === 0 && (
                       <div className="flex flex-col items-center justify-center h-full py-8 text-center">
-                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm mb-2">
+                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-[var(--surface-shadow)] mb-2">
                           <MessageSquare className="w-5 h-5 text-[var(--accent)]" />
                         </div>
                         <p className="text-sm font-semibold text-gray-600">Support is online</p>
@@ -324,7 +326,7 @@ export default function SupportChatButton() {
                               S
                             </div>
                           )}
-                          <div className={`max-w-[80%] px-3 py-2 rounded-2xl shadow-sm text-sm ${
+                          <div className={`max-w-[80%] px-3 py-2 rounded-2xl shadow-[var(--surface-shadow)] text-sm ${
                             isMe ? "bg-[var(--accent)] text-white rounded-tr-sm" : "bg-white text-gray-900 rounded-tl-sm"
                           }`}>
                             <p className="break-words whitespace-pre-line leading-relaxed">{msg.content}</p>
@@ -342,7 +344,7 @@ export default function SupportChatButton() {
                       <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
                         placeholder="Type your message..."
-                        className="flex-1 px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-[#2F6FED]/40 focus:bg-white transition" />
+                        className="flex-1 px-3.5 py-2.5 bg-gray-50 border-[3px] border-[var(--ink)] rounded-xl text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-[var(--accent)]/40 focus:bg-white transition" />
                       <button onClick={handleSend} disabled={!newMessage.trim() || sending}
                         className="p-2.5 bg-[var(--accent)] hover:bg-[var(--accent-dark)] text-white rounded-xl transition disabled:opacity-40 shrink-0">
                         <Send className="w-4 h-4" />

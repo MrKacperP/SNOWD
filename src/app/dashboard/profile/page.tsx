@@ -11,6 +11,7 @@ import {
   EQUIPMENT_OPTIONS,
   ServiceType,
 } from "@/lib/types";
+import ServiceRadiusMap from "@/components/ServiceRadiusMap";
 import StarRating from "@/components/StarRating";
 import {
   User,
@@ -103,6 +104,15 @@ export default function ProfilePage() {
         address,
       };
 
+      if (address !== profile.address || city !== profile.city || province !== profile.province || postalCode !== profile.postalCode) {
+        updates.lat = null;
+        updates.lng = null;
+        if (typeof google !== "undefined" && google.maps?.Geocoder) {
+          const result = await new google.maps.Geocoder().geocode({ address: `${address}, ${city}, ${province}, ${postalCode}, Canada` });
+          const location = result.results[0]?.geometry.location;
+          if (location) { updates.lat = location.lat(); updates.lng = location.lng(); }
+        }
+      }
       if (isOperator) {
         updates.bio = bio;
         updates.businessName = businessName;
@@ -160,7 +170,7 @@ export default function ProfilePage() {
               onClick={handleSave}
               disabled={saving}
               className={`flex items-center gap-1 px-4 py-2 text-sm font-medium text-white rounded-lg transition disabled:opacity-50 ${
-                saved ? "bg-green-600 hover:bg-green-700" : "bg-[#111111] hover:bg-black"
+                saved ? "bg-green-600 hover:bg-green-700" : "bg-[var(--ink)] hover:bg-black"
               }`}
             >
               {saving ? (
@@ -213,7 +223,7 @@ export default function ProfilePage() {
 
       {/* Profile Card */}
       <div className="surface-card overflow-hidden">
-        <div className="bg-[#111111] px-6 py-8">
+        <div className="bg-[var(--ink)] px-6 py-8">
           <div className="flex items-center gap-4">
             <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-white/12 text-3xl font-bold text-white">
               {profile.displayName?.charAt(0)?.toUpperCase() || "U"}
@@ -409,7 +419,7 @@ export default function ProfilePage() {
                 ) : (
                   <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-[#2F6FED] rounded-full"
+                      className="h-full bg-[var(--accent)] rounded-full"
                       style={{
                         width: `${((operatorProfile.serviceRadius || 10) / 50) * 100}%`,
                       }}
@@ -418,6 +428,7 @@ export default function ProfilePage() {
                 )}
               </div>
 
+              <ServiceRadiusMap address={editing ? address : profile.address} city={editing ? city : profile.city} province={editing ? province : profile.province} postalCode={editing ? postalCode : profile.postalCode} radiusKm={editing ? serviceRadius : (operatorProfile.serviceRadius || 10)} />
               {/* Equipment */}
               <div className="space-y-3">
                 <h3 className="font-semibold text-gray-700 flex items-center gap-1">
@@ -427,7 +438,7 @@ export default function ProfilePage() {
                   {(operatorProfile.equipment || []).map((eq) => (
                     <span
                       key={eq}
-                      className="px-3 py-1 bg-[#2F6FED]/10 text-[#2F6FED] rounded-lg text-sm font-medium"
+                      className="px-3 py-1 bg-[var(--accent)]/10 text-[var(--accent)] rounded-lg text-sm font-medium"
                     >
                       {eq}
                     </span>
@@ -504,7 +515,7 @@ export default function ProfilePage() {
                     onClick={() => setPreferredPayment(pm.value)}
                     className={`p-3 rounded-xl border-2 text-center transition ${
                       preferredPayment === pm.value
-                        ? "border-[#2F6FED] bg-[#2F6FED]/5 text-[#2F6FED]"
+                        ? "border-[var(--accent)] bg-[var(--accent)]/5 text-[var(--accent)]"
                         : "border-gray-200 text-gray-500 hover:border-gray-300"
                     }`}
                   >
@@ -520,7 +531,7 @@ export default function ProfilePage() {
                 {profile.preferredPaymentMethod === "cash" ? (
                   <Banknote className="w-5 h-5 text-green-600" />
                 ) : profile.preferredPaymentMethod === "e-transfer" ? (
-                  <DollarSign className="w-5 h-5 text-[#2F6FED]" />
+                  <DollarSign className="w-5 h-5 text-[var(--accent)]" />
                 ) : (
                   <CreditCard className="w-5 h-5 text-gray-600" />
                 )}

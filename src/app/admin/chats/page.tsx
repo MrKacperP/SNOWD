@@ -25,26 +25,26 @@ export default function AdminChatsPage() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search chats"
-          className="h-10 px-3 rounded-lg border border-[#E5E7EB] bg-[#F8F9FA] text-sm"
+          className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-[var(--bg-primary)] text-sm"
         />
         <div className="mt-3 overflow-y-auto space-y-2 min-h-0">
           {filtered.map((chat) => (
             <button
               key={chat.id}
               onClick={() => setSelectedId(chat.id)}
-              className={`w-full text-left p-2.5 rounded-lg border ${selectedId === chat.id ? "border-[#3B82F6] bg-[#EFF6FF]" : "border-[#E5E7EB] hover:bg-[#F9FAFB]"}`}
+              className={`w-full text-left p-2.5 rounded-lg border ${selectedId === chat.id ? "border-[var(--accent)] bg-[var(--bg-secondary)]" : "border-[var(--border)] hover:bg-[var(--bg-primary)]"}`}
             >
               <div className="flex items-start gap-2.5">
                 <div className="flex -space-x-1">
-                  <div className="w-7 h-7 rounded-full bg-[#DBEAFE] text-[#3B82F6] text-xs font-semibold flex items-center justify-center border border-white">{chat.avatarA}</div>
-                  <div className="w-7 h-7 rounded-full bg-[#E5E7EB] text-[#6B7280] text-xs font-semibold flex items-center justify-center border border-white">{chat.avatarB}</div>
+                  <div className="w-7 h-7 rounded-full bg-[var(--bg-secondary)] text-[var(--accent)] text-xs font-semibold flex items-center justify-center border border-white">{chat.avatarA}</div>
+                  <div className="w-7 h-7 rounded-full bg-[var(--border)] text-[var(--text-muted)] text-xs font-semibold flex items-center justify-center border border-white">{chat.avatarB}</div>
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold truncate text-[#1A1A2E]">{chat.participantA} / {chat.participantB}</p>
-                    <p className="text-[11px] text-[#6B7280] shrink-0">{new Date(chat.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</p>
+                    <p className="text-sm font-semibold truncate text-[var(--ink)]">{chat.participantA} / {chat.participantB}</p>
+                    <p className="text-[11px] text-[var(--text-muted)] shrink-0">{new Date(chat.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</p>
                   </div>
-                  <p className="text-xs text-[#6B7280] truncate mt-0.5">{chat.lastMessage}</p>
+                  <p className="text-xs text-[var(--text-muted)] truncate mt-0.5">{chat.lastMessage}</p>
                 </div>
                 {chat.unreadCount > 0 && <StatusTag label={String(chat.unreadCount)} tone="blue" />}
               </div>
@@ -57,22 +57,22 @@ export default function AdminChatsPage() {
       <AdminCard className="p-4 flex flex-col min-h-0">
         {selected ? (
           <>
-            <div className="pb-3 border-b border-[#E5E7EB]">
-              <p className="font-semibold text-[#1A1A2E]">{selected.participantA} and {selected.participantB}</p>
-              <p className="text-xs text-[#6B7280]">Conversation details</p>
+            <div className="pb-3 border-b border-[var(--border)]">
+              <p className="font-semibold text-[var(--ink)]">{selected.participantA} and {selected.participantB}</p>
+              <p className="text-xs text-[var(--text-muted)]">Conversation details</p>
             </div>
             <div className="flex-1 overflow-y-auto py-3 space-y-2">
               {selected.messages.map((m) => (
                 <div key={m.id} className={`flex ${m.sender === "A" ? "justify-start" : "justify-end"}`}>
-                  <div className={`max-w-[70%] px-3 py-2 rounded-lg text-sm ${m.sender === "A" ? "bg-[#F3F4F6] text-[#1F2937]" : "bg-[#EFF6FF] text-[#1E3A8A]"}`}>
+                  <div className={`max-w-[70%] px-3 py-2 rounded-lg text-sm ${m.sender === "A" ? "bg-[var(--bg-secondary)] text-[#1F2937]" : "bg-[var(--bg-secondary)] text-[#1E3A8A]"}`}>
                     <p>{m.text}</p>
-                    <p className="text-[11px] text-[#6B7280] mt-1">{m.time}</p>
+                    <p className="text-[11px] text-[var(--text-muted)] mt-1">{m.time}</p>
                   </div>
                 </div>
               ))}
             </div>
-            <div className="pt-3 border-t border-[#E5E7EB]">
-              <p className="text-sm text-[#6B7280]">Read-only: admins can view conversations but cannot send messages.</p>
+            <div className="pt-3 border-t border-[var(--border)]">
+              <p className="text-sm text-[var(--text-muted)]">Read-only: admins can view conversations but cannot send messages.</p>
             </div>
           </>
         ) : (

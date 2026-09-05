@@ -16,12 +16,12 @@ export default function Card({
   variant = 'default',
   padding = 'lg'
 }: CardProps) {
-  const baseStyles = 'rounded-2xl border border-[#E6EEF6] transition-all duration-150';
+  const baseStyles = 'rounded-2xl border-[3px] border-[var(--border)] transition-all duration-150';
   
   const variants = {
-    default: 'bg-white shadow-sm',
-    frost: 'frost-glass',
-    glacier: 'glacier-glow bg-white shadow-sm',
+    default: 'bg-white shadow-[var(--surface-shadow)]',
+    frost: 'bg-[var(--bg-secondary)] shadow-[var(--surface-shadow)]',
+    glacier: 'bg-white shadow-[var(--surface-shadow)]',
   };
   
   const paddings = {

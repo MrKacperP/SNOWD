@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireStripeOperator } from "@/lib/stripeConnectAuth";
 import { getStripe } from "@/lib/stripe";
 
 export async function POST(req: NextRequest) {
@@ -20,8 +21,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing accountId" }, { status: 400 });
     }
 
+    await requireStripeOperator(req, accountId);
+
     // Create a new account link (refresh or re-onboard)
-    const origin = req.headers.get("origin") || "http://localhost:3000";
+    const origin = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
       refresh_url: `${origin}/dashboard/settings?stripe=refresh`,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion, type HTMLMotionProps } from 'framer-motion';
+import { motion, useReducedMotion, type HTMLMotionProps } from 'framer-motion';
 
 interface ButtonProps extends Omit<HTMLMotionProps<'button'>, 'children' | 'onDrag' | 'onDragStart' | 'onDragEnd'> {
   variant?: 'primary' | 'secondary' | 'ghost' | 'success' | 'danger';
@@ -19,14 +19,15 @@ export default function Button({
   disabled,
   ...props
 }: ButtonProps) {
-  const baseStyles = 'font-semibold tracking-wide transition-all duration-150 rounded-[14px] disabled:opacity-50 disabled:cursor-not-allowed btn-lift';
+  const reduceMotion = useReducedMotion();
+  const baseStyles = 'inline-flex items-center justify-center gap-2 border-[3px] border-[var(--ink)] font-black transition-all duration-150 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed btn-lift';
   
   const variants = {
-    primary: 'bg-[var(--accent)] hover:bg-[var(--accent-dark)] text-white shadow-sm',
-    secondary: 'border-2 border-[var(--border)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] bg-white',
-    ghost: 'text-[var(--accent)] hover:bg-[var(--accent-soft)]',
-    success: 'bg-emerald-500 hover:bg-emerald-600 text-white',
-    danger: 'bg-red-500 hover:bg-red-600 text-white',
+    primary: 'bg-[var(--accent)] hover:bg-[var(--accent-dark)] text-white shadow-[var(--surface-shadow)]',
+    secondary: 'text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] bg-white',
+    ghost: 'border-transparent text-[var(--accent)] hover:bg-[var(--accent-soft)]',
+    success: 'bg-emerald-700 hover:bg-emerald-800 text-white',
+    danger: 'bg-red-700 hover:bg-red-800 text-white',
   };
   
   const sizes = {
@@ -37,8 +38,8 @@ export default function Button({
   
   return (
     <MotionButton
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
+      whileHover={reduceMotion || disabled || isLoading ? undefined : { y: -2 }}
+      whileTap={reduceMotion || disabled || isLoading ? undefined : { y: 1 }}
       className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
       disabled={disabled || isLoading}
       {...props}

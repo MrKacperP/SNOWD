@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- Standalone CommonJS Node script. */
 // scripts/set-storage-cors.js
 // Run with: node scripts/set-storage-cors.js
 // Requires: @google-cloud/storage (npm install --save-dev @google-cloud/storage)

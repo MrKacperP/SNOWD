@@ -1,5 +1,8 @@
 "use client";
 
+import { isStripeAccountReady, stripeConnectFetch } from "@/lib/stripeConnectClient";
+import { canAcceptPlatformPayments } from "@/lib/operatorDiscovery";
+
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -498,6 +501,10 @@ export default function ChatPage() {
 
       // ── Guard: one active job at a time on accept ──────────────────────────
       if (newStatus === "accepted") {
+        if (!profile?.idVerified || (job.paymentMethod !== "cash" && !(await isStripeAccountReady(profile.stripeConnectAccountId)))) {
+          alert("ID verification is required. Until Stripe setup is complete, you can accept cash jobs only.");
+          return;
+        }
         const { getDocs: gd, query: q2, collection: col2, where: w2 } = await import("firebase/firestore");
         const activeSnap = await gd(q2(col2(db, "jobs"), w2("operatorId", "==", user?.uid), w2("status", "in", ["accepted", "en-route", "in-progress"])));
         const otherActive = activeSnap.docs.filter(d => d.id !== job.id);
@@ -508,7 +515,7 @@ export default function ChatPage() {
       }
 
       // ── Guard: payment must be made before proceeding past accepted (credit/e-transfer) ──
-      if ((newStatus === "en-route" || newStatus === "in-progress" || newStatus === "completed") && job.paymentMethod !== "cash" && job.paymentStatus === "pending") {
+      if ((newStatus === "en-route" || newStatus === "in-progress" || newStatus === "completed") && job.paymentMethod !== "cash" && !["held", "paid"].includes(job.paymentStatus)) {
         setShowPaymentGateModal(true);
         return;
       }
@@ -519,10 +526,6 @@ export default function ChatPage() {
       };
       if (newStatus === "in-progress") {
         updateData.startTime = Timestamp.now();
-        // Hold payment when job starts
-        if (job.paymentStatus === "pending" && job.stripePaymentIntentId) {
-          updateData.paymentStatus = "held";
-        }
       }
       if (newStatus === "completed") {
         updateData.completionTime = Timestamp.now();
@@ -536,9 +539,11 @@ export default function ChatPage() {
           if (captureResult.captured || job.paymentStatus === "paid" || job.paymentCapturedAt) {
             updateData.paymentStatus = "paid";
           }
-        } else if (job.paymentMethod === "cash" || !job.stripePaymentIntentId) {
-          // Cash / e-transfer jobs — mark as paid directly
+        } else if (job.paymentMethod === "cash") {
           updateData.paymentStatus = "paid";
+        } else {
+          alert("A confirmed platform payment is required before completing this job.");
+          return;
         }
       }
 
@@ -567,7 +572,7 @@ export default function ChatPage() {
 
       if (newStatus === "accepted") {
         // Auto-send payment request to client when operator accepts
-        if (job.paymentMethod !== "cash" && job.paymentStatus === "pending") {
+        if (job.paymentMethod !== "cash" && (job.paymentStatus === "pending" || job.paymentStatus === "refunded")) {
           await sendMessage(
             `${profile?.displayName} has accepted the job! Please pay $${job.price} CAD to confirm — funds are held securely by snowd.ca until job completion.`,
             "payment-request",
@@ -592,6 +597,17 @@ export default function ChatPage() {
     setCancelling(true);
     const userRole = isOperator ? "operator" : "client";
     try {
+      if (job.stripePaymentIntentId) {
+        const response = await stripeConnectFetch("/api/stripe/cancel-payment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paymentIntentId: job.stripePaymentIntentId }),
+        });
+        const result = await response.json();
+        if (!response.ok || result.status !== "canceled") {
+          throw new Error(result.error || "Could not release the payment hold. Please retry.");
+        }
+      }
       await updateDoc(doc(db, "jobs", job.id), {
         status: "cancelled",
         cancelledAt: Timestamp.now(),
@@ -607,7 +623,7 @@ export default function ChatPage() {
       setShowCancelPopup(false);
     } catch (error) {
       console.error("Error cancelling job:", error);
-      alert("Failed to cancel job. Please try again.");
+      alert(error instanceof Error ? error.message : "Failed to cancel job. Please try again.");
     } finally {
       setCancelling(false);
     }
@@ -619,12 +635,9 @@ export default function ChatPage() {
     setRehiring(true);
     try {
       const { addDoc: ad, collection: col, Timestamp: Ts } = await import("firebase/firestore");
-      const operatorStripeReady = Boolean(
-        (otherUser as UserProfile & { stripeConnectAccountId?: string }).stripeConnectAccountId
-      );
-      const operatorRequiresCard =
-        operatorStripeReady &&
-        ((otherUser as UserProfile & { stripeEnabledJobsOnly?: boolean }).stripeEnabledJobsOnly ?? true);
+      const bookingOperator = isOperator ? profile : otherUser;
+      if (!bookingOperator?.idVerified) throw new Error("The operator must verify their ID before receiving jobs.");
+      const operatorRequiresCard = canAcceptPlatformPayments(bookingOperator) && (bookingOperator.stripeEnabledJobsOnly ?? true);
 
       // Create a new job with the same details
       const newJobRef = await ad(col(db, "jobs"), {
@@ -740,6 +753,8 @@ export default function ChatPage() {
     paymentIntentId?: string
   ) => {
     const resolvedPaymentIntentId = paymentIntentId || activeJob.stripePaymentIntentId || "";
+    // Platform transactions are persisted by the server and signed webhooks.
+    if (resolvedPaymentIntentId) return;
     const transactionId = resolvedPaymentIntentId || `${activeJob.id}-${activeJob.paymentMethod || "cash"}`;
     const transactionData: Record<string, unknown> = {
       jobId: activeJob.id,
@@ -780,23 +795,15 @@ export default function ChatPage() {
     }
 
     try {
-      const response = await fetch("/api/stripe/capture-payment", {
+      const response = await stripeConnectFetch("/api/stripe/capture-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ paymentIntentId: activeJob.stripePaymentIntentId }),
       });
       const data = await response.json();
-      if (data.error) {
-        return { captured: false, skipped: false, error: data.error as string };
+      if (!response.ok || data.status !== "succeeded") {
+        return { captured: false, skipped: false, error: data.error || "Payment capture has not succeeded." };
       }
-
-      await updateDoc(doc(db, "jobs", activeJob.id), {
-        paymentStatus: "paid",
-        paymentCapturedAt: Timestamp.now(),
-        paymentCaptureAttempts: increment(1),
-        updatedAt: Timestamp.now(),
-      });
-      await upsertTransaction(activeJob, "paid", activeJob.stripePaymentIntentId);
 
       return { captured: true, skipped: false };
     } catch {
@@ -816,7 +823,7 @@ export default function ChatPage() {
         operatorStripeAccountId = opData.stripeConnectAccountId || null;
       }
 
-      const response = await fetch("/api/stripe/create-payment-intent", {
+      const response = await stripeConnectFetch("/api/stripe/create-payment-intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -847,17 +854,14 @@ export default function ChatPage() {
   const handlePaymentSuccess = async (paymentIntentId: string) => {
     if (!job) return;
     try {
-      await updateDoc(doc(db, "jobs", job.id), {
-        paymentStatus: "held",
-        paymentMethod: "credit",
-        stripePaymentIntentId: paymentIntentId,
-        updatedAt: Timestamp.now(),
+      const response = await stripeConnectFetch("/api/stripe/payment-status", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentIntentId }),
       });
-      await upsertTransaction(
-        { ...job, paymentStatus: "held", paymentMethod: "credit", stripePaymentIntentId: paymentIntentId },
-        "held",
-        paymentIntentId
-      );
+      const result = await response.json();
+      if (!response.ok || !["held", "paid"].includes(result.paymentStatus)) {
+        throw new Error(result.error || "Your payment is still processing. Please check again shortly.");
+      }
       await sendMessage(
         `Payment of $${job.price} CAD has been securely held by snowd.ca. Funds will be released when the job is completed and verified.`,
         "payment",
@@ -867,6 +871,7 @@ export default function ChatPage() {
       setClientSecret(null);
     } catch (error) {
       console.error("Payment recording error:", error);
+      throw error;
     }
   };
 
@@ -875,28 +880,28 @@ export default function ChatPage() {
     if (!file || !job) return;
     setUploadingPhoto(true);
     try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64 = reader.result as string;
-        setCompletionPhoto(base64);
-        
-        // Save proof first. Completion and payment release happen from the status action.
-        await updateDoc(doc(db, "jobs", job.id), {
-          completionPhotoUrl: base64,
-          updatedAt: Timestamp.now(),
-        });
-        
-        await sendMessage(
-          `${profile?.displayName} submitted completion photo proof.`,
-          "completion-photo",
-          { completionPhotoUrl: base64 }
-        );
-        setUploadingPhoto(false);
-      };
-      reader.readAsDataURL(file);
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error("Could not read the photo."));
+        reader.readAsDataURL(file);
+      });
+      await updateDoc(doc(db, "jobs", job.id), {
+        completionPhotoUrl: base64,
+        updatedAt: Timestamp.now(),
+      });
+      setCompletionPhoto(base64);
+      await sendMessage(
+        `${profile?.displayName} submitted completion photo proof.`,
+        "completion-photo",
+        { completionPhotoUrl: base64 }
+      );
     } catch (error) {
       console.error("Photo upload error:", error);
+      alert("Could not save photo proof. Please try again.");
+    } finally {
       setUploadingPhoto(false);
+      e.target.value = "";
     }
   };
 
@@ -972,30 +977,6 @@ export default function ChatPage() {
     } catch (error) {
       console.error("Voice recorder start error:", error);
       alert("Microphone access was denied or unavailable.");
-    }
-  };
-
-  const confirmCompletionAndRelease = async () => {
-    if (!job) return;
-    try {
-      const captureResult = await captureStripePaymentIfNeeded(job);
-      if (captureResult.error) throw new Error(captureResult.error);
-
-      await updateDoc(doc(db, "jobs", job.id), {
-        paymentStatus: "paid",
-        status: "completed",
-        completionTime: Timestamp.now(),
-        updatedAt: Timestamp.now(),
-      });
-      await upsertTransaction({ ...job, paymentStatus: "paid" }, "paid");
-      await sendMessage(
-        `Payment of $${job.price} CAD has been released. Job completed successfully!`,
-        "payment",
-        { amount: job.price }
-      );
-    } catch (error) {
-      console.error("Payment release error:", error);
-      alert("Failed to release payment. Please try again.");
     }
   };
 
@@ -1251,7 +1232,7 @@ export default function ChatPage() {
         >
           {!isOwn && otherUser && (
             <Link href={`/dashboard/u/${msg.senderId}`} className="shrink-0 mr-2 self-end">
-              <div className="w-7 h-7 bg-[#2F6FED] rounded-full flex items-center justify-center text-white font-semibold text-xs hover:ring-2 hover:ring-[#2F6FED]/30 transition">
+              <div className="w-7 h-7 bg-[var(--accent)] rounded-full flex items-center justify-center text-white font-semibold text-xs hover:ring-2 hover:ring-[var(--accent)]/30 transition">
                 {otherUser.displayName?.charAt(0)?.toUpperCase() || "?"}
               </div>
             </Link>
@@ -1260,13 +1241,13 @@ export default function ChatPage() {
             <img
               src={msg.metadata.imageUrl}
               alt="Shared photo"
-              className="max-h-80 w-full cursor-pointer rounded-[1.4rem] object-cover shadow-[0_18px_30px_rgba(18,18,18,0.12)]"
+              className="max-h-80 w-full cursor-pointer rounded-[1.4rem] object-cover shadow-[var(--surface-shadow)]"
               onClick={() => window.open(msg.metadata!.imageUrl!, "_blank")}
             />
             <div className={`mt-1 flex items-center gap-1.5 text-[10px] ${isOwn ? "justify-end text-[var(--text-muted)]" : "text-[var(--text-muted)]"}`}>
               <span>{formatTimestamp(msg.createdAt)}</span>
               {showDeliveryState && (
-                <span className={`font-semibold ${msg.read ? "text-emerald-600" : "text-[#6B7C8F]"}`}>
+                <span className={`font-semibold ${msg.read ? "text-emerald-600" : "text-[var(--text-muted)]"}`}>
                   {msg.read ? "Read" : "Sent"}
                 </span>
               )}
@@ -1283,9 +1264,9 @@ export default function ChatPage() {
           className={`mb-4 flex ${isOwn ? "justify-end" : "justify-start"} chat-bubble`}
         >
           <div
-            className={`max-w-[78%] rounded-[1.4rem] border px-3 py-2.5 shadow-sm ${
+            className={`max-w-[78%] rounded-[1.4rem] border px-3 py-2.5 shadow-[var(--surface-shadow)] ${
               isOwn
-                ? "border-[#111111] bg-[#111111] text-white rounded-tr-sm"
+                ? "border-[var(--ink)] bg-[var(--ink)] text-white rounded-tr-sm"
                 : "border-[var(--border-color)] bg-white rounded-tl-sm"
             }`}
           >
@@ -1332,7 +1313,7 @@ export default function ChatPage() {
     if (msg.type === "completion-photo") {
       return (
         <div key={msg.id} className="my-4 flex justify-center chat-bubble">
-          <div className="w-full max-w-[300px] rounded-[1.4rem] border border-green-100 bg-white p-4 shadow-sm">
+          <div className="w-full max-w-[300px] rounded-[1.4rem] border border-green-100 bg-white p-4 shadow-[var(--surface-shadow)]">
             <div className="flex items-center gap-2 mb-3">
               <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
                 <Camera className="w-4 h-4 text-green-600" />
@@ -1362,7 +1343,7 @@ export default function ChatPage() {
       return (
         <div key={msg.id} className="my-3 flex justify-center chat-bubble">
           {isPay ? (
-            <div className={`w-full max-w-[300px] rounded-[1.4rem] border bg-white p-4 shadow-sm ${
+            <div className={`w-full max-w-[300px] rounded-[1.4rem] border bg-white p-4 shadow-[var(--surface-shadow)] ${
               msg.type === "payment" ? "border-green-100" : "border-amber-100"
             }`}>
               <div className="flex items-center gap-2 mb-1">
@@ -1380,11 +1361,11 @@ export default function ChatPage() {
                 </span>
               </div>
               <p className="text-xs text-gray-600 leading-relaxed">{msg.content}</p>
-              {msg.type === "payment-request" && !isOperator && job?.paymentStatus === "pending" && (
+              {msg.type === "payment-request" && !isOperator && (job?.paymentStatus === "pending" || job?.paymentStatus === "refunded") && (
                 <button
                   onClick={initiatePayment}
                   disabled={processingPayment}
-                    className="mt-3 w-full rounded-xl bg-[#111111] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-black disabled:opacity-50"
+                    className="mt-3 w-full rounded-xl bg-[var(--ink)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-black disabled:opacity-50"
                   >
                   {processingPayment ? "Processing..." : `Pay $${job?.price} CAD Now`}
                 </button>
@@ -1416,10 +1397,10 @@ export default function ChatPage() {
           </Link>
         )}
         <div
-          className={`max-w-[82%] px-4 py-3 rounded-[1.2rem] shadow-sm sm:max-w-[72%] ${
+          className={`max-w-[82%] px-4 py-3 rounded-[1.2rem] shadow-[var(--surface-shadow)] sm:max-w-[72%] ${
             isOwn
-              ? "bg-[#111111] text-white rounded-br-sm border border-[#111111]"
-              : "bg-white text-[var(--text-primary)] rounded-bl-sm border border-[var(--border-color)]"
+              ? "bg-[var(--ink)] text-white rounded-br-sm border border-[var(--ink)]"
+              : "bg-white text-[var(--text-primary)] rounded-bl-sm border-[3px] border-[var(--border-color)]"
           }`}
         >
           <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{msg.content}</p>
@@ -1438,7 +1419,7 @@ export default function ChatPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-96 text-[#6B7C8F] gap-3">
+      <div className="flex flex-col items-center justify-center h-96 text-[var(--text-muted)] gap-3">
         <div className="animate-spin-slow">
           <Image src="/logo.png" alt="Loading" width={40} height={40} style={{ width: "auto", height: "auto" }} />
         </div>
@@ -1450,9 +1431,9 @@ export default function ChatPage() {
   const otherUserId = otherUser?.uid || (messages.find((m) => m.senderId !== user?.uid)?.senderId);
 
   return (
-    <div className="relative left-1/2 flex h-[calc(100dvh-6rem)] w-screen -translate-x-1/2 min-h-0 gap-0 overflow-hidden md:h-[calc(100vh-3.5rem)] md:w-[calc(100vw-288px)] md:items-stretch">
+    <div className="relative left-1/2 flex h-[calc(100dvh-12rem-env(safe-area-inset-bottom))] w-full -translate-x-1/2 min-h-0 gap-0 overflow-hidden lg:h-[calc(100dvh-7rem)] xl:items-stretch">
       {/* Chat Column */}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-y border-r border-[var(--border-color)] bg-[var(--bg-card-solid)] md:border-l">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-y border-r border-[var(--border-color)] bg-[var(--bg-card-solid)] xl:border-l">
         {/* Chat Header */}
         <div className="flex shrink-0 items-center gap-3 border-b border-[var(--border-soft)] bg-white/95 px-3 py-3 backdrop-blur sm:px-4">
           <Link
@@ -1463,37 +1444,37 @@ export default function ChatPage() {
             <ArrowLeft className="w-5 h-5" />
           </Link>
           {/* Desktop: open profile panel. Mobile: route to profile page. */}
-          <button type="button" onClick={() => setRightPanelView("profile")} className="hidden cursor-pointer transition md:block" title="Show profile details">
+          <button type="button" onClick={() => setRightPanelView("profile")} className="hidden cursor-pointer transition xl:block" title="Show profile details">
             <UserAvatar
               photoURL={(otherUser as unknown as Record<string, string> | null)?.avatar}
               role={otherUser?.role}
               displayName={otherUser?.displayName}
               size={44}
               rounded="2xl"
-              className="border border-[var(--border-color)]"
+              className="border-[3px] border-[var(--border-color)]"
             />
           </button>
-          <Link href={`/dashboard/u/${otherUserId || ""}`} className="md:hidden">
+          <Link href={`/dashboard/u/${otherUserId || ""}`} className="xl:hidden">
             <UserAvatar
               photoURL={(otherUser as unknown as Record<string, string> | null)?.avatar}
               role={otherUser?.role}
               displayName={otherUser?.displayName}
               size={44}
               rounded="2xl"
-              className="border border-[var(--border-color)]"
+              className="border-[3px] border-[var(--border-color)]"
             />
           </Link>
           <div className="flex-1 min-w-0">
             <button
               type="button"
               onClick={() => setRightPanelView("profile")}
-              className="hidden md:block hover:underline underline-offset-2"
+              className="hidden xl:block hover:underline underline-offset-2"
             >
               <p className="truncate font-semibold text-[var(--text-primary)]">
                 {otherUser?.displayName || "User"}
               </p>
             </button>
-            <Link href={`/dashboard/u/${otherUserId || ""}`} className="md:hidden hover:underline underline-offset-2">
+            <Link href={`/dashboard/u/${otherUserId || ""}`} className="xl:hidden hover:underline underline-offset-2">
               <p className="truncate font-semibold text-[var(--text-primary)]">
                 {otherUser?.displayName || "User"}
               </p>
@@ -1539,13 +1520,13 @@ export default function ChatPage() {
               <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-semibold capitalize text-[var(--text-secondary)] ring-1 ring-[var(--border-color)]">
                 {job.propertySize?.replace("-", " ")}
               </span>
-              <span className="shrink-0 rounded-full bg-[#111111] px-2.5 py-1 text-xs font-semibold text-white">
+              <span className="shrink-0 rounded-full bg-[var(--ink)] px-2.5 py-1 text-xs font-semibold text-white">
                 ${job.price} CAD
               </span>
               <button
                 type="button"
                 onClick={() => setRightPanelView("updates")}
-                className="ml-auto hidden shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold text-[var(--text-muted)] transition hover:bg-white hover:text-[var(--text-primary)] md:inline-flex"
+                className="ml-auto hidden shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold text-[var(--text-muted)] transition hover:bg-white hover:text-[var(--text-primary)] xl:inline-flex"
               >
                 Details
               </button>
@@ -1555,9 +1536,9 @@ export default function ChatPage() {
 
         {/* Mobile progress strip */}
         {job && (
-          <div className="md:hidden px-3 py-2.5 bg-white border-b border-[var(--border-soft)]">
+          <div className="xl:hidden px-3 py-2.5 bg-white border-b border-[var(--border-soft)]">
             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-              <span className="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#EAF1FF] text-[#2F6FED]">
+              <span className="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#EAF1FF] text-[var(--accent)]">
                 {job.status.replace("-", " ")}
               </span>
               <span
@@ -1581,11 +1562,11 @@ export default function ChatPage() {
         )}
 
         {/* Messages */}
-        <div className="flex-1 space-y-1 overflow-y-auto bg-[linear-gradient(180deg,#f5f5f0_0%,#f1f0ea_100%)] px-3 pb-36 pt-4 sm:px-4 md:pb-5">
+        <div className="flex-1 space-y-1 overflow-y-auto bg-[var(--bg-primary)] px-3 pb-36 pt-4 sm:px-4 xl:pb-5">
           {messages.length === 0 && (
-            <div className="flex flex-col items-center justify-center h-full text-center py-12 text-[#6B7C8F]">
-              <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--border-soft)] bg-white shadow-sm">
-                <MessageSquare className="h-7 w-7 text-[#111111]" />
+            <div className="flex flex-col items-center justify-center h-full text-center py-12 text-[var(--text-muted)]">
+              <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border-[3px] border-[var(--border-soft)] bg-white shadow-[var(--surface-shadow)]">
+                <MessageSquare className="h-7 w-7 text-[var(--ink)]" />
               </div>
               <p className="text-sm font-semibold text-gray-800">Start the conversation</p>
               <p className="mt-1 max-w-xs text-xs leading-5 text-gray-500">Share arrival details, photos, and job updates here.</p>
@@ -1600,7 +1581,7 @@ export default function ChatPage() {
               <React.Fragment key={message.id}>
                 {showDayBreak && (
                   <div className="sticky top-2 z-10 my-3 flex justify-center">
-                    <span className="rounded-full border border-[var(--border-soft)] bg-white/90 px-3 py-1 text-[11px] font-semibold text-[var(--text-muted)] shadow-sm backdrop-blur">
+                    <span className="rounded-full border-[3px] border-[var(--border-soft)] bg-white px-3 py-1 text-[11px] font-semibold text-[var(--text-muted)] shadow-[var(--surface-shadow)] backdrop-blur">
                       {currentDay}
                     </span>
                   </div>
@@ -1614,7 +1595,7 @@ export default function ChatPage() {
 
         {/* Review Prompt — Auto-shows when job is completed */}
         {job?.status === "completed" && !reviewSubmitted && (
-          <div className="hidden md:block bg-yellow-50 border-x border-[#E6EEF6] px-4 py-4 border-t border-yellow-200">
+          <div className="hidden xl:block bg-yellow-50 border-x border-[var(--border)] px-4 py-4 border-t border-yellow-200">
             <div className="text-center mb-3">
               <Star className="w-6 h-6 text-yellow-500 mx-auto mb-1" />
               <p className="text-sm font-semibold text-gray-900">
@@ -1666,7 +1647,7 @@ export default function ChatPage() {
           </div>
         )}
         {job?.status === "completed" && reviewSubmitted && (
-          <div className="hidden md:block bg-green-50 border-x border-[#E6EEF6] px-4 py-3 border-t border-green-200 text-center">
+          <div className="hidden xl:block bg-green-50 border-x border-[var(--border)] px-4 py-3 border-t border-green-200 text-center">
             <div className="flex items-center justify-center gap-2 text-green-700">
               <CheckCircle className="w-4 h-4" />
               <span className="text-sm font-medium">Thank you for your review!</span>
@@ -1676,7 +1657,7 @@ export default function ChatPage() {
 
         {/* Client cancel button for pending jobs */}
         {!isOperator && job?.status === "pending" && (
-          <div className="hidden md:block bg-gray-50 border-x border-gray-100 px-4 py-3 border-t border-gray-200">
+          <div className="hidden xl:block bg-gray-50 border-x border-gray-100 px-4 py-3 border-t border-gray-200">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-800">Job Request Pending</p>
@@ -1694,8 +1675,8 @@ export default function ChatPage() {
         )}
 
         {/* Client payment banner */}
-        {!isOperator && job?.status === "accepted" && job?.paymentStatus === "pending" && (
-          <div className="hidden md:block bg-yellow-50 border-x border-yellow-100 px-4 py-3 border-t border-yellow-200">
+        {!isOperator && job?.status === "accepted" && (job?.paymentStatus === "pending" || job?.paymentStatus === "refunded") && (
+          <div className="hidden xl:block bg-yellow-50 border-x border-yellow-100 px-4 py-3 border-t border-yellow-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Shield className="w-5 h-5 text-yellow-600" />
@@ -1707,7 +1688,7 @@ export default function ChatPage() {
               <button
                 onClick={initiatePayment}
                 disabled={processingPayment}
-                className="px-4 py-2 bg-[#2F6FED] text-white rounded-lg font-semibold text-sm hover:bg-[#2158C7] transition disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2 bg-[var(--accent)] text-white rounded-lg font-semibold text-sm hover:bg-[var(--accent-dark)] transition disabled:opacity-50 flex items-center gap-2"
               >
                 {processingPayment ? (
                   <>
@@ -1727,7 +1708,7 @@ export default function ChatPage() {
 
         {/* Completed Job — Rehire option (clients only, once) */}
         {job?.status === "completed" && reviewSubmitted && !isOperator && !rehireSent && (
-          <div className="hidden md:block bg-[#2F6FED]/5 border-x border-[#2F6FED]/10 px-4 py-3 border-t border-[#2F6FED]/20">
+          <div className="hidden xl:block bg-[var(--accent)]/5 border-x border-[var(--accent)]/10 px-4 py-3 border-t border-[var(--accent)]/20">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-900">Job Complete</p>
@@ -1736,7 +1717,7 @@ export default function ChatPage() {
               <button
                 onClick={rehireOperator}
                 disabled={rehiring}
-                className="px-4 py-2 bg-[#2F6FED] text-white rounded-lg font-semibold text-sm hover:bg-[#2158C7] transition flex items-center gap-2 disabled:opacity-50"
+                className="px-4 py-2 bg-[var(--accent)] text-white rounded-lg font-semibold text-sm hover:bg-[var(--accent-dark)] transition flex items-center gap-2 disabled:opacity-50"
               >
                 <Briefcase className="w-4 h-4" />
                 {rehiring ? "Creating..." : "Rehire"}
@@ -1747,7 +1728,7 @@ export default function ChatPage() {
 
         {/* Cancelled Job — Clients can reopen within 5 min, or either side can rehire. Operators cannot reopen. */}
         {job?.status === "cancelled" && (
-          <div className="hidden md:block bg-red-50 border-x border-red-100 px-4 py-3 border-t border-red-200">
+          <div className="hidden xl:block bg-red-50 border-x border-red-100 px-4 py-3 border-t border-red-200">
             {/* Only clients can reopen within 5-minute window */}
             {!isOperator && reopenTimeLeft !== null && reopenTimeLeft > 0 ? (
               <div className="flex items-center justify-between">
@@ -1759,7 +1740,7 @@ export default function ChatPage() {
                 </div>
                 <button
                   onClick={reopenJob}
-                  className="px-4 py-2 bg-[#2F6FED] text-white rounded-lg font-semibold text-sm hover:bg-[#2158C7] transition flex items-center gap-2"
+                  className="px-4 py-2 bg-[var(--accent)] text-white rounded-lg font-semibold text-sm hover:bg-[var(--accent-dark)] transition flex items-center gap-2"
                 >
                   <Play className="w-4 h-4" />
                   Reopen Job
@@ -1777,7 +1758,7 @@ export default function ChatPage() {
                   <button
                     onClick={rehireOperator}
                     disabled={rehiring}
-                    className="px-4 py-2 bg-[#2F6FED] text-white rounded-lg font-semibold text-sm hover:bg-[#2158C7] transition flex items-center gap-2 disabled:opacity-50"
+                    className="px-4 py-2 bg-[var(--accent)] text-white rounded-lg font-semibold text-sm hover:bg-[var(--accent-dark)] transition flex items-center gap-2 disabled:opacity-50"
                   >
                     <Briefcase className="w-4 h-4" />
                     {rehiring ? "Creating..." : "Rehire"}
@@ -1789,7 +1770,7 @@ export default function ChatPage() {
         )}
 
         {/* Message Input */}
-        <div className="sticky bottom-0 z-20 shrink-0 border-t border-[var(--border-soft)] bg-white/95 px-2.5 pb-[max(10px,env(safe-area-inset-bottom))] pt-2.5 shadow-[0_-16px_35px_rgba(17,17,17,0.06)] backdrop-blur sm:px-4">
+        <div className="sticky bottom-0 z-20 shrink-0 border-t border-[var(--border-soft)] bg-white/95 px-2.5 pb-[max(10px,env(safe-area-inset-bottom))] pt-2.5 shadow-[var(--surface-shadow)] backdrop-blur sm:px-4">
           <input
             ref={fileInputRef}
             type="file"
@@ -1821,7 +1802,7 @@ export default function ChatPage() {
                   key={reply}
                   type="button"
                   onClick={() => setNewMessage(reply)}
-                  className="shrink-0 rounded-full border border-[var(--border-color)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--text-secondary)] transition hover:border-[var(--text-primary)] hover:text-[var(--text-primary)]"
+                  className="shrink-0 rounded-full border-[3px] border-[var(--border-color)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--text-secondary)] transition hover:border-[var(--text-primary)] hover:text-[var(--text-primary)]"
                 >
                   {reply}
                 </button>
@@ -1829,7 +1810,7 @@ export default function ChatPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="flex items-end gap-1.5 rounded-[1.2rem] border border-[var(--border-color)] bg-[var(--bg-card-solid)] px-2 py-1.5 shadow-sm md:hidden">
+          <form onSubmit={handleSubmit} className="flex items-end gap-1.5 rounded-[1.2rem] border-[3px] border-[var(--border-color)] bg-[var(--bg-card-solid)] px-2 py-1.5 shadow-[var(--surface-shadow)] xl:hidden">
             <button
               type="button"
               onClick={() => setShowMobileTasksSheet(true)}
@@ -1840,7 +1821,7 @@ export default function ChatPage() {
             <button
               type="button"
               onClick={() => chatAttachInputRef.current?.click()}
-              className="mb-1 rounded-lg p-2 text-[#6B7C8F] hover:bg-[#EEF4FF] hover:text-[#2F6FED]"
+              className="mb-1 rounded-lg p-2 text-[var(--text-muted)] hover:bg-[var(--bg-secondary)] hover:text-[var(--accent)]"
               title="Attach photo"
             >
               <Paperclip className="w-4.5 h-4.5" />
@@ -1849,7 +1830,7 @@ export default function ChatPage() {
               type="button"
               onClick={handleOpenCameraUpload}
               disabled={creatingGuestUploadLink}
-              className="mb-1 rounded-lg p-2 text-[#6B7C8F] hover:bg-[#EEF4FF] hover:text-[#2F6FED] disabled:opacity-50"
+              className="mb-1 rounded-lg p-2 text-[var(--text-muted)] hover:bg-[var(--bg-secondary)] hover:text-[var(--accent)] disabled:opacity-50"
               title="Take photo"
             >
               <Camera className="w-4.5 h-4.5" />
@@ -1859,16 +1840,18 @@ export default function ChatPage() {
               onFocus={() => setShowMobileTasksSheet(false)}
               onChange={(e) => setNewMessage(e.target.value)}
               onKeyDown={handleComposerKeyDown}
+              aria-label="Message"
               placeholder="Write a message..."
               rows={1}
-              className="max-h-28 min-h-10 flex-1 resize-none bg-transparent px-2 py-2.5 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+              className="max-h-28 min-h-10 min-w-0 flex-1 resize-none bg-transparent px-2 py-2.5 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
             />
 
             {newMessage.trim() ? (
               <button
                 type="submit"
                 disabled={sendingMessage}
-                className="mb-0.5 rounded-full bg-[#111111] p-2.5 text-white transition hover:bg-black disabled:opacity-40"
+                aria-label={sendingMessage ? "Sending message" : "Send message"}
+                className="mb-0.5 rounded-full bg-[var(--ink)] p-2.5 text-white transition hover:bg-black disabled:opacity-40"
               >
                 <Send className="w-4 h-4" />
               </button>
@@ -1890,11 +1873,11 @@ export default function ChatPage() {
             )}
           </form>
 
-          <form onSubmit={handleSubmit} className="hidden items-end gap-2 rounded-[1.2rem] border border-[var(--border-color)] bg-[var(--bg-card-solid)] p-2 md:flex">
+          <form onSubmit={handleSubmit} className="hidden items-end gap-2 rounded-[1.2rem] border-[3px] border-[var(--border-color)] bg-[var(--bg-card-solid)] p-2 xl:flex">
             <button
               type="button"
               onClick={() => chatAttachInputRef.current?.click()}
-              className="rounded-lg p-2.5 text-[#6B7C8F] transition hover:bg-[#EEF4FF] hover:text-[#2F6FED]"
+              className="rounded-lg p-2.5 text-[var(--text-muted)] transition hover:bg-[var(--bg-secondary)] hover:text-[var(--accent)]"
               title="Attach photo"
             >
               <Paperclip className="w-5 h-5" />
@@ -1903,7 +1886,7 @@ export default function ChatPage() {
               type="button"
               onClick={handleOpenCameraUpload}
               disabled={creatingGuestUploadLink}
-              className="rounded-lg p-2.5 text-[#6B7C8F] transition hover:bg-[#EEF4FF] hover:text-[#2F6FED] disabled:opacity-50"
+              className="rounded-lg p-2.5 text-[var(--text-muted)] transition hover:bg-[var(--bg-secondary)] hover:text-[var(--accent)] disabled:opacity-50"
               title="Take photo"
             >
               <Camera className="w-5 h-5" />
@@ -1912,15 +1895,17 @@ export default function ChatPage() {
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               onKeyDown={handleComposerKeyDown}
+              aria-label="Message"
               placeholder="Type a message..."
               rows={1}
-              className="max-h-32 min-h-11 flex-1 resize-none rounded-xl border border-[var(--border-color)] bg-[#fbfbf8] px-4 py-3 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--text-primary)] focus:bg-white"
+              className="max-h-32 min-h-11 flex-1 resize-none rounded-xl border-[3px] border-[var(--border-color)] bg-[#fbfbf8] px-4 py-3 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--text-primary)] focus:bg-white"
             />
             {newMessage.trim() ? (
               <button
                 type="submit"
                 disabled={sendingMessage}
-                className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#111111] px-4 py-2.5 text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label={sendingMessage ? "Sending message" : "Send message"}
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--ink)] px-4 py-2.5 text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <Send className="w-5 h-5" />
                 <span className="hidden sm:inline text-sm font-semibold">
@@ -1937,14 +1922,14 @@ export default function ChatPage() {
                     void startVoiceRecorder();
                   }
                 }}
-                className={`min-h-11 rounded-xl px-3 transition ${isRecordingVoice ? "bg-red-500 text-white" : "bg-[var(--bg-secondary)] text-[var(--text-primary)] hover:bg-[#e5e4dc]"}`}
+                className={`min-h-11 rounded-xl px-3 transition ${isRecordingVoice ? "bg-red-500 text-white" : "bg-[var(--bg-secondary)] text-[var(--text-primary)] hover:bg-[var(--border)]"}`}
                 title={isRecordingVoice ? "Stop recording" : "Record voice"}
               >
                 {isRecordingVoice ? <Square className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
               </button>
             )}
           </form>
-          <p className="mt-1.5 hidden text-center text-[11px] text-[var(--text-muted)] md:block">
+          <p className="mt-1.5 hidden text-center text-[11px] text-[var(--text-muted)] xl:block">
             Press Enter to send. Shift + Enter adds a line.
           </p>
         </div>
@@ -1952,14 +1937,14 @@ export default function ChatPage() {
 
       {/* Desktop Right Panel — dynamic: updates by default, profile on demand */}
         {(job || otherUser) && (
-        <div className="hidden md:flex flex-col w-[360px] shrink-0 h-full min-h-0">
+        <div className="hidden xl:flex flex-col w-[360px] shrink-0 h-full min-h-0">
           <div className="h-full min-h-0 overflow-hidden border-y border-r border-[var(--border-color)] bg-[var(--bg-card-solid)] p-5">
-            <div className="mb-4 flex items-center gap-2 rounded-xl border border-[var(--border-soft)] bg-[var(--bg-secondary)] p-1">
+            <div className="mb-4 flex items-center gap-2 rounded-xl border-[3px] border-[var(--border-soft)] bg-[var(--bg-secondary)] p-1">
               <button
                 type="button"
                 onClick={() => setRightPanelView("updates")}
                 className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                  rightPanelView === "updates" ? "bg-white text-[var(--text-primary)] shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                  rightPanelView === "updates" ? "bg-white text-[var(--text-primary)] shadow-[var(--surface-shadow)]" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                 }`}
               >
                 Updates
@@ -1968,7 +1953,7 @@ export default function ChatPage() {
                 type="button"
                 onClick={() => setRightPanelView("profile")}
                 className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                  rightPanelView === "profile" ? "bg-white text-[var(--text-primary)] shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                  rightPanelView === "profile" ? "bg-white text-[var(--text-primary)] shadow-[var(--surface-shadow)]" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                 }`}
               >
                 Profile
@@ -1985,13 +1970,13 @@ export default function ChatPage() {
 
             {/* Operator Update Buttons */}
             {isOperator && job.status !== "completed" && job.status !== "cancelled" && (
-              <div className="mt-4 pt-3 border-t border-[#E6EEF6] space-y-2">
+              <div className="mt-4 pt-3 border-t border-[var(--border)] space-y-2">
                 <p className="mb-3 text-xs font-bold uppercase tracking-widest text-gray-400">Update Progress</p>
                 {job.status === "pending" && (
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => updateJobStatus("accepted")}
-                      className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-green-500 text-white rounded-xl text-xs font-bold hover:bg-green-600 transition shadow-sm"
+                      className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-green-500 text-white rounded-xl text-xs font-bold hover:bg-green-600 transition shadow-[var(--surface-shadow)]"
                     >
                       <CheckCircle className="w-3.5 h-3.5" /> Accept
                     </button>
@@ -2006,7 +1991,7 @@ export default function ChatPage() {
                 {job.status === "accepted" && (
                   <button
                     onClick={() => updateJobStatus("en-route")}
-                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-[#2F6FED] text-white rounded-xl text-xs font-bold hover:bg-[#2158C7] transition shadow-sm"
+                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-[var(--accent)] text-white rounded-xl text-xs font-bold hover:bg-[var(--accent-dark)] transition shadow-[var(--surface-shadow)]"
                   >
                     <Navigation className="w-3.5 h-3.5" /> Mark En Route
                   </button>
@@ -2015,7 +2000,7 @@ export default function ChatPage() {
                   <>
                     <button
                       onClick={() => updateJobStatus("in-progress")}
-                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-[#2F6FED] text-white rounded-xl text-xs font-bold hover:bg-[#2158C7] transition shadow-sm"
+                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-[var(--accent)] text-white rounded-xl text-xs font-bold hover:bg-[var(--accent-dark)] transition shadow-[var(--surface-shadow)]"
                     >
                       <Play className="w-3.5 h-3.5" /> Start Job
                     </button>
@@ -2032,14 +2017,14 @@ export default function ChatPage() {
                     <button
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploadingPhoto}
-                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-[#2F6FED] text-white rounded-xl text-xs font-bold hover:bg-[#2158C7] transition shadow-sm disabled:opacity-50"
+                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-[var(--accent)] text-white rounded-xl text-xs font-bold hover:bg-[var(--accent-dark)] transition shadow-[var(--surface-shadow)] disabled:opacity-50"
                     >
                       <Camera className="w-3.5 h-3.5" /> {uploadingPhoto ? "Uploading..." : job.completionPhotoUrl || completionPhoto ? "Update Photo Proof" : "Submit Photo Proof"}
                     </button>
                     {(job.completionPhotoUrl || completionPhoto) && (
                       <button
                         onClick={() => updateJobStatus("completed")}
-                        className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-green-600 text-white rounded-xl text-xs font-bold hover:bg-green-700 transition shadow-sm"
+                        className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-green-600 text-white rounded-xl text-xs font-bold hover:bg-green-700 transition shadow-[var(--surface-shadow)]"
                       >
                         <CheckCircle className="w-3.5 h-3.5" /> Complete & Release Payment
                       </button>
@@ -2056,7 +2041,7 @@ export default function ChatPage() {
             )}
 
             {isOperator && (job.status === "accepted" || job.status === "en-route") && (
-              <div className="mt-4 pt-3 border-t border-[#E6EEF6] space-y-2">
+              <div className="mt-4 pt-3 border-t border-[var(--border)] space-y-2">
                 <p className="mb-2 text-xs font-bold uppercase tracking-widest text-gray-400">Quick Comms</p>
                 <div className="grid grid-cols-3 gap-2">
                   <button
@@ -2068,7 +2053,7 @@ export default function ChatPage() {
                         onConfirm: () => sendEtaUpdate(10),
                       });
                     }}
-                    className="flex items-center justify-center gap-1 rounded-xl bg-[var(--bg-secondary)] px-2 py-2 text-xs font-semibold text-[var(--text-primary)] transition hover:bg-[#e5e4dc]"
+                    className="flex items-center justify-center gap-1 rounded-xl bg-[var(--bg-secondary)] px-2 py-2 text-xs font-semibold text-[var(--text-primary)] transition hover:bg-[var(--border)]"
                   >
                     10m
                   </button>
@@ -2081,7 +2066,7 @@ export default function ChatPage() {
                         onConfirm: () => sendEtaUpdate(20),
                       });
                     }}
-                    className="flex items-center justify-center gap-1 rounded-xl bg-[var(--bg-secondary)] px-2 py-2 text-xs font-semibold text-[var(--text-primary)] transition hover:bg-[#e5e4dc]"
+                    className="flex items-center justify-center gap-1 rounded-xl bg-[var(--bg-secondary)] px-2 py-2 text-xs font-semibold text-[var(--text-primary)] transition hover:bg-[var(--border)]"
                   >
                     20m
                   </button>
@@ -2094,12 +2079,12 @@ export default function ChatPage() {
                         onConfirm: () => sendEtaUpdate(30),
                       });
                     }}
-                    className="flex items-center justify-center gap-1 rounded-xl bg-[var(--bg-secondary)] px-2 py-2 text-xs font-semibold text-[var(--text-primary)] transition hover:bg-[#e5e4dc]"
+                    className="flex items-center justify-center gap-1 rounded-xl bg-[var(--bg-secondary)] px-2 py-2 text-xs font-semibold text-[var(--text-primary)] transition hover:bg-[var(--border)]"
                   >
                     30m
                   </button>
                 </div>
-                {job.status === "accepted" && job.paymentStatus === "pending" && (
+                {job.status === "accepted" && (job.paymentStatus === "pending" || job.paymentStatus === "refunded") && (
                   <button
                     onClick={() => {
                       requestQuickCommConfirmation({
@@ -2124,31 +2109,31 @@ export default function ChatPage() {
             )}
 
             {/* Job summary */}
-            <div className="mt-4 border-t border-[#E6EEF6] pt-4 text-sm">
+            <div className="mt-4 border-t border-[var(--border)] pt-4 text-sm">
               <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-xl border border-[#E6EEF6] bg-[#FAFCFF] px-3 py-2.5">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[#6B7C8F]">
+                <div className="rounded-xl border-[3px] border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2.5">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
                     {isOperator ? "Profit" : "Price"}
                   </p>
                   <div className="mt-1 flex items-center gap-1">
-                    <DollarSign className="h-4 w-4 text-[#2F6FED]" />
-                    <span className="text-lg font-bold text-[#0B1F33]">{job.price}</span>
-                    <span className="text-xs text-[#6B7C8F]">CAD</span>
+                    <DollarSign className="h-4 w-4 text-[var(--accent)]" />
+                    <span className="text-lg font-bold text-[var(--ink)]">{job.price}</span>
+                    <span className="text-xs text-[var(--text-muted)]">CAD</span>
                   </div>
                 </div>
-                <div className="rounded-xl border border-[#E6EEF6] bg-[#FAFCFF] px-3 py-2.5">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[#6B7C8F]">Payment</p>
-                  <p className="mt-1 text-sm font-semibold capitalize text-[#0B1F33]">{job.paymentStatus}</p>
+                <div className="rounded-xl border-[3px] border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2.5">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Payment</p>
+                  <p className="mt-1 text-sm font-semibold capitalize text-[var(--ink)]">{job.paymentStatus}</p>
                 </div>
-                <div className="rounded-xl border border-[#E6EEF6] bg-[#FAFCFF] px-3 py-2.5">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[#6B7C8F]">Service</p>
-                  <p className="mt-1 truncate text-sm font-semibold capitalize text-[#0B1F33]">
+                <div className="rounded-xl border-[3px] border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2.5">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Service</p>
+                  <p className="mt-1 truncate text-sm font-semibold capitalize text-[var(--ink)]">
                     {job.serviceTypes?.map((s) => s.replace("-", " ")).join(", ") || "Service"}
                   </p>
                 </div>
-                <div className="rounded-xl border border-[#E6EEF6] bg-[#FAFCFF] px-3 py-2.5">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[#6B7C8F]">Distance</p>
-                  <p className="mt-1 text-sm font-semibold text-[#0B1F33]">
+                <div className="rounded-xl border-[3px] border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2.5">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Distance</p>
+                  <p className="mt-1 text-sm font-semibold text-[var(--ink)]">
                     {distance !== null ? `${distance.toFixed(1)} km` : "Unknown"}
                   </p>
                 </div>
@@ -2157,7 +2142,7 @@ export default function ChatPage() {
               <button
                 type="button"
                 onClick={() => setShowMapModal(true)}
-                className="mt-2 flex w-full items-center gap-2 rounded-xl border border-[#E6EEF6] bg-white px-3 py-2.5 text-left text-xs text-[#6B7C8F] transition hover:text-[#2F6FED]"
+                className="mt-2 flex w-full items-center gap-2 rounded-xl border-[3px] border-[var(--border)] bg-white px-3 py-2.5 text-left text-xs text-[var(--text-muted)] transition hover:text-[var(--accent)]"
               >
                 <MapPin className="h-3.5 w-3.5 shrink-0" />
                 <span className="min-w-0 flex-1 truncate">{job.address}, {job.city}</span>
@@ -2165,11 +2150,11 @@ export default function ChatPage() {
               </button>
             </div>
 
-                <div className="mt-4 border-t border-[#E6EEF6] pt-3">
+                <div className="mt-4 border-t border-[var(--border)] pt-3">
                   <button
                     type="button"
                     onClick={() => setRightPanelView("profile")}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--bg-secondary)] px-3 py-2.5 text-xs font-semibold text-[var(--text-primary)] transition hover:bg-[#e5e4dc]"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--bg-secondary)] px-3 py-2.5 text-xs font-semibold text-[var(--text-primary)] transition hover:bg-[var(--border)]"
                   >
                     <User className="w-3.5 h-3.5" /> View profile details
                   </button>
@@ -2187,31 +2172,31 @@ export default function ChatPage() {
                     size={48}
                   />
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-[#0B1F33] truncate">{otherUser.displayName}</p>
-                    <p className="text-xs text-[#6B7C8F] capitalize">{otherUser.role}</p>
+                    <p className="text-sm font-semibold text-[var(--ink)] truncate">{otherUser.displayName}</p>
+                    <p className="text-xs text-[var(--text-muted)] capitalize">{otherUser.role}</p>
                   </div>
                 </div>
                 <div className="space-y-2 text-sm">
-                  <div className="rounded-xl border border-[#E6EEF6] bg-[#FAFCFF] px-3 py-2.5">
-                    <p className="text-[11px] uppercase tracking-wide text-[#6B7C8F]">Location</p>
-                    <p className="text-[#0B1F33]">{otherUser.city}, {otherUser.province}</p>
+                  <div className="rounded-xl border-[3px] border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2.5">
+                    <p className="text-[11px] uppercase tracking-wide text-[var(--text-muted)]">Location</p>
+                    <p className="text-[var(--ink)]">{otherUser.city}, {otherUser.province}</p>
                   </div>
                   {distance !== null && (
-                    <div className="rounded-xl border border-[#E6EEF6] bg-[#FAFCFF] px-3 py-2.5">
-                      <p className="text-[11px] uppercase tracking-wide text-[#6B7C8F]">Distance</p>
-                      <p className="text-[#0B1F33]">{distance.toFixed(1)} km away</p>
+                    <div className="rounded-xl border-[3px] border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2.5">
+                      <p className="text-[11px] uppercase tracking-wide text-[var(--text-muted)]">Distance</p>
+                      <p className="text-[var(--ink)]">{distance.toFixed(1)} km away</p>
                     </div>
                   )}
                   {otherUser.phone && (
-                    <div className="rounded-xl border border-[#E6EEF6] bg-[#FAFCFF] px-3 py-2.5">
-                      <p className="text-[11px] uppercase tracking-wide text-[#6B7C8F]">Phone</p>
-                      <p className="text-[#0B1F33]">{otherUser.phone}</p>
+                    <div className="rounded-xl border-[3px] border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2.5">
+                      <p className="text-[11px] uppercase tracking-wide text-[var(--text-muted)]">Phone</p>
+                      <p className="text-[var(--ink)]">{otherUser.phone}</p>
                     </div>
                   )}
                 </div>
                 <Link
                   href={`/dashboard/u/${otherUser.uid}`}
-                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2.5 bg-[#2F6FED] text-white rounded-xl text-xs font-semibold hover:bg-[#2158C7] transition"
+                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2.5 bg-[var(--accent)] text-white rounded-xl text-xs font-semibold hover:bg-[var(--accent-dark)] transition"
                 >
                   Open Full Profile <ExternalLink className="w-3.5 h-3.5" />
                 </Link>
@@ -2219,7 +2204,7 @@ export default function ChatPage() {
             )}
 
             {rightPanelView === "profile" && !otherUser && (
-              <p className="text-sm text-[#6B7C8F]">Profile info unavailable.</p>
+              <p className="text-sm text-[var(--text-muted)]">Profile info unavailable.</p>
             )}
           </div>
         </div>
@@ -2228,15 +2213,15 @@ export default function ChatPage() {
 
       {/* Mobile Tasks Sheet */}
       {showMobileTasksSheet && job && (
-        <div className="fixed inset-0 z-50 md:hidden" onClick={() => setShowMobileTasksSheet(false)}>
+        <div className="fixed inset-0 z-50 xl:hidden" onClick={() => setShowMobileTasksSheet(false)}>
           <div className="absolute inset-0 bg-black/45" />
           <div
-            className="absolute bottom-0 left-0 right-0 rounded-t-3xl bg-white border-t border-[#E6EEF6] p-4 pb-[max(16px,env(safe-area-inset-bottom))] shadow-2xl max-h-[78dvh] overflow-y-auto"
+            className="absolute bottom-0 left-0 right-0 rounded-t-3xl bg-white border-t border-[var(--border)] p-4 pb-[max(16px,env(safe-area-inset-bottom))] shadow-[var(--surface-shadow)] max-h-[78dvh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-[#DCE8FF]" />
+            <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-[var(--border)]" />
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-base font-bold text-[#0B1F33]">Work order</h3>
+              <h3 className="text-base font-bold text-[var(--ink)]">Work order</h3>
               <button
                 type="button"
                 onClick={() => setShowMobileTasksSheet(false)}
@@ -2272,11 +2257,11 @@ export default function ChatPage() {
                 <button onClick={() => updateJobStatus("accepted")} className="w-full px-3 py-2.5 rounded-xl bg-green-600 text-white text-sm font-semibold">Accept Job</button>
               )}
               {isOperator && job.status === "accepted" && (
-                <button onClick={() => updateJobStatus("en-route")} className="w-full px-3 py-2.5 rounded-xl bg-[#2F6FED] text-white text-sm font-semibold">I&apos;m On My Way</button>
+                <button onClick={() => updateJobStatus("en-route")} className="w-full px-3 py-2.5 rounded-xl bg-[var(--accent)] text-white text-sm font-semibold">I&apos;m On My Way</button>
               )}
               {isOperator && job.status === "en-route" && (
                 <div className="grid grid-cols-2 gap-2">
-                  <button onClick={() => updateJobStatus("in-progress")} className="px-3 py-2.5 rounded-xl bg-[#2F6FED] text-white text-sm font-semibold">Start Job</button>
+                  <button onClick={() => updateJobStatus("in-progress")} className="px-3 py-2.5 rounded-xl bg-[var(--accent)] text-white text-sm font-semibold">Start Job</button>
                   <button onClick={() => updateJobStatus("accepted")} className="px-3 py-2.5 rounded-xl bg-gray-100 text-gray-700 text-sm font-semibold">Go Back</button>
                 </div>
               )}
@@ -2285,7 +2270,7 @@ export default function ChatPage() {
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploadingPhoto}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#2F6FED] text-white text-sm font-semibold disabled:opacity-50"
+                    className="w-full px-3 py-2.5 rounded-xl bg-[var(--accent)] text-white text-sm font-semibold disabled:opacity-50"
                   >
                     {uploadingPhoto ? "Uploading..." : job.completionPhotoUrl || completionPhoto ? "Update Photo Proof" : "Submit Photo Proof"}
                   </button>
@@ -2307,7 +2292,7 @@ export default function ChatPage() {
                         onConfirm: () => sendEtaUpdate(10),
                       });
                     }}
-                    className="px-2 py-2 rounded-xl bg-[#EEF4FF] text-[#2F6FED] text-xs font-semibold"
+                    className="px-2 py-2 rounded-xl bg-[var(--bg-secondary)] text-[var(--accent)] text-xs font-semibold"
                   >
                     ETA 10m
                   </button>
@@ -2320,7 +2305,7 @@ export default function ChatPage() {
                         onConfirm: () => sendEtaUpdate(20),
                       });
                     }}
-                    className="px-2 py-2 rounded-xl bg-[#EEF4FF] text-[#2F6FED] text-xs font-semibold"
+                    className="px-2 py-2 rounded-xl bg-[var(--bg-secondary)] text-[var(--accent)] text-xs font-semibold"
                   >
                     ETA 20m
                   </button>
@@ -2333,15 +2318,15 @@ export default function ChatPage() {
                         onConfirm: () => sendEtaUpdate(30),
                       });
                     }}
-                    className="px-2 py-2 rounded-xl bg-[#EEF4FF] text-[#2F6FED] text-xs font-semibold"
+                    className="px-2 py-2 rounded-xl bg-[var(--bg-secondary)] text-[var(--accent)] text-xs font-semibold"
                   >
                     ETA 30m
                   </button>
                 </div>
               )}
 
-              {!isOperator && job.status === "accepted" && job.paymentStatus === "pending" && (
-                <button onClick={initiatePayment} disabled={processingPayment} className="w-full px-3 py-2.5 rounded-xl bg-[#2F6FED] text-white text-sm font-semibold disabled:opacity-50">
+              {!isOperator && job.status === "accepted" && (job.paymentStatus === "pending" || job.paymentStatus === "refunded") && (
+                <button onClick={initiatePayment} disabled={processingPayment} className="w-full px-3 py-2.5 rounded-xl bg-[var(--accent)] text-white text-sm font-semibold disabled:opacity-50">
                   {processingPayment ? "Processing..." : `Pay $${job.price} CAD`}
                 </button>
               )}
@@ -2351,11 +2336,11 @@ export default function ChatPage() {
               )}
 
               {!isOperator && job.status === "cancelled" && reopenTimeLeft !== null && reopenTimeLeft > 0 && (
-                <button onClick={reopenJob} className="w-full px-3 py-2.5 rounded-xl bg-[#2F6FED] text-white text-sm font-semibold">Reopen Job</button>
+                <button onClick={reopenJob} className="w-full px-3 py-2.5 rounded-xl bg-[var(--accent)] text-white text-sm font-semibold">Reopen Job</button>
               )}
 
               {!isOperator && (job.status === "completed" || job.status === "cancelled") && !rehireSent && (
-                <button onClick={rehireOperator} disabled={rehiring} className="w-full px-3 py-2.5 rounded-xl bg-[#EAF1FF] text-[#2F6FED] text-sm font-semibold disabled:opacity-50">
+                <button onClick={rehireOperator} disabled={rehiring} className="w-full px-3 py-2.5 rounded-xl bg-[#EAF1FF] text-[var(--accent)] text-sm font-semibold disabled:opacity-50">
                   {rehiring ? "Creating..." : "Rehire"}
                 </button>
               )}
@@ -2393,18 +2378,18 @@ export default function ChatPage() {
           onClick={() => setQuickCommConfirmation(null)}
         >
           <div
-            className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl"
+            className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-[var(--surface-shadow)]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EEF4FF] text-[#2F6FED]">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-secondary)] text-[var(--accent)]">
                 <MessageSquare className="h-5 w-5" />
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="text-base font-bold text-[#0B1F33]">
+                <h3 className="text-base font-bold text-[var(--ink)]">
                   {quickCommConfirmation.title}
                 </h3>
-                <p className="mt-1 text-sm leading-6 text-[#6B7C8F]">
+                <p className="mt-1 text-sm leading-6 text-[var(--text-muted)]">
                   {quickCommConfirmation.message}
                 </p>
               </div>
@@ -2424,7 +2409,7 @@ export default function ChatPage() {
                   setQuickCommConfirmation(null);
                   await action();
                 }}
-                className="rounded-xl bg-[#111111] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-black"
+                className="rounded-xl bg-[var(--ink)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-black"
               >
                 {quickCommConfirmation.confirmLabel}
               </button>
@@ -2484,7 +2469,7 @@ export default function ChatPage() {
       {/* Payment Gate Modal — shown when operator tries to go en-route without client payment */}
       {showPaymentGateModal && job && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowPaymentGateModal(false)}>
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-[var(--surface-shadow)]" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-1">
               <div className="w-11 h-11 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
                 <CreditCard className="w-5 h-5 text-amber-600" />
@@ -2514,7 +2499,7 @@ export default function ChatPage() {
                     },
                   });
                 }}
-                className="w-full py-3 bg-[#2F6FED] text-white rounded-xl font-semibold text-sm hover:bg-[#2158C7] transition flex items-center justify-center gap-2"
+                className="w-full py-3 bg-[var(--accent)] text-white rounded-xl font-semibold text-sm hover:bg-[var(--accent-dark)] transition flex items-center justify-center gap-2"
               >
                 <CreditCard className="w-4 h-4" /> Send Payment Request to Client
               </button>
@@ -2531,11 +2516,11 @@ export default function ChatPage() {
 
       {showMapModal && (
         <div className="fixed inset-0 bg-black/45 z-50 flex items-center justify-center p-4" onClick={() => setShowMapModal(false)}>
-          <div className="bg-white rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl w-full max-w-3xl shadow-[var(--surface-shadow)] overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="px-4 py-3 border-b border-[var(--border-soft)] flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-[#0B1F33]">Job Address</p>
-                <p className="text-xs text-[#6B7C8F] truncate">{mapAddress || "Address unavailable"}</p>
+                <p className="text-sm font-semibold text-[var(--ink)]">Job Address</p>
+                <p className="text-xs text-[var(--text-muted)] truncate">{mapAddress || "Address unavailable"}</p>
               </div>
               <button
                 type="button"
@@ -2554,7 +2539,7 @@ export default function ChatPage() {
                   loading="lazy"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-sm text-[#6B7C8F]">
+                <div className="w-full h-full flex items-center justify-center text-sm text-[var(--text-muted)]">
                   Map preview unavailable
                 </div>
               )}
@@ -2563,7 +2548,7 @@ export default function ChatPage() {
               <button
                 type="button"
                 onClick={() => window.open(`https://maps.google.com/?q=${mapQuery}`, "_blank", "noopener,noreferrer")}
-                className="px-3 py-2 rounded-lg bg-[#2F6FED] text-white text-sm font-semibold hover:bg-[#2158C7] inline-flex items-center gap-1.5"
+                className="px-3 py-2 rounded-lg bg-[var(--accent)] text-white text-sm font-semibold hover:bg-[var(--accent-dark)] inline-flex items-center gap-1.5"
               >
                 Open Full Map <ExternalLink className="w-3.5 h-3.5" />
               </button>
@@ -2574,9 +2559,9 @@ export default function ChatPage() {
 
       {showCameraQrModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowCameraQrModal(false)}>
-          <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-[var(--surface-shadow)]" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-[#0B1F33]">Send Photo From Phone</h3>
+              <h3 className="text-base font-bold text-[var(--ink)]">Send Photo From Phone</h3>
               <button
                 type="button"
                 onClick={() => setShowCameraQrModal(false)}
@@ -2585,8 +2570,8 @@ export default function ChatPage() {
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <p className="text-xs text-[#6B7C8F] mt-1.5">Scan on your phone, take one photo, and keep this window open until the upload appears in chat.</p>
-            <div className="mt-4 rounded-xl border border-[#E6EEF6] bg-[#F8FAFD] p-3 flex items-center justify-center">
+            <p className="text-xs text-[var(--text-muted)] mt-1.5">Scan on your phone, take one photo, and keep this window open until the upload appears in chat.</p>
+            <div className="mt-4 rounded-xl border-[3px] border-[var(--border)] bg-[#F8FAFD] p-3 flex items-center justify-center">
               {primaryGuestUploadUrl ? (
                 <img
                   src={`https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(primaryGuestUploadUrl)}`}
@@ -2594,12 +2579,12 @@ export default function ChatPage() {
                   className="w-[240px] h-[240px]"
                 />
               ) : (
-                <p className="text-sm text-[#6B7C8F]">Preparing temporary link...</p>
+                <p className="text-sm text-[var(--text-muted)]">Preparing temporary link...</p>
               )}
             </div>
             {guestUploadUrls.length > 1 && (
               <div className="mt-3 space-y-1.5">
-                <p className="text-[11px] font-semibold text-[#6B7C8F] uppercase tracking-wide">Try another link</p>
+                <p className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wide">Try another link</p>
                 {guestUploadUrls.map((url, index) => (
                   <div key={url} className="flex items-center gap-1.5">
                     <button
@@ -2607,8 +2592,8 @@ export default function ChatPage() {
                       onClick={() => setSelectedGuestUploadUrl(url)}
                       className={`flex-1 text-left truncate px-2.5 py-2 rounded-lg border text-xs ${
                         primaryGuestUploadUrl === url
-                          ? "border-[#2F6FED] bg-[#EEF4FF] text-[#2F6FED]"
-                          : "border-[#E6EEF6] text-[#0B1F33] hover:bg-[#F3F8FF]"
+                          ? "border-[var(--accent)] bg-[var(--bg-secondary)] text-[var(--accent)]"
+                          : "border-[var(--border)] text-[var(--ink)] hover:bg-[#F3F8FF]"
                       }`}
                       title={url}
                     >
@@ -2624,7 +2609,7 @@ export default function ChatPage() {
                           alert("Could not copy link.");
                         }
                       }}
-                      className="px-2.5 py-2 rounded-lg border border-[#E6EEF6] text-xs text-[#2F6FED] hover:bg-[#F3F8FF]"
+                      className="px-2.5 py-2 rounded-lg border-[3px] border-[var(--border)] text-xs text-[var(--accent)] hover:bg-[#F3F8FF]"
                     >
                       Copy
                     </button>
@@ -2638,7 +2623,7 @@ export default function ChatPage() {
                   href={primaryGuestUploadUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-1 inline-flex items-center justify-center px-3 py-2.5 rounded-xl bg-[#2F6FED] text-white text-sm font-semibold hover:bg-[#2158C7]"
+                  className="flex-1 inline-flex items-center justify-center px-3 py-2.5 rounded-xl bg-[var(--accent)] text-white text-sm font-semibold hover:bg-[var(--accent-dark)]"
                 >
                   Open Link
                 </a>
@@ -2662,7 +2647,7 @@ export default function ChatPage() {
                   }
                 }}
                 disabled={!primaryGuestUploadUrl}
-                className="px-3 py-2.5 rounded-xl border border-[#DCE8FF] text-[#2F6FED] text-sm font-semibold hover:bg-[#F3F8FF]"
+                className="px-3 py-2.5 rounded-xl border-[3px] border-[var(--border)] text-[var(--accent)] text-sm font-semibold hover:bg-[#F3F8FF]"
               >
                 Copy
               </button>

@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* ThemeProvider explicitly selects light mode; OS dark mode must not restyle controls. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 * {
   box-sizing: border-box;
   font-family: "Instrument Sans", -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
@@ -21,41 +24,42 @@ h6,
 .font-headline {
   font-family: "Space Grotesk", "Instrument Sans", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   font-feature-settings: "ss01" on;
+  font-weight: 900;
 }
 
 :root {
   --ink: #061321;
-  --ink-2: #17212d;
-  --ink-3: #5d5d5d;
-  --sky: #edf3fb;
-  --ice: #f5f5f1;
+  --ink-2: #172b3d;
+  --ink-3: #5e6873;
+  --sky: #dfeef8;
+  --ice: #f3f8fb;
   --card: #ffffff;
-  --card-soft: #fafaf7;
-  --border: #dddcd4;
-  --border-soft: #ecebe4;
+  --card-soft: #ffffff;
+  --border: #061321;
+  --border-soft: #c7d7e2;
   --border-color: var(--border);
   --border-subtle: var(--border-soft);
-  --accent: #111111;
-  --accent-dark: #000000;
-  --accent-soft: rgba(17, 17, 17, 0.06);
+  --accent: #061321;
+  --accent-dark: #172b3d;
+  --accent-soft: #dfeef8;
   --accent-glow: rgba(17, 17, 17, 0.12);
   --accent-sun: #ff820e;
   --accent-sun-soft: rgba(255, 130, 14, 0.14);
   --accent-mint: #1d8f4d;
   --accent-ice: #2d5bff;
   --text-primary: var(--ink);
-  --text-secondary: #3b3b39;
-  --text-muted: #6f6f69;
-  --bg-primary: #f6f6f1;
-  --bg-secondary: #ecebe4;
+  --text-secondary: #3e5060;
+  --text-muted: #5e6873;
+  --bg-primary: #f3f8fb;
+  --bg-secondary: #dfeef8;
   --bg-card: var(--card-soft);
   --bg-card-solid: var(--card);
   --success: var(--accent-mint);
   --warning: #f59e0b;
   --danger: #dc2626;
-  --glass-bg: rgba(255, 255, 255, 0.76);
-  --glass-border: rgba(255, 255, 255, 0.65);
-  --glass-shadow: 0 24px 60px rgba(17, 17, 17, 0.08);
+  --glass-bg: #ffffff;
+  --glass-border: #061321;
+  --glass-shadow: 5px 5px 0 var(--ink);
   --background: var(--bg-primary);
   --foreground: var(--text-primary);
   --primary: var(--accent);
@@ -63,8 +67,8 @@ h6,
   --muted-foreground: var(--text-secondary);
   --radius: 1.5rem;
   --container-gutter: clamp(1rem, 1.8vw, 1.5rem);
-  --surface-shadow: 0 18px 42px rgba(17, 17, 17, 0.06);
-  --surface-shadow-strong: 0 28px 56px rgba(17, 17, 17, 0.1);
+  --surface-shadow: 4px 4px 0 var(--ink);
+  --surface-shadow-strong: 6px 6px 0 var(--ink);
 }
 
 @theme inline {
@@ -89,13 +93,13 @@ h6,
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);
-  --color-ice-blue: #2e6bff;
+  --color-ice-blue: var(--ink);
   --color-snow-white: #ffffff;
   --color-slate-gray: var(--text-secondary);
   --color-snowflake-white: var(--bg-primary);
   --color-orange: var(--accent-sun);
   --color-deep-navy: var(--ink);
-  --color-frosted-blue: #2e6bff;
+  --color-frosted-blue: var(--ink);
   --color-charcoal-gray: var(--ink-2);
   --color-soft-silver: var(--border);
   --color-bright-orange: var(--accent-sun);
@@ -113,18 +117,17 @@ html {
 }
 
 body {
-  background:
-    radial-gradient(circle at top left, rgba(255, 130, 14, 0.08), transparent 24%),
-    radial-gradient(circle at top right, rgba(45, 91, 255, 0.05), transparent 20%),
-    linear-gradient(180deg, #f8f8f4 0%, #f3f2ec 100%);
+  background: var(--bg-primary);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+@layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 }
 
 ::-webkit-scrollbar {
@@ -362,11 +365,11 @@ a {
 
 .glass-card,
 .surface-card {
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(17, 17, 17, 0.08);
+  background: var(--card);
+  border: 3px solid var(--ink);
   box-shadow: var(--glass-shadow);
-  border-radius: 1.75rem;
-  backdrop-filter: blur(16px);
+  border-radius: 1.35rem;
+
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -381,8 +384,8 @@ a {
 
 .surface-panel {
   background: var(--bg-card-solid);
-  border: 1px solid var(--border-color);
-  border-radius: 1.5rem;
+  border: 3px solid var(--border-color);
+  border-radius: 1.35rem;
   box-shadow: var(--surface-shadow);
 }
 
@@ -404,7 +407,7 @@ a {
       rgba(17, 17, 17, 0.045) 37px,
       rgba(17, 17, 17, 0.045) 39px
     );
-  border: 1px solid rgba(17, 17, 17, 0.08);
+  border: 3px solid var(--ink);
   border-radius: 2rem;
 }
 
@@ -426,14 +429,14 @@ a {
   align-items: center;
   justify-content: center;
   gap: 0.6rem;
-  border: 0;
+  border: 3px solid var(--ink);
   border-radius: 1rem;
   padding: 0.95rem 1.35rem;
   background: var(--accent);
   color: #fff;
   font-weight: 700;
   transition: transform 180ms ease, background 180ms ease, box-shadow 180ms ease;
-  box-shadow: 0 16px 28px rgba(17, 17, 17, 0.14);
+  box-shadow: var(--surface-shadow);
 }
 
 .btn-primary:hover {
@@ -455,8 +458,8 @@ a {
   gap: 0.6rem;
   border-radius: 1rem;
   padding: 0.95rem 1.35rem;
-  background: rgba(255, 255, 255, 0.88);
-  border: 1px solid rgba(17, 17, 17, 0.1);
+  background: var(--card);
+  border: 3px solid var(--ink);
   color: var(--text-primary);
   font-weight: 700;
   transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
@@ -465,7 +468,7 @@ a {
 .btn-secondary:hover {
   transform: translateY(-1px);
   background: #fff;
-  border-color: rgba(18, 18, 18, 0.2);
+  border-color: var(--ink);
 }
 
 .status-dot {
@@ -527,7 +530,7 @@ a {
 
 .hover-lift:hover {
   transform: translateY(-2px);
-  box-shadow: 0 18px 34px rgba(18, 18, 18, 0.1);
+  box-shadow: var(--surface-shadow-strong);
 }
 
 .interactive-card {
@@ -537,6 +540,66 @@ a {
 
 .interactive-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 18px 34px rgba(18, 18, 18, 0.09);
-  border-color: rgba(18, 18, 18, 0.14);
+  box-shadow: var(--surface-shadow-strong);
+  border-color: var(--ink);
+}
+
+/* Shared keyboard and touch behavior across public and authenticated pages. */
+.skip-link {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 10000;
+  transform: translateY(-200%);
+  background: #111;
+  color: white;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+}
+.skip-link:focus { transform: translateY(0); }
+html { scroll-padding-top: 6rem; }
+@media (pointer: coarse) {
+  button, a[role="button"], nav a { min-height: 44px; }
+  button { min-width: 44px; }
+  input, select, textarea { font-size: 16px; }
+}
+
+/* Auth-derived primitives shared by every route. */
+@layer base {
+  button, [role="button"] { font-weight: 700; }
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]), select, textarea {
+    border-color: var(--ink);
+    border-width: 3px;
+    border-radius: 1rem;
+    background-color: var(--bg-primary);
+    color: var(--ink);
+  }
+  input::placeholder, textarea::placeholder { color: var(--text-muted); }
+  input:focus, select:focus, textarea:focus { background-color: var(--card); }
+  input[type="checkbox"], input[type="radio"], input[type="range"] { accent-color: var(--ink); }
+  ::selection { background: var(--accent-sun); color: var(--ink); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; }
+}
+
+/* Keep authentication controls within a small phone's viewport. */
+@media (max-height: 740px) {
+  .auth-page { padding: 8px; }
+  .auth-frame { min-height: calc(100dvh - 20px); }
+  .auth-form-section { padding: 10px; }
+  .auth-form-content { padding-block: 6px; }
+  .login-card { padding: 12px; }
+  .login-badge, .login-helper { display: none; }
+  .login-title { font-size: 1.65rem; margin-top: 0; }
+  .login-card form { margin-top: 10px; }
+  .login-card form > * + * { margin-top: 8px; }
+  .login-card input:not([type="checkbox"]) { height: 44px; }
+  .login-card button { font-size: 14px; }
+  .login-card button[type="submit"] { min-height: 44px; }
+  .login-card > button { min-height: 44px; padding-inline: 8px; gap: 8px; }
+  .login-card > p { font-size: 12px; margin-top: 8px; }
+}
+@media (max-height: 740px) {
+  .login-card [role="alert"] { padding: 6px 8px; font-size: 12px; line-height: 16px; }
 }

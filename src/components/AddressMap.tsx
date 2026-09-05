@@ -109,7 +109,7 @@ function AddressMapWithApi({ address, city, province, postalCode }: AddressMapPr
   return (
     <div className="relative">
       {isGeocoding ? (
-        <div className="absolute left-1/2 top-3 z-10 -translate-x-1/2 rounded-lg bg-white px-3 py-1.5 shadow-lg">
+        <div className="absolute left-1/2 top-3 z-10 -translate-x-1/2 rounded-lg bg-white px-3 py-1.5 shadow-[var(--surface-shadow)]">
           <p className="text-xs text-gray-600">Locating...</p>
         </div>
       ) : null}

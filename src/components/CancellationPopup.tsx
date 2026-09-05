@@ -36,7 +36,7 @@ export default function CancellationPopup({
         >
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onCancel} />
           <motion.div
-            className="relative w-full max-w-sm bg-[var(--bg-card-solid)] rounded-3xl shadow-2xl border border-[var(--border-color)] overflow-hidden"
+            className="relative w-full max-w-sm bg-[var(--bg-card-solid)] rounded-3xl shadow-[var(--surface-shadow)] border-[3px] border-[var(--border-color)] overflow-hidden"
             initial={{ opacity: 0, scale: 0.85, y: 30 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -92,14 +92,14 @@ export default function CancellationPopup({
               <div className="mt-6 flex gap-3">
                 <button
                   onClick={onCancel}
-                  className="flex-1 py-3 bg-[var(--bg-secondary)] hover:bg-[var(--border-color)] text-[var(--text-primary)] rounded-xl font-semibold text-sm transition-all duration-200"
+                  className="flex-1 py-3 bg-[var(--bg-secondary)] hover:bg-[var(--accent-soft)] text-[var(--text-primary)] rounded-xl font-semibold text-sm transition-all duration-200"
                 >
                   {cancelLabel}
                 </button>
                 <button
                   onClick={onConfirm}
                   disabled={loading}
-                  className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold text-sm transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-lg shadow-red-500/20"
+                  className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold text-sm transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-[var(--surface-shadow)] shadow-red-500/20"
                 >
                   {loading ? (
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />

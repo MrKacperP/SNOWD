@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { collection, doc, getDoc, onSnapshot, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -83,7 +83,7 @@ export default function JobsPage() {
   const pendingJobs = useMemo(() => jobs.filter((job) => job.status === "pending"), [jobs]);
   const completedJobs = useMemo(() => jobs.filter((job) => job.status === "completed"), [jobs]);
 
-  const getClientCoords = (job: Job): { lat: number; lng: number } | null => {
+  const getClientCoords = useCallback((job: Job): { lat: number; lng: number } | null => {
     if (
       typeof job.clientLat === "number" &&
       Number.isFinite(job.clientLat) &&
@@ -93,7 +93,7 @@ export default function JobsPage() {
       return { lat: job.clientLat, lng: job.clientLng };
     }
     return clientLocations[job.clientId] || null;
-  };
+  }, [clientLocations]);
 
   const queueJobs = useMemo(() => {
     const queue = [...pendingJobs, ...acceptedJobs];
@@ -111,7 +111,7 @@ export default function JobsPage() {
       const bTime = b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
       return aTime - bTime;
     });
-  }, [acceptedJobs, pendingJobs, queueSort, profile?.lat, profile?.lng, clientLocations]);
+  }, [acceptedJobs, pendingJobs, queueSort, profile, getClientCoords]);
 
   const filteredJobs = useMemo(() => {
     if (filter === "queue") return queueJobs;
@@ -147,7 +147,7 @@ export default function JobsPage() {
     <div className="mx-auto max-w-6xl space-y-5">
       <section className="surface-card overflow-hidden p-4 md:p-5">
         <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
-          <div className="rounded-[1.8rem] bg-[#111111] p-5 text-white md:p-6">
+          <div className="rounded-[1.8rem] bg-[var(--ink)] p-5 text-white md:p-6">
             <div className="flex items-center gap-3">
               <button onClick={() => router.back()} className="rounded-full bg-white/10 p-2 transition hover:bg-white/16">
                 <ArrowLeft className="h-5 w-5" />
@@ -197,7 +197,7 @@ export default function JobsPage() {
                 <p className="mt-1 text-xs uppercase tracking-[0.14em] text-[var(--text-muted)]">In motion</p>
               </button>
               <button onClick={() => setFilter("queue")} className="rounded-[1.2rem] bg-[var(--bg-secondary)] p-4 text-left transition hover:bg-[#eef2fb]">
-                <ListOrdered className="mb-2 h-4 w-4 text-[#2e6bff]" />
+                <ListOrdered className="mb-2 h-4 w-4 text-[var(--accent)]" />
                 <p className="text-2xl font-headline font-bold text-[var(--text-primary)]">{queueJobs.length}</p>
                 <p className="mt-1 text-xs uppercase tracking-[0.14em] text-[var(--text-muted)]">Waiting</p>
               </button>
@@ -234,7 +234,7 @@ export default function JobsPage() {
                 <span className="inline-flex items-center gap-1"><Navigation className="h-3.5 w-3.5" />{clientNames[activeJob.clientId] || "Client"}</span>
               </div>
             </div>
-            <div className="rounded-[1.4rem] bg-[#111111] px-5 py-4 text-white">
+            <div className="rounded-[1.4rem] bg-[var(--ink)] px-5 py-4 text-white">
               <p className="text-xs uppercase tracking-[0.14em] text-white/48">Work order value</p>
               <p className="mt-1 text-3xl font-headline font-bold">${activeJob.price}</p>
               <p className="mt-1 text-xs text-white/62">Open the job thread to continue</p>
@@ -261,7 +261,7 @@ export default function JobsPage() {
               key={tab.key}
               onClick={() => setFilter(tab.key)}
               className={`rounded-[1rem] px-4 py-2 text-sm font-semibold transition ${
-                filter === tab.key ? "bg-white text-[var(--text-primary)] shadow-sm" : "text-[var(--text-muted)]"
+                filter === tab.key ? "bg-white text-[var(--text-primary)] shadow-[var(--surface-shadow)]" : "text-[var(--text-muted)]"
               }`}
             >
               {tab.label} ({tab.count})
@@ -274,14 +274,14 @@ export default function JobsPage() {
             <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Sort</span>
             <button
               onClick={() => setQueueSort("time")}
-              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${queueSort === "time" ? "bg-[#111111] text-white" : "bg-white text-[var(--text-muted)]"}`}
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${queueSort === "time" ? "bg-[var(--ink)] text-white" : "bg-white text-[var(--text-muted)]"}`}
             >
               <Clock className="mr-1 inline h-3 w-3" />
               First come
             </button>
             <button
               onClick={() => setQueueSort("distance")}
-              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${queueSort === "distance" ? "bg-[#111111] text-white" : "bg-white text-[var(--text-muted)]"}`}
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${queueSort === "distance" ? "bg-[var(--ink)] text-white" : "bg-white text-[var(--text-muted)]"}`}
             >
               <Compass className="mr-1 inline h-3 w-3" />
               Nearest
@@ -314,7 +314,7 @@ export default function JobsPage() {
             return (
               <Link key={job.id} href={`/dashboard/messages/${job.chatId}`} className="surface-panel relative block overflow-hidden p-5 transition hover:-translate-y-0.5">
                 {filter === "queue" && isQueued ? (
-                  <div className="absolute left-5 top-5 flex h-7 min-w-7 items-center justify-center rounded-full bg-[#111111] px-2 text-xs font-bold text-white">
+                  <div className="absolute left-5 top-5 flex h-7 min-w-7 items-center justify-center rounded-full bg-[var(--ink)] px-2 text-xs font-bold text-white">
                     #{index + 1}
                   </div>
                 ) : null}

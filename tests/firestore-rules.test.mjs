@@ -1,0 +1,40 @@
+import { test } from 'node:test';
+import fs from 'node:fs';
+import { initializeTestEnvironment, assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
+import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
+
+test('Firestore enforces verified cash listings, chat access, and server-owned card payments', { skip: !process.env.FIRESTORE_EMULATOR_HOST }, async () => {
+  const [host, port] = process.env.FIRESTORE_EMULATOR_HOST.split(':');
+  const env = await initializeTestEnvironment({ projectId: 'demo-snowd-audit', firestore: { host, port: Number(port), rules: fs.readFileSync('firestore.rules', 'utf8') } });
+  try {
+    await env.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await setDoc(doc(db, 'users/client'), { role: 'client' });
+      await setDoc(doc(db, 'users/operator'), { role: 'operator', idVerified: true });
+      await setDoc(doc(db, 'users/unverified'), { role: 'operator', idVerified: false });
+      await setDoc(doc(db, 'users/stranger'), { role: 'client' });
+    });
+    const client = env.authenticatedContext('client').firestore();
+    const operator = env.authenticatedContext('operator').firestore();
+    const stranger = env.authenticatedContext('stranger').firestore();
+    const job = { clientId: 'client', operatorId: 'operator', status: 'pending', paymentStatus: 'pending', paymentMethod: 'cash', price: 100 };
+    await assertSucceeds(setDoc(doc(client, 'jobs/cash'), job));
+    await assertSucceeds(getDoc(doc(operator, 'jobs/cash')));
+    await assertFails(getDoc(doc(stranger, 'jobs/cash')));
+    await assertFails(setDoc(doc(client, 'jobs/card'), { ...job, paymentMethod: 'credit' }));
+    await assertFails(setDoc(doc(client, 'jobs/unverified'), { ...job, operatorId: 'unverified' }));
+    await assertFails(updateDoc(doc(operator, 'users/operator'), { stripeAccountStatus: 'connected', stripeConnectAccountId: 'acct_fake' }));
+    await assertSucceeds(setDoc(doc(client, 'chats/chat'), { participants: ['client', 'operator'] }));
+    await assertSucceeds(setDoc(doc(client, 'messages/message'), { chatId: 'chat', senderId: 'client', text: 'fixture', read: false }));
+    await assertSucceeds(updateDoc(doc(operator, 'messages/message'), { read: true }));
+    await assertFails(updateDoc(doc(operator, 'messages/message'), { injected: true }));
+    await assertFails(getDoc(doc(stranger, 'chats/chat')));
+    await env.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'jobs/card'), { ...job, paymentMethod: 'credit', stripePaymentIntentId: 'pi_fixture' });
+    });
+    await assertFails(updateDoc(doc(client, 'jobs/card'), { paymentStatus: 'paid' }));
+    await assertFails(updateDoc(doc(client, 'jobs/card'), { price: 1 }));
+    await assertFails(updateDoc(doc(client, 'jobs/card'), { stripePaymentIntentId: 'pi_fake' }));
+    await assertFails(setDoc(doc(client, 'transactions/pi_fixture'), { ...job, paymentMethod: 'credit', stripePaymentIntentId: 'pi_fixture', status: 'paid' }));
+  } finally { await env.cleanup(); }
+});

@@ -44,22 +44,7 @@ export function getDistanceKm(
 }
 
 export function isOperatorPublic(operator: OperatorProfile): boolean {
-  const ext = operator as OperatorProfile & {
-    accountApproved?: boolean;
-    idVerified?: boolean;
-    stripeConnectAccountId?: string;
-    isAvailable?: boolean;
-  };
-
-  const profileComplete = Boolean(operator.avatar && operator.phone && operator.address);
-
-  return Boolean(
-    operator.onboardingComplete &&
-      ext.accountApproved &&
-      ext.idVerified &&
-      profileComplete &&
-      (ext.isAvailable ?? true)
-  );
+  return operator.idVerified === true && (operator.isAvailable ?? true);
 }
 
 export function isClientWithinOperatorRadius(client: ClientProfile, operator: OperatorProfile): boolean {
@@ -78,4 +63,8 @@ export function isClientWithinOperatorRadius(client: ClientProfile, operator: Op
   const radius = toFiniteNumber(operator.serviceRadius) ?? 0;
   if (radius <= 0) return false;
   return distance <= radius;
+}
+
+export function canAcceptPlatformPayments(operator: Pick<OperatorProfile, "stripeConnectAccountId" | "stripeAccountStatus">): boolean {
+  return Boolean(operator.stripeConnectAccountId && operator.stripeAccountStatus === "connected");
 }

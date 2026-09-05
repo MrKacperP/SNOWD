@@ -1,5 +1,7 @@
 "use client";
 
+import { isStripeAccountReady, stripeConnectFetch } from "@/lib/stripeConnectClient";
+
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -84,7 +86,7 @@ function OperatorMiniCalendar() {
         {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d => <div key={d} className="py-1 text-[var(--text-muted)] font-medium">{d}</div>)}
         {days.map((day, i) => (
           <div key={i} className={`py-1.5 rounded-lg text-xs ${
-            isToday(day) ? "bg-[#111111] text-white font-bold" :
+            isToday(day) ? "bg-[var(--ink)] text-white font-bold" :
             isSameMonth(day, currentMonth) ? "text-[var(--text-primary)]" : "text-[var(--text-muted)]"
           }`}>
             {format(day, "d")}
@@ -132,7 +134,7 @@ export default function OperatorDashboard() {
       const accountId = (operatorProfile as OperatorProfile & { stripeConnectAccountId?: string })?.stripeConnectAccountId;
       if (!accountId) return;
       try {
-        const res = await fetch("/api/stripe/account-status", {
+        const res = await stripeConnectFetch("/api/stripe/account-status", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ accountId }),
@@ -197,7 +199,7 @@ export default function OperatorDashboard() {
       {
         key: "approval",
         label: "Account Verification",
-        done: extProfile.verificationStatus === "approved" || (!!extProfile.accountApproved && !!extProfile.idVerified),
+        done: !!extProfile.idVerified,
         icon: <Shield className="w-4 h-4" />,
         href: "/dashboard/settings?tab=verification",
         description: extProfile.verificationStatus === "approved"
@@ -245,8 +247,7 @@ export default function OperatorDashboard() {
   const allSetupComplete = completedSetupCount === totalSetupSteps;
   const nextOperatorSetupStep = setupSteps.find((step) => !step.done);
   const setupPercent = totalSetupSteps ? Math.round((completedSetupCount / totalSetupSteps) * 100) : 100;
-  const isAccountPublic = !!(operatorProfile as OperatorProfile & { accountApproved?: boolean })?.accountApproved &&
-    !!(operatorProfile as OperatorProfile & { idVerified?: boolean })?.idVerified;
+  const isAccountPublic = !!(operatorProfile as OperatorProfile & { idVerified?: boolean })?.idVerified;
 
   useEffect(() => {
     const fetchJobs = async () => {
@@ -335,6 +336,11 @@ export default function OperatorDashboard() {
   const handleAcceptJob = async (jobId: string) => {
     setActionLoading(jobId);
     try {
+      const requestedJob = pendingJobs.find((job) => job.id === jobId);
+      if (!requestedJob || !operatorProfile?.idVerified || (requestedJob.paymentMethod !== "cash" && !(await isStripeAccountReady(operatorProfile.stripeConnectAccountId)))) {
+        alert("Verify your ID to accept cash jobs. Complete Stripe setup before accepting platform payments.");
+        return;
+      }
       // Enforce one active job at a time
       const inProgressJob = activeJobs.find((j) => ["in-progress", "en-route"].includes(j.status));
       if (inProgressJob) {
@@ -478,7 +484,7 @@ export default function OperatorDashboard() {
       >
         <div className="grid grid-cols-1 gap-0 lg:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]">
           <div className="p-5 md:p-6">
-            <div className="inline-flex items-center gap-2 rounded-full border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-1.5 text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-secondary)]">
+            <div className="inline-flex items-center gap-2 rounded-full border-[3px] border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-1.5 text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-secondary)]">
               {isAccountPublic ? (
                 <BadgeCheck className="h-4 w-4 text-[var(--accent-mint)]" />
               ) : (
@@ -500,7 +506,7 @@ export default function OperatorDashboard() {
             <div className="mt-5 flex items-center gap-2 flex-wrap">
               <Link
                 href={primaryOperatorAction.href}
-                className="inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-2xl bg-[var(--ink)] px-5 py-2.5 text-sm font-bold leading-tight text-white shadow-md ring-1 ring-black/10 transition hover:bg-black hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.99] md:text-base"
+                className="inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-2xl bg-[var(--ink)] px-5 py-2.5 text-sm font-bold leading-tight text-white shadow-[var(--surface-shadow)] ring-1 ring-black/10 transition hover:bg-black hover:shadow-[var(--surface-shadow)] hover:-translate-y-0.5 active:scale-[0.99] md:text-base"
               >
                 {primaryOperatorAction.icon}
                 {primaryOperatorAction.label}
@@ -524,7 +530,7 @@ export default function OperatorDashboard() {
               ].map((item) => {
                 const Icon = item.icon;
                 return (
-                  <div key={item.label} className="rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-secondary)] px-4 py-3">
+                  <div key={item.label} className="rounded-2xl border-[3px] border-[var(--border-soft)] bg-[var(--bg-secondary)] px-4 py-3">
                     <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
                       <Icon className="h-4 w-4" />
                       {item.label}
@@ -535,7 +541,7 @@ export default function OperatorDashboard() {
               })}
             </div>
 
-            <div className="mt-4 flex w-fit items-center gap-3 rounded-xl border border-[var(--border-color)] bg-white px-4 py-3">
+            <div className="mt-4 flex w-fit items-center gap-3 rounded-xl border-[3px] border-[var(--border-color)] bg-white px-4 py-3">
               <button
                 onClick={toggleAvailability}
                 className={`relative h-7 w-14 rounded-full transition-colors ${isAvailable ? "bg-[var(--accent-mint)]" : "bg-[var(--text-muted)]"}`}
@@ -552,7 +558,7 @@ export default function OperatorDashboard() {
           </div>
 
           <div className="border-t border-[var(--border-soft)] bg-[var(--bg-secondary)] p-5 md:p-6 lg:border-l lg:border-t-0">
-            <div className="rounded-2xl border border-[var(--border-color)] bg-white p-4">
+            <div className="rounded-2xl border-[3px] border-[var(--border-color)] bg-white p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Next best step</p>
@@ -581,7 +587,7 @@ export default function OperatorDashboard() {
 
             <Link
               href="/dashboard/calendar"
-              className="group mt-3 block rounded-2xl border border-[var(--border-color)] bg-white px-4 py-4 transition hover:border-[#111111]/20"
+              className="group mt-3 block rounded-2xl border-[3px] border-[var(--border-color)] bg-white px-4 py-4 transition hover:border-[var(--ink)]/20"
             >
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold text-[var(--text-muted)]">Today&apos;s Weather</p>
@@ -673,7 +679,7 @@ export default function OperatorDashboard() {
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card-solid)] p-4"
+          className="rounded-2xl border-[3px] border-[var(--border-color)] bg-[var(--bg-card-solid)] p-4"
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
@@ -698,7 +704,7 @@ export default function OperatorDashboard() {
             <div className="mt-3">
               <Link
                 href={setupSteps.find((step) => !step.done)?.href || "/dashboard/settings"}
-                className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-2.5 transition hover:bg-[var(--accent-soft)]"
+                className="flex items-center justify-between gap-3 rounded-xl border-[3px] border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-2.5 transition hover:bg-[var(--accent-soft)]"
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-semibold text-[var(--text-muted)]">Next step</p>
@@ -733,7 +739,7 @@ export default function OperatorDashboard() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 + i * 0.05 }}
           >
-            <Link href={stat.href} className="block bg-[var(--bg-card-solid)] rounded-xl p-4 border border-[var(--border-subtle)] hover-lift interactive-card">
+            <Link href={stat.href} className="block bg-[var(--bg-card-solid)] rounded-xl p-4 border-[3px] border-[var(--border-subtle)] hover-lift interactive-card">
               <div className={`w-8 h-8 ${stat.bg} rounded-lg flex items-center justify-center mb-2`}>
                 <stat.icon className={`w-4 h-4 ${stat.color}`} />
               </div>
@@ -748,7 +754,7 @@ export default function OperatorDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <Link
           href="/dashboard/calendar"
-          className="flex items-center gap-3 p-4 bg-[var(--bg-card-solid)] rounded-xl border border-[var(--border-subtle)] hover-lift interactive-card"
+          className="flex items-center gap-3 p-4 bg-[var(--bg-card-solid)] rounded-xl border-[3px] border-[var(--border-subtle)] hover-lift interactive-card"
         >
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--accent-soft)]">
             <CalendarDays className="w-5 h-5 text-[var(--text-primary)]" />
@@ -760,7 +766,7 @@ export default function OperatorDashboard() {
         </Link>
         <Link
           href="/dashboard/log"
-          className="flex items-center gap-3 p-4 bg-[var(--bg-card-solid)] rounded-xl border border-[var(--border-subtle)] hover-lift interactive-card"
+          className="flex items-center gap-3 p-4 bg-[var(--bg-card-solid)] rounded-xl border-[3px] border-[var(--border-subtle)] hover-lift interactive-card"
         >
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--bg-secondary)]">
             <ClipboardList className="w-5 h-5 text-[var(--text-primary)]" />
@@ -772,7 +778,7 @@ export default function OperatorDashboard() {
         </Link>
         <Link
           href="/dashboard/analytics"
-          className="flex items-center gap-3 p-4 bg-[var(--bg-card-solid)] rounded-xl border border-[var(--border-subtle)] hover-lift interactive-card"
+          className="flex items-center gap-3 p-4 bg-[var(--bg-card-solid)] rounded-xl border-[3px] border-[var(--border-subtle)] hover-lift interactive-card"
         >
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#eaf7ef]">
             <BarChart3 className="w-5 h-5 text-[var(--accent-mint)]" />
@@ -790,7 +796,7 @@ export default function OperatorDashboard() {
           <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-6 py-4">
             <div className="flex items-center gap-2">
               <h2 className="font-semibold text-lg">New Requests</h2>
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#111111] text-xs font-bold text-white">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--ink)] text-xs font-bold text-white">
                 {pendingJobs.length}
               </span>
             </div>

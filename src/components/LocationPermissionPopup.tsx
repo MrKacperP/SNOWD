@@ -1,6 +1,7 @@
 "use client";
 
-import React from "react";
+import React, { useRef, useEffect } from "react";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 import Image from "next/image";
 import { CheckCircle2, MapPin, Navigation, Shield } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -12,6 +13,14 @@ interface LocationPermissionPopupProps {
 }
 
 export default function LocationPermissionPopup({ isOpen, onAllow, onDeny }: LocationPermissionPopupProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(isOpen, dialogRef);
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") onDeny(); };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isOpen, onDeny]);
   const benefits = ["Nearby operators first", "More accurate arrival times", "Local snow alerts"];
 
   return (
@@ -26,7 +35,12 @@ export default function LocationPermissionPopup({ isOpen, onAllow, onDeny }: Loc
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
 
           <motion.div
-            className="relative w-full max-w-[370px] overflow-hidden rounded-[1.6rem] border-[3px] border-[#061321] bg-[#f3f8fb] shadow-[8px_8px_0_#061321]"
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Find help nearby"
+            tabIndex={-1}
+            className="relative max-h-[calc(100dvh-2rem)] overflow-y-auto w-full max-w-[370px] rounded-[1.6rem] border-[3px] border-[#061321] bg-[#f3f8fb] shadow-[8px_8px_0_#061321]"
             initial={{ opacity: 0, scale: 0.92, y: 16 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 10 }}

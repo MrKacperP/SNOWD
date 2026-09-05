@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useId } from 'react';
 import { motion, type HTMLMotionProps } from 'framer-motion';
 
 interface InputProps extends Omit<HTMLMotionProps<'input'>, 'ref'> {
@@ -11,15 +11,18 @@ interface InputProps extends Omit<HTMLMotionProps<'input'>, 'ref'> {
 const MotionInput = motion.input;
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, helperText, icon, className = '', ...props }, ref) => {
+  ({ label, error, helperText, icon, className = '', id, ...props }, ref) => {
+    const generatedId = useId();
+    const inputId = id ?? generatedId;
+    const descriptionId = `${inputId}-description`;
     return (
       <div className="w-full">
         {label && (
-          <motion.label 
+          <motion.label htmlFor={inputId}
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            className="block text-sm font-medium text-[var(--text-primary)] mb-2"
+            className="block text-sm font-black text-[var(--text-primary)] mb-2"
           >
             {label}
           </motion.label>
@@ -31,23 +34,25 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             </div>
           )}
           <MotionInput
+            {...props}
             ref={ref}
-            whileFocus={{ scale: 1.02 }}
+            id={inputId}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={[props["aria-describedby"], (error || helperText) ? descriptionId : undefined].filter(Boolean).join(" ") || undefined}
             className={`
               w-full h-[52px] px-4 ${icon ? 'pl-12' : ''}
-              bg-white border border-[var(--border)] rounded-xl
-              text-[var(--text-primary)] placeholder:text-[var(--text-muted)] text-base
-              focus:outline-none focus:ring-2 focus:ring-[rgba(47,111,237,0.25)] focus:border-[var(--accent)]
+              bg-white border-[3px] border-[var(--border)] rounded-xl
+              text-[var(--text-primary)] placeholder:text-[var(--text-muted)] text-base font-bold
+              focus:outline-none focus:ring-2 focus:ring-[var(--accent-sun)] focus:border-[var(--accent)]
               transition-all duration-150
               disabled:opacity-50 disabled:cursor-not-allowed
               ${error ? 'border-red-500 focus:ring-red-500/25 focus:border-red-500' : ''}
               ${className}
             `}
-            {...props}
           />
         </div>
         {error && (
-          <motion.p 
+          <motion.p id={descriptionId} role="alert"
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
@@ -57,7 +62,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           </motion.p>
         )}
         {helperText && !error && (
-          <p className="mt-1.5 text-xs text-[var(--text-muted)]">{helperText}</p>
+          <p id={descriptionId} className="mt-1.5 text-xs text-[var(--text-muted)]">{helperText}</p>
         )}
       </div>
     );

@@ -26,6 +26,7 @@ export default function CelebrationOverlay({ type, show, onComplete }: Celebrati
     delay: number;
     duration: number;
     size: number;
+    rotation: number;
   }>>([]);
 
   useEffect(() => {
@@ -37,13 +38,14 @@ export default function CelebrationOverlay({ type, show, onComplete }: Celebrati
         delay: randomBetween(0, 0.8),
         duration: randomBetween(1.5, 3),
         size: randomBetween(16, 32),
+        rotation: randomBetween(360, 720),
       }));
-      setParticles(newParticles);
+      const frame = requestAnimationFrame(() => setParticles(newParticles));
 
       const timer = setTimeout(() => {
         onComplete?.();
       }, 3000);
-      return () => clearTimeout(timer);
+      return () => { cancelAnimationFrame(frame); clearTimeout(timer); };
     }
   }, [show, type, onComplete]);
 
@@ -81,7 +83,7 @@ export default function CelebrationOverlay({ type, show, onComplete }: Celebrati
               animate={{
                 y: "110vh",
                 opacity: [0, 1, 1, 0],
-                rotate: randomBetween(360, 720),
+                rotate: p.rotation,
                 scale: [0, 1, 1, 0.5],
               }}
               transition={{
@@ -107,7 +109,7 @@ export default function CelebrationOverlay({ type, show, onComplete }: Celebrati
               initial={{ scale: 0 }}
               animate={{ scale: [0, 1.3, 1] }}
               transition={{ delay: 0.3, duration: 0.6 }}
-              className="w-20 h-20 mx-auto mb-4 bg-[#2F6FED] rounded-full flex items-center justify-center shadow-lg"
+              className="w-20 h-20 mx-auto mb-4 bg-[var(--accent)] rounded-full flex items-center justify-center shadow-[var(--surface-shadow)]"
               style={{ boxShadow: "0 0 40px rgba(36, 110, 185, 0.5)" }}
             >
               <span className="text-3xl">

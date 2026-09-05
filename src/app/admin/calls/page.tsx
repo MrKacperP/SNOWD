@@ -1,5 +1,6 @@
 "use client";
 
+import { useCurrentTime } from "@/hooks/useCurrentTime";
 import React, { useMemo, useState } from "react";
 import { PlayCircle } from "lucide-react";
 import { AdminCard, EmptyState, SortHeader, StatusTag, tableCell, tableHead } from "@/components/admin/AdminUI";
@@ -15,6 +16,7 @@ const rangeDaysMap: Record<string, number> = {
 
 export default function AdminCallsPage() {
   const { calls } = useAdminData();
+  const now = useCurrentTime();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("All");
   const [dateRange, setDateRange] = useState("Last 30 days");
@@ -45,7 +47,7 @@ export default function AdminCallsPage() {
     }
     if (status !== "All") list = list.filter((c) => c.status === status);
 
-    const minMs = Date.now() - (rangeDaysMap[dateRange] || 30) * 24 * 60 * 60 * 1000;
+    const minMs = now - (rangeDaysMap[dateRange] || 30) * 24 * 60 * 60 * 1000;
     list = list.filter((c) => new Date(c.dateTimeIso || c.dateTime).getTime() >= minMs);
 
     list.sort((a, b) => {
@@ -56,7 +58,7 @@ export default function AdminCallsPage() {
       return 0;
     });
     return list;
-  }, [calls, dateRange, query, sortDir, sortKey, status]);
+  }, [calls, dateRange, query, sortDir, sortKey, status, now]);
 
   const toggleSort = (key: SortKey) => {
     if (key === sortKey) {
@@ -71,18 +73,18 @@ export default function AdminCallsPage() {
     <div className="space-y-4">
       <AdminCard className="p-4">
         <div className="flex flex-wrap items-center gap-2">
-          <select value={dateRange} onChange={(e) => setDateRange(e.target.value)} className="h-10 px-3 rounded-lg border border-[#E5E7EB] bg-white text-sm">
+          <select value={dateRange} onChange={(e) => setDateRange(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-white text-sm">
             <option>Last 7 days</option>
             <option>Last 30 days</option>
             <option>Last 90 days</option>
           </select>
-          <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-10 px-3 rounded-lg border border-[#E5E7EB] bg-white text-sm">
+          <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-white text-sm">
             <option>All</option>
             <option>Completed</option>
             <option>Missed</option>
             <option>In Progress</option>
           </select>
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by user" className="h-10 px-3 rounded-lg border border-[#E5E7EB] bg-[#F8F9FA] text-sm min-w-[220px]" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by user" className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-[var(--bg-primary)] text-sm min-w-[220px]" />
         </div>
       </AdminCard>
 
@@ -101,7 +103,7 @@ export default function AdminCallsPage() {
           <tbody>
             {rows.map((call) => (
               <React.Fragment key={call.id}>
-                <tr className="border-b border-[#E5E7EB] hover:bg-[#F9FAFB] cursor-pointer" onClick={() => setExpandedId((prev) => (prev === call.id ? null : call.id))}>
+                <tr className="border-b border-[var(--border)] hover:bg-[var(--bg-primary)] cursor-pointer" onClick={() => setExpandedId((prev) => (prev === call.id ? null : call.id))}>
                   <td className={tableCell}>{call.caller}</td>
                   <td className={tableCell}>{call.receiver}</td>
                   <td className={tableCell}>{call.duration}</td>
@@ -113,12 +115,12 @@ export default function AdminCallsPage() {
                   </td>
                   <td className={tableCell}>{call.dateTime}</td>
                   <td className={tableCell}>
-                    {call.recordingUrl ? <PlayCircle className="w-5 h-5 text-[#3B82F6]" /> : <span className="text-xs text-[#9CA3AF]">{call.recordingStatus || "missing"}</span>}
+                    {call.recordingUrl ? <PlayCircle className="w-5 h-5 text-[var(--accent)]" /> : <span className="text-xs text-[var(--text-muted)]">{call.recordingStatus || "missing"}</span>}
                   </td>
                 </tr>
                 {expandedId === call.id && (
-                  <tr className="bg-[#F9FAFB] border-b border-[#E5E7EB]">
-                    <td colSpan={6} className="px-4 py-3 text-sm text-[#374151]">
+                  <tr className="bg-[var(--bg-primary)] border-b border-[var(--border)]">
+                    <td colSpan={6} className="px-4 py-3 text-sm text-[var(--text-secondary)]">
                       <p><span className="font-semibold">Caller:</span> {call.callerEmail || "-"} {call.callerPhone ? `• ${call.callerPhone}` : ""}</p>
                       <p><span className="font-semibold">Receiver:</span> {call.receiverEmail || "-"} {call.receiverPhone ? `• ${call.receiverPhone}` : ""}</p>
                       <p className="mt-1"><span className="font-semibold">Caller UID:</span> {call.callerId || "-"}</p>

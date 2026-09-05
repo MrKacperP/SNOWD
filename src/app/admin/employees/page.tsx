@@ -25,7 +25,7 @@ export default function AdminEmployeesPage() {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <button onClick={() => setInviteOpen(true)} className="h-10 px-4 rounded-lg bg-[#3B82F6] text-white text-sm font-semibold">Invite New Employee</button>
+        <button onClick={() => setInviteOpen(true)} className="h-10 px-4 rounded-lg bg-[var(--accent)] text-white text-sm font-semibold">Invite New Employee</button>
       </div>
 
       <AdminCard className="overflow-hidden">
@@ -43,12 +43,12 @@ export default function AdminEmployeesPage() {
           </thead>
           <tbody>
             {employees.map((emp) => (
-              <tr key={emp.id} className="border-b border-[#E5E7EB]">
-                <td className={tableCell}><div className="w-8 h-8 rounded-full bg-[#DBEAFE] text-[#3B82F6] text-xs font-semibold flex items-center justify-center">{emp.avatar}</div></td>
+              <tr key={emp.id} className="border-b border-[var(--border)]">
+                <td className={tableCell}><div className="w-8 h-8 rounded-full bg-[var(--bg-secondary)] text-[var(--accent)] text-xs font-semibold flex items-center justify-center">{emp.avatar}</div></td>
                 <td className={tableCell}>{emp.name}</td>
                 <td className={tableCell}>{emp.email}</td>
                 <td className={tableCell}>
-                  <select value={emp.role} onChange={(e) => updateEmployeeRole(emp.id, e.target.value as "Super Admin" | "Moderator" | "Support Agent")} className="h-8 px-2 rounded-md border border-[#E5E7EB] text-sm bg-white">
+                  <select value={emp.role} onChange={(e) => updateEmployeeRole(emp.id, e.target.value as "Super Admin" | "Moderator" | "Support Agent")} className="h-8 px-2 rounded-md border-[3px] border-[var(--border)] text-sm bg-white">
                     <option>Super Admin</option>
                     <option>Moderator</option>
                     <option>Support Agent</option>
@@ -57,7 +57,7 @@ export default function AdminEmployeesPage() {
                 <td className={tableCell}>{emp.status}</td>
                 <td className={tableCell}>{emp.lastLogin}</td>
                 <td className={tableCell}>
-                  <button onClick={() => setDeactivateId(emp.id)} className="h-8 px-2.5 rounded-md border border-[#E5E7EB] text-xs text-[#DC2626]">Deactivate</button>
+                  <button onClick={() => setDeactivateId(emp.id)} className="h-8 px-2.5 rounded-md border-[3px] border-[var(--border)] text-xs text-[#DC2626]">Deactivate</button>
                 </td>
               </tr>
             ))}
@@ -69,15 +69,15 @@ export default function AdminEmployeesPage() {
       {inviteOpen && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center px-4" onClick={() => setInviteOpen(false)}>
           <div className="absolute inset-0 bg-black/35" />
-          <div className="relative w-full max-w-md rounded-xl bg-white border border-[#E5E7EB] shadow-xl p-5" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-[#1A1A2E]">Invite Employee</h3>
+          <div className="relative w-full max-w-md rounded-xl bg-white border-[3px] border-[var(--border)] shadow-[var(--surface-shadow)] p-5" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-[var(--ink)]">Invite Employee</h3>
             <div className="mt-4 space-y-3">
               <div>
                 <input
                   value={form.name}
                   onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
                   placeholder="Name"
-                  className={`w-full h-10 px-3 rounded-lg border ${errors.name ? "border-[#DC2626]" : "border-[#E5E7EB]"}`}
+                  className={`w-full h-10 px-3 rounded-lg border ${errors.name ? "border-[#DC2626]" : "border-[var(--border)]"}`}
                 />
                 {errors.name && <p className="text-xs text-[#DC2626] mt-1">{errors.name}</p>}
               </div>
@@ -86,19 +86,19 @@ export default function AdminEmployeesPage() {
                   value={form.email}
                   onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
                   placeholder="Email"
-                  className={`w-full h-10 px-3 rounded-lg border ${errors.email ? "border-[#DC2626]" : "border-[#E5E7EB]"}`}
+                  className={`w-full h-10 px-3 rounded-lg border ${errors.email ? "border-[#DC2626]" : "border-[var(--border)]"}`}
                 />
                 {errors.email && <p className="text-xs text-[#DC2626] mt-1">{errors.email}</p>}
               </div>
-              <select value={form.role} onChange={(e) => setForm((prev) => ({ ...prev, role: e.target.value as "Super Admin" | "Moderator" | "Support Agent" }))} className="w-full h-10 px-3 rounded-lg border border-[#E5E7EB]">
+              <select value={form.role} onChange={(e) => setForm((prev) => ({ ...prev, role: e.target.value as "Super Admin" | "Moderator" | "Support Agent" }))} className="w-full h-10 px-3 rounded-lg border-[3px] border-[var(--border)]">
                 <option>Super Admin</option>
                 <option>Moderator</option>
                 <option>Support Agent</option>
               </select>
             </div>
             <div className="mt-5 flex justify-end gap-2">
-              <button onClick={() => setInviteOpen(false)} className="h-9 px-3 rounded-lg border border-[#E5E7EB] text-sm">Cancel</button>
-              <button onClick={submitInvite} className="h-9 px-3 rounded-lg bg-[#3B82F6] text-white text-sm font-semibold">Send Invite</button>
+              <button onClick={() => setInviteOpen(false)} className="h-9 px-3 rounded-lg border-[3px] border-[var(--border)] text-sm">Cancel</button>
+              <button onClick={submitInvite} className="h-9 px-3 rounded-lg bg-[var(--accent)] text-white text-sm font-semibold">Send Invite</button>
             </div>
           </div>
         </div>

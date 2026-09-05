@@ -24,13 +24,13 @@ export default function AdminVerificationsPage() {
       <AdminCard className="p-2 inline-flex gap-1">
         <button
           onClick={() => setTab("Pending")}
-          className={`px-3 py-2 rounded-lg text-sm font-medium ${tab === "Pending" ? "bg-[#EFF6FF] text-[#3B82F6]" : "text-[#6B7280]"}`}
+          className={`px-3 py-2 rounded-lg text-sm font-medium ${tab === "Pending" ? "bg-[var(--bg-secondary)] text-[var(--accent)]" : "text-[var(--text-muted)]"}`}
         >
           Pending ({pending.length})
         </button>
         <button
           onClick={() => setTab("Reviewed")}
-          className={`px-3 py-2 rounded-lg text-sm font-medium ${tab === "Reviewed" ? "bg-[#EFF6FF] text-[#3B82F6]" : "text-[#6B7280]"}`}
+          className={`px-3 py-2 rounded-lg text-sm font-medium ${tab === "Reviewed" ? "bg-[var(--bg-secondary)] text-[var(--accent)]" : "text-[var(--text-muted)]"}`}
         >
           Reviewed ({reviewed.length})
         </button>
@@ -41,13 +41,13 @@ export default function AdminVerificationsPage() {
           {pending.map((item) => (
             <AdminCard key={item.id} className="p-4 space-y-3">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#DBEAFE] text-[#3B82F6] font-bold text-xs flex items-center justify-center">{item.userAvatar}</div>
+                <div className="w-10 h-10 rounded-full bg-[var(--bg-secondary)] text-[var(--accent)] font-bold text-xs flex items-center justify-center">{item.userAvatar}</div>
                 <div>
-                  <p className="font-semibold text-[#1A1A2E]">{item.userName}</p>
-                  <p className="text-xs text-[#6B7280]">{item.type} verification</p>
+                  <p className="font-semibold text-[var(--ink)]">{item.userName}</p>
+                  <p className="text-xs text-[var(--text-muted)]">{item.type} verification</p>
                 </div>
               </div>
-              <div className="text-sm text-[#374151]">
+              <div className="text-sm text-[var(--text-secondary)]">
                 <p>Type: {item.type}</p>
                 <p>Submission date: {item.submissionDate}</p>
               </div>
@@ -75,7 +75,7 @@ export default function AdminVerificationsPage() {
                   href={item.idPhotoUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex text-xs text-[#2563EB] hover:text-[#1D4ED8]"
+                  className="inline-flex text-xs text-[var(--accent)] hover:text-[var(--accent-dark)]"
                 >
                   Open ID evidence
                 </a>
@@ -99,7 +99,7 @@ export default function AdminVerificationsPage() {
               </thead>
               <tbody>
                 {reviewed.map((item) => (
-                  <tr key={item.id} className="border-b border-[#E5E7EB]">
+                  <tr key={item.id} className="border-b border-[var(--border)]">
                     <td className={tableCell}>{item.userName}</td>
                     <td className={tableCell}>{item.type}</td>
                     <td className={tableCell}>
@@ -139,16 +139,16 @@ export default function AdminVerificationsPage() {
       {rejectTargetId && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center px-4" onClick={() => setRejectTargetId(null)}>
           <div className="absolute inset-0 bg-black/40" />
-          <div className="relative w-full max-w-lg rounded-xl bg-white border border-[#E5E7EB] shadow-xl p-5" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-[#1A1A2E]">Reject verification</h3>
-            <p className="text-sm text-[#6B7280] mt-1">Provide structured reason and guidance for resubmission.</p>
+          <div className="relative w-full max-w-lg rounded-xl bg-white border-[3px] border-[var(--border)] shadow-[var(--surface-shadow)] p-5" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-[var(--ink)]">Reject verification</h3>
+            <p className="text-sm text-[var(--text-muted)] mt-1">Provide structured reason and guidance for resubmission.</p>
 
             <div className="mt-4">
-              <label className="text-sm font-medium text-[#1A1A2E]">Reason category</label>
+              <label className="text-sm font-medium text-[var(--ink)]">Reason category</label>
               <select
                 value={rejectCategory}
                 onChange={(e) => setRejectCategory(e.target.value as RejectionReasonCategory)}
-                className="mt-1 w-full h-10 rounded-lg border border-[#E5E7EB] px-3 text-sm"
+                className="mt-1 w-full h-10 rounded-lg border-[3px] border-[var(--border)] px-3 text-sm"
               >
                 <option value="document-quality">Document quality issue</option>
                 <option value="name-mismatch">Name mismatch</option>
@@ -159,19 +159,19 @@ export default function AdminVerificationsPage() {
             </div>
 
             <div className="mt-3">
-              <label className="text-sm font-medium text-[#1A1A2E]">Admin note</label>
+              <label className="text-sm font-medium text-[var(--ink)]">Admin note</label>
               <textarea
                 value={rejectNote}
                 onChange={(e) => setRejectNote(e.target.value)}
                 placeholder="Explain exactly what to fix for the next submission."
-                className="mt-1 w-full min-h-[110px] rounded-lg border border-[#E5E7EB] px-3 py-2 text-sm"
+                className="mt-1 w-full min-h-[110px] rounded-lg border-[3px] border-[var(--border)] px-3 py-2 text-sm"
               />
             </div>
 
             {rejectError && <p className="mt-2 text-sm text-[#DC2626]">{rejectError}</p>}
 
             <div className="mt-5 flex justify-end gap-2">
-              <button onClick={() => setRejectTargetId(null)} className="h-9 px-3 rounded-lg border border-[#E5E7EB] text-sm">Cancel</button>
+              <button onClick={() => setRejectTargetId(null)} className="h-9 px-3 rounded-lg border-[3px] border-[var(--border)] text-sm">Cancel</button>
               <button
                 onClick={() => {
                   const note = rejectNote.trim();

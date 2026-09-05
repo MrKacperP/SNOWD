@@ -82,22 +82,22 @@ export default function AdminUsersPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search users"
-            className="h-10 px-3 rounded-lg border border-[#E5E7EB] bg-[#F8F9FA] text-sm min-w-[220px]"
+            className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-[var(--bg-primary)] text-sm min-w-[220px]"
           />
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-10 px-3 rounded-lg border border-[#E5E7EB] bg-white text-sm">
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-white text-sm">
             <option>All</option>
             <option>Active</option>
             <option>Suspended</option>
             <option>Pending</option>
           </select>
-          <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="h-10 px-3 rounded-lg border border-[#E5E7EB] bg-white text-sm">
+          <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-white text-sm">
             <option>All</option>
             <option>Client</option>
             <option>Operator</option>
             <option>Admin</option>
             <option>Employee</option>
           </select>
-          <button onClick={exportCsv} className="ml-auto h-10 px-3 rounded-lg bg-[#3B82F6] text-white text-sm font-semibold inline-flex items-center gap-1.5">
+          <button onClick={exportCsv} className="ml-auto h-10 px-3 rounded-lg bg-[var(--accent)] text-white text-sm font-semibold inline-flex items-center gap-1.5">
             <Download className="w-4 h-4" /> Export CSV
           </button>
         </div>
@@ -119,12 +119,12 @@ export default function AdminUsersPage() {
             </thead>
             <tbody>
               {rows.map((u) => (
-                <tr key={u.id} className="border-b border-[#E5E7EB] hover:bg-[#F9FAFB]">
+                <tr key={u.id} className="border-b border-[var(--border)] hover:bg-[var(--bg-primary)]">
                   <td className={tableCell}>
-                    <div className="w-8 h-8 rounded-full bg-[#DBEAFE] text-[#3B82F6] font-semibold text-xs flex items-center justify-center">{u.avatar}</div>
+                    <div className="w-8 h-8 rounded-full bg-[var(--bg-secondary)] text-[var(--accent)] font-semibold text-xs flex items-center justify-center">{u.avatar}</div>
                   </td>
                   <td className={tableCell}>
-                    <button onClick={() => setSelectedUserId(u.id)} className="font-medium text-[#1A1A2E] hover:text-[#3B82F6]">{u.name}</button>
+                    <button onClick={() => setSelectedUserId(u.id)} className="font-medium text-[var(--ink)] hover:text-[var(--accent)]">{u.name}</button>
                   </td>
                   <td className={tableCell}>{u.email}</td>
                   <td className={tableCell}>{u.role}</td>
@@ -137,11 +137,11 @@ export default function AdminUsersPage() {
                   <td className={tableCell}>{u.joinDate}</td>
                   <td className={tableCell}>
                     <div className="flex items-center gap-1">
-                      <button onClick={() => setSelectedUserId(u.id)} className="w-8 h-8 rounded-lg border border-[#E5E7EB] inline-flex items-center justify-center"><Eye className="w-4 h-4" /></button>
-                      <button className="w-8 h-8 rounded-lg border border-[#E5E7EB] inline-flex items-center justify-center"><Pencil className="w-4 h-4" /></button>
+                      <button onClick={() => setSelectedUserId(u.id)} className="w-8 h-8 rounded-lg border-[3px] border-[var(--border)] inline-flex items-center justify-center"><Eye className="w-4 h-4" /></button>
+                      <button className="w-8 h-8 rounded-lg border-[3px] border-[var(--border)] inline-flex items-center justify-center"><Pencil className="w-4 h-4" /></button>
                       <button
                         onClick={() => setSuspendTarget(u.id)}
-                        className="w-8 h-8 rounded-lg border border-[#E5E7EB] inline-flex items-center justify-center"
+                        className="w-8 h-8 rounded-lg border-[3px] border-[var(--border)] inline-flex items-center justify-center"
                       >
                         {u.status === "Suspended" ? <ShieldCheck className="w-4 h-4 text-[#16A34A]" /> : <ShieldAlert className="w-4 h-4 text-[#DC2626]" />}
                       </button>
@@ -159,25 +159,25 @@ export default function AdminUsersPage() {
         {selectedUser && (
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-[#DBEAFE] text-[#3B82F6] font-bold text-sm flex items-center justify-center">{selectedUser.avatar}</div>
+              <div className="w-12 h-12 rounded-full bg-[var(--bg-secondary)] text-[var(--accent)] font-bold text-sm flex items-center justify-center">{selectedUser.avatar}</div>
               <div>
-                <p className="text-lg font-semibold text-[#1A1A2E]">{selectedUser.name}</p>
-                <p className="text-sm text-[#6B7280]">{selectedUser.email}</p>
+                <p className="text-lg font-semibold text-[var(--ink)]">{selectedUser.name}</p>
+                <p className="text-sm text-[var(--text-muted)]">{selectedUser.email}</p>
               </div>
             </div>
             <AdminCard className="p-3">
-              <p className="text-xs text-[#6B7280]">Role</p>
+              <p className="text-xs text-[var(--text-muted)]">Role</p>
               <p className="text-sm font-medium">{selectedUser.role}</p>
-              <p className="text-xs text-[#6B7280] mt-2">Join Date</p>
+              <p className="text-xs text-[var(--text-muted)] mt-2">Join Date</p>
               <p className="text-sm font-medium">{selectedUser.joinDate}</p>
             </AdminCard>
             <AdminCard className="p-3">
               <p className="text-sm font-semibold mb-2">Job History</p>
               <div className="space-y-1.5">
                 {jobs.filter((j) => j.postedBy === selectedUser.name).map((j) => (
-                  <div key={j.id} className="text-sm text-[#374151]">{j.title}</div>
+                  <div key={j.id} className="text-sm text-[var(--text-secondary)]">{j.title}</div>
                 ))}
-                {jobs.filter((j) => j.postedBy === selectedUser.name).length === 0 && <p className="text-sm text-[#9CA3AF]">No jobs found.</p>}
+                {jobs.filter((j) => j.postedBy === selectedUser.name).length === 0 && <p className="text-sm text-[var(--text-muted)]">No jobs found.</p>}
               </div>
             </AdminCard>
             <AdminCard className="p-3">
@@ -186,10 +186,10 @@ export default function AdminUsersPage() {
                 {transactions
                   .filter((t) => t.fromUser === selectedUser.name || t.toUser === selectedUser.name)
                   .map((t) => (
-                    <div key={t.id} className="text-sm text-[#374151]">{t.id.toUpperCase()} • ${t.amount.toFixed(2)} • {t.status}</div>
+                    <div key={t.id} className="text-sm text-[var(--text-secondary)]">{t.id.toUpperCase()} • ${t.amount.toFixed(2)} • {t.status}</div>
                   ))}
                 {transactions.filter((t) => t.fromUser === selectedUser.name || t.toUser === selectedUser.name).length === 0 && (
-                  <p className="text-sm text-[#9CA3AF]">No transactions found.</p>
+                  <p className="text-sm text-[var(--text-muted)]">No transactions found.</p>
                 )}
               </div>
             </AdminCard>
@@ -199,10 +199,10 @@ export default function AdminUsersPage() {
                 {supportTickets
                   .filter((s) => s.userName === selectedUser.name && s.status !== "Resolved")
                   .map((s) => (
-                    <div key={s.id} className="text-sm text-[#374151]">{s.subject} • {s.status}</div>
+                    <div key={s.id} className="text-sm text-[var(--text-secondary)]">{s.subject} • {s.status}</div>
                   ))}
                 {supportTickets.filter((s) => s.userName === selectedUser.name && s.status !== "Resolved").length === 0 && (
-                  <p className="text-sm text-[#9CA3AF]">No open tickets.</p>
+                  <p className="text-sm text-[var(--text-muted)]">No open tickets.</p>
                 )}
               </div>
             </AdminCard>

@@ -69,12 +69,10 @@ if (typeof window !== 'undefined' && isFirebaseConfigured) {
 }
 
 // Export instances (will be undefined during SSR/build, but defined on client)
-// @ts-ignore - These are initialized on client side
-export const auth: Auth = authInstance;
-// @ts-ignore
-export const db: Firestore = dbInstance;
-// @ts-ignore  
-export const storage: FirebaseStorage = storageInstance;
+// Instances are initialized in browsers; callers guard SSR access.
+export const auth: Auth = authInstance!;
+export const db: Firestore = dbInstance!;
+export const storage: FirebaseStorage = storageInstance!;
 
 // Initialize Analytics (only in browser)
 export const analytics: Promise<Analytics | null> | null = 
@@ -82,5 +80,4 @@ export const analytics: Promise<Analytics | null> | null =
     ? isSupported().then(yes => yes ? getAnalytics(app!) : null)
     : null;
 
-// @ts-ignore
-export default app;
+export default app!;

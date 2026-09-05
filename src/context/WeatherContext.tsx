@@ -16,9 +16,10 @@ interface WeatherData {
 interface WeatherContextType {
   weather: WeatherData | null;
   loading: boolean;
+  locationPromptOpen: boolean;
 }
 
-const WeatherContext = createContext<WeatherContextType>({ weather: null, loading: true });
+const WeatherContext = createContext<WeatherContextType>({ weather: null, loading: true, locationPromptOpen: false });
 
 export const useWeather = () => useContext(WeatherContext);
 
@@ -84,13 +85,39 @@ export function WeatherProvider({ children }: { children: React.ReactNode }) {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showLocationPopup, setShowLocationPopup] = useState(false);
-  const [locationGranted, setLocationGranted] = useState(false);
+  const [, setLocationGranted] = useState(false);
+
+  const requestLocation = () => {
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const data = await fetchWeather(pos.coords.latitude, pos.coords.longitude);
+        setWeather(data);
+        setLoading(false);
+        setLocationGranted(true);
+      },
+      () => {
+        fetchWeather(43.65, -79.38).then((data) => {
+          setWeather(data);
+          setLoading(false);
+        });
+      },
+      { timeout: 5000 }
+    );
+  };
 
   useEffect(() => {
+    const frame = requestAnimationFrame(() => {
     if (!navigator.geolocation) {
       setLoading(false);
       return;
     }
+
+    try {
+      if (sessionStorage.getItem("snowd-location-dismissed-v1")) {
+        fetchWeather(43.65, -79.38).then((data) => { setWeather(data); setLoading(false); });
+        return;
+      }
+    } catch { /* Storage restrictions must not block the app. */ }
 
     // Check if permission was already granted/denied
     if (navigator.permissions) {
@@ -116,25 +143,10 @@ export function WeatherProvider({ children }: { children: React.ReactNode }) {
       setShowLocationPopup(true);
       setLoading(false);
     }
+    });
+    return () => cancelAnimationFrame(frame);
   }, []);
 
-  const requestLocation = () => {
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const data = await fetchWeather(pos.coords.latitude, pos.coords.longitude);
-        setWeather(data);
-        setLoading(false);
-        setLocationGranted(true);
-      },
-      () => {
-        fetchWeather(43.65, -79.38).then((data) => {
-          setWeather(data);
-          setLoading(false);
-        });
-      },
-      { timeout: 5000 }
-    );
-  };
 
   const handleAllowLocation = () => {
     setShowLocationPopup(false);
@@ -143,6 +155,7 @@ export function WeatherProvider({ children }: { children: React.ReactNode }) {
   };
 
   const handleDenyLocation = () => {
+    try { sessionStorage.setItem("snowd-location-dismissed-v1", "true"); } catch {}
     setShowLocationPopup(false);
     fetchWeather(43.65, -79.38).then((data) => {
       setWeather(data);
@@ -151,7 +164,7 @@ export function WeatherProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <WeatherContext.Provider value={{ weather, loading }}>
+    <WeatherContext.Provider value={{ weather, loading, locationPromptOpen: showLocationPopup }}>
       {children}
       {/* Lazy-load the location popup */}
       {showLocationPopup && (
@@ -164,9 +177,10 @@ export function WeatherProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+const LocationPermissionPopup = React.lazy(() => import("@/components/LocationPermissionPopup"));
+
 // Wrapper to lazy import the popup component
 function LocationPermissionPopupWrapper({ onAllow, onDeny }: { onAllow: () => void; onDeny: () => void }) {
-  const LocationPermissionPopup = React.lazy(() => import("@/components/LocationPermissionPopup"));
   return (
     <React.Suspense fallback={null}>
       <LocationPermissionPopup isOpen={true} onAllow={onAllow} onDeny={onDeny} />

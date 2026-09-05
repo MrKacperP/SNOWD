@@ -1,5 +1,7 @@
 "use client";
 
+import { canAcceptPlatformPayments } from "@/lib/operatorDiscovery";
+
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -269,7 +271,7 @@ export default function FindOperatorsPage() {
 
     try {
       const operatorRequiresCard =
-        Boolean(operator.stripeConnectAccountId) && (operator.stripeEnabledJobsOnly ?? true);
+        canAcceptPlatformPayments(operator) && (operator.stripeEnabledJobsOnly ?? true);
 
       const jobRef = await addDoc(collection(db, "jobs"), {
         clientId: user.uid,
@@ -387,7 +389,7 @@ export default function FindOperatorsPage() {
     <div className="mx-auto max-w-[1220px] space-y-5">
       <section className="surface-card overflow-hidden p-4 md:p-5">
         <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-          <div className="rounded-[1.8rem] bg-[#111111] p-5 text-white md:p-6">
+          <div className="rounded-[1.8rem] bg-[var(--ink)] p-5 text-white md:p-6">
             <div className="flex items-center gap-3">
               <Link href="/dashboard" className="rounded-full bg-white/10 p-2 transition hover:bg-white/16" title="Back to dashboard">
                 <ArrowLeft className="h-5 w-5" />
@@ -423,11 +425,11 @@ export default function FindOperatorsPage() {
           </div>
 
           <div className="map-shell relative min-h-[320px] overflow-hidden p-4 md:p-5">
-            <div className="absolute left-[15%] top-[22%] h-4 w-4 rounded-full bg-[#17994f] shadow-[0_0_0_10px_rgba(23,153,79,0.12)]" />
-            <div className="absolute left-[62%] top-[34%] h-4 w-4 rounded-full bg-[#111111] shadow-[0_0_0_10px_rgba(17,17,17,0.08)]" />
-            <div className="absolute left-[42%] top-[62%] h-4 w-4 rounded-full bg-[#2e6bff] shadow-[0_0_0_10px_rgba(46,107,255,0.08)]" />
+            <div className="absolute left-[15%] top-[22%] h-4 w-4 rounded-full bg-[#17994f] shadow-[var(--surface-shadow)]" />
+            <div className="absolute left-[62%] top-[34%] h-4 w-4 rounded-full bg-[var(--ink)] shadow-[var(--surface-shadow)]" />
+            <div className="absolute left-[42%] top-[62%] h-4 w-4 rounded-full bg-[var(--accent)] shadow-[var(--surface-shadow)]" />
             <div className="relative z-10 flex h-full flex-col justify-between gap-4">
-              <div className="ml-auto max-w-[270px] rounded-[1.5rem] bg-white p-4 shadow-[0_18px_40px_rgba(18,18,18,0.12)]">
+              <div className="ml-auto max-w-[270px] rounded-[1.5rem] bg-white p-4 shadow-[var(--surface-shadow)]">
                 <div className="text-xs uppercase tracking-[0.14em] text-[var(--text-muted)]">Pickup</div>
                 <div className="mt-2 flex items-center gap-2 text-sm font-semibold">
                   <MapPin className="h-4 w-4" />
@@ -437,13 +439,13 @@ export default function FindOperatorsPage() {
                   The booking flow stays map-led and thread-based so request details do not get lost after you choose an operator.
                 </div>
               </div>
-              <div className="rounded-[1.6rem] bg-[#111111] p-4 text-white shadow-[0_18px_40px_rgba(18,18,18,0.12)]">
+              <div className="rounded-[1.6rem] bg-[var(--ink)] p-4 text-white shadow-[var(--surface-shadow)]">
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-xs uppercase tracking-[0.14em] text-white/48">Nearby matches</div>
                     <div className="mt-1 text-lg font-headline font-bold">Best operators nearby</div>
                   </div>
-                  <div className="rounded-full bg-[#7ddc7a] px-3 py-1 text-[10px] font-bold text-[#111111]">active</div>
+                  <div className="rounded-full bg-[#7ddc7a] px-3 py-1 text-[10px] font-bold text-[var(--ink)]">active</div>
                 </div>
                 <div className="mt-4 grid gap-2">
                   {filteredOperators.slice(0, 2).map((operator) => (
@@ -470,18 +472,21 @@ export default function FindOperatorsPage() {
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--text-muted)]" />
             <input
-              type="text"
+              type="search"
+              aria-label="Search operators"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search operators, services, city, or equipment"
-              className="h-13 w-full rounded-[1.3rem] border border-[var(--border-color)] bg-[#fbfbf8] pl-12 pr-4 text-[var(--text-primary)] outline-none transition focus:border-[#111111]"
+              className="h-13 w-full rounded-[1.3rem] border-[3px] border-[var(--border-color)] bg-[#fbfbf8] pl-12 pr-4 text-[var(--text-primary)] outline-none transition focus:border-[var(--ink)]"
             />
           </div>
           <button
+            aria-expanded={showFilters}
+            aria-controls="operator-filters"
             onClick={() => setShowFilters(!showFilters)}
             className={`inline-flex h-13 items-center justify-center gap-2 rounded-[1.3rem] border px-4 font-semibold transition ${
               showFilters
-                ? "border-[#111111] bg-[#111111] text-white"
+                ? "border-[var(--ink)] bg-[var(--ink)] text-white"
                 : "border-[var(--border-color)] bg-white text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
             }`}
           >
@@ -491,10 +496,10 @@ export default function FindOperatorsPage() {
         </div>
 
         {showFilters ? (
-          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div id="operator-filters" className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-[1.2rem] bg-[var(--bg-secondary)] p-3">
               <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Service</label>
-              <select value={filterService} onChange={(e) => setFilterService(e.target.value as ServiceType | "all")} className="h-11 w-full rounded-xl border border-[var(--border-color)] bg-white px-3 text-sm">
+              <select aria-label="Service" value={filterService} onChange={(e) => setFilterService(e.target.value as ServiceType | "all")} className="h-11 w-full rounded-xl border-[3px] border-[var(--border-color)] bg-white px-3 text-sm">
                 <option value="all">All Services</option>
                 {Object.entries(SERVICE_LABELS).map(([key, label]) => (
                   <option key={key} value={key}>{label}</option>
@@ -503,7 +508,7 @@ export default function FindOperatorsPage() {
             </div>
             <div className="rounded-[1.2rem] bg-[var(--bg-secondary)] p-3">
               <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Sort</label>
-              <select value={sortBy} onChange={(e) => setSortBy(e.target.value as "rating" | "price" | "distance")} className="h-11 w-full rounded-xl border border-[var(--border-color)] bg-white px-3 text-sm">
+              <select aria-label="Sort" value={sortBy} onChange={(e) => setSortBy(e.target.value as "rating" | "price" | "distance")} className="h-11 w-full rounded-xl border-[3px] border-[var(--border-color)] bg-white px-3 text-sm">
                 <option value="rating">Highest Rated</option>
                 <option value="price">Lowest Price</option>
                 <option value="distance">Nearest First</option>
@@ -511,7 +516,7 @@ export default function FindOperatorsPage() {
             </div>
             <div className="rounded-[1.2rem] bg-[var(--bg-secondary)] p-3">
               <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Equipment</label>
-              <select value={filterEquipment} onChange={(e) => setFilterEquipment(e.target.value)} className="h-11 w-full rounded-xl border border-[var(--border-color)] bg-white px-3 text-sm">
+              <select aria-label="Equipment" value={filterEquipment} onChange={(e) => setFilterEquipment(e.target.value)} className="h-11 w-full rounded-xl border-[3px] border-[var(--border-color)] bg-white px-3 text-sm">
                 <option value="all">Any Equipment</option>
                 <option value="Shovel">Shovel</option>
                 <option value="Snow Blower">Snow Blower</option>
@@ -566,7 +571,7 @@ export default function FindOperatorsPage() {
               <div
                 key={op.uid}
                 className={`surface-panel overflow-hidden transition ${
-                  op.uid === favoriteOperatorId ? "border-[#111111] shadow-[0_18px_35px_rgba(18,18,18,0.12)]" : ""
+                  op.uid === favoriteOperatorId ? "border-[var(--ink)] shadow-[var(--surface-shadow)]" : ""
                 }`}
               >
                 <div
@@ -594,17 +599,18 @@ export default function FindOperatorsPage() {
                           {op.businessName || op.displayName}
                         </Link>
                         {op.uid === favoriteOperatorId && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-[#111111] px-2.5 py-1 text-xs font-medium text-white">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--ink)] px-2.5 py-1 text-xs font-medium text-white">
                             <Snowflake className="h-3 w-3 fill-white" />
                             Favorite
                           </span>
                         )}
+                        <span className="text-xs font-semibold">{canAcceptPlatformPayments(op) ? "Platform payments available" : "Cash jobs only"} · {op.serviceRadius || 10} km service area</span>
                         {op.isStudent && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-[var(--bg-secondary)] px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)]">
                             <GraduationCap className="w-3 h-3" /> Student
                           </span>
                         )}
-                        {op.verified && (
+                        {op.idVerified && (
                           <span className="inline-flex items-center rounded-full bg-[#eaf7ef] px-2.5 py-1 text-xs font-medium text-[var(--accent-mint)]">
                             Verified
                           </span>
@@ -651,7 +657,7 @@ export default function FindOperatorsPage() {
                         <Snowflake
                           className={`w-5 h-5 ${
                             op.uid === favoriteOperatorId
-                              ? "fill-[#111111] text-[#111111]"
+                              ? "fill-[var(--ink)] text-[var(--ink)]"
                               : "text-[var(--text-muted)]"
                           }`}
                         />
@@ -752,8 +758,8 @@ export default function FindOperatorsPage() {
       {/* Scheduling Modal */}
       {schedulingOperator && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="w-full max-w-sm overflow-hidden rounded-[1.8rem] bg-white shadow-2xl">
-            <div className="relative bg-[#111111] p-5 text-white">
+          <div className="w-full max-w-sm overflow-hidden rounded-[1.8rem] bg-white shadow-[var(--surface-shadow)]">
+            <div className="relative bg-[var(--ink)] p-5 text-white">
               <button
                 onClick={() => setSchedulingOperator(null)}
                 className="absolute right-3 top-3 rounded-lg p-1 transition hover:bg-white/20"
@@ -772,12 +778,12 @@ export default function FindOperatorsPage() {
                   onClick={() => setScheduleType("asap")}
                   className={`flex flex-col items-center gap-1.5 p-4 rounded-xl border-2 transition ${
                     scheduleType === "asap"
-                      ? "border-[#111111] bg-[var(--accent-soft)]"
-                      : "border-[var(--border-color)] hover:border-[#111111]/30"
+                      ? "border-[var(--ink)] bg-[var(--accent-soft)]"
+                      : "border-[var(--border-color)] hover:border-[var(--ink)]/30"
                   }`}
                 >
-                  <Zap className={`w-5 h-5 ${scheduleType === "asap" ? "text-[#111111]" : "text-[var(--text-muted)]"}`} />
-                  <span className={`text-sm font-semibold ${scheduleType === "asap" ? "text-[#111111]" : "text-[var(--text-secondary)]"}`}>
+                  <Zap className={`w-5 h-5 ${scheduleType === "asap" ? "text-[var(--ink)]" : "text-[var(--text-muted)]"}`} />
+                  <span className={`text-sm font-semibold ${scheduleType === "asap" ? "text-[var(--ink)]" : "text-[var(--text-secondary)]"}`}>
                     ASAP
                   </span>
                   <span className="text-[10px] text-[var(--text-muted)]">As soon as possible</span>
@@ -786,12 +792,12 @@ export default function FindOperatorsPage() {
                   onClick={() => setScheduleType("scheduled")}
                   className={`flex flex-col items-center gap-1.5 p-4 rounded-xl border-2 transition ${
                     scheduleType === "scheduled"
-                      ? "border-[#111111] bg-[var(--accent-soft)]"
-                      : "border-[var(--border-color)] hover:border-[#111111]/30"
+                      ? "border-[var(--ink)] bg-[var(--accent-soft)]"
+                      : "border-[var(--border-color)] hover:border-[var(--ink)]/30"
                   }`}
                 >
-                  <CalendarDays className={`w-5 h-5 ${scheduleType === "scheduled" ? "text-[#111111]" : "text-[var(--text-muted)]"}`} />
-                  <span className={`text-sm font-semibold ${scheduleType === "scheduled" ? "text-[#111111]" : "text-[var(--text-secondary)]"}`}>
+                  <CalendarDays className={`w-5 h-5 ${scheduleType === "scheduled" ? "text-[var(--ink)]" : "text-[var(--text-muted)]"}`} />
+                  <span className={`text-sm font-semibold ${scheduleType === "scheduled" ? "text-[var(--ink)]" : "text-[var(--text-secondary)]"}`}>
                     Schedule
                   </span>
                   <span className="text-[10px] text-[var(--text-muted)]">Pick date & time</span>
@@ -809,7 +815,7 @@ export default function FindOperatorsPage() {
                       min={format(new Date(), "yyyy-MM-dd")}
                       max={format(addDays(new Date(), 30), "yyyy-MM-dd")}
                       onChange={(e) => setScheduledDate(e.target.value)}
-                      className="w-full rounded-xl border border-[var(--border-color)] px-4 py-3 text-sm focus:border-[#111111] focus:outline-none"
+                      className="w-full rounded-xl border-[3px] border-[var(--border-color)] px-4 py-3 text-sm focus:border-[var(--ink)] focus:outline-none"
                     />
                   </div>
                   <div>
@@ -821,8 +827,8 @@ export default function FindOperatorsPage() {
                           onClick={() => setScheduledTime(t)}
                           className={`flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg border text-xs font-medium transition ${
                             scheduledTime === t
-                              ? "border-[#111111] bg-[var(--accent-soft)] text-[#111111]"
-                              : "border-[var(--border-color)] text-[var(--text-muted)] hover:border-[#111111]/30"
+                              ? "border-[var(--ink)] bg-[var(--accent-soft)] text-[var(--ink)]"
+                              : "border-[var(--border-color)] text-[var(--text-muted)] hover:border-[var(--ink)]/30"
                           }`}
                         >
                           <Clock className="w-3 h-3" />

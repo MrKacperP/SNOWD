@@ -90,7 +90,7 @@ export default function ProgressTracker({
   }
 
   return (
-    <div className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-card-solid)] p-4">
+    <div className="rounded-xl border-[3px] border-[var(--border-color)] bg-[var(--bg-card-solid)] p-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-semibold text-sm text-[var(--text-primary)]">Job Progress</h3>
         {paymentStatus && (

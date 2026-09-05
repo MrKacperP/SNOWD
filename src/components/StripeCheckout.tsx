@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Elements,
   PaymentElement,
@@ -10,9 +10,10 @@ import {
 import { stripePromise } from "@/lib/stripe";
 import { Shield, Lock, X } from "lucide-react";
 import Image from "next/image";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 
 interface CheckoutFormProps {
-  onSuccess: (paymentIntentId: string) => void;
+  onSuccess: (paymentIntentId: string) => void | Promise<void>;
   onCancel: () => void;
   amount: number;
 }
@@ -50,9 +51,9 @@ function CheckoutFormInner({ onSuccess, onCancel, amount }: CheckoutFormProps) {
         setError(confirmError.message || "Payment failed");
       } else if (paymentIntent && paymentIntent.status === "requires_capture") {
         // Success! Funds are held.
-        onSuccess(paymentIntent.id);
+        await onSuccess(paymentIntent.id);
       } else if (paymentIntent && paymentIntent.status === "succeeded") {
-        onSuccess(paymentIntent.id);
+        await onSuccess(paymentIntent.id);
       }
     } catch (err) {
       setError("An unexpected error occurred");
@@ -96,7 +97,7 @@ function CheckoutFormInner({ onSuccess, onCancel, amount }: CheckoutFormProps) {
         <button
           type="submit"
           disabled={!stripe || processing}
-          className="flex-1 px-4 py-3 bg-[#2F6FED] text-white rounded-xl font-semibold hover:bg-[#2158C7] transition disabled:opacity-50 flex items-center justify-center gap-2"
+          className="flex-1 px-4 py-3 bg-[var(--accent)] text-white rounded-xl font-semibold hover:bg-[var(--accent-dark)] transition disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {processing ? (
             <>
@@ -124,7 +125,7 @@ function CheckoutFormInner({ onSuccess, onCancel, amount }: CheckoutFormProps) {
 interface StripeCheckoutProps {
   clientSecret: string;
   amount: number;
-  onSuccess: (paymentIntentId: string) => void;
+  onSuccess: (paymentIntentId: string) => void | Promise<void>;
   onCancel: () => void;
 }
 
@@ -134,13 +135,22 @@ export default function StripeCheckout({
   onSuccess,
   onCancel,
 }: StripeCheckoutProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(true, dialogRef);
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") onCancel(); };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [onCancel]);
+
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Secure payment" tabIndex={-1} className="max-h-[calc(100dvh-2rem)] overflow-y-auto bg-white border-[3px] border-[var(--ink)] rounded-2xl shadow-[var(--surface-shadow)] max-w-md w-full">
         {/* Header */}
-        <div className="bg-[#2F6FED] p-5 text-white relative">
+        <div className="bg-[var(--accent)] p-5 text-white relative">
           <button
             onClick={onCancel}
+            aria-label="Close payment"
             className="absolute top-3 right-3 p-1 rounded-lg hover:bg-white/20 transition"
           >
             <X className="w-5 h-5" />
@@ -151,7 +161,7 @@ export default function StripeCheckout({
             </div>
             <div>
               <h2 className="font-bold text-lg">snowd.ca Secure Payment</h2>
-              <p className="text-[#2F6FED]/20 text-sm">Funds held until job completion</p>
+              <p className="text-white/90 text-sm">Funds held until job completion</p>
             </div>
           </div>
         </div>
@@ -165,9 +175,12 @@ export default function StripeCheckout({
               appearance: {
                 theme: "stripe",
                 variables: {
-                  colorPrimary: "#2563eb",
-                  borderRadius: "12px",
-                  fontFamily: "system-ui, -apple-system, sans-serif",
+                  colorPrimary: "#061321",
+                  colorBackground: "#f3f8fb",
+                  colorText: "#061321",
+                  colorDanger: "#b91c1c",
+                  borderRadius: "16px",
+                  fontFamily: "Instrument Sans, system-ui, sans-serif",
                 },
               },
             }}

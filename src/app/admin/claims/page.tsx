@@ -19,36 +19,36 @@ export default function AdminClaimsPage() {
   return (
     <div className="space-y-4">
       <AdminCard className="p-2 inline-flex gap-1">
-        <button onClick={() => setTab("Open Claims")} className={`px-3 py-2 rounded-lg text-sm font-medium ${tab === "Open Claims" ? "bg-[#EFF6FF] text-[#3B82F6]" : "text-[#6B7280]"}`}>Open Claims</button>
-        <button onClick={() => setTab("Resolved Claims")} className={`px-3 py-2 rounded-lg text-sm font-medium ${tab === "Resolved Claims" ? "bg-[#EFF6FF] text-[#3B82F6]" : "text-[#6B7280]"}`}>Resolved Claims</button>
+        <button onClick={() => setTab("Open Claims")} className={`px-3 py-2 rounded-lg text-sm font-medium ${tab === "Open Claims" ? "bg-[var(--bg-secondary)] text-[var(--accent)]" : "text-[var(--text-muted)]"}`}>Open Claims</button>
+        <button onClick={() => setTab("Resolved Claims")} className={`px-3 py-2 rounded-lg text-sm font-medium ${tab === "Resolved Claims" ? "bg-[var(--bg-secondary)] text-[var(--accent)]" : "text-[var(--text-muted)]"}`}>Resolved Claims</button>
       </AdminCard>
 
       <div className="space-y-3">
         {rows.map((claim) => (
           <AdminCard key={claim.id} className="p-4">
             <button onClick={() => setExpandedId((prev) => (prev === claim.id ? null : claim.id))} className="w-full text-left flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[#DBEAFE] text-[#3B82F6] text-xs font-semibold flex items-center justify-center shrink-0">{claim.claimantAvatar}</div>
+              <div className="w-10 h-10 rounded-full bg-[var(--bg-secondary)] text-[var(--accent)] text-xs font-semibold flex items-center justify-center shrink-0">{claim.claimantAvatar}</div>
               <div className="min-w-0 flex-1">
-                <p className="font-semibold text-[#1A1A2E]">{claim.claimantName}</p>
-                <p className="text-sm text-[#6B7280]">{claim.claimType} • ${claim.amountDisputed.toFixed(2)}</p>
+                <p className="font-semibold text-[var(--ink)]">{claim.claimantName}</p>
+                <p className="text-sm text-[var(--text-muted)]">{claim.claimType} • ${claim.amountDisputed.toFixed(2)}</p>
               </div>
               <div className="flex items-center gap-2">
                 <StatusTag label={claim.status} tone={claim.status === "Open" ? "red" : "green"} />
-                {expandedId === claim.id ? <ChevronUp className="w-4 h-4 text-[#6B7280]" /> : <ChevronDown className="w-4 h-4 text-[#6B7280]" />}
+                {expandedId === claim.id ? <ChevronUp className="w-4 h-4 text-[var(--text-muted)]" /> : <ChevronDown className="w-4 h-4 text-[var(--text-muted)]" />}
               </div>
             </button>
 
             {expandedId === claim.id && (
-              <div className="mt-3 pt-3 border-t border-[#E5E7EB] space-y-3">
+              <div className="mt-3 pt-3 border-t border-[var(--border)] space-y-3">
                 <div>
-                  <p className="text-xs text-[#6B7280]">Description</p>
-                  <p className="text-sm text-[#374151] mt-1">{claim.description}</p>
+                  <p className="text-xs text-[var(--text-muted)]">Description</p>
+                  <p className="text-sm text-[var(--text-secondary)] mt-1">{claim.description}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-[#6B7280]">Evidence</p>
+                  <p className="text-xs text-[var(--text-muted)]">Evidence</p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {claim.evidence.map((ev) => (
-                      <div key={ev} className="w-24 h-16 rounded-lg border border-[#E5E7EB] bg-[#F3F4F6] text-xs text-[#6B7280] flex items-center justify-center">{ev}</div>
+                      <div key={ev} className="w-24 h-16 rounded-lg border-[3px] border-[var(--border)] bg-[var(--bg-secondary)] text-xs text-[var(--text-muted)] flex items-center justify-center">{ev}</div>
                     ))}
                   </div>
                 </div>
@@ -56,7 +56,7 @@ export default function AdminClaimsPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <button onClick={() => setPendingAction({ id: claim.id, action: "Approve Claim" })} className="h-9 rounded-lg bg-[#16A34A] text-white text-sm font-semibold">Approve Claim</button>
                     <button onClick={() => setPendingAction({ id: claim.id, action: "Reject Claim" })} className="h-9 rounded-lg bg-[#DC2626] text-white text-sm font-semibold">Reject Claim</button>
-                    <button onClick={() => setPendingAction({ id: claim.id, action: "Request More Info" })} className="h-9 rounded-lg border border-[#E5E7EB] text-sm font-semibold text-[#374151]">Request More Info</button>
+                    <button onClick={() => setPendingAction({ id: claim.id, action: "Request More Info" })} className="h-9 rounded-lg border-[3px] border-[var(--border)] text-sm font-semibold text-[var(--text-secondary)]">Request More Info</button>
                   </div>
                 )}
               </div>

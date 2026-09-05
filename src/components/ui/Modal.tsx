@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useId, useRef } from "react";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 import { X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -18,8 +19,8 @@ interface ModalProps {
 
 const variantStyles = {
   default: {
-    iconBg: "bg-[#2F6FED]/10",
-    iconColor: "text-[#2F6FED]",
+    iconBg: "bg-[var(--accent-sun-soft)]",
+    iconColor: "text-[var(--accent)]",
     accentGlow: "rgba(36, 110, 185, 0.15)",
   },
   danger: {
@@ -59,16 +60,10 @@ export default function Modal({
   const overlayRef = useRef<HTMLDivElement>(null);
   const style = variantStyles[variant];
 
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [isOpen]);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  const subtitleId = useId();
+  useDialogFocus(isOpen, dialogRef);
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -93,11 +88,18 @@ export default function Modal({
           }}
         >
           {/* Backdrop */}
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+          <div className="pointer-events-none absolute inset-0 bg-black/40 backdrop-blur-sm" />
 
           {/* Modal */}
           <motion.div
-            className={`relative w-full ${sizeStyles[size]} bg-[var(--bg-card-solid)] rounded-2xl shadow-2xl border border-[var(--border-color)] overflow-hidden`}
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={title ? titleId : undefined}
+            aria-label={title ? undefined : "Dialog"}
+            aria-describedby={subtitle ? subtitleId : undefined}
+            tabIndex={-1}
+            className={`relative max-h-[calc(100dvh-2rem)] overflow-y-auto w-full ${sizeStyles[size]} bg-[var(--bg-card-solid)] rounded-2xl shadow-[var(--surface-shadow)] border-[3px] border-[var(--border-color)]`}
             initial={{ scale: 0.9, opacity: 0, y: 50 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 50 }}
@@ -111,7 +113,7 @@ export default function Modal({
                   ? "bg-red-500"
                   : variant === "success"
                   ? "bg-emerald-500"
-                  : "bg-[#2F6FED]"
+                  : "bg-[var(--accent-sun)]"
               }`}
             />
 
@@ -119,7 +121,9 @@ export default function Modal({
             {showClose && (
               <button
                 onClick={onClose}
-                className="absolute top-4 right-4 p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-all z-10"
+                type="button"
+                aria-label="Close dialog"
+                className="absolute top-4 right-4 p-3 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-all z-10"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -135,12 +139,12 @@ export default function Modal({
 
               {/* Title */}
               {title && (
-                <h2 className="text-xl font-bold text-[var(--text-primary)] text-center">
+                <h2 id={titleId} className="text-xl font-black text-[var(--text-primary)] text-center">
                   {title}
                 </h2>
               )}
               {subtitle && (
-                <p className="text-sm text-[var(--text-secondary)] text-center mt-1.5">
+                <p id={subtitleId} className="text-sm text-[var(--text-secondary)] text-center mt-1.5">
                   {subtitle}
                 </p>
               )}

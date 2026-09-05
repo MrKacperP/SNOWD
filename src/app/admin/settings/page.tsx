@@ -42,44 +42,44 @@ export default function AdminSettingsPage() {
   return (
     <div className="space-y-4">
       <AdminCard className="p-4 space-y-3">
-        <h2 className="text-lg font-semibold text-[#1A1A2E]">General</h2>
+        <h2 className="text-lg font-semibold text-[var(--ink)]">General</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
-            <label className="text-sm text-[#374151]">Site name</label>
+            <label className="text-sm text-[var(--text-secondary)]">Site name</label>
             <input
               value={settings.siteName}
               onChange={(e) => setSettings((prev) => ({ ...prev, siteName: e.target.value }))}
-              className={`mt-1 w-full h-10 px-3 rounded-lg border ${errors.siteName ? "border-[#DC2626]" : "border-[#E5E7EB]"}`}
+              className={`mt-1 w-full h-10 px-3 rounded-lg border ${errors.siteName ? "border-[#DC2626]" : "border-[var(--border)]"}`}
             />
             {errors.siteName && <p className="text-xs text-[#DC2626] mt-1">{errors.siteName}</p>}
           </div>
           <div>
-            <label className="text-sm text-[#374151]">Support email</label>
+            <label className="text-sm text-[var(--text-secondary)]">Support email</label>
             <input
               value={settings.supportEmail}
               onChange={(e) => setSettings((prev) => ({ ...prev, supportEmail: e.target.value }))}
-              className={`mt-1 w-full h-10 px-3 rounded-lg border ${errors.supportEmail ? "border-[#DC2626]" : "border-[#E5E7EB]"}`}
+              className={`mt-1 w-full h-10 px-3 rounded-lg border ${errors.supportEmail ? "border-[#DC2626]" : "border-[var(--border)]"}`}
             />
             {errors.supportEmail && <p className="text-xs text-[#DC2626] mt-1">{errors.supportEmail}</p>}
           </div>
         </div>
         <div className="max-w-[300px]">
-          <label className="text-sm text-[#374151]">Timezone</label>
+          <label className="text-sm text-[var(--text-secondary)]">Timezone</label>
           <select
             value={settings.timezone}
             onChange={(e) => setSettings((prev) => ({ ...prev, timezone: e.target.value }))}
-            className="mt-1 w-full h-10 px-3 rounded-lg border border-[#E5E7EB]"
+            className="mt-1 w-full h-10 px-3 rounded-lg border-[3px] border-[var(--border)]"
           >
             <option>America/Toronto</option>
             <option>America/Vancouver</option>
             <option>America/New_York</option>
           </select>
         </div>
-        <button onClick={saveGeneral} className="h-9 px-3 rounded-lg bg-[#3B82F6] text-white text-sm font-semibold">Save</button>
+        <button onClick={saveGeneral} className="h-9 px-3 rounded-lg bg-[var(--accent)] text-white text-sm font-semibold">Save</button>
       </AdminCard>
 
       <AdminCard className="p-4 space-y-3">
-        <h2 className="text-lg font-semibold text-[#1A1A2E]">Notifications</h2>
+        <h2 className="text-lg font-semibold text-[var(--ink)]">Notifications</h2>
         <div className="space-y-2 text-sm">
           {[
             { key: "newVerification", label: "New verification" },
@@ -89,7 +89,7 @@ export default function AdminSettingsPage() {
           ].map((entry) => {
             const key = entry.key as keyof typeof settings.notifications;
             return (
-              <label key={entry.key} className="flex items-center justify-between p-2 rounded-lg border border-[#E5E7EB]">
+              <label key={entry.key} className="flex items-center justify-between p-2 rounded-lg border-[3px] border-[var(--border)]">
                 <span>{entry.label}</span>
                 <input
                   type="checkbox"
@@ -108,7 +108,7 @@ export default function AdminSettingsPage() {
       </AdminCard>
 
       <AdminCard className="p-4 space-y-3">
-        <h2 className="text-lg font-semibold text-[#1A1A2E]">Security</h2>
+        <h2 className="text-lg font-semibold text-[var(--ink)]">Security</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div>
             <input
@@ -116,7 +116,7 @@ export default function AdminSettingsPage() {
               placeholder="Current password"
               value={passwordForm.current}
               onChange={(e) => setPasswordForm((prev) => ({ ...prev, current: e.target.value }))}
-              className={`w-full h-10 px-3 rounded-lg border ${errors.current ? "border-[#DC2626]" : "border-[#E5E7EB]"}`}
+              className={`w-full h-10 px-3 rounded-lg border ${errors.current ? "border-[#DC2626]" : "border-[var(--border)]"}`}
             />
             {errors.current && <p className="text-xs text-[#DC2626] mt-1">{errors.current}</p>}
           </div>
@@ -126,7 +126,7 @@ export default function AdminSettingsPage() {
               placeholder="New password"
               value={passwordForm.next}
               onChange={(e) => setPasswordForm((prev) => ({ ...prev, next: e.target.value }))}
-              className={`w-full h-10 px-3 rounded-lg border ${errors.next ? "border-[#DC2626]" : "border-[#E5E7EB]"}`}
+              className={`w-full h-10 px-3 rounded-lg border ${errors.next ? "border-[#DC2626]" : "border-[var(--border)]"}`}
             />
             {errors.next && <p className="text-xs text-[#DC2626] mt-1">{errors.next}</p>}
           </div>
@@ -136,7 +136,7 @@ export default function AdminSettingsPage() {
               placeholder="Confirm password"
               value={passwordForm.confirm}
               onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirm: e.target.value }))}
-              className={`w-full h-10 px-3 rounded-lg border ${errors.confirm ? "border-[#DC2626]" : "border-[#E5E7EB]"}`}
+              className={`w-full h-10 px-3 rounded-lg border ${errors.confirm ? "border-[#DC2626]" : "border-[var(--border)]"}`}
             />
             {errors.confirm && <p className="text-xs text-[#DC2626] mt-1">{errors.confirm}</p>}
           </div>
@@ -153,19 +153,19 @@ export default function AdminSettingsPage() {
           <select
             value={settings.sessionTimeout}
             onChange={(e) => setSettings((prev) => ({ ...prev, sessionTimeout: e.target.value as "15 min" | "30 min" | "1 hour" }))}
-            className="h-10 px-3 rounded-lg border border-[#E5E7EB] text-sm"
+            className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] text-sm"
           >
             <option>15 min</option>
             <option>30 min</option>
             <option>1 hour</option>
           </select>
-          <button onClick={saveSecurity} className="h-9 px-3 rounded-lg bg-[#3B82F6] text-white text-sm font-semibold">Update Security</button>
+          <button onClick={saveSecurity} className="h-9 px-3 rounded-lg bg-[var(--accent)] text-white text-sm font-semibold">Update Security</button>
         </div>
       </AdminCard>
 
       <AdminCard className="p-4 space-y-3 border-[#FCA5A5]">
         <h2 className="text-lg font-semibold text-[#B91C1C]">Danger Zone</h2>
-        <p className="text-sm text-[#6B7280]">These actions are destructive and require confirmation.</p>
+        <p className="text-sm text-[var(--text-muted)]">These actions are destructive and require confirmation.</p>
         <div className="flex flex-wrap gap-2">
           <button onClick={() => setDangerAction("delete-verifications")} className="h-9 px-3 rounded-lg bg-[#DC2626] text-white text-sm font-semibold">Delete all pending verifications</button>
           <button onClick={() => setDangerAction("wipe-test-data")} className="h-9 px-3 rounded-lg bg-[#B91C1C] text-white text-sm font-semibold">Wipe test data</button>
@@ -175,13 +175,13 @@ export default function AdminSettingsPage() {
       {dangerAction && (
         <div className="fixed inset-0 z-[85] flex items-center justify-center px-4" onClick={() => { setDangerAction(null); setDangerText(""); }}>
           <div className="absolute inset-0 bg-black/40" />
-          <div className="relative w-full max-w-md bg-white border border-[#E5E7EB] rounded-xl shadow-xl p-5" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-[#1A1A2E]">Confirm destructive action</h3>
-            <p className="text-sm text-[#6B7280] mt-2">Type <span className="font-semibold text-[#DC2626]">DELETE</span> to continue.</p>
-            <input value={dangerText} onChange={(e) => setDangerText(e.target.value)} className={`mt-3 w-full h-10 px-3 rounded-lg border ${dangerText && dangerText !== "DELETE" ? "border-[#DC2626]" : "border-[#E5E7EB]"}`} />
+          <div className="relative w-full max-w-md bg-white border-[3px] border-[var(--border)] rounded-xl shadow-[var(--surface-shadow)] p-5" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-[var(--ink)]">Confirm destructive action</h3>
+            <p className="text-sm text-[var(--text-muted)] mt-2">Type <span className="font-semibold text-[#DC2626]">DELETE</span> to continue.</p>
+            <input value={dangerText} onChange={(e) => setDangerText(e.target.value)} className={`mt-3 w-full h-10 px-3 rounded-lg border ${dangerText && dangerText !== "DELETE" ? "border-[#DC2626]" : "border-[var(--border)]"}`} />
             {dangerText && dangerText !== "DELETE" && <p className="text-xs text-[#DC2626] mt-1">You must type DELETE exactly.</p>}
             <div className="mt-5 flex justify-end gap-2">
-              <button onClick={() => { setDangerAction(null); setDangerText(""); }} className="h-9 px-3 rounded-lg border border-[#E5E7EB] text-sm">Cancel</button>
+              <button onClick={() => { setDangerAction(null); setDangerText(""); }} className="h-9 px-3 rounded-lg border-[3px] border-[var(--border)] text-sm">Cancel</button>
               <button disabled={dangerText !== "DELETE"} onClick={() => { setDangerAction(null); setDangerText(""); }} className="h-9 px-3 rounded-lg bg-[#DC2626] text-white text-sm font-semibold disabled:opacity-50">Execute</button>
             </div>
           </div>

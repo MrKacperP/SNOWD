@@ -24,8 +24,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     document.documentElement.classList.remove("dark");
     localStorage.setItem("snowd-theme", "light");
-    setThemeState("light");
-    setResolvedTheme("light");
   }, []);
 
   const setTheme = (newTheme: ThemePreference) => {

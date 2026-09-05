@@ -5,9 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { sendPasswordResetEmail, setPersistence, browserLocalPersistence, browserSessionPersistence } from "firebase/auth";
+import { auth, db } from "@/lib/firebase";
 import AuthPageShell from "@/components/AuthPageShell";
-import { ArrowRight, Mail, TimerReset } from "lucide-react";
+import { ArrowRight, Mail } from "lucide-react";
 import { motion } from "framer-motion";
 
 const ADMIN_EMAILS = ["kacperprymicz@gmail.com"];
@@ -24,6 +25,7 @@ function LoginPageInner() {
   const searchParams = useSearchParams();
 
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -90,11 +92,12 @@ function LoginPageInner() {
     setError("");
     setLoading(true);
     try {
+      await setPersistence(auth, remember ? browserLocalPersistence : browserSessionPersistence);
       const googleUser = await signInWithGoogle();
       await checkProfileAndRedirect(googleUser.uid);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to sign in with Google";
-      if (!msg.includes("popup-closed")) setError(msg);
+      if (!msg.includes("popup-closed")) setError("Google sign-in failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -105,17 +108,29 @@ function LoginPageInner() {
     setError("");
     setLoading(true);
     try {
+      await setPersistence(auth, remember ? browserLocalPersistence : browserSessionPersistence);
       const signedUser = await signInWithEmailPassword(email.trim(), password);
       await checkProfileAndRedirect(signedUser.uid);
-      if (!remember && typeof window !== "undefined") {
-        sessionStorage.removeItem("snowd_signup_name");
-        sessionStorage.removeItem("snowd_signup_postal");
-      }
+
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to sign in with email and password");
+      console.error("Email sign-in failed", err);
+      setError("Sign-in failed. Check your email and password.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePasswordReset = async () => {
+    setError("");
+    setNotice("");
+    if (!email.trim()) { setError("Enter your email above to reset your password."); return; }
+    setLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      setNotice("If this email has an account, check your inbox for a reset link.");
+    } catch {
+      setError("Could not request a reset. Check your email and try again.");
+    } finally { setLoading(false); }
   };
 
   if (!authLoading && user && profile?.onboardingComplete) return null;
@@ -128,18 +143,19 @@ function LoginPageInner() {
       features={benefits}
     >
       <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="w-full">
-        <div className="rounded-[1.35rem] border-[3px] border-[#061321] bg-white p-4 shadow-[5px_5px_0_#061321] sm:p-5 lg:p-6">
-          <div className="inline-flex rounded-full bg-[#ff820e] px-3.5 py-1.5 text-[11px] font-black uppercase tracking-[0.16em]">
+        <div className="login-card rounded-[1.35rem] border-[3px] border-[#061321] bg-white p-4 shadow-[5px_5px_0_#061321] sm:p-5 lg:p-6">
+          <div className="login-badge inline-flex rounded-full bg-[#ff820e] px-3.5 py-1.5 text-[11px] font-black uppercase tracking-[0.16em]">
             Sign in
           </div>
-          <h2 className="mt-3 font-headline text-[clamp(2rem,7vw,3rem)] font-black lowercase leading-none">
+          <h2 className="login-title mt-3 font-headline text-[clamp(2rem,7vw,3rem)] font-black lowercase leading-none">
             Access your account<span className="text-[#ff820e]">.</span>
           </h2>
 
           <form onSubmit={handleEmailSignIn} className="mt-4 space-y-3">
               <div>
-                <label className="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-[#061321]/60">Email</label>
+                <label htmlFor="login-email" className="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-[#061321]/60">Email</label>
                 <input
+                  id="login-email"
                   type="email"
                   required
                   autoComplete="email"
@@ -150,8 +166,9 @@ function LoginPageInner() {
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-[#061321]/60">Password</label>
+                <label htmlFor="login-password" className="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-[#061321]/60">Password</label>
                 <input
+                  id="login-password"
                   type="password"
                   required
                   autoComplete="current-password"
@@ -172,13 +189,15 @@ function LoginPageInner() {
                   />
                   Keep me signed in
                 </label>
-                <button type="button" className="font-black text-[#061321]">
+                <button type="button" onClick={handlePasswordReset} disabled={loading} className="font-black text-[#061321]">
                   Forgot password
                 </button>
               </div>
 
+              {notice ? <p role="status" className="text-xs font-bold text-[#061321]">{notice}</p> : null}
+
               {error ? (
-                <div className="rounded-2xl border-[3px] border-red-700 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div>
+                <div role="alert" className="rounded-2xl border-[3px] border-red-700 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div>
               ) : null}
 
               <button
@@ -204,11 +223,6 @@ function LoginPageInner() {
               Continue with Google
             </button>
 
-            <div className="mt-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.1em] text-[#061321]/48">
-              <TimerReset className="h-4 w-4" />
-              Secure Firebase auth
-            </div>
-
             <p className="mt-3 text-sm font-bold text-[#061321]/62">
               Don&apos;t have an account?{" "}
               <Link href="/signup" className="font-black text-[#061321] underline decoration-[#ff820e] decoration-4 underline-offset-4">
@@ -217,7 +231,7 @@ function LoginPageInner() {
             </p>
         </div>
 
-        <div className="mt-3 hidden rounded-2xl border-[3px] border-[#061321] bg-[#dfeef8] p-3 sm:block">
+        <div className="login-helper mt-3 hidden rounded-2xl border-[3px] border-[#061321] bg-[#dfeef8] p-3 sm:block">
           <div className="flex items-center gap-3 text-xs font-black sm:text-sm">
             <Mail className="h-5 w-5" strokeWidth={3} />
             Same dashboard, messages, and dispatch once you are in.

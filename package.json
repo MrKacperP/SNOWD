@@ -7,16 +7,20 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed:dev-users": "npx tsx scripts/seed-dev-users.ts"
+    "seed:dev-users": "npx tsx scripts/seed-dev-users.ts",
+    "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",
     "@react-google-maps/api": "^2.20.8",
+    "@stripe/connect-js": "^3.4.6",
+    "@stripe/react-connect-js": "^3.4.4",
     "@stripe/react-stripe-js": "^5.6.0",
     "@stripe/stripe-js": "^8.7.0",
     "@types/google.maps": "^3.58.1",
     "date-fns": "^4.1.0",
     "firebase": "^12.9.0",
+    "firebase-admin": "^14.3.0",
     "framer-motion": "^12.35.0",
     "lucide-react": "^0.563.0",
     "next": "16.1.6",
@@ -27,6 +31,7 @@
     "stripe": "^20.3.1"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
     "@google-cloud/storage": "^7.19.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",

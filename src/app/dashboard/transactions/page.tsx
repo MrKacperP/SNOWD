@@ -217,7 +217,7 @@ export default function TransactionsPage() {
           <button
             onClick={handleManageStripe}
             disabled={stripeLoading}
-            className="flex items-center gap-2 px-4 py-2 bg-[#3B82F6]/10 text-[#3B82F6] rounded-xl text-sm font-semibold hover:bg-[#3B82F6]/20 transition disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)]/10 text-[var(--accent)] rounded-xl text-sm font-semibold hover:bg-[var(--accent)]/20 transition disabled:opacity-50"
           >
             {stripeLoading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -288,10 +288,10 @@ export default function TransactionsPage() {
             </div>
             <div className="bg-white rounded-2xl border border-slate-200 p-4">
               <div className="flex items-center gap-2 mb-1">
-                <HandCoins className="w-4 h-4 text-[#3B82F6]" />
+                <HandCoins className="w-4 h-4 text-[var(--accent)]" />
                 <span className="text-xs font-medium text-slate-500">Tips</span>
               </div>
-              <p className="text-xl font-bold text-[#3B82F6]">${(totalTips / 100).toFixed(2)}</p>
+              <p className="text-xl font-bold text-[var(--accent)]">${(totalTips / 100).toFixed(2)}</p>
             </div>
           </>
         )}
@@ -302,7 +302,7 @@ export default function TransactionsPage() {
         <div className="bg-white rounded-2xl border border-slate-200 p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-bold text-slate-900 flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-[#3B82F6]" />
+              <BarChart3 className="w-4 h-4 text-[var(--accent)]" />
               Earnings (14 days)
             </h2>
             <span className="text-xs text-slate-500">
@@ -342,21 +342,21 @@ export default function TransactionsPage() {
 
       {/* Stripe Portal Link for Operators */}
       {isOperator && (
-        <div className="bg-[#3B82F6]/5 rounded-2xl border border-[#3B82F6]/10 p-4">
+        <div className="bg-[var(--accent)]/5 rounded-2xl border border-[var(--accent)]/10 p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-[#3B82F6]/10 rounded-xl flex items-center justify-center">
-                <CreditCard className="w-5 h-5 text-[#3B82F6]" />
+              <div className="w-10 h-10 bg-[var(--accent)]/10 rounded-xl flex items-center justify-center">
+                <CreditCard className="w-5 h-5 text-[var(--accent)]" />
               </div>
               <div>
-                <p className="font-semibold text-[#0B1F33] text-sm">Stripe Dashboard</p>
+                <p className="font-semibold text-[var(--ink)] text-sm">Stripe Dashboard</p>
                 <p className="text-xs text-slate-500">View payouts, bank details & tax info</p>
               </div>
             </div>
             <button
               onClick={handleManageStripe}
               disabled={stripeLoading}
-              className="flex items-center gap-2 px-4 py-2 bg-[#3B82F6] text-white rounded-xl text-sm font-semibold hover:bg-[#2563EB] transition disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-xl text-sm font-semibold hover:bg-[var(--accent)] transition disabled:opacity-50"
             >
               {stripeLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
               Open Stripe
@@ -374,7 +374,7 @@ export default function TransactionsPage() {
             onClick={() => setFilter(f)}
             className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition ${
               filter === f
-                ? "bg-[#3B82F6] text-white"
+                ? "bg-[var(--accent)] text-white"
                 : "bg-slate-100 text-slate-500 hover:bg-slate-200"
             }`}
           >
@@ -400,7 +400,7 @@ export default function TransactionsPage() {
             <Link
               key={txn.id}
               href={txn.chatId ? `/dashboard/messages/${txn.chatId}` : "#"}
-              className="block bg-white rounded-2xl border border-slate-200 p-4 hover:shadow-md transition group"
+              className="block bg-white rounded-2xl border border-slate-200 p-4 hover:shadow-[var(--surface-shadow)] transition group"
             >
               <div className="flex items-start gap-3">
                 {/* Icon */}
@@ -468,7 +468,7 @@ export default function TransactionsPage() {
                   {(txn.tipAmount || txn.cashReceived) && (
                     <div className="flex items-center gap-3 text-xs mt-1">
                       {txn.tipAmount ? (
-                        <span className="text-[#3B82F6] font-medium">Tip: ${(txn.tipAmount / 100).toFixed(2)}</span>
+                        <span className="text-[var(--accent)] font-medium">Tip: ${(txn.tipAmount / 100).toFixed(2)}</span>
                       ) : null}
                       {txn.cashReceived ? (
                         <span className="text-emerald-600 font-medium">Cash: ${(txn.cashReceived / 100).toFixed(2)}</span>

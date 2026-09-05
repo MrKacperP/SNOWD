@@ -61,24 +61,24 @@ export default function AdminTransactionsPage() {
 
       <AdminCard className="p-4">
         <div className="flex flex-wrap items-center gap-2">
-          <select value={dateRange} onChange={(e) => setDateRange(e.target.value)} className="h-10 px-3 rounded-lg border border-[#E5E7EB] text-sm bg-white">
+          <select value={dateRange} onChange={(e) => setDateRange(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] text-sm bg-white">
             <option>Last 7 days</option>
             <option>Last 30 days</option>
             <option>Last 90 days</option>
           </select>
-          <select value={type} onChange={(e) => setType(e.target.value)} className="h-10 px-3 rounded-lg border border-[#E5E7EB] text-sm bg-white">
+          <select value={type} onChange={(e) => setType(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] text-sm bg-white">
             <option>All</option>
             <option>Payment</option>
             <option>Refund</option>
             <option>Fee</option>
           </select>
-          <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-10 px-3 rounded-lg border border-[#E5E7EB] text-sm bg-white">
+          <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] text-sm bg-white">
             <option>All</option>
             <option>Completed</option>
             <option>Pending</option>
             <option>Failed</option>
           </select>
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search transactions" className="h-10 px-3 rounded-lg border border-[#E5E7EB] bg-[#F8F9FA] text-sm min-w-[220px]" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search transactions" className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-[var(--bg-primary)] text-sm min-w-[220px]" />
         </div>
       </AdminCard>
 
@@ -98,7 +98,7 @@ export default function AdminTransactionsPage() {
             </thead>
             <tbody>
               {rows.map((t) => (
-                <tr key={t.id} className="border-b border-[#E5E7EB] hover:bg-[#F9FAFB] cursor-pointer" onClick={() => setSelectedId(t.id)}>
+                <tr key={t.id} className="border-b border-[var(--border)] hover:bg-[var(--bg-primary)] cursor-pointer" onClick={() => setSelectedId(t.id)}>
                   <td className={tableCell}>{t.id.toUpperCase()}</td>
                   <td className={tableCell}>{t.fromUser}</td>
                   <td className={tableCell}>{t.toUser}</td>
@@ -136,7 +136,7 @@ export default function AdminTransactionsPage() {
             </AdminCard>
             <AdminCard className="p-3">
               <p className="text-sm font-semibold">Dispute History</p>
-              <div className="text-sm mt-1 text-[#374151] space-y-1">
+              <div className="text-sm mt-1 text-[var(--text-secondary)] space-y-1">
                 {(selected.disputeHistory || []).length ? (selected.disputeHistory || []).map((d) => <p key={d}>• {d}</p>) : <p>No disputes on record.</p>}
               </div>
             </AdminCard>

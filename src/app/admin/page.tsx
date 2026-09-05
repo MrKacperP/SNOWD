@@ -29,8 +29,8 @@ export default function AdminOverviewPage() {
           const positive = card.trend >= 0;
           return (
             <AdminCard key={card.label} className="p-4">
-              <p className="text-sm text-[#6B7280]">{card.label}</p>
-              <p className="text-2xl font-semibold mt-2 text-[#1A1A2E]">{card.value}</p>
+              <p className="text-sm text-[var(--text-muted)]">{card.label}</p>
+              <p className="text-2xl font-semibold mt-2 text-[var(--ink)]">{card.value}</p>
               <div className="mt-3 inline-flex items-center gap-1 text-xs font-semibold">
                 {positive ? (
                   <ArrowUpRight className="w-3.5 h-3.5 text-[#16A34A]" />
@@ -38,7 +38,7 @@ export default function AdminOverviewPage() {
                   <ArrowDownRight className="w-3.5 h-3.5 text-[#DC2626]" />
                 )}
                 <span className={positive ? "text-[#16A34A]" : "text-[#DC2626]"}>{Math.abs(card.trend)}%</span>
-                <span className="text-[#9CA3AF]">vs last period</span>
+                <span className="text-[var(--text-muted)]">vs last period</span>
               </div>
             </AdminCard>
           );
@@ -48,7 +48,7 @@ export default function AdminOverviewPage() {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <AdminCard className="p-4 h-[360px]">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-[#1A1A2E]">Platform Activity (30 days)</h2>
+            <h2 className="font-semibold text-[var(--ink)]">Platform Activity (30 days)</h2>
             <StatusTag label="Live" tone="green" />
           </div>
           <ResponsiveContainer width="100%" height="88%">
@@ -64,20 +64,20 @@ export default function AdminOverviewPage() {
 
         <AdminCard className="p-4 h-[360px]">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-[#1A1A2E]">Recent Activity</h2>
-            <Link href="/admin/activity" className="text-xs font-medium text-[#3B82F6]">View all</Link>
+            <h2 className="font-semibold text-[var(--ink)]">Recent Activity</h2>
+            <Link href="/admin/activity" className="text-xs font-medium text-[var(--accent)]">View all</Link>
           </div>
           <div className="space-y-2 overflow-y-auto max-h-[292px]">
             {activityEvents.slice(0, 10).map((event) => (
-              <Link key={event.id} href={event.href} className="flex items-start gap-3 rounded-lg p-2 hover:bg-[#F9FAFB]">
-                <div className="w-8 h-8 rounded-full bg-[#DBEAFE] text-[#3B82F6] flex items-center justify-center text-xs font-bold shrink-0">
+              <Link key={event.id} href={event.href} className="flex items-start gap-3 rounded-lg p-2 hover:bg-[var(--bg-primary)]">
+                <div className="w-8 h-8 rounded-full bg-[var(--bg-secondary)] text-[var(--accent)] flex items-center justify-center text-xs font-bold shrink-0">
                   {event.userAvatar}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm text-[#1A1A2E]">
+                  <p className="text-sm text-[var(--ink)]">
                     <span className="font-semibold">{event.userName}</span> {event.description}
                   </p>
-                  <p className="text-xs text-[#6B7280] mt-0.5">{relativeTime(event.timestamp)}</p>
+                  <p className="text-xs text-[var(--text-muted)] mt-0.5">{relativeTime(event.timestamp)}</p>
                 </div>
               </Link>
             ))}

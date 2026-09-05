@@ -27,7 +27,7 @@ function SimpleJobRow({ job, operatorName }: { job: Job; operatorName: string })
       : "TBD";
 
   return (
-    <div className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-card-solid)] p-4">
+    <div className="rounded-xl border-[3px] border-[var(--border-color)] bg-[var(--bg-card-solid)] p-4">
       <p className="text-base font-semibold text-[var(--text-primary)]">{operatorName}</p>
       <p className="mt-1 text-sm text-[var(--text-secondary)]">{job.serviceTypes?.map((s) => s.replace("-", " ")).join(", ")}</p>
       <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
@@ -38,7 +38,7 @@ function SimpleJobRow({ job, operatorName }: { job: Job; operatorName: string })
         <StatusBadge status={job.status} />
         <Link
           href={`/dashboard/messages/${job.chatId}`}
-          className="inline-flex items-center gap-1 rounded-lg border border-[var(--border-color)] px-3 py-1.5 text-sm font-semibold text-[var(--accent)] hover:bg-[var(--accent-soft)] transition"
+          className="inline-flex items-center gap-1 rounded-lg border-[3px] border-[var(--border-color)] px-3 py-1.5 text-sm font-semibold text-[var(--accent)] hover:bg-[var(--accent-soft)] transition"
         >
           Message
           <ArrowRight className="h-4 w-4" />
@@ -117,7 +117,7 @@ export default function SeniorClientDashboard() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-4">
-      <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card-solid)] p-5">
+      <div className="rounded-2xl border-[3px] border-[var(--border-color)] bg-[var(--bg-card-solid)] p-5">
         <h1 className="text-2xl font-bold text-[var(--text-primary)]">Welcome, {clientProfile?.displayName?.split(" ")[0] || "there"}</h1>
         <p className="mt-1 text-sm text-[var(--text-secondary)]">Simple view enabled. Use the buttons below to book, track progress, and get help.</p>
         <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -125,22 +125,22 @@ export default function SeniorClientDashboard() {
             <Plus className="h-5 w-5" />
             Book Snow Help
           </Link>
-          <Link href="/dashboard/log" className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border-color)] px-4 py-3 text-base font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition">
+          <Link href="/dashboard/log" className="inline-flex items-center justify-center gap-2 rounded-xl border-[3px] border-[var(--border-color)] px-4 py-3 text-base font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition">
             <ClipboardList className="h-5 w-5 text-[var(--accent)]" />
             See Progress
           </Link>
-          <Link href="/dashboard/messages" className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border-color)] px-4 py-3 text-base font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition">
+          <Link href="/dashboard/messages" className="inline-flex items-center justify-center gap-2 rounded-xl border-[3px] border-[var(--border-color)] px-4 py-3 text-base font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition">
             <MessageCircle className="h-5 w-5 text-[var(--accent)]" />
             Chat Operator
           </Link>
         </div>
-        <div className="mt-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-2 text-sm text-[var(--text-secondary)]">
+        <div className="mt-3 rounded-xl border-[3px] border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-2 text-sm text-[var(--text-secondary)]">
           <LifeBuoy className="mr-1 inline h-4 w-4 text-[var(--accent)]" />
           Need aid? Tap the blue support headset button in the bottom-right corner.
         </div>
       </div>
 
-      <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card-solid)] p-5">
+      <div className="rounded-2xl border-[3px] border-[var(--border-color)] bg-[var(--bg-card-solid)] p-5">
         <h2 className="text-xl font-semibold text-[var(--text-primary)]">Active Jobs</h2>
         {loading ? (
           <p className="mt-2 text-sm text-[var(--text-secondary)]">Loading jobs...</p>
@@ -155,7 +155,7 @@ export default function SeniorClientDashboard() {
         )}
       </div>
 
-      <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card-solid)] p-5">
+      <div className="rounded-2xl border-[3px] border-[var(--border-color)] bg-[var(--bg-card-solid)] p-5">
         <h2 className="text-xl font-semibold text-[var(--text-primary)]">Recent Completions</h2>
         {loading ? (
           <p className="mt-2 text-sm text-[var(--text-secondary)]">Loading completed jobs...</p>

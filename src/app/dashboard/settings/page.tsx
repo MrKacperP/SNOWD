@@ -1,5 +1,8 @@
 "use client";
 
+import StripeOnboarding from "@/components/StripeOnboarding";
+import { stripeConnectFetch } from "@/lib/stripeConnectClient";
+
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
@@ -63,9 +66,12 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [activeTab, setActiveTab] = useState<"general" | "appearance" | "payment" | "notifications" | "verification" | "branding">("general");
+  const [onboardingAccountId, setOnboardingAccountId] = useState<string | null>(null);
+  const [stripeCheckVersion, setStripeCheckVersion] = useState(0);
   const [stripeConnecting, setStripeConnecting] = useState(false);
   const [stripeConfigError, setStripeConfigError] = useState<string | null>(null);
   const [stripeStatus, setStripeStatus] = useState<{
+    fullyReady?: boolean;
     chargesEnabled?: boolean;
     payoutsEnabled?: boolean;
     detailsSubmitted?: boolean;
@@ -263,21 +269,10 @@ export default function SettingsPage() {
   // Handle Stripe return from onboarding
   useEffect(() => {
     const stripeParam = searchParams.get("stripe");
-    const accountId = searchParams.get("account");
-
-    if (stripeParam === "success" && accountId && profile?.uid) {
-      // Save the Stripe account ID to the user's profile
-      updateDoc(doc(db, "users", profile.uid), {
-        stripeConnectAccountId: accountId,
-      }).then(() => {
-        refreshProfile();
-        setActiveTab("payment");
-      });
-      // Clean URL
-      router.replace("/dashboard/settings");
-    } else if (stripeParam === "refresh") {
+    if (stripeParam === "success" || stripeParam === "refresh") {
       setActiveTab("payment");
-      router.replace("/dashboard/settings");
+      setStripeCheckVersion((value) => value + 1);
+      router.replace("/dashboard/settings?tab=payment");
     }
 
     // Handle tab query param (e.g. from transactions page)
@@ -294,7 +289,7 @@ export default function SettingsPage() {
       if (!accountId || !isOperator) return;
 
       try {
-        const res = await fetch("/api/stripe/account-status", {
+        const res = await stripeConnectFetch("/api/stripe/account-status", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ accountId }),
@@ -310,17 +305,14 @@ export default function SettingsPage() {
         if (!data.error) {
           setStripeConfigError(null);
           setStripeStatus(data);
-          // If Stripe is fully ready, mark the profile
-          if (data.fullyReady && profile?.uid) {
-            updateDoc(doc(db, "users", profile.uid), { stripeReady: true }).catch(() => {});
-          }
+          if (profile?.stripeAccountStatus !== data.stripeAccountStatus) await refreshProfile();
         }
       } catch (e) {
         console.error("Stripe status check error:", e);
       }
     };
     checkStripeStatus();
-  }, [profile, isOperator]);
+  }, [profile, isOperator, stripeCheckVersion, refreshProfile]);
 
   const handleStripeConnect = async () => {
     if (!profile?.uid || !user?.email) return;
@@ -328,7 +320,7 @@ export default function SettingsPage() {
 
     try {
       const startNewStripeOnboarding = async () => {
-        const createRes = await fetch("/api/stripe/create-connect-account", {
+        const createRes = await stripeConnectFetch("/api/stripe/create-connect-account", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -339,6 +331,10 @@ export default function SettingsPage() {
         });
         const createData = await createRes.json();
         if (!createRes.ok) {
+          if (createData?.code === "connect_not_enabled") {
+            setStripeConfigError(createData.error);
+            return;
+          }
           throw new Error(createData?.error || "Failed to create Stripe account");
         }
         if (createData?.configured === false) {
@@ -348,43 +344,15 @@ export default function SettingsPage() {
         if (createData.error) throw new Error(createData.error);
         setStripeConfigError(null);
 
-        await updateDoc(doc(db, "users", profile.uid), {
-          stripeConnectAccountId: createData.accountId,
-        });
+        await refreshProfile();
 
-        window.location.href = createData.onboardingUrl;
+        setOnboardingAccountId(createData.accountId);
       };
 
       const existingAccountId = (profile as OperatorProfile & { stripeConnectAccountId?: string })?.stripeConnectAccountId;
 
       if (existingAccountId) {
-        // Already has an account, create a new onboarding link
-        const res = await fetch("/api/stripe/account-link", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ accountId: existingAccountId }),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          const msg = data?.error || "Failed to create Stripe account link";
-          // Recover when a stale Stripe account ID is stored on the profile.
-          if (/no such account|does not exist|invalid account/i.test(msg)) {
-            await updateDoc(doc(db, "users", profile.uid), {
-              stripeConnectAccountId: null,
-              stripeReady: false,
-            });
-            await startNewStripeOnboarding();
-            return;
-          }
-          throw new Error(data?.error || "Failed to create Stripe account link");
-        }
-        if (data?.configured === false) {
-          setStripeConfigError(data?.error || "Stripe is not configured on this environment");
-          return;
-        }
-        if (data.error) throw new Error(data.error);
-        setStripeConfigError(null);
-        window.location.href = data.onboardingUrl;
+        setOnboardingAccountId(existingAccountId);
       } else {
         await startNewStripeOnboarding();
       }
@@ -415,7 +383,7 @@ export default function SettingsPage() {
         setAge((profile as ClientProfile)?.age);
       }
     }
-  }, [profile, isOperator]);
+  }, [profile, isOperator, stripeCheckVersion, refreshProfile]);
 
   const handleSave = async () => {
     if (!profile?.uid) return;
@@ -540,8 +508,8 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4">
-      <div className="rounded-[24px] border border-[#DDE3EC] bg-[#F6F7FB] shadow-[0_24px_60px_rgba(16,24,40,0.12)] overflow-hidden">
-        <div className="h-12 border-b border-[#E3E8F1] bg-[#ECEFF5] px-4 flex items-center justify-between">
+      <div className="rounded-[24px] border-[3px] border-[var(--border)] bg-[var(--bg-primary)] shadow-[var(--surface-shadow)] overflow-hidden">
+        <div className="h-12 border-b border-[var(--border)] bg-[var(--bg-secondary)] px-4 flex items-center justify-between">
           <Link
             href="/dashboard"
             className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-sm text-[#5C6472] hover:bg-white transition"
@@ -560,13 +528,13 @@ export default function SettingsPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-[290px_minmax(0,1fr)] min-h-[calc(100vh-10rem)]">
-          <aside className="bg-[linear-gradient(180deg,#F4F6FB_0%,#ECEFF6_100%)] border-r border-[#E3E8F1] p-3 md:p-4">
+          <aside className="bg-[var(--bg-secondary)] border-r border-[var(--border)] p-3 md:p-4">
             <div className="relative mb-3">
               <Search className="w-4 h-4 text-[#8A93A3] absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 value={activeTabMeta?.label || ""}
                 readOnly
-                className="w-full h-9 rounded-lg bg-white border border-[#D8DEE8] pl-9 pr-3 text-sm text-[#4B5565] outline-none"
+                className="w-full h-9 rounded-lg bg-white border-[3px] border-[var(--ink)] pl-9 pr-3 text-sm text-[#4B5565] outline-none"
               />
             </div>
 
@@ -581,7 +549,7 @@ export default function SettingsPage() {
                     onClick={() => setActiveTab(tab.key)}
                     className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-[10px] text-sm transition ${
                       selected
-                        ? "bg-[#0A84FF] text-white"
+                        ? "bg-[var(--ink)] text-white"
                         : "text-[#4F5968] hover:bg-white"
                     }`}
                   >
@@ -593,11 +561,11 @@ export default function SettingsPage() {
             </div>
           </aside>
 
-          <main className="bg-[radial-gradient(circle_at_20%_10%,rgba(255,255,255,0.92),transparent_26%),linear-gradient(180deg,#F9FAFD_0%,#F2F5FA_100%)] p-3 sm:p-5 lg:p-7">
+          <main className="bg-[var(--bg-primary)] p-3 sm:p-5 lg:p-7">
             <div className="max-w-3xl mx-auto space-y-6">
-              <div className="rounded-2xl bg-white border border-[#E3E8F1] px-5 py-6 text-center shadow-sm">
-                <h2 className="text-3xl font-semibold text-[#1F2937] mb-1.5">{activeTabMeta?.label || "Settings"}</h2>
-                <p className="text-sm text-[#6B7280]">{TAB_DESCRIPTIONS[activeTab] || "Manage your account preferences"}</p>
+              <div className="rounded-2xl bg-white border-[3px] border-[var(--border)] px-5 py-6 text-center shadow-[var(--surface-shadow)]">
+                <h2 className="text-3xl font-semibold text-[var(--ink)] mb-1.5">{activeTabMeta?.label || "Settings"}</h2>
+                <p className="text-sm text-[var(--text-muted)]">{TAB_DESCRIPTIONS[activeTab] || "Manage your account preferences"}</p>
               </div>
 
       {/* General Settings */}
@@ -632,46 +600,46 @@ export default function SettingsPage() {
           </div>
 
           {/* Profile Info */}
-          <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
-            <h3 className="text-lg font-semibold text-[#0B1F33] mb-4 flex items-center gap-2">
-              <User className="w-5 h-5 text-[#2F6FED]" />
+          <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
+            <h3 className="text-lg font-semibold text-[var(--ink)] mb-4 flex items-center gap-2">
+              <User className="w-5 h-5 text-[var(--accent)]" />
               Profile Information
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium text-[#6B7C8F] mb-1 block">Display Name</label>
+                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block">Display Name</label>
                 <input
                   type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className={`w-full px-4 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none ${
-                    missingGeneralFieldSet.has("displayName") ? "border-amber-300 bg-amber-50" : "border-[#E6EEF6]"
+                  className={`w-full px-4 py-2.5 border-[3px] rounded-2xl text-sm focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none ${
+                    missingGeneralFieldSet.has("displayName") ? "border-amber-300 bg-amber-50" : "border-[var(--border)]"
                   }`}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-[#6B7C8F] mb-1 block">Email</label>
+                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block">Email</label>
                 <input
                   type="email"
                   value={user?.email || ""}
                   disabled
-                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm bg-[#F7FAFC] text-[#6B7C8F]"
+                  className="w-full px-4 py-2.5 border-[3px] border-[var(--border)] rounded-xl text-sm bg-[var(--bg-primary)] text-[var(--text-muted)]"
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-[#6B7C8F] mb-1 block">Phone</label>
+                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block">Phone</label>
                 <input
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className={`w-full px-4 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none ${
-                    missingGeneralFieldSet.has("phone") ? "border-amber-300 bg-amber-50" : "border-[#E6EEF6]"
+                  className={`w-full px-4 py-2.5 border-[3px] rounded-2xl text-sm focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none ${
+                    missingGeneralFieldSet.has("phone") ? "border-amber-300 bg-amber-50" : "border-[var(--border)]"
                   }`}
                 />
               </div>
               {!isOperator && (
                 <div>
-                  <label className="text-sm font-medium text-[#6B7C8F] mb-1 block">Age</label>
+                  <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block">Age</label>
                   <input
                     type="number"
                     min={13}
@@ -681,20 +649,20 @@ export default function SettingsPage() {
                       const next = parseInt(e.target.value, 10);
                       setAge(Number.isNaN(next) ? undefined : next);
                     }}
-                    className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl text-sm focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none"
+                    className="w-full px-4 py-2.5 border-[3px] border-[var(--border)] rounded-xl text-sm focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none"
                   />
-                  <p className="mt-1 text-xs text-[#6B7C8F]">55+ enables the simplified dashboard experience.</p>
+                  <p className="mt-1 text-xs text-[var(--text-muted)]">55+ enables the simplified dashboard experience.</p>
                 </div>
               )}
               {isOperator && (
                 <div>
-                  <label className="text-sm font-medium text-[#6B7C8F] mb-1 block">Business Name</label>
+                  <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block">Business Name</label>
                   <input
                     type="text"
                     value={businessName}
                     onChange={(e) => setBusinessName(e.target.value)}
-                    className={`w-full px-4 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none ${
-                      missingGeneralFieldSet.has("businessName") ? "border-amber-300 bg-amber-50" : "border-[#E6EEF6]"
+                    className={`w-full px-4 py-2.5 border-[3px] rounded-2xl text-sm focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none ${
+                      missingGeneralFieldSet.has("businessName") ? "border-amber-300 bg-amber-50" : "border-[var(--border)]"
                     }`}
                   />
                 </div>
@@ -702,13 +670,13 @@ export default function SettingsPage() {
             </div>
             {isOperator && (
               <div className="mt-4">
-                <label className="text-sm font-medium text-[#6B7C8F] mb-1 block">Bio</label>
+                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block">Bio</label>
                 <textarea
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
                   rows={3}
-                  className={`w-full px-4 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none resize-none ${
-                    missingGeneralFieldSet.has("bio") ? "border-amber-300 bg-amber-50" : "border-[#E6EEF6]"
+                  className={`w-full px-4 py-2.5 border-[3px] rounded-2xl text-sm focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none resize-none ${
+                    missingGeneralFieldSet.has("bio") ? "border-amber-300 bg-amber-50" : "border-[var(--border)]"
                   }`}
                 />
               </div>
@@ -716,41 +684,41 @@ export default function SettingsPage() {
           </div>
 
           {/* Location */}
-          <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
-            <h3 className="text-lg font-semibold text-[#0B1F33] mb-4 flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-[#2F6FED]" />
+          <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
+            <h3 className="text-lg font-semibold text-[var(--ink)] mb-4 flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-[var(--accent)]" />
               Location
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
               <div className="sm:col-span-2">
-                <label className="text-sm font-medium text-[#6B7C8F] mb-1 block">Street Address</label>
+                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block">Street Address</label>
                 <input
                   type="text"
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  className={`w-full px-4 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none ${
-                    missingGeneralFieldSet.has("address") ? "border-amber-300 bg-amber-50" : "border-[#E6EEF6]"
+                  className={`w-full px-4 py-2.5 border-[3px] rounded-2xl text-sm focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none ${
+                    missingGeneralFieldSet.has("address") ? "border-amber-300 bg-amber-50" : "border-[var(--border)]"
                   }`}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-[#6B7C8F] mb-1 block">City</label>
+                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block">City</label>
                 <input
                   type="text"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
-                  className={`w-full px-4 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none ${
-                    missingGeneralFieldSet.has("city") ? "border-amber-300 bg-amber-50" : "border-[#E6EEF6]"
+                  className={`w-full px-4 py-2.5 border-[3px] rounded-2xl text-sm focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none ${
+                    missingGeneralFieldSet.has("city") ? "border-amber-300 bg-amber-50" : "border-[var(--border)]"
                   }`}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-[#6B7C8F] mb-1 block">Province</label>
+                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block">Province</label>
                 <select
                   value={province}
                   onChange={(e) => setProvince(e.target.value)}
-                  className={`w-full px-4 py-2.5 border rounded-xl text-sm bg-white focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none ${
-                    missingGeneralFieldSet.has("province") ? "border-amber-300 bg-amber-50" : "border-[#E6EEF6]"
+                  className={`w-full px-4 py-2.5 border-[3px] rounded-2xl text-sm bg-white focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none ${
+                    missingGeneralFieldSet.has("province") ? "border-amber-300 bg-amber-50" : "border-[var(--border)]"
                   }`}
                 >
                   {CANADIAN_PROVINCES.map((p) => (
@@ -759,14 +727,14 @@ export default function SettingsPage() {
                 </select>
               </div>
               <div>
-                <label className="text-sm font-medium text-[#6B7C8F] mb-1 block">Postal Code</label>
+                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block">Postal Code</label>
                 <input
                   type="text"
                   value={postalCode}
                   onChange={(e) => setPostalCode(e.target.value.toUpperCase())}
                   maxLength={7}
-                  className={`w-full px-4 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-[#2F6FED] focus:border-transparent outline-none ${
-                    missingGeneralFieldSet.has("postalCode") ? "border-amber-300 bg-amber-50" : "border-[#E6EEF6]"
+                  className={`w-full px-4 py-2.5 border-[3px] rounded-2xl text-sm focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none ${
+                    missingGeneralFieldSet.has("postalCode") ? "border-amber-300 bg-amber-50" : "border-[var(--border)]"
                   }`}
                 />
               </div>
@@ -775,7 +743,7 @@ export default function SettingsPage() {
             {/* Map Preview  */}
             {isOperator && address && city && (
               <div className="mt-4">
-                <label className="text-sm font-medium text-[#6B7C8F] mb-2 block">
+                <label className="text-sm font-medium text-[var(--text-muted)] mb-2 block">
                   Service Radius: {serviceRadius} km
                 </label>
                 <input
@@ -784,9 +752,9 @@ export default function SettingsPage() {
                   max={50}
                   value={serviceRadius}
                   onChange={(e) => setServiceRadius(parseInt(e.target.value))}
-                  className="w-full accent-[#2F6FED] mb-3"
+                  className="w-full accent-[var(--accent)] mb-3"
                 />
-                <div className="rounded-xl overflow-hidden border border-[#E6EEF6]">
+                <div className="rounded-xl overflow-hidden border-[3px] border-[var(--border)]">
                   <ServiceRadiusMap
                     address={address}
                     city={city}
@@ -801,11 +769,11 @@ export default function SettingsPage() {
             {/* Client location map */}
             {!isOperator && address && city && (
               <div className="mt-4">
-                <label className="text-sm font-medium text-[#6B7C8F] mb-2 block flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-[#2F6FED]" />
+                <label className="text-sm font-medium text-[var(--text-muted)] mb-2 block flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-[var(--accent)]" />
                   Your Location on Map
                 </label>
-                <div className="rounded-xl overflow-hidden border border-[#E6EEF6]">
+                <div className="rounded-xl overflow-hidden border-[3px] border-[var(--border)]">
                   <iframe
                     width="100%"
                     height="250"
@@ -815,7 +783,7 @@ export default function SettingsPage() {
                     src={buildGoogleMapsEmbedUrl(`${address}, ${city}, ${province} ${postalCode}, Canada`, 15)}
                   />
                 </div>
-                <p className="text-xs text-[#6B7C8F] mt-2">
+                <p className="text-xs text-[var(--text-muted)] mt-2">
                   📍 {address}, {city}, {province} {postalCode}
                 </p>
               </div>
@@ -827,7 +795,7 @@ export default function SettingsPage() {
             onClick={handleSave}
             disabled={saving}
             className={`btn-primary w-full flex items-center justify-center gap-2 px-6 py-3 text-white rounded-xl font-semibold text-sm transition disabled:opacity-50 ${
-              saved ? "bg-green-600 hover:bg-green-700" : "bg-[#2F6FED] hover:bg-[#2158C7]"
+              saved ? "bg-green-600 hover:bg-green-700" : "bg-[var(--accent)] hover:bg-[var(--accent-dark)]"
             }`}
           >
             {saving ? (
@@ -874,7 +842,7 @@ export default function SettingsPage() {
           </div>
 
           <div className="text-center py-2">
-            <p className="text-xs text-[#6B7C8F]">snowd.ca v0.1.0</p>
+            <p className="text-xs text-[var(--text-muted)]">snowd.ca v0.1.0</p>
           </div>
         </div>
       )}
@@ -882,9 +850,9 @@ export default function SettingsPage() {
       {/* Appearance Settings */}
       {activeTab === "appearance" && (
         <div className="space-y-6">
-          <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
-            <h3 className="text-lg font-semibold text-[#0B1F33] mb-4 flex items-center gap-2">
-              <Sun className="w-5 h-5 text-[#2F6FED]" />
+          <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
+            <h3 className="text-lg font-semibold text-[var(--ink)] mb-4 flex items-center gap-2">
+              <Sun className="w-5 h-5 text-[var(--accent)]" />
               Theme
             </h3>
             <div className="grid grid-cols-3 gap-3">
@@ -901,15 +869,15 @@ export default function SettingsPage() {
                     onClick={() => handleThemeChange(opt.key)}
                     className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
                       active
-                        ? "border-[#2F6FED] bg-[#D6E8F5]"
-                        : "border-[#E6EEF6] hover:border-[#2F6FED]/30"
+                        ? "border-[var(--accent)] bg-[#D6E8F5]"
+                        : "border-[var(--border)] hover:border-[var(--accent)]/30"
                     }`}
                   >
-                    <Icon className={`w-6 h-6 ${active ? "text-[#2F6FED]" : "text-[#6B7C8F]"}`} />
-                    <span className={`text-sm font-semibold ${active ? "text-[#2F6FED]" : "text-[#0B1F33]"}`}>
+                    <Icon className={`w-6 h-6 ${active ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}`} />
+                    <span className={`text-sm font-semibold ${active ? "text-[var(--accent)]" : "text-[var(--ink)]"}`}>
                       {opt.label}
                     </span>
-                    <span className="text-xs text-[#6B7C8F]">{opt.desc}</span>
+                    <span className="text-xs text-[var(--text-muted)]">{opt.desc}</span>
                   </button>
                 );
               })}
@@ -921,9 +889,9 @@ export default function SettingsPage() {
       {/* Payment Settings */}
       {activeTab === "payment" && (
         <div className="space-y-6">
-          <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
-            <h3 className="text-lg font-semibold text-[#0B1F33] mb-4 flex items-center gap-2">
-              <CreditCard className="w-5 h-5 text-[#2F6FED]" />
+          <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
+            <h3 className="text-lg font-semibold text-[var(--ink)] mb-4 flex items-center gap-2">
+              <CreditCard className="w-5 h-5 text-[var(--accent)]" />
               Payment Methods
             </h3>
 
@@ -931,27 +899,27 @@ export default function SettingsPage() {
             {(profile as UserProfile & { stripePaymentMethods?: { brand: string; last4: string; expMonth: number; expYear: number }[] })?.stripePaymentMethods?.length ? (
               <div className="space-y-3 mb-4">
                 {(profile as UserProfile & { stripePaymentMethods: { brand: string; last4: string; expMonth: number; expYear: number }[] }).stripePaymentMethods.map((pm, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 bg-[#F7FAFC] rounded-xl">
+                  <div key={i} className="flex items-center justify-between p-3 bg-[var(--bg-primary)] rounded-xl">
                     <div className="flex items-center gap-3">
-                      <CreditCard className="w-5 h-5 text-[#2F6FED]" />
+                      <CreditCard className="w-5 h-5 text-[var(--accent)]" />
                       <div>
-                        <p className="text-sm font-medium text-[#0B1F33] capitalize">{pm.brand} **** {pm.last4}</p>
-                        <p className="text-xs text-[#6B7C8F]">Expires {pm.expMonth}/{pm.expYear}</p>
+                        <p className="text-sm font-medium text-[var(--ink)] capitalize">{pm.brand} **** {pm.last4}</p>
+                        <p className="text-xs text-[var(--text-muted)]">Expires {pm.expMonth}/{pm.expYear}</p>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8 text-[#6B7C8F]">
+              <div className="text-center py-8 text-[var(--text-muted)]">
                 <CreditCard className="w-8 h-8 mx-auto mb-2 opacity-50" />
                 <p className="text-sm">No payment methods saved</p>
                 <p className="text-xs mt-1">Your card will be saved when you make your first payment</p>
               </div>
             )}
 
-            <div className="border-t border-[#E6EEF6] mt-4 pt-4">
-              <div className="flex items-center gap-2 text-xs text-[#6B7C8F]">
+            <div className="border-t border-[var(--border)] mt-4 pt-4">
+              <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
                 <Shield className="w-4 h-4" />
                 <span>Payments are securely processed by Stripe. snowd.ca never stores your card data.</span>
               </div>
@@ -960,12 +928,13 @@ export default function SettingsPage() {
 
           {/* Operator: Banking Info */}
           {isOperator && (
-            <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
-              <h3 className="text-lg font-semibold text-[#0B1F33] mb-4 flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-[#2F6FED]" />
+            <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
+              <h3 className="text-lg font-semibold text-[var(--ink)] mb-4 flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-[var(--accent)]" />
                 Payout Information
               </h3>
 
+              {onboardingAccountId && <StripeOnboarding key={onboardingAccountId} accountId={onboardingAccountId} onExit={() => { setOnboardingAccountId(null); setStripeCheckVersion((value) => value + 1); }} />}
               {stripeConfigError && (
                 <div className="mb-4 flex items-start gap-2 p-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-800">
                   <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
@@ -973,7 +942,7 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              {stripeStatus?.chargesEnabled && stripeStatus?.payoutsEnabled ? (
+              {stripeStatus?.fullyReady ? (
                 <div className="space-y-3">
                   <div className="flex items-center gap-3 p-4 bg-green-50 rounded-xl">
                     <CheckCircle className="w-6 h-6 text-green-600" />
@@ -985,7 +954,7 @@ export default function SettingsPage() {
                   <button
                     onClick={handleStripeConnect}
                     disabled={stripeConnecting}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-[#E6EEF6] text-[#0B1F33] rounded-xl font-medium text-sm hover:bg-[#F7FAFC] transition"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border-[3px] border-[var(--border)] text-[var(--ink)] rounded-xl font-medium text-sm hover:bg-[var(--bg-primary)] transition"
                   >
                     <ExternalLink className="w-4 h-4" />
                     Manage Stripe Dashboard
@@ -1003,7 +972,7 @@ export default function SettingsPage() {
                   <button
                     onClick={handleStripeConnect}
                     disabled={stripeConnecting}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-[#E6EEF6] text-[#0B1F33] rounded-xl font-medium text-sm hover:bg-[#F7FAFC] transition"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border-[3px] border-[var(--border)] text-[var(--ink)] rounded-xl font-medium text-sm hover:bg-[var(--bg-primary)] transition"
                   >
                     <ExternalLink className="w-4 h-4" />
                     Check Status
@@ -1022,14 +991,14 @@ export default function SettingsPage() {
                   </button>
                 </div>
               ) : (
-                <div className="text-center py-6 text-[#6B7C8F]">
+                <div className="text-center py-6 text-[var(--text-muted)]">
                   <Building2 className="w-8 h-8 mx-auto mb-2 opacity-50" />
                   <p className="text-sm font-medium">Connect your bank account</p>
                   <p className="text-xs mt-1 mb-4">Receive payouts directly to your Canadian bank account</p>
                   <button
                     onClick={handleStripeConnect}
                     disabled={stripeConnecting}
-                    className="btn-primary px-6 py-2.5 bg-[#2F6FED] text-white rounded-xl text-sm font-semibold hover:bg-[#2158C7] transition disabled:opacity-50 flex items-center gap-2 mx-auto"
+                    className="btn-primary px-6 py-2.5 bg-[var(--accent)] text-white rounded-xl text-sm font-semibold hover:bg-[var(--accent-dark)] transition disabled:opacity-50 flex items-center gap-2 mx-auto"
                   >
                     {stripeConnecting ? (
                       <>
@@ -1053,9 +1022,9 @@ export default function SettingsPage() {
       {/* Notification Settings */}
       {activeTab === "notifications" && (
         <div className="space-y-6">
-          <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
-            <h3 className="text-lg font-semibold text-[#0B1F33] mb-4 flex items-center gap-2">
-              <Bell className="w-5 h-5 text-[#2F6FED]" />
+          <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
+            <h3 className="text-lg font-semibold text-[var(--ink)] mb-4 flex items-center gap-2">
+              <Bell className="w-5 h-5 text-[var(--accent)]" />
               Notification Preferences
             </h3>
             <div className="space-y-4">
@@ -1065,14 +1034,14 @@ export default function SettingsPage() {
                 { label: "Payment Alerts", desc: "Payment confirmations and receipts" },
                 { label: "Promotions", desc: "New features and seasonal offers" },
               ].map((notification, i) => (
-                <div key={i} className="flex items-center justify-between py-3 border-b border-[#E6EEF6] last:border-0">
+                <div key={i} className="flex items-center justify-between py-3 border-b border-[var(--border)] last:border-0">
                   <div>
-                    <p className="text-sm font-medium text-[#0B1F33]">{notification.label}</p>
-                    <p className="text-xs text-[#6B7C8F] mt-0.5">{notification.desc}</p>
+                    <p className="text-sm font-medium text-[var(--ink)]">{notification.label}</p>
+                    <p className="text-xs text-[var(--text-muted)] mt-0.5">{notification.desc}</p>
                   </div>
                   <label className="relative inline-block w-11 h-6 cursor-pointer">
                     <input type="checkbox" defaultChecked className="sr-only peer" />
-                    <div className="w-11 h-6 bg-[#E6EEF6] peer-checked:bg-[#2F6FED] rounded-full transition-colors" />
+                    <div className="w-11 h-6 bg-[var(--border)] peer-checked:bg-[var(--accent)] rounded-full transition-colors" />
                     <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow peer-checked:translate-x-5 transition-transform" />
                   </label>
                 </div>
@@ -1127,12 +1096,12 @@ export default function SettingsPage() {
           )}
 
           {/* ID Photo Upload */}
-          <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
-            <h3 className="text-lg font-semibold text-[#0B1F33] mb-1 flex items-center gap-2">
-              <Camera className="w-5 h-5 text-[#2F6FED]" />
+          <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
+            <h3 className="text-lg font-semibold text-[var(--ink)] mb-1 flex items-center gap-2">
+              <Camera className="w-5 h-5 text-[var(--accent)]" />
               Government ID Photo
             </h3>
-            <p className="text-xs text-[#6B7C8F] mb-4">
+            <p className="text-xs text-[var(--text-muted)] mb-4">
               Upload a clear photo of your government-issued ID (driver&apos;s license, passport, etc.)
               {isOperator ? " — required for your account to go public." : " to get verified and build trust with other users."}
             </p>
@@ -1152,7 +1121,7 @@ export default function SettingsPage() {
                   <Loader2 className="w-3.5 h-3.5" /> Pending Review
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#E6EEF6] text-[#6B7C8F] text-xs font-medium">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--border)] text-[var(--text-muted)] text-xs font-medium">
                   <Shield className="w-3.5 h-3.5" /> Not Submitted
                 </span>
               )}
@@ -1167,13 +1136,13 @@ export default function SettingsPage() {
 
             {/* Preview */}
             {idPhotoUrl && (
-              <div className="mb-4 rounded-xl overflow-hidden border border-[#E6EEF6] max-w-xs">
+              <div className="mb-4 rounded-xl overflow-hidden border-[3px] border-[var(--border)] max-w-xs">
                 <img src={idPhotoUrl} alt="ID Photo" className="w-full h-auto object-cover" />
               </div>
             )}
 
             {/* Upload button */}
-            <label className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#2F6FED] text-white rounded-xl text-sm font-semibold hover:bg-[#2158C7] transition cursor-pointer">
+            <label className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--accent)] text-white rounded-xl text-sm font-semibold hover:bg-[var(--accent-dark)] transition cursor-pointer">
               {uploadingId ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" /> Uploading...
@@ -1199,12 +1168,12 @@ export default function SettingsPage() {
 
           {/* Student Transcript - operators only */}
           {isOperator && (
-            <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
-              <h3 className="text-lg font-semibold text-[#0B1F33] mb-1 flex items-center gap-2">
-                <GraduationCap className="w-5 h-5 text-[#2F6FED]" />
+            <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
+              <h3 className="text-lg font-semibold text-[var(--ink)] mb-1 flex items-center gap-2">
+                <GraduationCap className="w-5 h-5 text-[var(--accent)]" />
                 Student Transcript / Report Card
               </h3>
-              <p className="text-xs text-[#6B7C8F] mb-4">
+              <p className="text-xs text-[var(--text-muted)] mb-4">
                 Upload your student transcript or most recent report card to verify student status.
                 This helps clients identify student operators and may qualify you for student promotions.
               </p>
@@ -1216,7 +1185,7 @@ export default function SettingsPage() {
                     <CheckCircle className="w-3.5 h-3.5" /> Uploaded
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#E6EEF6] text-[#6B7C8F] text-xs font-medium">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--border)] text-[var(--text-muted)] text-xs font-medium">
                     <GraduationCap className="w-3.5 h-3.5" /> Not Submitted
                   </span>
                 )}
@@ -1230,12 +1199,12 @@ export default function SettingsPage() {
                       href={studentTranscriptUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-sm text-[#2F6FED] hover:underline"
+                      className="inline-flex items-center gap-2 text-sm text-[var(--accent)] hover:underline"
                     >
                       <ExternalLink className="w-4 h-4" /> View uploaded transcript
                     </a>
                   ) : (
-                    <div className="rounded-xl overflow-hidden border border-[#E6EEF6] max-w-xs">
+                    <div className="rounded-xl overflow-hidden border-[3px] border-[var(--border)] max-w-xs">
                       <img src={studentTranscriptUrl} alt="Transcript" className="w-full h-auto object-cover" />
                     </div>
                   )}
@@ -1243,7 +1212,7 @@ export default function SettingsPage() {
               )}
 
               {/* Upload button */}
-              <label className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#2F6FED] text-white rounded-xl text-sm font-semibold hover:bg-[#2158C7] transition cursor-pointer">
+              <label className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--accent)] text-white rounded-xl text-sm font-semibold hover:bg-[var(--accent-dark)] transition cursor-pointer">
                 {uploadingTranscript ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" /> Uploading...
@@ -1270,25 +1239,25 @@ export default function SettingsPage() {
       {activeTab === "branding" && isOperator && (
         <div className="space-y-6">
           {/* Business Identity */}
-          <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
-            <h3 className="text-lg font-semibold text-[#0B1F33] mb-4 flex items-center gap-2">
-              <Briefcase className="w-5 h-5 text-[#2F6FED]" />
+          <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
+            <h3 className="text-lg font-semibold text-[var(--ink)] mb-4 flex items-center gap-2">
+              <Briefcase className="w-5 h-5 text-[var(--accent)]" />
               Business Identity
             </h3>
 
             {/* Logo */}
             <div className="flex items-center gap-5 mb-6">
-              <div className="relative w-20 h-20 rounded-2xl border-2 border-dashed border-[#E6EEF6] flex items-center justify-center overflow-hidden bg-[#F7FAFC]">
+              <div className="relative w-20 h-20 rounded-2xl border-2 border-dashed border-[var(--border)] flex items-center justify-center overflow-hidden bg-[var(--bg-primary)]">
                 {logoUrl ? (
                   <img src={logoUrl} alt="Logo" className="w-full h-full object-cover rounded-2xl" />
                 ) : (
-                  <Camera className="w-6 h-6 text-[#6B7C8F]" />
+                  <Camera className="w-6 h-6 text-[var(--text-muted)]" />
                 )}
               </div>
               <div>
-                <p className="text-sm font-medium text-[#0B1F33]">Business Logo</p>
-                <p className="text-xs text-[#6B7C8F] mb-2">Displayed on your profile and invoices</p>
-                <label className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#2F6FED]/10 text-[#2F6FED] rounded-lg text-xs font-semibold cursor-pointer hover:bg-[#2F6FED]/20 transition">
+                <p className="text-sm font-medium text-[var(--ink)]">Business Logo</p>
+                <p className="text-xs text-[var(--text-muted)] mb-2">Displayed on your profile and invoices</p>
+                <label className="inline-flex items-center gap-2 px-3 py-1.5 bg-[var(--accent)]/10 text-[var(--accent)] rounded-lg text-xs font-semibold cursor-pointer hover:bg-[var(--accent)]/20 transition">
                   {uploadingLogo ? (
                     <><Loader2 className="w-3 h-3 animate-spin" /> Uploading...</>
                   ) : (
@@ -1302,36 +1271,36 @@ export default function SettingsPage() {
             {/* Tagline */}
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-[#0B1F33] mb-1">Business Tagline</label>
+                <label className="block text-sm font-medium text-[var(--ink)] mb-1">Business Tagline</label>
                 <input
                   type="text"
                   value={brandingTagline}
                   onChange={(e) => setBrandingTagline(e.target.value)}
                   placeholder="e.g. Fast & Reliable Snow Removal"
                   maxLength={80}
-                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl focus:ring-2 focus:ring-[#2F6FED]/30 focus:border-[#2F6FED] outline-none text-sm"
+                  className="w-full px-4 py-2.5 border-[3px] border-[var(--border)] rounded-xl focus:ring-2 focus:ring-[var(--accent)]/30 focus:border-[var(--accent)] outline-none text-sm"
                 />
-                <p className="text-xs text-[#6B7C8F] mt-1">{brandingTagline.length}/80 characters</p>
+                <p className="text-xs text-[var(--text-muted)] mt-1">{brandingTagline.length}/80 characters</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-[#0B1F33] mb-1">About Your Business</label>
+                <label className="block text-sm font-medium text-[var(--ink)] mb-1">About Your Business</label>
                 <textarea
                   value={brandingDescription}
                   onChange={(e) => setBrandingDescription(e.target.value)}
                   placeholder="Tell clients about your experience, services, and what makes you stand out..."
                   rows={4}
                   maxLength={500}
-                  className="w-full px-4 py-2.5 border border-[#E6EEF6] rounded-xl focus:ring-2 focus:ring-[#2F6FED]/30 focus:border-[#2F6FED] outline-none text-sm resize-none"
+                  className="w-full px-4 py-2.5 border-[3px] border-[var(--border)] rounded-xl focus:ring-2 focus:ring-[var(--accent)]/30 focus:border-[var(--accent)] outline-none text-sm resize-none"
                 />
-                <p className="text-xs text-[#6B7C8F] mt-1">{brandingDescription.length}/500 characters</p>
+                <p className="text-xs text-[var(--text-muted)] mt-1">{brandingDescription.length}/500 characters</p>
               </div>
 
               <button
                 onClick={saveBranding}
                 disabled={saving}
                 className={`flex items-center gap-2 px-5 py-2.5 text-white rounded-xl text-sm font-semibold transition disabled:opacity-50 ${
-                  saved ? "bg-green-600 hover:bg-green-700" : "bg-[#2F6FED] hover:bg-[#2158C7]"
+                  saved ? "bg-green-600 hover:bg-green-700" : "bg-[var(--accent)] hover:bg-[var(--accent-dark)]"
                 }`}
               >
                 {saving ? (
@@ -1347,12 +1316,12 @@ export default function SettingsPage() {
           </div>
 
           {/* Work Portfolio */}
-          <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
-            <h3 className="text-lg font-semibold text-[#0B1F33] mb-1 flex items-center gap-2">
-              <ImagePlus className="w-5 h-5 text-[#2F6FED]" />
+          <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
+            <h3 className="text-lg font-semibold text-[var(--ink)] mb-1 flex items-center gap-2">
+              <ImagePlus className="w-5 h-5 text-[var(--accent)]" />
               Work Portfolio
             </h3>
-            <p className="text-xs text-[#6B7C8F] mb-4">
+            <p className="text-xs text-[var(--text-muted)] mb-4">
               Showcase your best work to attract more clients. Upload before/after photos,
               completed jobs, and your equipment.
             </p>
@@ -1361,11 +1330,11 @@ export default function SettingsPage() {
             {portfolioPhotos.length > 0 && (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
                 {portfolioPhotos.map((url, index) => (
-                  <div key={index} className="relative group aspect-square rounded-xl overflow-hidden border border-[#E6EEF6]">
+                  <div key={index} className="relative group aspect-square rounded-xl overflow-hidden border-[3px] border-[var(--border)]">
                     <img src={url} alt={`Portfolio ${index + 1}`} className="w-full h-full object-cover" />
                     <button
                       onClick={() => removePortfolioPhoto(index)}
-                      className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition shadow-lg"
+                      className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition shadow-[var(--surface-shadow)]"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -1378,14 +1347,14 @@ export default function SettingsPage() {
             )}
 
             {portfolioPhotos.length === 0 && (
-              <div className="text-center py-8 border-2 border-dashed border-[#E6EEF6] rounded-xl mb-4">
-                <ImagePlus className="w-8 h-8 mx-auto text-[#6B7C8F] opacity-50 mb-2" />
-                <p className="text-sm text-[#6B7C8F]">No portfolio photos yet</p>
-                <p className="text-xs text-[#6B7C8F] mt-1">Upload photos to showcase your work</p>
+              <div className="text-center py-8 border-2 border-dashed border-[var(--border)] rounded-xl mb-4">
+                <ImagePlus className="w-8 h-8 mx-auto text-[var(--text-muted)] opacity-50 mb-2" />
+                <p className="text-sm text-[var(--text-muted)]">No portfolio photos yet</p>
+                <p className="text-xs text-[var(--text-muted)] mt-1">Upload photos to showcase your work</p>
               </div>
             )}
 
-            <label className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#2F6FED] text-white rounded-xl text-sm font-semibold hover:bg-[#2158C7] transition cursor-pointer disabled:opacity-50">
+            <label className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--accent)] text-white rounded-xl text-sm font-semibold hover:bg-[var(--accent-dark)] transition cursor-pointer disabled:opacity-50">
               {uploadingPortfolio ? (
                 <><Loader2 className="w-4 h-4 animate-spin" /> Uploading...</>
               ) : (
@@ -1400,7 +1369,7 @@ export default function SettingsPage() {
                 disabled={uploadingPortfolio}
               />
             </label>
-            <p className="text-xs text-[#6B7C8F] mt-2">You can upload multiple photos at once. Max 12 photos recommended.</p>
+            <p className="text-xs text-[var(--text-muted)] mt-2">You can upload multiple photos at once. Max 12 photos recommended.</p>
           </div>
         </div>
       )}

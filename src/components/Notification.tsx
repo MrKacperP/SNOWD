@@ -22,7 +22,7 @@ const iconVariants = {
 const colorVariants = {
     success: 'bg-green-500',
     error: 'bg-red-500',
-    info: 'bg-blue-500',
+    info: 'bg-[var(--ink)]',
 }
 
 export default function Notification({ message, type, onClose }: NotificationProps) {
@@ -33,7 +33,7 @@ export default function Notification({ message, type, onClose }: NotificationPro
       animate="visible"
       exit="exit"
       transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-      className={`fixed top-5 right-5 p-4 rounded-lg text-white shadow-lg ${colorVariants[type]}`}
+      className={`fixed top-5 right-5 p-4 rounded-lg text-white shadow-[var(--surface-shadow)] ${colorVariants[type]}`}
     >
       <div className="flex items-center">
         <span className="mr-2">{iconVariants[type]}</span>

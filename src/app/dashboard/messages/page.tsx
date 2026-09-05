@@ -55,9 +55,11 @@ const getChatTime = (ts: unknown): number => {
 };
 
 export default function MessagesPage() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [chatList, setChatList] = useState<ChatWithOtherUser[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [loadError, setLoadError] = useState(false);
+  const [retry, setRetry] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -70,9 +72,12 @@ export default function MessagesPage() {
       where("participants", "array-contains", user.uid)
     );
 
+    let active = true;
+    let revision = 0;
     const unsubscribe = onSnapshot(
       q,
       async (snapshot) => {
+        const currentRevision = ++revision;
         const list = snapshot.docs
           .map((d) => ({ id: d.id, ...d.data() }) as ChatWithOtherUser)
           .sort((a, b) => getChatTime(b.lastMessageTime) - getChatTime(a.lastMessageTime));
@@ -98,14 +103,16 @@ export default function MessagesPage() {
           })
         );
 
+        if (!active || currentRevision !== revision) return;
+        setLoadError(false);
         setChatList(enriched);
         setLoading(false);
       },
-      () => setLoading(false)
+      () => { if (active) { setLoadError(true); setLoading(false); } }
     );
 
-    return () => unsubscribe();
-  }, [user?.uid]);
+    return () => { active = false; unsubscribe(); };
+  }, [user?.uid, retry]);
 
   const filteredChatList = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
@@ -129,7 +136,7 @@ export default function MessagesPage() {
         <div className="flex items-center gap-3">
         <Link
           href="/dashboard"
-          className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-color)] bg-white text-[var(--text-primary)] transition hover:bg-[var(--bg-secondary)]"
+          className="flex h-10 w-10 items-center justify-center rounded-xl border-[3px] border-[var(--border-color)] bg-white text-[var(--text-primary)] transition hover:bg-[var(--bg-secondary)]"
           aria-label="Back to dashboard"
         >
           <ArrowLeft className="h-5 w-5" />
@@ -139,27 +146,34 @@ export default function MessagesPage() {
           <h1 className="font-headline text-2xl font-bold text-[var(--text-primary)]">Messages</h1>
         </div>
         </div>
-        <div className="rounded-full border border-[var(--border-color)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--text-secondary)]">
-          {chatList.length} conversations
+        <div className="rounded-full border-[3px] border-[var(--border-color)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--text-secondary)]">
+          {chatList.length} conversation{chatList.length === 1 ? "" : "s"}
           {totalUnread > 0 && <span className="ml-2 text-[var(--text-primary)]">{totalUnread} unread</span>}
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-[1.4rem] border border-[var(--border-color)] bg-white shadow-[0_20px_40px_rgba(15,23,42,0.08)]">
+      <div className="overflow-hidden rounded-[1.4rem] border-[3px] border-[var(--border-color)] bg-white shadow-[var(--surface-shadow)]">
         <div className="border-b border-[var(--border-soft)] bg-white px-4 py-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
             <input
-              type="text"
+              type="search"
+              aria-label="Search conversations"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search by person or message"
-              className="w-full rounded-xl border border-[var(--border-color)] bg-[#fbfbf8] py-3 pl-9 pr-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none transition focus:border-[var(--text-primary)] focus:bg-white"
+              className="w-full rounded-xl border-[3px] border-[var(--border-color)] bg-[#fbfbf8] py-3 pl-9 pr-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none transition focus:border-[var(--text-primary)] focus:bg-white"
             />
           </div>
         </div>
 
-        {loading ? (
+        {loadError ? (
+          <div role="alert" className="p-8 text-center">
+            <h2 className="text-lg font-bold">Could not load conversations</h2>
+            <p className="mt-2 text-sm text-[var(--text-muted)]">Check your connection and try again.</p>
+            <button type="button" onClick={() => { setLoadError(false); setLoading(true); setRetry(value => value + 1); }} className="mt-4 rounded-xl bg-[var(--ink)] px-4 py-3 font-semibold text-white">Try again</button>
+          </div>
+        ) : loading ? (
           <div className="p-8 text-center text-sm text-[var(--text-muted)]">
             Loading conversations...
           </div>
@@ -169,11 +183,16 @@ export default function MessagesPage() {
               <MessageSquare className="h-6 w-6" />
             </div>
             <p className="text-xl font-headline font-bold text-[var(--text-primary)]">
-              No conversations yet
+              {searchTerm.trim() ? "No matching conversations" : "No conversations yet"}
             </p>
             <p className="mt-2 text-sm text-[var(--text-muted)]">
-              Request a snow job and your operator thread will appear here.
+              {searchTerm.trim() ? "Try a different name or message, or clear your search." : profile?.role === "operator" ? "Your customer conversations will appear here when you receive a job request." : "Book snow help to start a conversation with an operator."}
             </p>
+            {searchTerm.trim() ? (
+              <button type="button" onClick={() => setSearchTerm("")} className="mt-4 rounded-xl border-[3px] border-[var(--border-color)] px-4 py-3 font-semibold">Clear search</button>
+            ) : (
+              <Link href={profile?.role === "operator" ? "/dashboard/jobs" : "/dashboard/find"} className="mt-4 inline-flex rounded-xl bg-[var(--ink)] px-4 py-3 font-semibold text-white">{profile?.role === "operator" ? "View jobs" : "Book help"}</Link>
+            )}
           </div>
         ) : (
           <ul className="divide-y divide-[var(--border-soft)]">
@@ -191,7 +210,7 @@ export default function MessagesPage() {
                         displayName={title}
                         size={48}
                         rounded="2xl"
-                        className="border border-[var(--border-color)] bg-[var(--bg-secondary)]"
+                        className="border-[3px] border-[var(--border-color)] bg-[var(--bg-secondary)]"
                       />
 
                       <div className="min-w-0 flex-1">
@@ -209,7 +228,7 @@ export default function MessagesPage() {
                             {chat.lastMessage || "No messages yet"}
                           </p>
                           {unread > 0 && (
-                            <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[#111111] px-2 text-xs font-semibold text-white">
+                            <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--ink)] px-2 text-xs font-semibold text-white">
                               {unread > 9 ? "9+" : unread}
                             </span>
                           )}

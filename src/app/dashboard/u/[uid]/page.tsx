@@ -1,5 +1,7 @@
 "use client";
 
+import { canAcceptPlatformPayments } from "@/lib/operatorDiscovery";
+
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { doc, getDoc, collection, query, where, getDocs, orderBy, limit } from "firebase/firestore";
@@ -147,7 +149,7 @@ export default function PublicProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-96 text-[#6B7C8F] gap-3">
+      <div className="flex flex-col items-center justify-center h-96 text-[var(--text-muted)] gap-3">
         <div className="animate-spin-slow">
           <Image src="/logo.png" alt="Loading" width={40} height={40} />
         </div>
@@ -158,10 +160,10 @@ export default function PublicProfilePage() {
 
   if (!profileData) {
     return (
-      <div className="flex flex-col items-center justify-center h-96 text-[#6B7C8F]">
+      <div className="flex flex-col items-center justify-center h-96 text-[var(--text-muted)]">
         <Snowflake className="w-12 h-12 mb-3 opacity-30" />
         <p className="text-lg font-semibold">User not found</p>
-        <button onClick={() => router.back()} className="mt-4 text-[#2F6FED] text-sm font-medium hover:underline">
+        <button onClick={() => router.back()} className="mt-4 text-[var(--accent)] text-sm font-medium hover:underline">
           Go back
         </button>
       </div>
@@ -170,15 +172,14 @@ export default function PublicProfilePage() {
 
   // Gate: profile only visible if approved & ID verified — unless viewer is the owner or admin
   const rawProfileData = profileData as unknown as Record<string, unknown>;
-  const isApproved = rawProfileData.accountApproved === true;
   const isIdVerified = rawProfileData.idVerified === true;
   const isViewerAdmin = myProfile?.role === "admin";
-  if (!isOwnProfile && !isViewerAdmin && (!isApproved || !isIdVerified)) {
+  if (!isOwnProfile && !isViewerAdmin && (profileData.role === "operator" && !isIdVerified)) {
     return (
       <div className="max-w-md mx-auto mt-16 flex flex-col items-center gap-4 text-center">
         <button
           onClick={() => router.back()}
-          className="self-start flex items-center gap-2 text-[#6B7C8F] hover:text-[#0B1F33] mb-2 text-sm font-medium transition"
+          className="self-start flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--ink)] mb-2 text-sm font-medium transition"
         >
           <ArrowLeft className="w-4 h-4" />
           Back
@@ -205,10 +206,11 @@ export default function PublicProfilePage() {
 
   return (
     <div className="mx-auto max-w-4xl">
+      {isOperator && <p className="mb-4 rounded-xl bg-blue-50 p-4 text-sm font-semibold">{canAcceptPlatformPayments(operatorProfile) ? "Platform payments available" : "Cash jobs only. Pay the operator in cash after the job."}</p>}
       {/* Back button */}
       <button
         onClick={() => router.back()}
-        className="flex items-center gap-2 text-[#6B7C8F] hover:text-[#0B1F33] mb-4 text-sm font-medium transition"
+        className="flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--ink)] mb-4 text-sm font-medium transition"
       >
         <ArrowLeft className="w-4 h-4" />
         Back
@@ -216,8 +218,8 @@ export default function PublicProfilePage() {
 
       {/* Profile Header - Instagram-like */}
       <div className="surface-card overflow-hidden">
-        <div className="relative h-40 bg-[#111111]">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(125,220,122,0.18),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(46,107,255,0.16),transparent_30%)]" />
+        <div className="relative h-40 bg-[var(--ink)]">
+          <div className="absolute inset-0 bg-[var(--bg-secondary)]" />
         </div>
 
         <div className="-mt-12 px-6 pb-6">
@@ -229,7 +231,7 @@ export default function PublicProfilePage() {
                 displayName={profileData.displayName}
                 size={96}
                 rounded="2xl"
-                className="border-4 border-white shadow-lg"
+                className="border-4 border-white shadow-[var(--surface-shadow)]"
               />
               <div className={`absolute -bottom-1 -right-1 h-5 w-5 rounded-full border-2 border-white ${isOnline ? "bg-green-500" : "bg-gray-400"}`} />
             </div>
@@ -353,7 +355,7 @@ export default function PublicProfilePage() {
               )}
               <button
                 onClick={() => router.push("/dashboard/messages")}
-                className="btn-secondary flex items-center justify-center gap-2 rounded-xl border border-[var(--border-color)] px-4 py-2.5 text-sm font-semibold"
+                className="btn-secondary flex items-center justify-center gap-2 rounded-xl border-[3px] border-[var(--border-color)] px-4 py-2.5 text-sm font-semibold"
               >
                 <MessageSquare className="w-4 h-4" />
                 Message
@@ -363,7 +365,7 @@ export default function PublicProfilePage() {
           {isOwnProfile && (
             <Link
               href="/dashboard/settings"
-              className="btn-secondary flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--border-color)] px-4 py-2.5 text-sm font-semibold"
+              className="btn-secondary flex w-full items-center justify-center gap-2 rounded-xl border-[3px] border-[var(--border-color)] px-4 py-2.5 text-sm font-semibold"
             >
               Edit Profile
               <ChevronRight className="w-4 h-4" />
@@ -374,7 +376,7 @@ export default function PublicProfilePage() {
 
       {/* Tab Navigation */}
       {isOperator ? (
-        <div className="mt-4 flex gap-1 rounded-xl border border-[var(--border-color)] bg-white p-1">
+        <div className="mt-4 flex gap-1 rounded-xl border-[3px] border-[var(--border-color)] bg-white p-1">
           {[
             { key: "about" as const, label: "About" },
             { key: "services" as const, label: "Services" },
@@ -385,7 +387,7 @@ export default function PublicProfilePage() {
               onClick={() => setActiveTab(tab.key)}
               className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition ${
                 activeTab === tab.key
-                  ? "bg-[#111111] text-white"
+                  ? "bg-[var(--ink)] text-white"
                   : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                 }`}
             >
@@ -394,7 +396,7 @@ export default function PublicProfilePage() {
           ))}
         </div>
       ) : (
-        <div className="mt-4 flex gap-1 rounded-xl border border-[var(--border-color)] bg-white p-1">
+        <div className="mt-4 flex gap-1 rounded-xl border-[3px] border-[var(--border-color)] bg-white p-1">
           {[
             { key: "about" as const, label: "About" },
             { key: "reviews" as const, label: `Reviews (${reviews.length})` },
@@ -404,7 +406,7 @@ export default function PublicProfilePage() {
               onClick={() => setActiveTab(tab.key)}
               className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition ${
                 activeTab === tab.key
-                  ? "bg-[#111111] text-white"
+                  ? "bg-[var(--ink)] text-white"
                   : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                 }`}
             >
@@ -421,27 +423,18 @@ export default function PublicProfilePage() {
           <>
             {/* Distance Map — show both locations when viewing another user, not own profile */}
             {!isOwnProfile && distance !== null && myProfile?.city && profileData.city && (
-              <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
-                <h3 className="text-sm font-semibold text-[#6B7C8F] uppercase tracking-wide mb-3 flex items-center gap-2">
+              <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
+                <h3 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-3 flex items-center gap-2">
                   <Map className="w-4 h-4" />
                   Distance — {distance.toFixed(1)} km apart
                 </h3>
-                <div className="rounded-xl overflow-hidden border border-[#E6EEF6]">
-                  <ServiceRadiusMap
-                    address=""
-                    city={profileData.city}
-                    province={profileData.province}
-                    postalCode={profileData.postalCode}
-                    radiusKm={Math.max(Math.ceil(distance / 2), 3)}
-                  />
-                </div>
                 <div className="flex items-center justify-between mt-3 text-xs">
-                  <span className="text-[#6B7C8F]">
+                  <span className="text-[var(--text-muted)]">
                     <MapPin className="w-3 h-3 inline mr-0.5" />
                     You: {myProfile.city}, {myProfile.province}
                   </span>
-                  <span className="text-[#2F6FED] font-semibold">{distance.toFixed(1)} km</span>
-                  <span className="text-[#6B7C8F]">
+                  <span className="text-[var(--accent)] font-semibold">{distance.toFixed(1)} km</span>
+                  <span className="text-[var(--text-muted)]">
                     <MapPin className="w-3 h-3 inline mr-0.5" />
                     {profileData.displayName}: {profileData.city}, {profileData.province}
                   </span>
@@ -451,21 +444,23 @@ export default function PublicProfilePage() {
 
             {/* Service Area Map — show approximate radius, never exact address */}
             {profileData.city && (
-              <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
-                <h3 className="text-sm font-semibold text-[#6B7C8F] uppercase tracking-wide mb-3 flex items-center gap-2">
+              <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
+                <h3 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-3 flex items-center gap-2">
                   <Map className="w-4 h-4" />
                   Service Area
                 </h3>
-                <div className="rounded-xl overflow-hidden border border-[#E6EEF6]">
+                <div className="rounded-xl overflow-hidden border-[3px] border-[var(--border)]">
                   <ServiceRadiusMap
                     address=""
                     city={profileData.city}
                     province={profileData.province}
                     postalCode={profileData.postalCode}
+                    lat={profileData.lat == null ? undefined : Math.round(profileData.lat * 100) / 100}
+                    lng={profileData.lng == null ? undefined : Math.round(profileData.lng * 100) / 100}
                     radiusKm={isOperator ? (operatorProfile.serviceRadius || 10) : 5}
                   />
                 </div>
-                <p className="text-xs text-[#6B7C8F] mt-2 text-center">
+                <p className="text-xs text-[var(--text-muted)] mt-2 text-center">
                   {isOperator
                     ? `Serves within ${operatorProfile.serviceRadius || 10} km of ${profileData.city}`
                     : `Located in ${profileData.city}, ${profileData.province}`}
@@ -474,21 +469,21 @@ export default function PublicProfilePage() {
             )}
 
             {isOperator && operatorProfile.bio && (
-              <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
-                <h3 className="text-sm font-semibold text-[#6B7C8F] uppercase tracking-wide mb-2">About</h3>
-                <p className="text-sm text-[#0B1F33] leading-relaxed">{operatorProfile.bio}</p>
+              <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
+                <h3 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-2">About</h3>
+                <p className="text-sm text-[var(--ink)] leading-relaxed">{operatorProfile.bio}</p>
               </div>
             )}
 
             {isOperator && operatorProfile.equipment?.length > 0 && (
-              <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
-                <h3 className="text-sm font-semibold text-[#6B7C8F] uppercase tracking-wide mb-3 flex items-center gap-2">
+              <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
+                <h3 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-3 flex items-center gap-2">
                   <Wrench className="w-4 h-4" />
                   Equipment
                 </h3>
                 <div className="flex flex-wrap gap-2">
                   {operatorProfile.equipment.map((eq) => (
-                    <span key={eq} className="px-3 py-1.5 bg-[#F7FAFC] border border-[#E6EEF6] rounded-full text-sm text-[#0B1F33] font-medium">
+                    <span key={eq} className="px-3 py-1.5 bg-[var(--bg-primary)] border-[3px] border-[var(--border)] rounded-full text-sm text-[var(--ink)] font-medium">
                       {eq}
                     </span>
                   ))}
@@ -498,14 +493,14 @@ export default function PublicProfilePage() {
 
             {/* Portfolio Photos */}
             {isOperator && operatorProfile.portfolioPhotos && operatorProfile.portfolioPhotos.length > 0 && (
-              <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
-                <h3 className="text-sm font-semibold text-[#6B7C8F] uppercase tracking-wide mb-3 flex items-center gap-2">
+              <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
+                <h3 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-3 flex items-center gap-2">
                   <Camera className="w-4 h-4" />
                   Work Photos
                 </h3>
                 <div className="grid grid-cols-3 gap-2">
                   {operatorProfile.portfolioPhotos.map((photo, i) => (
-                    <div key={i} className="aspect-square rounded-xl overflow-hidden bg-[#F7FAFC]">
+                    <div key={i} className="aspect-square rounded-xl overflow-hidden bg-[var(--bg-primary)]">
                       <img src={photo} alt={`Work ${i + 1}`} className="w-full h-full object-cover" />
                     </div>
                   ))}
@@ -515,23 +510,23 @@ export default function PublicProfilePage() {
 
             {/* Client property details (visible to the client themselves and operators viewing them) */}
             {!isOperator && (isOwnProfile || myProfile?.role === "operator") && (
-              <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
-                <h3 className="text-sm font-semibold text-[#6B7C8F] uppercase tracking-wide mb-3">Property Details</h3>
+              <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
+                <h3 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-3">Property Details</h3>
                 <div className="space-y-2 text-sm">
                   <p>
-                    <span className="text-[#6B7C8F]">Size:</span>{" "}
-                    <span className="font-medium text-[#0B1F33] capitalize">{clientProfile.propertyDetails?.propertySize || "Not set"}</span>
+                    <span className="text-[var(--text-muted)]">Size:</span>{" "}
+                    <span className="font-medium text-[var(--ink)] capitalize">{clientProfile.propertyDetails?.propertySize || "Not set"}</span>
                   </p>
                   <p>
-                    <span className="text-[#6B7C8F]">Services:</span>{" "}
-                    <span className="font-medium text-[#0B1F33]">
+                    <span className="text-[var(--text-muted)]">Services:</span>{" "}
+                    <span className="font-medium text-[var(--ink)]">
                       {clientProfile.propertyDetails?.serviceTypes?.map((s) => SERVICE_LABELS[s]).join(", ") || "Not set"}
                     </span>
                   </p>
                   {clientProfile.propertyDetails?.specialInstructions && (
                     <p>
-                      <span className="text-[#6B7C8F]">Notes:</span>{" "}
-                      <span className="font-medium text-[#0B1F33]">
+                      <span className="text-[var(--text-muted)]">Notes:</span>{" "}
+                      <span className="font-medium text-[var(--ink)]">
                         {clientProfile.propertyDetails.specialInstructions}
                       </span>
                     </p>
@@ -544,19 +539,19 @@ export default function PublicProfilePage() {
 
         {/* Services Tab */}
         {activeTab === "services" && isOperator && (
-          <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6">
-            <h3 className="text-sm font-semibold text-[#6B7C8F] uppercase tracking-wide mb-4 flex items-center gap-2">
+          <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
+            <h3 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-4 flex items-center gap-2">
               <DollarSign className="w-4 h-4" />
               Services & Pricing (CAD)
             </h3>
             <div className="space-y-3">
               {operatorProfile.serviceTypes?.map((s) => (
-                <div key={s} className="flex items-center justify-between p-4 bg-[#F7FAFC] rounded-xl">
+                <div key={s} className="flex items-center justify-between p-4 bg-[var(--bg-primary)] rounded-xl">
                   <div className="flex items-center gap-3">
                     <span className="text-xl">{SERVICE_EMOJI[s]}</span>
-                    <span className="font-medium text-[#0B1F33]">{SERVICE_LABELS[s]}</span>
+                    <span className="font-medium text-[var(--ink)]">{SERVICE_LABELS[s]}</span>
                   </div>
-                  <span className="font-bold text-[#2F6FED]">
+                  <span className="font-bold text-[var(--accent)]">
                     {s === "driveway"
                       ? `$${operatorProfile.pricing?.driveway?.small || "–"} – $${operatorProfile.pricing?.driveway?.large || "–"}`
                       : s === "walkway"
@@ -568,8 +563,8 @@ export default function PublicProfilePage() {
             </div>
             {operatorProfile.pricing?.hourlyRate && (
               <div className="mt-4 p-4 bg-[#D6E8F5] rounded-xl text-center">
-                <p className="text-sm text-[#2F6FED]">Hourly Rate</p>
-                <p className="text-2xl font-bold text-[#2F6FED]">${operatorProfile.pricing.hourlyRate}/hr</p>
+                <p className="text-sm text-[var(--accent)]">Hourly Rate</p>
+                <p className="text-2xl font-bold text-[var(--accent)]">${operatorProfile.pricing.hourlyRate}/hr</p>
               </div>
             )}
           </div>
@@ -580,26 +575,26 @@ export default function PublicProfilePage() {
           <div className="space-y-4">
             {/* Rating Summary */}
             {isOperator && (
-              <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6 text-center">
-                <p className="text-4xl font-bold text-[#0B1F33]">{operatorProfile.rating?.toFixed(1) || "0.0"}</p>
+              <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6 text-center">
+                <p className="text-4xl font-bold text-[var(--ink)]">{operatorProfile.rating?.toFixed(1) || "0.0"}</p>
                 <div className="flex justify-center mt-1">
                   <StarRating rating={operatorProfile.rating || 0} size="md" />
                 </div>
-                <p className="text-sm text-[#6B7C8F] mt-1">
+                <p className="text-sm text-[var(--text-muted)] mt-1">
                   Based on {reviews.length || operatorProfile.reviewCount || 0} reviews
                 </p>
               </div>
             )}
 
             {!isOperator && reviews.length > 0 && (
-              <div className="bg-white rounded-2xl border border-[#E6EEF6] p-6 text-center">
-                <p className="text-4xl font-bold text-[#0B1F33]">
+              <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6 text-center">
+                <p className="text-4xl font-bold text-[var(--ink)]">
                   {(reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)}
                 </p>
                 <div className="flex justify-center mt-1">
                   <StarRating rating={reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length} size="md" />
                 </div>
-                <p className="text-sm text-[#6B7C8F] mt-1">
+                <p className="text-sm text-[var(--text-muted)] mt-1">
                   Based on {reviews.length} reviews
                 </p>
               </div>
@@ -608,10 +603,10 @@ export default function PublicProfilePage() {
             {/* Individual Reviews */}
             {reviews.length > 0 ? (
               reviews.map((review) => (
-                <div key={review.id} className="bg-white rounded-2xl border border-[#E6EEF6] p-4">
+                <div key={review.id} className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <StarRating rating={review.rating} size="sm" />
-                    <span className="text-xs text-[#6B7C8F]">
+                    <span className="text-xs text-[var(--text-muted)]">
                       {review.createdAt
                         ? new Date(
                             typeof review.createdAt === "object" && "seconds" in (review.createdAt as unknown as Record<string, unknown>)
@@ -621,11 +616,11 @@ export default function PublicProfilePage() {
                         : ""}
                     </span>
                   </div>
-                  <p className="text-sm text-[#0B1F33]">{review.comment}</p>
+                  <p className="text-sm text-[var(--ink)]">{review.comment}</p>
                 </div>
               ))
             ) : (
-              <div className="bg-white rounded-2xl border border-[#E6EEF6] p-8 text-center text-[#6B7C8F]">
+              <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-8 text-center text-[var(--text-muted)]">
                 <Star className="w-8 h-8 mx-auto mb-2 opacity-30" />
                 <p className="text-sm">No reviews yet</p>
               </div>

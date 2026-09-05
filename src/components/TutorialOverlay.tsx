@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, Compass, X } from "lucide-react";
+import { useWeather } from "@/context/WeatherContext";
 import { useAuth } from "@/context/AuthContext";
 import { usePathname } from "next/navigation";
 
@@ -37,6 +38,7 @@ function getVisibleElement(selector: string): HTMLElement | null {
 
 export default function TutorialOverlay() {
   const { profile } = useAuth();
+  const { locationPromptOpen } = useWeather();
   const pathname = usePathname();
   const isStaff = profile?.role === "admin" || profile?.role === "employee";
 
@@ -219,7 +221,7 @@ export default function TutorialOverlay() {
     };
   }, [hasTarget, targetRect]);
 
-  if (isStaff) return null;
+  if (isStaff || locationPromptOpen) return null;
 
   return (
     <AnimatePresence>
@@ -254,7 +256,7 @@ export default function TutorialOverlay() {
             className={hasTarget ? "fixed" : "fixed inset-0 flex items-center justify-center p-4"}
             style={hasTarget ? tooltipStyle : undefined}
           >
-            <div className="w-full max-w-[340px] bg-[var(--bg-card-solid)] border border-[var(--border)] rounded-2xl shadow-2xl p-4">
+            <div className="w-full max-w-[340px] bg-[var(--bg-card-solid)] border-[3px] border-[var(--border)] rounded-2xl shadow-[var(--surface-shadow)] p-4">
               <div className="flex items-start gap-3">
                 <div className="w-9 h-9 rounded-xl bg-[var(--accent-soft)] text-[var(--accent)] flex items-center justify-center shrink-0 mt-0.5">
                   <Compass className="w-4.5 h-4.5" style={{ width: 18, height: 18 }} />
@@ -279,7 +281,7 @@ export default function TutorialOverlay() {
                 <button
                   onClick={prev}
                   disabled={step === 0}
-                  className="w-10 h-10 rounded-xl border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] transition flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="w-10 h-10 rounded-xl border-[3px] border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] transition flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
                   aria-label="Previous step"
                 >
                   <ChevronLeft className="w-4 h-4" />

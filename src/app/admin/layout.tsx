@@ -122,26 +122,26 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   ];
 
   return (
-    <div className="min-h-dvh bg-[#F8F9FA] text-[#1A1A2E]" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
+    <div className="min-h-dvh bg-[var(--bg-primary)] text-[var(--ink)]">
       {/* Mobile nav overlay */}
       {mobileNavOpen && (
         <div className="lg:hidden fixed inset-0 z-50">
           <div className="absolute inset-0 bg-black/35" onClick={() => setMobileNavOpen(false)} />
-          <aside className="absolute left-0 top-0 h-full w-[280px] bg-white border-r border-[#E5E7EB] shadow-xl">
+          <aside className="absolute left-0 top-0 h-full w-[280px] bg-white border-r border-[var(--border)] shadow-[var(--surface-shadow)]">
             <div className="h-full flex flex-col">
-              <div className="px-4 py-4 border-b border-[#E5E7EB] flex items-center justify-between">
+              <div className="px-4 py-4 border-b border-[var(--border)] flex items-center justify-between">
                 <Link href="/admin" className="flex items-center gap-2" onClick={() => setMobileNavOpen(false)}>
                   <Image src="/logo.png" alt="Snowd" width={24} height={24} />
                   <span className="font-semibold text-lg">Snowd</span>
                 </Link>
-                <button onClick={() => setMobileNavOpen(false)} className="p-1.5 rounded-md hover:bg-[#F3F4F6]" aria-label="Close menu">
-                  <X className="w-4 h-4 text-[#6B7280]" />
+                <button onClick={() => setMobileNavOpen(false)} className="p-1.5 rounded-md hover:bg-[var(--bg-secondary)]" aria-label="Close menu">
+                  <X className="w-4 h-4 text-[var(--text-muted)]" />
                 </button>
               </div>
               <nav className="px-3 py-3 flex-1 overflow-y-auto">
                 {navSections.map((section) => (
                   <div key={section.title} className="mb-4">
-                    <p className="px-2 mb-1.5 text-[11px] uppercase tracking-wide text-[#9CA3AF] font-semibold">{section.title}</p>
+                    <p className="px-2 mb-1.5 text-[11px] uppercase tracking-wide text-[var(--text-muted)] font-semibold">{section.title}</p>
                     <div className="space-y-0.5">
                       {section.items.map((item) => {
                         const Icon = item.icon;
@@ -152,14 +152,14 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                             href={item.href}
                             onClick={() => setMobileNavOpen(false)}
                             className={`group relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition ${
-                              active ? "bg-[#EFF6FF] text-[#3B82F6]" : "text-[#6B7280] hover:bg-[#F3F4F6]"
+                              active ? "bg-[var(--bg-secondary)] text-[var(--accent)]" : "text-[var(--text-muted)] hover:bg-[var(--bg-secondary)]"
                             }`}
                           >
-                            {active && <span className="absolute left-0 top-1 bottom-1 w-[3px] bg-[#3B82F6] rounded-r" />}
+                            {active && <span className="absolute left-0 top-1 bottom-1 w-[3px] bg-[var(--accent)] rounded-r" />}
                             <Icon className="w-4 h-4" />
                             <span className="font-medium">{item.label}</span>
                             {item.badge !== undefined && item.badge > 0 && (
-                              <span className="ml-auto min-w-5 h-5 rounded-full bg-[#3B82F6] text-white text-[11px] font-semibold px-1.5 flex items-center justify-center">{item.badge}</span>
+                              <span className="ml-auto min-w-5 h-5 rounded-full bg-[var(--accent)] text-white text-[11px] font-semibold px-1.5 flex items-center justify-center">{item.badge}</span>
                             )}
                           </Link>
                         );
@@ -174,9 +174,9 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       )}
 
       <div className="min-h-dvh grid lg:grid-cols-[220px_minmax(0,1fr)]">
-        <aside className="hidden lg:flex border-r border-[#E5E7EB] bg-white sticky top-0 h-dvh">
+        <aside className="hidden lg:flex border-r border-[var(--border)] bg-white sticky top-0 h-dvh">
           <div className="h-full w-full flex flex-col">
-            <div className="px-4 py-4 border-b border-[#E5E7EB]">
+            <div className="px-4 py-4 border-b border-[var(--border)]">
               <Link href="/admin" className="flex items-center gap-2">
                 <Image src="/logo.png" alt="Snowd" width={24} height={24} />
                 <span className="font-semibold text-lg">Snowd</span>
@@ -187,7 +187,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
             <nav className="px-3 py-3 flex-1 overflow-y-auto">
               {navSections.map((section) => (
                 <div key={section.title} className="mb-4">
-                  <p className="px-2 mb-1.5 text-[11px] uppercase tracking-wide text-[#9CA3AF] font-semibold">{section.title}</p>
+                  <p className="px-2 mb-1.5 text-[11px] uppercase tracking-wide text-[var(--text-muted)] font-semibold">{section.title}</p>
                   <div className="space-y-0.5">
                     {section.items.map((item) => {
                       const Icon = item.icon;
@@ -197,14 +197,14 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                           key={item.href}
                           href={item.href}
                           className={`group relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition ${
-                            active ? "bg-[#EFF6FF] text-[#3B82F6]" : "text-[#6B7280] hover:bg-[#F3F4F6]"
+                            active ? "bg-[var(--bg-secondary)] text-[var(--accent)]" : "text-[var(--text-muted)] hover:bg-[var(--bg-secondary)]"
                           }`}
                         >
-                          {active && <span className="absolute left-0 top-1 bottom-1 w-[3px] bg-[#3B82F6] rounded-r" />}
+                          {active && <span className="absolute left-0 top-1 bottom-1 w-[3px] bg-[var(--accent)] rounded-r" />}
                           <Icon className="w-4 h-4" />
                           <span className="font-medium">{item.label}</span>
                           {item.badge !== undefined && item.badge > 0 && (
-                            <span className="ml-auto min-w-5 h-5 rounded-full bg-[#3B82F6] text-white text-[11px] font-semibold px-1.5 flex items-center justify-center">{item.badge}</span>
+                            <span className="ml-auto min-w-5 h-5 rounded-full bg-[var(--accent)] text-white text-[11px] font-semibold px-1.5 flex items-center justify-center">{item.badge}</span>
                           )}
                         </Link>
                       );
@@ -214,24 +214,24 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
               ))}
             </nav>
 
-            <div className="p-3 border-t border-[#E5E7EB]">
-              <div className="flex items-center gap-2.5 p-2 rounded-lg bg-[#F8F9FA] border border-[#E5E7EB]">
-                <div className="w-8 h-8 rounded-full bg-[#DBEAFE] text-[#3B82F6] flex items-center justify-center text-xs font-bold">
+            <div className="p-3 border-t border-[var(--border)]">
+              <div className="flex items-center gap-2.5 p-2 rounded-lg bg-[var(--bg-primary)] border-[3px] border-[var(--border)]">
+                <div className="w-8 h-8 rounded-full bg-[var(--bg-secondary)] text-[var(--accent)] flex items-center justify-center text-xs font-bold">
                   {(profile?.displayName || "A").slice(0, 2).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium truncate">{profile?.displayName || "Admin"}</p>
-                  <p className="text-xs text-[#6B7280] truncate">{profile?.email}</p>
+                  <p className="text-xs text-[var(--text-muted)] truncate">{profile?.email}</p>
                 </div>
                 <button
                   onClick={async () => {
                     await signOut();
                     router.push("/login");
                   }}
-                  className="p-1.5 rounded-md hover:bg-[#F3F4F6]"
+                  className="p-1.5 rounded-md hover:bg-[var(--bg-secondary)]"
                   title="Logout"
                 >
-                  <LogOut className="w-4 h-4 text-[#6B7280]" />
+                  <LogOut className="w-4 h-4 text-[var(--text-muted)]" />
                 </button>
               </div>
             </div>
@@ -240,40 +240,40 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
         <div className="min-w-0">
           <div className="grid min-h-dvh" style={{ gridTemplateColumns: trayCollapsed ? "minmax(0,1fr)" : "minmax(0,1fr) 300px" }}>
-            <div className="min-w-0 border-r border-[#E5E7EB]">
-              <header className="h-[64px] sticky top-0 z-30 bg-white border-b border-[#E5E7EB] px-3 sm:px-4 flex items-center gap-3 sm:gap-4">
+            <div className="min-w-0 border-r border-[var(--border)]">
+              <header className="h-[64px] sticky top-0 z-30 bg-white border-b border-[var(--border)] px-3 sm:px-4 flex items-center gap-3 sm:gap-4">
                 <button
                   onClick={() => setMobileNavOpen(true)}
-                  className="lg:hidden w-9 h-9 rounded-lg border border-[#E5E7EB] bg-white hover:bg-[#F8F9FA] inline-flex items-center justify-center"
+                  className="lg:hidden w-9 h-9 rounded-lg border-[3px] border-[var(--border)] bg-white hover:bg-[var(--bg-primary)] inline-flex items-center justify-center"
                   aria-label="Open menu"
                 >
-                  <Menu className="w-4 h-4 text-[#374151]" />
+                  <Menu className="w-4 h-4 text-[var(--text-secondary)]" />
                 </button>
                 <h1 className="text-lg sm:text-xl font-semibold min-w-0 truncate">{pageTitle}</h1>
                 <div className="relative flex-1 max-w-[560px] hidden sm:block">
-                  <Search className="w-4 h-4 text-[#9CA3AF] absolute left-3 top-1/2 -translate-y-1/2" />
+                  <Search className="w-4 h-4 text-[var(--text-muted)] absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Search users, jobs, tickets..."
-                    className="w-full h-10 rounded-lg border border-[#E5E7EB] bg-[#F8F9FA] pl-9 pr-3 text-sm outline-none focus:border-[#3B82F6]"
+                    className="w-full h-10 rounded-lg border-[3px] border-[var(--border)] bg-[var(--bg-primary)] pl-9 pr-3 text-sm outline-none focus:border-[var(--accent)]"
                   />
                 </div>
                 <div className="ml-auto flex items-center gap-2">
                   <div className="relative">
                     <button
                       onClick={() => setShowNotifDropdown((v) => !v)}
-                      className="w-10 h-10 rounded-lg border border-[#E5E7EB] bg-white hover:bg-[#F8F9FA] flex items-center justify-center relative"
+                      className="w-10 h-10 rounded-lg border-[3px] border-[var(--border)] bg-white hover:bg-[var(--bg-primary)] flex items-center justify-center relative"
                       aria-label="Notifications"
                     >
-                      <Bell className="w-4 h-4 text-[#374151]" />
+                      <Bell className="w-4 h-4 text-[var(--text-secondary)]" />
                       {unreadNotifications > 0 && <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[#EF4444]" />}
                     </button>
                     {showNotifDropdown && (
-                      <div className="absolute right-0 mt-2 w-[min(360px,92vw)] rounded-xl border border-[#E5E7EB] bg-white shadow-xl overflow-hidden z-50">
-                        <div className="px-3 py-2 border-b border-[#E5E7EB] flex items-center justify-between">
+                      <div className="absolute right-0 mt-2 w-[min(360px,92vw)] rounded-xl border-[3px] border-[var(--border)] bg-white shadow-[var(--surface-shadow)] overflow-hidden z-50">
+                        <div className="px-3 py-2 border-b border-[var(--border)] flex items-center justify-between">
                           <p className="text-sm font-semibold">Notifications</p>
-                          <button onClick={markAllNotificationsRead} className="text-xs text-[#3B82F6] font-medium">Mark all as read</button>
+                          <button onClick={markAllNotificationsRead} className="text-xs text-[var(--accent)] font-medium">Mark all as read</button>
                         </div>
                         <div className="max-h-[380px] overflow-y-auto">
                           {notifications.slice(0, 20).map((n) => (
@@ -284,17 +284,17 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                                 setShowNotifDropdown(false);
                                 router.push(n.href);
                               }}
-                              className={`w-full text-left px-3 py-2.5 border-b border-[#F3F4F6] hover:bg-[#F9FAFB] ${!n.read ? "bg-[#EFF6FF]" : "bg-white"}`}
+                              className={`w-full text-left px-3 py-2.5 border-b border-[var(--bg-secondary)] hover:bg-[var(--bg-primary)] ${!n.read ? "bg-[var(--bg-secondary)]" : "bg-white"}`}
                             >
-                              <p className="text-sm text-[#1A1A2E]">{n.message}</p>
-                              <p className="text-xs text-[#6B7280] mt-0.5">{relativeTime(n.createdAt)}</p>
+                              <p className="text-sm text-[var(--ink)]">{n.message}</p>
+                              <p className="text-xs text-[var(--text-muted)] mt-0.5">{relativeTime(n.createdAt)}</p>
                             </button>
                           ))}
                         </div>
                       </div>
                     )}
                   </div>
-                  <div className="w-10 h-10 rounded-full bg-[#DBEAFE] text-[#3B82F6] flex items-center justify-center text-sm font-bold">
+                  <div className="w-10 h-10 rounded-full bg-[var(--bg-secondary)] text-[var(--accent)] flex items-center justify-center text-sm font-bold">
                     {(profile?.displayName || "A").slice(0, 2).toUpperCase()}
                   </div>
                 </div>
@@ -307,18 +307,18 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
             {!trayCollapsed && (
               <aside className="min-w-0 hidden xl:block">
-                <header className="h-[64px] sticky top-0 z-20 bg-white border-b border-[#E5E7EB] px-4 flex items-center justify-between">
+                <header className="h-[64px] sticky top-0 z-20 bg-white border-b border-[var(--border)] px-4 flex items-center justify-between">
                   <h2 className="font-semibold">Live Tray</h2>
                   <button
                     onClick={() => setTrayCollapsed(true)}
-                    className="w-8 h-8 rounded-md border border-[#E5E7EB] hover:bg-[#F3F4F6] flex items-center justify-center"
+                    className="w-8 h-8 rounded-md border-[3px] border-[var(--border)] hover:bg-[var(--bg-secondary)] flex items-center justify-center"
                     aria-label="Collapse tray"
                   >
-                    <ChevronRight className="w-4 h-4 text-[#6B7280]" />
+                    <ChevronRight className="w-4 h-4 text-[var(--text-muted)]" />
                   </button>
                 </header>
                 <div className="p-4 space-y-4">
-                  <div className="rounded-xl border border-[#E5E7EB] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08)] p-3">
+                  <div className="rounded-xl border-[3px] border-[var(--border)] bg-white shadow-[var(--surface-shadow)] p-3">
                     <div className="flex items-center justify-between mb-2">
                       <p className="font-semibold text-sm">Unread Notifications</p>
                       {unreadNotifications > 0 && <StatusTag label={String(unreadNotifications)} tone="blue" />}
@@ -331,30 +331,30 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                             markNotificationRead(n.id);
                             router.push(n.href);
                           }}
-                          className={`w-full text-left p-2 rounded-lg border ${!n.read ? "bg-[#EFF6FF] border-[#BFDBFE]" : "bg-white border-[#E5E7EB]"}`}
+                          className={`w-full text-left p-2 rounded-lg border ${!n.read ? "bg-[var(--bg-secondary)] border-[#BFDBFE]" : "bg-white border-[var(--border)]"}`}
                         >
-                          <p className="text-xs text-[#1A1A2E]">{n.message}</p>
-                          <p className="text-[11px] text-[#6B7280] mt-0.5">{relativeTime(n.createdAt)}</p>
+                          <p className="text-xs text-[var(--ink)]">{n.message}</p>
+                          <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{relativeTime(n.createdAt)}</p>
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-[#E5E7EB] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08)] p-3">
+                  <div className="rounded-xl border-[3px] border-[var(--border)] bg-white shadow-[var(--surface-shadow)] p-3">
                     <div className="flex items-center justify-between mb-2">
                       <p className="font-semibold text-sm">Support Queue</p>
                       <StatusTag label={String(openSupportCount)} tone="purple" />
                     </div>
-                    <p className="text-xs text-[#6B7280] mb-2">Unread replies: {supportUnreadCount}</p>
+                    <p className="text-xs text-[var(--text-muted)] mb-2">Unread replies: {supportUnreadCount}</p>
                     <div className="space-y-2 max-h-[280px] overflow-y-auto">
                       {supportTickets
                         .filter((t) => t.status !== "Resolved")
                         .slice(0, 8)
                         .map((ticket) => (
-                          <Link key={ticket.id} href="/admin/support-chats" className="block p-2 rounded-lg border border-[#E5E7EB] hover:bg-[#F9FAFB]">
-                            <p className="text-sm text-[#1A1A2E] font-medium truncate">{ticket.subject}</p>
+                          <Link key={ticket.id} href="/admin/support-chats" className="block p-2 rounded-lg border-[3px] border-[var(--border)] hover:bg-[var(--bg-primary)]">
+                            <p className="text-sm text-[var(--ink)] font-medium truncate">{ticket.subject}</p>
                             <div className="mt-1 flex items-center justify-between">
-                              <p className="text-xs text-[#6B7280] truncate">{ticket.userName}</p>
+                              <p className="text-xs text-[var(--text-muted)] truncate">{ticket.userName}</p>
                               <StatusTag
                                 label={ticket.status}
                                 tone={ticket.status === "Open" ? "red" : ticket.status === "Waiting" ? "yellow" : "green"}
@@ -374,10 +374,10 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       {trayCollapsed && (
         <button
           onClick={() => setTrayCollapsed(false)}
-          className="hidden xl:flex fixed right-3 top-[80px] z-40 w-9 h-9 rounded-lg border border-[#E5E7EB] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08)] items-center justify-center"
+          className="hidden xl:flex fixed right-3 top-[80px] z-40 w-9 h-9 rounded-lg border-[3px] border-[var(--border)] bg-white shadow-[var(--surface-shadow)] items-center justify-center"
           aria-label="Open tray"
         >
-          <ChevronLeft className="w-4 h-4 text-[#6B7280]" />
+          <ChevronLeft className="w-4 h-4 text-[var(--text-muted)]" />
         </button>
       )}
     </div>

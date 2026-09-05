@@ -1,276 +1,98 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import {
-  ArrowRight,
-  Banknote,
-  BellRing,
-  Camera,
-  CheckCircle2,
-  HeartHandshake,
-  Home,
-  MapPin,
-  MessageCircle,
-  ShieldCheck,
-  Shovel,
-  Snowflake,
-  Star,
-  UsersRound,
-} from "lucide-react";
+import { ArrowRight, Check, ChevronDown, MapPin, RotateCcw, Shovel, Snowflake, Camera, MessageCircle, Banknote, UserRound, ClipboardCheck } from "lucide-react";
+import styles from "./landing.module.css";
 
-const quickProof = [
-  [MapPin, "Local help"],
-  [MessageCircle, "Easy chat"],
-  [Camera, "Photo proof"],
-  [ShieldCheck, "Safe pay"],
+const guides = {
+  help: [
+    ["Post it.", "Add your address, a photo, and the areas you need shoveled."],
+    ["Meet your helper.", "A nearby helper accepts your job. Chat with them right in SNOWD."],
+    ["Take back your day.", "Review the finished photos, approve the work, and pay through the app."],
+  ],
+  earn: [
+    ["Say hello.", "Tell us where you want to work and complete your shoveler setup."],
+    ["Pick your job.", "See available snow-clearing jobs and accept one that works for you."],
+    ["Shovel. Earn. Repeat.", "Upload photos of your work. Payment follows the customer’s approval."],
+  ],
+};
+const questions = [
+  ["What is SNOWD?", "SNOWD connects people who need snow removed with local people who shovel it. Post a job, chat with your helper, and review the work in one place."],
+  ["Can I earn money shoveling?", "Yes. Create an account, complete the shoveler setup, and browse available jobs near you. You choose which jobs to accept."],
+  ["How much does it cost?", "Pricing depends on the job. Review the price in the app before booking snow removal."],
+  ["Is there help in my area?", "Enter your service area when you sign up. Available help depends on nearby shovelers and current demand."],
 ];
 
-const signupPaths = [
-  {
-    title: "I need snow cleared",
-    text: "Post the job. Watch it get claimed.",
-    cta: "Book help",
-    icon: Home,
-    dark: true,
-  },
-  {
-    title: "I want snow money",
-    text: "Claim nearby jobs when flakes fall.",
-    cta: "Start earning",
-    icon: Banknote,
-    dark: false,
-  },
-];
-
-const loop = [
-  [BellRing, "Snow hits"],
-  [UsersRound, "Neighbor accepts"],
-  [Shovel, "Path clears"],
-  [CheckCircle2, "You approve"],
-];
-
-function BrandLogo() {
-  return (
-    <Link href="/" className="flex items-center gap-3" aria-label="SNOWD home">
-      <Image src="/logo.png" alt="" width={64} height={68} priority className="h-11 w-11 object-contain sm:h-12 sm:w-12" />
-      <span className="font-headline text-3xl font-black leading-none text-[#071624] sm:text-4xl">
-        snowd<span className="text-[#ff6b0a]">.</span>
-      </span>
-    </Link>
-  );
+function Brand() {
+  return <Link href="/" aria-label="SNOWD home" className={styles.brand}><Image src="/logo.png" alt="" width={42} height={44} priority />snowd<span>.</span></Link>;
 }
 
-function FallingSnow({ dark = false }: { dark?: boolean }) {
-  return (
-    <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-      {[7, 18, 31, 47, 62, 78, 91].map((left, index) => (
-        <Snowflake
-          key={left}
-          className={`absolute -top-8 h-5 w-5 animate-[snowd-fall_linear_infinite] ${dark ? "text-[#071624]/22" : "text-white/75"}`}
-          style={{
-            left: `${left}%`,
-            animationDelay: `${index * 0.62}s`,
-            animationDuration: `${14 + index}s`,
-          }}
-        />
-      ))}
+function SnowDemo() {
+  const [phase, setPhase] = useState<"snowy" | "clearing" | "cleared">("snowy");
+  const cleared = phase === "cleared";
+  const clearing = phase === "clearing";
+  return <div className={styles.demo}>
+    <div className={styles.demoTop}><span><span className={styles.dot} /> A little winter magic</span><span className={styles.demoLabel}>Interactive demo</span></div>
+    <div className={`${styles.scene} ${clearing ? styles.isClearing : ""} ${cleared ? styles.isCleared : ""}`}>
+      <svg viewBox="0 0 560 350" role="img" aria-label={cleared ? "A house with a freshly cleared driveway" : "A house with a snowy driveway"}>
+        <circle cx="454" cy="66" r="35" fill="#ffcc79" />
+        <path d="M0 255 Q110 220 230 251 T560 239 V350 H0Z" fill="#fff" />
+        <path d="M50 245V159M20 206L50 133L80 206Z" fill="#8fb8bb" stroke="#071624" strokeWidth="3" strokeLinejoin="round" />
+        <path d="M474 249V164M440 214L474 133L508 214Z" fill="#8fb8bb" stroke="#071624" strokeWidth="3" strokeLinejoin="round" />
+        <path d="M141 145L275 52L409 145" fill="#071624" stroke="#071624" strokeWidth="13" strokeLinejoin="round" />
+        <path d="M145 133L275 43L405 133" fill="none" stroke="white" strokeWidth="15" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M159 144H392V251H159Z" fill="#ff9854" stroke="#071624" strokeWidth="3" />
+        <path d="M249 164H369V251H249Z" fill="#f8faf7" stroke="#071624" strokeWidth="3" />
+        {[185, 205, 225].map(y => <path key={y} d={`M254 ${y}H364`} stroke="#c5d7db" strokeWidth="3" />)}
+        <path d="M179 176H223V251H179Z" fill="#071624" /><circle cx="213" cy="218" r="3" fill="#ff6b0a" />
+        <path d="M252 253H369L437 350H216Z" fill="#789199" stroke="#071624" strokeWidth="3" />
+        <defs><clipPath id="driveway-clip"><path d="M249 251H372L437 350H216Z" /></clipPath></defs>
+        <g clipPath="url(#driveway-clip)">
+          {[0, 1, 2].map(lane => <g key={lane} className={styles.snowLane} style={{ animationDelay: `${lane * .75}s` }}>
+            <path d={`M${210 + lane * 76} 247h77v110h-77Z`} fill="#fff" />
+            <path d={`M${228 + lane * 76} 282l18 -3m-12 43l20 -2`} stroke="#d8eefc" strokeWidth="4" strokeLinecap="round" />
+          </g>)}
+        </g>
+        {(clearing || cleared) && <g className={styles.snowBanks} fill="white" stroke="#d8eefc" strokeWidth="2"><path d="M211 348Q192 336 209 328Q196 310 217 309Q206 292 232 291L219 348Z" /><path d="M442 348Q463 335 444 325Q451 310 424 307L402 281Q425 278 426 293Q450 290 447 309Q472 324 463 343Z" /></g>}
+        {clearing && <g aria-hidden="true" className={styles.shovelRun} onAnimationEnd={event => { if (event.target === event.currentTarget) setPhase("cleared"); }}>
+          <g transform="translate(0 -4)"><path d="M0 0L12 -39" stroke="#071624" strokeWidth="5" strokeLinecap="round" /><path d="M6 -47H24L21 -36H9Z" fill="#ff9854" stroke="#071624" strokeWidth="3" /><path d="M-22 -2H22L18 12Q0 24 -18 12Z" fill="#ff6b0a" stroke="#071624" strokeWidth="3" />
+          {[-18, 0, 18].map((x, i) => <circle key={x} className={styles.snowSpray} cx={x} cy="23" r={4 + i} fill="white" style={{ animationDelay: `${i * .12}s` }} />)}</g>
+        </g>}
+        {cleared && <g className={styles.successMark}><circle cx="313" cy="295" r="22" fill="#d9f5dd" stroke="#071624" strokeWidth="2" /><path d="M302 295L310 303L325 286" fill="none" stroke="#22713b" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" /></g>}
+        {phase === "snowy" && [ [100,60], [196,37], [430,166], [70,107], [350,28], [515,92] ].map(([x,y]) => <g key={x} stroke="white" strokeWidth="3" strokeLinecap="round"><path d={`M${x-5} ${y}h10M${x} ${y-5}v10`} /></g>)}
+      </svg>
+      <span className={styles.sceneCaption}><MapPin size={15} /> {cleared ? "Ready for your day." : clearing ? "Making room for life…" : "One snowy driveway. Let’s fix that."}</span>
     </div>
-  );
-}
-
-function SnowButton() {
-  return (
-    <div className="relative mt-8 max-w-xl overflow-hidden rounded-lg border-2 border-[#071624] bg-white p-3 shadow-[7px_7px_0_#071624]">
-      <div className="grid min-h-24 grid-cols-[1fr_auto] items-center gap-3 rounded-md bg-[#071624] px-5 text-white">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-white/52">One tap</p>
-          <p className="mt-1 text-3xl font-black leading-none sm:text-4xl">Snowd it.</p>
-        </div>
-        <Link href="/signup" className="grid h-16 w-16 place-items-center rounded-lg bg-[#ff6b0a] text-[#071624]" aria-label="Sign up for SNOWD">
-          <ArrowRight className="h-8 w-8" />
-        </Link>
-      </div>
-      <div className="mt-3 grid grid-cols-3 gap-2 text-center text-sm font-black">
-        {["Post", "Match", "Cleared"].map((label, index) => (
-          <div key={label} className="relative overflow-hidden rounded-md border-2 border-[#071624] bg-[#f8faf7] px-2 py-3">
-            <span
-              className="absolute inset-x-0 bottom-0 h-1 animate-[snowd-step-fill_4.5s_ease-in-out_infinite] bg-[#16a34a]"
-              style={{ animationDelay: `${index * 0.42}s` }}
-            />
-            {label}
-          </div>
-        ))}
-      </div>
+    <div className={styles.demoBottom}>
+      <div aria-live="polite"><h2>{cleared ? "Clear driveway. Clear schedule." : clearing ? "A little help goes a long way." : "Your forecast: less shoveling."}</h2><p>{cleared ? "Imagine this part of winter handled." : clearing ? "Watch the shovel make three satisfying passes." : "Tap below and watch winter get out of the way."}</p></div>
+      <button className={styles.primary} disabled={clearing} onClick={() => setPhase(cleared ? "snowy" : "clearing")}>{cleared ? <RotateCcw size={20} /> : <Shovel size={20} />}{cleared ? "Let it snow again" : clearing ? "Clearing the way…" : "Clear the snow"}</button>
+      <p className={styles.demoNote}>Just for fun — this won’t book a real job.</p>
     </div>
-  );
-}
-
-function MascotHero() {
-  return (
-    <div className="relative min-h-[33rem] overflow-hidden rounded-lg bg-[#ff6b0a] lg:min-h-[42rem]">
-      <FallingSnow dark />
-      <div className="absolute left-6 top-6 rounded-lg border-2 border-[#071624] bg-white px-4 py-3 text-sm font-black uppercase tracking-[0.16em] shadow-[4px_4px_0_#071624]">
-        Next storm, less stress
-      </div>
-      <div className="absolute inset-x-5 bottom-5 z-10 rounded-lg border-2 border-[#071624] bg-white/94 p-4 shadow-[5px_5px_0_#071624] sm:left-7 sm:right-auto sm:w-[23rem]">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-lg font-black">Driveway claimed</p>
-          <span className="flex items-center gap-1 rounded-full bg-[#dcfce7] px-3 py-1 text-sm font-black text-[#166534]">
-            <CheckCircle2 className="h-4 w-4" />
-            18 min
-          </span>
-        </div>
-        <div className="mt-4 h-3 overflow-hidden rounded-full bg-[#d8eefc]">
-          <div className="h-full w-1/2 animate-[snowd-progress-load_3.8s_ease-in-out_infinite] rounded-full bg-[#071624]" />
-        </div>
-      </div>
-      <Image
-        src="/landing/snowd-mascot-helper-cutout.png"
-        alt="SNOWD mascot holding a shovel and confirmation phone"
-        width={760}
-        height={760}
-        priority
-        className="absolute -bottom-16 right-[-4.5rem] h-[28rem] w-[28rem] animate-[snowd-hero-bob_4.8s_ease-in-out_infinite] object-contain sm:right-[-2rem] sm:h-[36rem] sm:w-[36rem] lg:h-[44rem] lg:w-[44rem]"
-      />
-    </div>
-  );
+  </div>;
 }
 
 export default function HomePage() {
-  return (
-    <main className="min-h-screen overflow-hidden bg-[#f8faf7] text-[#071624]">
-      <nav className="sticky top-0 z-50 flex min-h-20 items-center justify-between border-b-2 border-[#071624] bg-[#f8faf7]/94 px-4 py-3 backdrop-blur sm:px-8 lg:px-14">
-        <BrandLogo />
-        <div className="hidden items-center gap-8 text-sm font-black uppercase tracking-[0.12em] md:flex">
-          <Link href="#join">Join</Link>
-          <Link href="#why">Why it works</Link>
-          <Link href="/login">Log in</Link>
-        </div>
-        <Link href="/signup" className="inline-flex min-h-12 items-center justify-center rounded-lg bg-[#071624] px-5 text-sm font-black uppercase tracking-[0.1em] !text-white sm:px-6">
-          Sign up
-        </Link>
-      </nav>
-
-      <section className="grid gap-5 px-4 py-5 sm:px-8 lg:grid-cols-[0.92fr_1.08fr] lg:px-14">
-        <div className="relative overflow-hidden rounded-lg border-2 border-[#071624] bg-[#ff6b0a] p-6 shadow-[7px_7px_0_#071624] sm:p-9 lg:min-h-[42rem]">
-          <FallingSnow dark />
-          <div className="relative z-10">
-            <p className="inline-flex items-center gap-3 text-sm font-black uppercase tracking-[0.22em]">
-              <Star className="h-6 w-6 fill-[#071624]" />
-              Snow help is close
-            </p>
-            <h1 className="mt-6 max-w-3xl font-headline text-[clamp(4.6rem,10vw,9.6rem)] font-black lowercase leading-[0.78]">
-              winter just got easier.
-            </h1>
-            <p className="mt-6 max-w-xl text-[clamp(1.25rem,2vw,1.8rem)] font-black leading-snug text-[#071624]/78">
-              Book a nearby shoveler. Or earn clearing snow.
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link href="/signup" className="inline-flex min-h-16 items-center justify-center rounded-lg bg-[#071624] px-7 text-lg font-black !text-white">
-                Get snow removed <ArrowRight className="ml-3 h-6 w-6" />
-              </Link>
-              <Link href="/signup" className="inline-flex min-h-16 items-center justify-center rounded-lg border-2 border-[#071624] bg-white px-7 text-lg font-black shadow-[4px_4px_0_#071624]">
-                Earn nearby
-              </Link>
-            </div>
-            <SnowButton />
-          </div>
-        </div>
-
-        <MascotHero />
-      </section>
-
-      <section className="grid gap-3 px-4 pb-10 sm:grid-cols-4 sm:px-8 lg:px-14">
-        {quickProof.map(([Icon, label]) => {
-          const IconComponent = Icon as typeof MapPin;
-          return (
-            <div key={label as string} className="flex min-h-20 items-center gap-3 rounded-lg border-2 border-[#071624] bg-white p-4 shadow-[4px_4px_0_#071624]">
-              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-[#ffedd5] text-[#071624]">
-                <IconComponent className="h-5 w-5" />
-              </div>
-              <p className="text-lg font-black">{label as string}</p>
-            </div>
-          );
-        })}
-      </section>
-
-      <section id="join" className="grid gap-5 px-4 py-10 sm:px-8 lg:grid-cols-2 lg:px-14">
-        {signupPaths.map(({ title, text, cta, icon: Icon, dark }) => (
-          <article
-            key={title}
-            className={`rounded-lg border-2 border-[#071624] p-6 shadow-[6px_6px_0_#071624] sm:p-8 ${
-              dark ? "bg-[#071624] text-white" : "bg-white"
-            }`}
-          >
-            <div className="flex items-start justify-between gap-5">
-              <h2 className="max-w-lg text-[clamp(2.4rem,5vw,4.4rem)] font-black lowercase leading-[0.84]">{title}</h2>
-              <div className="grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-[#ff6b0a] text-[#071624]">
-                <Icon className="h-7 w-7" />
-              </div>
-            </div>
-            <p className={`mt-5 max-w-xl text-xl font-bold leading-snug ${dark ? "text-white/76" : "text-[#3f5263]"}`}>{text}</p>
-            <Link href="/signup" className={`mt-7 inline-flex min-h-14 items-center rounded-lg px-6 text-lg font-black ${dark ? "bg-white text-[#071624]" : "bg-[#071624] text-white"}`}>
-              {cta} <ArrowRight className="ml-3 h-5 w-5" />
-            </Link>
-          </article>
-        ))}
-      </section>
-
-      <section id="why" className="px-4 py-10 sm:px-8 lg:px-14">
-        <div className="grid gap-5 rounded-lg border-2 border-[#071624] bg-[#d8eefc] p-5 shadow-[7px_7px_0_#071624] sm:p-8 lg:grid-cols-[0.72fr_1fr] lg:items-center">
-          <div>
-            <p className="text-sm font-black uppercase tracking-[0.2em] text-[#587085]">Why people return</p>
-            <h2 className="mt-4 max-w-3xl font-headline text-[clamp(3rem,7vw,6.8rem)] font-black lowercase leading-[0.84]">
-              it remembers the hard part.
-            </h2>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {loop.map(([Icon, label], index) => {
-              const IconComponent = Icon as typeof BellRing;
-              return (
-                <div key={label as string} className="relative overflow-hidden rounded-lg border-2 border-[#071624] bg-white p-5">
-                  <span
-                    className="absolute inset-x-0 bottom-0 h-1 animate-[snowd-step-fill_4.5s_ease-in-out_infinite] bg-[#ff6b0a]"
-                    style={{ animationDelay: `${index * 0.42}s` }}
-                  />
-                  <IconComponent className="h-8 w-8 text-[#ff6b0a]" />
-                  <p className="mt-8 text-2xl font-black leading-tight">{label as string}</p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      <section className="px-4 py-12 sm:px-8 lg:px-14">
-        <div className="relative overflow-hidden rounded-lg bg-[#ff6b0a] p-7 text-[#071624] sm:p-10">
-          <Image
-            src="/landing/snowd-mascot-helper-cutout.png"
-            alt=""
-            width={320}
-            height={320}
-            className="absolute -bottom-14 right-0 h-56 w-56 object-contain opacity-90 sm:h-72 sm:w-72"
-          />
-          <div className="relative z-10 max-w-3xl">
-            <p className="flex items-center gap-2 text-sm font-black uppercase tracking-[0.16em]">
-              <Star className="h-5 w-5 fill-[#071624]" />
-              Next storm, less stress
-            </p>
-            <h2 className="mt-4 max-w-2xl text-[clamp(2.8rem,6vw,5.8rem)] font-black lowercase leading-[0.86]">
-              join before it piles up.
-            </h2>
-            <Link href="/signup" className="mt-8 inline-flex min-h-16 items-center rounded-lg bg-[#071624] px-7 text-lg font-black !text-white">
-              Sign up now <ArrowRight className="ml-3 h-6 w-6" />
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      <footer className="flex flex-col gap-6 border-t-2 border-[#071624] px-5 py-10 sm:px-10 md:flex-row md:items-center md:justify-between lg:px-16">
-        <BrandLogo />
-        <p className="max-w-xl text-lg font-bold text-[#587085]">SNOWD connects people who need clear paths with neighbors ready to help.</p>
-      </footer>
-    </main>
-  );
+  const [audience, setAudience] = useState<"help" | "earn">("help");
+  return <main className={styles.page}>
+    <nav className={styles.nav} aria-label="Main navigation"><Brand /><div className={styles.navLinks}><a href="#how">How it works</a><Link href="/login">Log in</Link><Link href="/signup" className={styles.primary}>Get started <ArrowRight size={18} /></Link></div></nav>
+    <section className={styles.hero}>
+      <div className={styles.heroCopy}><p className={styles.eyebrow}><Snowflake size={20} /> Local people. Less shoveling.</p><h1>Love winter.<br /><span>Skip the<br />shoveling.</span></h1><p className={styles.intro}>Get your snow cleared by someone nearby. Or earn money clearing it.</p><div className={styles.heroActions}><Link href="/signup" className={styles.primary}>Find snow removal <ArrowRight size={20} /></Link><a href="#how" className={styles.secondary} onClick={() => setAudience("earn")}>I want to earn</a></div><p className={styles.heroNote}>Your driveway. Your walkway. One less thing to do.</p></div>
+      <SnowDemo />
+    </section>
+    <section id="how" className={styles.how}>
+      <div className={styles.sectionHeading}><div><p className={styles.eyebrow}>Okay, how does it work?</p><h2>{audience === "help" ? <>From snowed in<br />to sorted.</> : <>Turn a snow day<br />into a payday.</>}</h2><p className={styles.sectionIntro}>{audience === "help" ? "A few details from you. A helping hand nearby." : "Local jobs. Your choice. A little extra in your pocket."}</p></div><div className={styles.switch} aria-label="Choose what you want to do"><button aria-pressed={audience === "help"} onClick={() => setAudience("help")}>I need help</button><button aria-pressed={audience === "earn"} onClick={() => setAudience("earn")}>I want to earn</button></div></div>
+      <div className={styles.steps} aria-live="polite">{guides[audience].map(([title, description], i) => {
+        const Icon = (audience === "help" ? [Camera, MessageCircle, ClipboardCheck] : [UserRound, MapPin, Banknote])[i];
+        const benefits = audience === "help" ? ["You set the scene", "Keep it all in one chat", "You approve the finished work"] : ["Start with your neighborhood", "Choose what works for you", "Show your work. Get paid."];
+        const previews = audience === "help" ? ["Choose your driveway, walkway, or other snowy areas. Add a photo so your helper knows what to expect.", "Once someone accepts, use the job chat to share useful details, like where to find your walkway.", "Your helper uploads finished photos. Review them and approve the job when the work is done."] : ["Create your account and complete the shoveler setup before taking jobs.", "Browse available jobs near you. Review the details before deciding which job to accept.", "Upload finished photos for your customer to review. Payment follows their approval."];
+        return <article key={`${audience}-${i}`}><div className={styles.stepTop}><span className={styles.number}>0{i + 1}</span><span className={styles.stepIcon}><Icon size={32} strokeWidth={1.7} /></span></div><h3>{title}</h3><p>{description}</p><div className={styles.stepBenefit}><Check size={15} />{benefits[i]}</div><details className={styles.stepDetails}><summary>Show me more <ChevronDown size={16} /></summary><p>{previews[i]}</p></details></article>;
+      })}</div>
+      <Link href="/signup" className={styles.textLink}>{audience === "help" ? "Let’s find you some help" : "Let’s get you earning"} <ArrowRight size={20} /></Link>
+    </section>
+    <section className={styles.faq}><div><p className={styles.eyebrow}>Good questions</p><h2>A little more<br />before you go.</h2></div><div className={styles.questions}>{questions.map(([question, answer]) => <details key={question}><summary>{question}<ChevronDown size={20} /></summary><p>{answer}</p></details>)}</div></section>
+    <section className={styles.finalCta}><div><p className={styles.eyebrow}><Check size={18} /> Less snow. More day.</p><h2>Leave the snow<br />to someone nearby.</h2></div><Link href="/signup" className={styles.primary}>Get started <ArrowRight size={20} /></Link></section>
+    <footer className={styles.footer}><Brand /><p>Connecting neighbors, one clear path at a time.</p><Link href="/login">Log in <ArrowRight size={16} /></Link></footer>
+  </main>;
 }

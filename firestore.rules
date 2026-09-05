@@ -28,12 +28,16 @@ service cloud.firestore {
     }
 
     function changedUserKeys() {
-      return request.resource.data.diff(resource.data).changedKeys();
+      return request.resource.data.diff(resource.data).affectedKeys();
     }
 
     function selfCanUpdateUser(userId) {
       return isSelf(userId)
         && !changedUserKeys().hasAny([
+          "role",
+          "stripeConnectAccountId",
+          "stripeAccountStatus",
+          "stripeReady",
           "accountApproved",
           "idVerified",
           "verificationNote",
@@ -52,14 +56,14 @@ service cloud.firestore {
     function isParticipant(data) {
       return isSignedIn() && data != null && (
         isAdminOrEmployee() ||
-        (data.participants is list && request.auth.uid in data.participants) ||
-        (data.participantIds is list && request.auth.uid in data.participantIds) ||
-        (data.members is list && request.auth.uid in data.members) ||
-        (data.userIds is list && request.auth.uid in data.userIds) ||
-        (data.clientId is string && data.clientId == request.auth.uid) ||
-        (data.operatorId is string && data.operatorId == request.auth.uid) ||
-        (data.uid is string && data.uid == request.auth.uid) ||
-        (data.createdBy is string && data.createdBy == request.auth.uid)
+        (data.get("participants", []) is list && request.auth.uid in data.get("participants", [])) ||
+        (data.get("participantIds", []) is list && request.auth.uid in data.get("participantIds", [])) ||
+        (data.get("members", []) is list && request.auth.uid in data.get("members", [])) ||
+        (data.get("userIds", []) is list && request.auth.uid in data.get("userIds", [])) ||
+        (data.get("clientId", "") == request.auth.uid) ||
+        (data.get("operatorId", "") == request.auth.uid) ||
+        (data.get("uid", "") == request.auth.uid) ||
+        (data.get("createdBy", "") == request.auth.uid)
       );
     }
 
@@ -69,7 +73,13 @@ service cloud.firestore {
       allow read: if isSelf(userId);
       allow read: if isAdminOrEmployee();
       allow read: if isSignedIn() && resource.data.role in ["client", "operator"];
-      allow create, delete: if isSelf(userId) || isAdminOrEmployee();
+      allow create: if isAdminOrEmployee() || (isSelf(userId) &&
+        request.resource.data.role in ["client", "operator"] &&
+        (request.resource.data.role == "client" || request.resource.data.get("idVerified", false) == false) &&
+        request.resource.data.get("stripeConnectAccountId", "") == "" &&
+        request.resource.data.get("stripeAccountStatus", "pending") != "connected" &&
+        request.resource.data.get("stripeReady", false) == false);
+      allow delete: if isSelf(userId) || isAdminOrEmployee();
       allow update: if isAdminOrEmployee() || selfCanUpdateUser(userId);
     }
 
@@ -90,11 +100,29 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    function verifiedJobOperator(data) {
+      return get(/databases/$(database)/documents/users/$(data.operatorId)).data.idVerified == true;
+    }
+
+    function jobPaymentAllowed(data) {
+      let operator = get(/databases/$(database)/documents/users/$(data.operatorId)).data;
+      return data.paymentMethod == "cash" ||
+        (operator.get("stripeAccountStatus", "pending") == "connected" &&
+         operator.get("stripeConnectAccountId", "") != "");
+    }
+
     // ── Jobs ───────────────────────────────────────────────────────────────
     match /jobs/{jobId} {
       allow read:   if isParticipant(resource.data);
-      allow create: if isParticipant(request.resource.data);
-      allow update: if isParticipant(resource.data);
+      allow create: if isParticipant(request.resource.data) && verifiedJobOperator(request.resource.data) && jobPaymentAllowed(request.resource.data)
+        && request.resource.data.paymentStatus == "pending"
+        && request.resource.data.get("stripePaymentIntentId", "") == "";
+      allow update: if isParticipant(resource.data)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(["clientId", "operatorId", "stripePaymentIntentId", "paymentCapturedAt", "paymentMethod"])
+        && (resource.data.paymentMethod == "cash" && resource.data.get("stripePaymentIntentId", "") == "" ||
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(["paymentStatus", "price"]))
+        && (request.resource.data.status != "accepted" ||
+          (verifiedJobOperator(request.resource.data) && jobPaymentAllowed(request.resource.data)));
       allow delete: if isAdmin();
     }
 
@@ -125,7 +153,7 @@ service cloud.firestore {
         (
           resource.data.chatId is string &&
           isParticipant(get(/databases/$(database)/documents/chats/$(resource.data.chatId)).data) &&
-          request.resource.data.diff(resource.data).changedKeys().hasOnly(["read"]) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(["read"]) &&
           request.resource.data.read == true
         ) ||
         (resource.data.senderId is string && resource.data.senderId == request.auth.uid);
@@ -160,8 +188,8 @@ service cloud.firestore {
     // ── Transactions ───────────────────────────────────────────────────────
     match /transactions/{transactionId} {
       allow read:   if isParticipant(resource.data);
-      allow create: if isParticipant(request.resource.data);
-      allow update: if isParticipant(resource.data);
+      allow create: if isParticipant(request.resource.data) && request.resource.data.get("stripePaymentIntentId", "") == "" && request.resource.data.paymentMethod == "cash";
+      allow update: if isParticipant(resource.data) && resource.data.get("stripePaymentIntentId", "") == "" && request.resource.data.get("stripePaymentIntentId", "") == "" && request.resource.data.paymentMethod == "cash";
       allow delete: if isAdmin();
     }
 
