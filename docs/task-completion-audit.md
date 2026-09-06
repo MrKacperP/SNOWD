@@ -1,5 +1,22 @@
 # SNOWD task audit — September 5, 2026
 
+## September 6 deployment follow-up
+
+The code changes below are now deployed to **https://www.snowd.ca** (Vercel deployment `dpl_CU5T4g8hKgs4vZG3BZR7Vf9r2uC7`). The production build and TypeScript pass.
+
+- Configured Firebase Admin credentials as a Vercel production secret. The local credential is outside the repository with owner-only permissions.
+- Configured separate live Stripe payment and Connect event destinations and signing secrets. The live Stripe platform account reports charges and payouts enabled.
+- Published Firestore rules through the Rules API and verified the deployed source exactly matches `firestore.rules` (ruleset `9db27d55-8a35-46e6-9a40-474cf1495bbf`).
+- Added the existing Google Maps public key to production.
+- Backed up and removed one stale sandbox Connect link from an operator profile so it can start live onboarding. Cash eligibility is unchanged. There are currently no completed live connected accounts; operators must complete their own identity/bank onboarding before accepting card payments.
+- Fixed a production-only Firebase Admin dependency failure with a scoped `jwks-rsa` → `jose@5.10.0` override. The initial deployment exposed this failure; the replacement deployment above resolves it.
+- Real Stripe sandbox API checks passed for account readiness, embedded onboarding sessions, authorization, 15% commission, capture, cancellation, signed webhook handling, ownership rejection, retry and transaction reconciliation. Firebase Auth and database writes were isolated to emulators. No real money moved.
+- Production HTTP checks passed for landing, login, signup, onboarding, dashboard, messages and discovery routes. Both signed webhook configurations return HTTP 200; invalid signatures return HTTP 400. Test-account login and authenticated production API access verified Firebase token verification and a read-only Firestore lookup.
+
+Remaining verification limits: Mapbox still needs its optional token/account configuration; Google is the configured address provider. Real operator onboarding, real card charges and bank payouts require the operator's participation and were not performed. The browser connection became unavailable during this follow-up, so production visual checks and live Google autocomplete were not repeated; earlier local visual/autocomplete checks are recorded below. The old Firebase console tab may still show a staged draft, but the same source has already been deployed and verified through the API.
+
+The original audit below records the state before this follow-up; its deployment/credential blockers are superseded by the results above.
+
 Reviewed the available SNOWD task history from August 27 through September 5, including the interrupted September 5 audit. No archived tasks were returned. Several tasks ended on usage limits with changes already present in the shared checkout; completion was assessed against the code and verification evidence rather than task status.
 
 ## Requests and current status

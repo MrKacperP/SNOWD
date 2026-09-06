@@ -27,3 +27,17 @@ firebase emulators:exec --only firestore --project demo-snowd-audit 'npm test'
 ```
 
 Use a demo project to ensure rules tests never write to production. Live authorization, capture, cancellation, webhook delivery and embedded onboarding must be verified in test mode after server credentials and event destinations are configured.
+
+## Stripe sandbox integration verification
+
+`scripts/verify-stripe-sandbox.mjs` exercises real Stripe sandbox APIs through the built Next.js server while both Firebase Auth and Firestore use local emulators. It refuses live Stripe keys and non-local emulator addresses. It requires an existing ready sandbox connected account with an `operatorId` in its metadata.
+
+After `npm run build`, run:
+
+```sh
+firebase emulators:exec --only firestore,auth --project snowd-6ca54 --config firebase.sandbox.json 'node scripts/verify-stripe-sandbox.mjs'
+```
+
+The project ID matches the public ID embedded in the Next build, but all test users, jobs, and transactions stay in the emulators. The test verifies embedded onboarding session creation, account readiness, ownership rejection, checkout retries, CAD authorization, 15% commission, signed webhook reconciliation, photo-proof enforcement, capture, cancellation, and transaction history. Only sandbox payment records are created; no real funds move. This passed on September 5, 2026.
+
+The `jwks-rsa` dependency is scoped to `jose@5.10.0` through an npm override because Firebase Admin 14 otherwise imports ESM-only jose through CommonJS and fails in the Vercel runtime. The sandbox server runs with `--no-experimental-require-module` to cover this production behavior. See [Firebase Admin issue 3181](https://github.com/firebase/firebase-admin-node/issues/3181). Remove the override after upstream compatibility is fixed and this runtime check passes.
