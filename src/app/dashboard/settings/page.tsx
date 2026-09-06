@@ -553,9 +553,10 @@ export default function SettingsPage() {
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block">Display Name</label>
+                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-display-name">Display Name</label>
                 <input
                   type="text"
+                  id="settings-display-name"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   className={`w-full px-4 py-2.5 border-[3px] rounded-2xl text-sm focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none ${
@@ -573,9 +574,10 @@ export default function SettingsPage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block">Phone</label>
+                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-phone">Phone</label>
                 <input
                   type="tel"
+                  id="settings-phone"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className={`w-full px-4 py-2.5 border-[3px] rounded-2xl text-sm focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none ${
@@ -585,12 +587,13 @@ export default function SettingsPage() {
               </div>
               {!isOperator && (
                 <div>
-                  <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block">Age</label>
+                  <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-age">Age</label>
                   <input
                     type="number"
                     min={13}
                     max={120}
-                    value={age ?? ""}
+                    id="settings-age"
+                  value={age ?? ""}
                     onChange={(e) => {
                       const next = parseInt(e.target.value, 10);
                       setAge(Number.isNaN(next) ? undefined : next);
@@ -602,10 +605,11 @@ export default function SettingsPage() {
               )}
               {isOperator && (
                 <div>
-                  <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block">Business Name</label>
+                  <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-business-name">Business Name</label>
                   <input
                     type="text"
-                    value={businessName}
+                    id="settings-business-name"
+                  value={businessName}
                     onChange={(e) => setBusinessName(e.target.value)}
                     className={`w-full px-4 py-2.5 border-[3px] rounded-2xl text-sm focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none ${
                       missingGeneralFieldSet.has("businessName") ? "border-amber-300 bg-amber-50" : "border-[var(--border)]"
@@ -616,8 +620,9 @@ export default function SettingsPage() {
             </div>
             {isOperator && (
               <div className="mt-4">
-                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block">Bio</label>
+                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-bio">Bio</label>
                 <textarea
+                  id="settings-bio"
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
                   rows={3}
@@ -637,9 +642,10 @@ export default function SettingsPage() {
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
               <div className="sm:col-span-2">
-                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block">Street Address</label>
+                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-street-address">Street Address</label>
                 <input
                   type="text"
+                  id="settings-street-address"
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                   className={`w-full px-4 py-2.5 border-[3px] rounded-2xl text-sm focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none ${
@@ -648,9 +654,10 @@ export default function SettingsPage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block">City</label>
+                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-city">City</label>
                 <input
                   type="text"
+                  id="settings-city"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   className={`w-full px-4 py-2.5 border-[3px] rounded-2xl text-sm focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none ${
@@ -659,8 +666,9 @@ export default function SettingsPage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block">Province</label>
+                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-province">Province</label>
                 <select
+                  id="settings-province"
                   value={province}
                   onChange={(e) => setProvince(e.target.value)}
                   className={`w-full px-4 py-2.5 border-[3px] rounded-2xl text-sm bg-white focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none ${
@@ -673,9 +681,10 @@ export default function SettingsPage() {
                 </select>
               </div>
               <div>
-                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block">Postal Code</label>
+                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-postal-code">Postal Code</label>
                 <input
                   type="text"
+                  id="settings-postal-code"
                   value={postalCode}
                   onChange={(e) => setPostalCode(e.target.value.toUpperCase())}
                   maxLength={7}
