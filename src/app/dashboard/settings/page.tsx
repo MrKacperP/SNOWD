@@ -5,7 +5,7 @@ import { stripeConnectFetch } from "@/lib/stripeConnectClient";
 
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { useTheme } from "@/context/ThemeContext";
+import styles from "./settings.module.css";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { doc, updateDoc } from "firebase/firestore";
@@ -18,20 +18,12 @@ import {
   ClientProfile,
   OperatorProfile,
   CANADIAN_PROVINCES,
-  EQUIPMENT_OPTIONS,
-  ThemePreference,
 } from "@/lib/types";
 import ServiceRadiusMap from "@/components/ServiceRadiusMap";
 import {
   User,
   MapPin,
-  Phone,
-  Mail,
-  Wrench,
-  DollarSign,
   Sun,
-  Moon,
-  Monitor,
   CreditCard,
   Save,
   CheckCircle,
@@ -53,12 +45,10 @@ import {
   Trash2,
   Briefcase,
   AlertCircle,
-  Search,
 } from "lucide-react";
 
 export default function SettingsPage() {
   const { user, profile, signOut, refreshProfile, deleteAccount } = useAuth();
-  const { theme, setTheme } = useTheme();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -475,17 +465,6 @@ export default function SettingsPage() {
     }
   };
 
-  const handleThemeChange = async (newTheme: ThemePreference) => {
-    setTheme(newTheme);
-    if (profile?.uid) {
-      try {
-        await updateDoc(doc(db, "users", profile.uid), { themePreference: newTheme });
-      } catch (e) {
-        console.error("Theme save error:", e);
-      }
-    }
-  };
-
   const TABS = [
     { key: "general" as const, label: "General", icon: User },
     { key: "appearance" as const, label: "Appearance", icon: Sun },
@@ -496,8 +475,8 @@ export default function SettingsPage() {
   ];
 
   const TAB_DESCRIPTIONS: Record<string, string> = {
-    general: "Manage profile, contact details, and service location",
-    appearance: "Customize visual display and theme preference",
+    general: "Your profile, contact details, and service location",
+    appearance: "Your familiar snowd look, on every screen",
     payment: "Review cards, payouts, and Stripe setup",
     verification: "Upload and manage your verification documents",
     notifications: "Control updates, alerts, and communication",
@@ -507,66 +486,33 @@ export default function SettingsPage() {
   const activeTabMeta = TABS.find((tab) => tab.key === activeTab);
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4">
-      <div className="rounded-[24px] border-[3px] border-[var(--border)] bg-[var(--bg-primary)] shadow-[var(--surface-shadow)] overflow-hidden">
-        <div className="h-12 border-b border-[var(--border)] bg-[var(--bg-secondary)] px-4 flex items-center justify-between">
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-sm text-[#5C6472] hover:bg-white transition"
-            title="Back to dashboard"
-          >
-            <ArrowLeft className="w-4 h-4" /> Back
-          </Link>
-          <p className="text-xs text-[#5C6472] font-medium tracking-wide">System Settings</p>
-          {saved ? (
-            <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-1">
-              <CheckCircle className="w-3.5 h-3.5" /> Saved
-            </div>
-          ) : (
-            <div className="w-[68px]" />
-          )}
+    <div className={`${styles.settings} max-w-6xl mx-auto px-3 sm:px-5 lg:px-6 py-5 sm:py-8`}>
+      <header className={styles.header}>
+        <Link href="/dashboard" className={styles.back}><ArrowLeft size={18} /> Dashboard</Link>
+        <div className={styles.headingRow}>
+          <div><p className={styles.eyebrow}>YOUR ACCOUNT, YOUR WAY</p><h1>make yourself at home.</h1><p>Keep your details and preferences in one place.</p></div>
+          <span className={styles.headerIcon} aria-hidden="true"><User size={32} /></span>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-[290px_minmax(0,1fr)] min-h-[calc(100vh-10rem)]">
-          <aside className="bg-[var(--bg-secondary)] border-r border-[var(--border)] p-3 md:p-4">
-            <div className="relative mb-3">
-              <Search className="w-4 h-4 text-[#8A93A3] absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                value={activeTabMeta?.label || ""}
-                readOnly
-                className="w-full h-9 rounded-lg bg-white border-[3px] border-[var(--ink)] pl-9 pr-3 text-sm text-[#4B5565] outline-none"
-              />
+      </header>
+      <div className={styles.layout}>
+        <aside className={styles.sidebar}>
+          <p className={styles.navLabel}>Settings</p>
+          <nav aria-label="Settings sections" className={styles.navigation}>
+            {TABS.map((tab) => {
+              const Icon = tab.icon;
+              return <button key={tab.key} type="button" aria-current={activeTab === tab.key ? "page" : undefined}
+                onClick={() => setActiveTab(tab.key)} className={styles.navButton}>
+                <Icon size={19} aria-hidden="true" /><span>{tab.label}</span><ChevronRight size={16} className={styles.chevron} aria-hidden="true" />
+              </button>;
+            })}
+          </nav>
+        </aside>
+        <section className={styles.content} aria-labelledby="settings-section-title">
+          <div className="space-y-6">
+            <div className={styles.sectionHeading}>
+              <div><h2 id="settings-section-title">{activeTabMeta?.label || "Settings"}</h2><p>{TAB_DESCRIPTIONS[activeTab]}</p></div>
+              {saved && <span role="status" className={styles.saved}><CheckCircle size={16} /> Saved</span>}
             </div>
-
-            <div className="space-y-1.5">
-              {TABS.map((tab) => {
-                const Icon = tab.icon;
-                const selected = activeTab === tab.key;
-
-                return (
-                  <button
-                    key={tab.key}
-                    onClick={() => setActiveTab(tab.key)}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-[10px] text-sm transition ${
-                      selected
-                        ? "bg-[var(--ink)] text-white"
-                        : "text-[#4F5968] hover:bg-white"
-                    }`}
-                  >
-                    <Icon className={`w-4 h-4 ${selected ? "text-white" : "text-[#7A8596]"}`} />
-                    <span className="font-medium text-left">{tab.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </aside>
-
-          <main className="bg-[var(--bg-primary)] p-3 sm:p-5 lg:p-7">
-            <div className="max-w-3xl mx-auto space-y-6">
-              <div className="rounded-2xl bg-white border-[3px] border-[var(--border)] px-5 py-6 text-center shadow-[var(--surface-shadow)]">
-                <h2 className="text-3xl font-semibold text-[var(--ink)] mb-1.5">{activeTabMeta?.label || "Settings"}</h2>
-                <p className="text-sm text-[var(--text-muted)]">{TAB_DESCRIPTIONS[activeTab] || "Manage your account preferences"}</p>
-              </div>
 
       {/* General Settings */}
       {activeTab === "general" && (
@@ -600,7 +546,7 @@ export default function SettingsPage() {
           </div>
 
           {/* Profile Info */}
-          <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
+          <div className={styles.card}>
             <h3 className="text-lg font-semibold text-[var(--ink)] mb-4 flex items-center gap-2">
               <User className="w-5 h-5 text-[var(--accent)]" />
               Profile Information
@@ -684,7 +630,7 @@ export default function SettingsPage() {
           </div>
 
           {/* Location */}
-          <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
+          <div className={styles.card}>
             <h3 className="text-lg font-semibold text-[var(--ink)] mb-4 flex items-center gap-2">
               <MapPin className="w-5 h-5 text-[var(--accent)]" />
               Location
@@ -811,7 +757,7 @@ export default function SettingsPage() {
           {/* Sign Out */}
           <button
             onClick={handleSignOut}
-            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-red-50 text-[#EB5757] rounded-xl font-semibold text-sm hover:bg-red-100 transition"
+            className={styles.signOut}
           >
             <LogOut className="w-4 h-4" />
             Sign Out
@@ -838,7 +784,7 @@ export default function SettingsPage() {
               {deletingAccount ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
               {deletingAccount ? "Deleting account..." : "Delete account and start over"}
             </button>
-            <p className="text-center text-xs text-gray-400 mt-2">This cannot be undone.</p>
+            <p className="text-center text-xs text-[var(--text-muted)] mt-2">This cannot be undone.</p>
           </div>
 
           <div className="text-center py-2">
@@ -849,47 +795,22 @@ export default function SettingsPage() {
 
       {/* Appearance Settings */}
       {activeTab === "appearance" && (
-        <div className="space-y-6">
-          <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
-            <h3 className="text-lg font-semibold text-[var(--ink)] mb-4 flex items-center gap-2">
-              <Sun className="w-5 h-5 text-[var(--accent)]" />
-              Theme
-            </h3>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { key: "light" as const, label: "Light", icon: Sun, desc: "Bright & clean" },
-                { key: "dark" as const, label: "Dark", icon: Moon, desc: "Easy on eyes" },
-                { key: "system" as const, label: "System", icon: Monitor, desc: "Follow device" },
-              ].map((opt) => {
-                const Icon = opt.icon;
-                const active = theme === opt.key;
-                return (
-                  <button
-                    key={opt.key}
-                    onClick={() => handleThemeChange(opt.key)}
-                    className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                      active
-                        ? "border-[var(--accent)] bg-[#D6E8F5]"
-                        : "border-[var(--border)] hover:border-[var(--accent)]/30"
-                    }`}
-                  >
-                    <Icon className={`w-6 h-6 ${active ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}`} />
-                    <span className={`text-sm font-semibold ${active ? "text-[var(--accent)]" : "text-[var(--ink)]"}`}>
-                      {opt.label}
-                    </span>
-                    <span className="text-xs text-[var(--text-muted)]">{opt.desc}</span>
-                  </button>
-                );
-              })}
-            </div>
+        <div className={styles.card}>
+          <h3 className="text-lg font-black mb-2">A little snowd, everywhere.</h3>
+          <p className="text-sm text-[var(--text-muted)] mb-6">The same clear, familiar look on your phone and computer.</p>
+          <div className={styles.themePreview} aria-label="Snowd theme preview">
+            <span className={styles.themeLogo}>snowd<span>.</span></span>
+            <div className={styles.previewCard}><span className={styles.previewIcon}><Sun size={24} /></span><div><strong>Ready for your snow day.</strong><p>Fresh snow. Familiar settings.</p></div></div>
+            <div className={styles.swatches} aria-label="Navy, orange, ice blue and white brand colors"><i /><i /><i /><i /></div>
           </div>
+          <p className="mt-5 flex items-center gap-2 text-sm font-bold"><CheckCircle size={18} /> Snowd theme is active</p>
         </div>
       )}
 
       {/* Payment Settings */}
       {activeTab === "payment" && (
         <div className="space-y-6">
-          <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
+          <div className={styles.card}>
             <h3 className="text-lg font-semibold text-[var(--ink)] mb-4 flex items-center gap-2">
               <CreditCard className="w-5 h-5 text-[var(--accent)]" />
               Payment Methods
@@ -928,7 +849,7 @@ export default function SettingsPage() {
 
           {/* Operator: Banking Info */}
           {isOperator && (
-            <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
+            <div className={styles.card}>
               <h3 className="text-lg font-semibold text-[var(--ink)] mb-4 flex items-center gap-2">
                 <Building2 className="w-5 h-5 text-[var(--accent)]" />
                 Payout Information
@@ -1022,7 +943,7 @@ export default function SettingsPage() {
       {/* Notification Settings */}
       {activeTab === "notifications" && (
         <div className="space-y-6">
-          <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
+          <div className={styles.card}>
             <h3 className="text-lg font-semibold text-[var(--ink)] mb-4 flex items-center gap-2">
               <Bell className="w-5 h-5 text-[var(--accent)]" />
               Notification Preferences
@@ -1034,13 +955,13 @@ export default function SettingsPage() {
                 { label: "Payment Alerts", desc: "Payment confirmations and receipts" },
                 { label: "Promotions", desc: "New features and seasonal offers" },
               ].map((notification, i) => (
-                <div key={i} className="flex items-center justify-between py-3 border-b border-[var(--border)] last:border-0">
+                <div key={i} className="flex items-center justify-between gap-4 py-3 border-b border-[var(--border-soft)] last:border-0">
                   <div>
                     <p className="text-sm font-medium text-[var(--ink)]">{notification.label}</p>
                     <p className="text-xs text-[var(--text-muted)] mt-0.5">{notification.desc}</p>
                   </div>
-                  <label className="relative inline-block w-11 h-6 cursor-pointer">
-                    <input type="checkbox" defaultChecked className="sr-only peer" />
+                  <label className="relative inline-block w-11 h-6 shrink-0 cursor-pointer">
+                    <input type="checkbox" aria-label={notification.label} defaultChecked className="sr-only peer" />
                     <div className="w-11 h-6 bg-[var(--border)] peer-checked:bg-[var(--accent)] rounded-full transition-colors" />
                     <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow peer-checked:translate-x-5 transition-transform" />
                   </label>
@@ -1096,7 +1017,7 @@ export default function SettingsPage() {
           )}
 
           {/* ID Photo Upload */}
-          <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
+          <div className={styles.card}>
             <h3 className="text-lg font-semibold text-[var(--ink)] mb-1 flex items-center gap-2">
               <Camera className="w-5 h-5 text-[var(--accent)]" />
               Government ID Photo
@@ -1168,7 +1089,7 @@ export default function SettingsPage() {
 
           {/* Student Transcript - operators only */}
           {isOperator && (
-            <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
+            <div className={styles.card}>
               <h3 className="text-lg font-semibold text-[var(--ink)] mb-1 flex items-center gap-2">
                 <GraduationCap className="w-5 h-5 text-[var(--accent)]" />
                 Student Transcript / Report Card
@@ -1239,7 +1160,7 @@ export default function SettingsPage() {
       {activeTab === "branding" && isOperator && (
         <div className="space-y-6">
           {/* Business Identity */}
-          <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
+          <div className={styles.card}>
             <h3 className="text-lg font-semibold text-[var(--ink)] mb-4 flex items-center gap-2">
               <Briefcase className="w-5 h-5 text-[var(--accent)]" />
               Business Identity
@@ -1316,7 +1237,7 @@ export default function SettingsPage() {
           </div>
 
           {/* Work Portfolio */}
-          <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
+          <div className={styles.card}>
             <h3 className="text-lg font-semibold text-[var(--ink)] mb-1 flex items-center gap-2">
               <ImagePlus className="w-5 h-5 text-[var(--accent)]" />
               Work Portfolio
@@ -1374,8 +1295,7 @@ export default function SettingsPage() {
         </div>
       )}
             </div>
-          </main>
-        </div>
+          </section>
       </div>
     </div>
   );
