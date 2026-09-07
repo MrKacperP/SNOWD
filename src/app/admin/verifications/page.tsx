@@ -1,23 +1,26 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { Check, X } from "lucide-react";
-import { AdminCard, ConfirmModal, EmptyState, StatusTag, tableCell, tableHead } from "@/components/admin/AdminUI";
+import { Check, Eye, RotateCcw, X } from "lucide-react";
+import { AdminCard, ConfirmModal, EmptyState, SideDrawer, StatusTag, tableCell, tableHead } from "@/components/admin/AdminUI";
 import { useAdminData } from "@/components/admin/AdminProvider";
 
 type RejectionReasonCategory = "document-quality" | "name-mismatch" | "expired-id" | "unsupported-document" | "other";
 
 export default function AdminVerificationsPage() {
-  const { verifications, reviewVerification } = useAdminData();
+  const { verifications, reviewVerification, reopenVerification } = useAdminData();
   const [tab, setTab] = useState<"Pending" | "Reviewed">("Pending");
   const [approveTargetId, setApproveTargetId] = useState<string | null>(null);
   const [rejectTargetId, setRejectTargetId] = useState<string | null>(null);
   const [rejectCategory, setRejectCategory] = useState<RejectionReasonCategory>("document-quality");
   const [rejectNote, setRejectNote] = useState("");
   const [rejectError, setRejectError] = useState("");
+  const [reopenTargetId, setReopenTargetId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const pending = useMemo(() => verifications.filter((v) => v.status === "Pending"), [verifications]);
   const reviewed = useMemo(() => verifications.filter((v) => v.status !== "Pending"), [verifications]);
+  const selected = verifications.find((item) => item.id === selectedId) || null;
 
   return (
     <div className="space-y-4">
@@ -48,10 +51,13 @@ export default function AdminVerificationsPage() {
                 </div>
               </div>
               <div className="text-sm text-[var(--text-secondary)]">
-                <p>Type: {item.type}</p>
-                <p>Submission date: {item.submissionDate}</p>
+                <p>{item.email || "No email on profile"}</p>
+                <p>{[item.address, item.city, item.province, item.postalCode].filter(Boolean).join(", ") || "No address on profile"}</p>
+                <p>Submitted {item.submissionDate}</p>
               </div>
+              {item.idPhotoUrl && <img src={item.idPhotoUrl} alt={`${item.userName} identity document`} className="h-28 w-full rounded-xl border border-[var(--border)] object-cover" />}
               <div className="flex items-center gap-2">
+                <button onClick={() => setSelectedId(item.id)} className="h-9 rounded-xl border border-[var(--border)] px-3 text-sm font-semibold inline-flex items-center gap-1"><Eye className="w-4 h-4" /> Details</button>
                 <button
                   onClick={() => setApproveTargetId(item.id)}
                   className="flex-1 h-9 rounded-lg bg-[#16A34A] text-white text-sm font-semibold inline-flex items-center justify-center gap-1"
@@ -95,6 +101,7 @@ export default function AdminVerificationsPage() {
                   <th className={tableHead}>Decision</th>
                   <th className={tableHead}>Reviewed By</th>
                   <th className={tableHead}>Date</th>
+                  <th className={tableHead}>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -110,6 +117,12 @@ export default function AdminVerificationsPage() {
                     </td>
                     <td className={tableCell}>{item.reviewedBy || "-"}</td>
                     <td className={tableCell}>{item.reviewedDate || "-"}</td>
+                    <td className={tableCell}>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => setSelectedId(item.id)} className="h-8 rounded-xl border border-[var(--border)] px-2 text-xs inline-flex items-center gap-1"><Eye className="w-3.5 h-3.5" /> View</button>
+                        <button onClick={() => setReopenTargetId(item.id)} className="h-8 rounded-xl border border-[var(--border)] px-2 text-xs inline-flex items-center gap-1"><RotateCcw className="w-3.5 h-3.5" /> Reopen</button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -118,6 +131,17 @@ export default function AdminVerificationsPage() {
           {reviewed.length === 0 && <EmptyState title="No reviewed decisions" subtitle="Approved and rejected verifications appear here." />}
         </AdminCard>
       )}
+
+      <SideDrawer open={!!selected} title="Review account" onClose={() => setSelectedId(null)}>
+        {selected && <div className="space-y-4">
+          <div className="flex items-center gap-3"><div className="grid h-12 w-12 place-items-center rounded-full bg-[var(--bg-secondary)] text-sm font-bold text-[var(--accent)]">{selected.userAvatar}</div><div><h3 className="font-semibold text-[var(--ink)]">{selected.userName}</h3><p className="text-xs text-[var(--text-muted)]">{selected.role} · {selected.status}</p></div></div>
+          <AdminCard className="p-3"><p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Account information</p><dl className="mt-2 space-y-2 text-sm"><div className="flex justify-between gap-3"><dt className="text-[var(--text-muted)]">Email</dt><dd className="text-right">{selected.email || "-"}</dd></div><div className="flex justify-between gap-3"><dt className="text-[var(--text-muted)]">Phone</dt><dd className="text-right">{selected.phone || "-"}</dd></div><div className="flex justify-between gap-3"><dt className="text-[var(--text-muted)]">Address</dt><dd className="text-right">{[selected.address, selected.city, selected.province, selected.postalCode].filter(Boolean).join(", ") || "-"}</dd></div></dl></AdminCard>
+          <div><p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Submitted identity document</p>{selected.idPhotoUrl ? <a href={selected.idPhotoUrl} target="_blank" rel="noreferrer"><img src={selected.idPhotoUrl} alt={`${selected.userName} identity document`} className="max-h-[360px] w-full rounded-2xl border border-[var(--border)] object-contain bg-[var(--bg-primary)]" /></a> : <EmptyState title="No ID uploaded" subtitle="This account has no identity document attached." />}</div>
+          {selected.status !== "Pending" && <button onClick={() => setReopenTargetId(selected.id)} className="h-10 w-full rounded-xl bg-[var(--accent)] text-sm font-semibold text-white inline-flex items-center justify-center gap-2"><RotateCcw className="w-4 h-4" /> Reopen for review</button>}
+        </div>}
+      </SideDrawer>
+
+      <ConfirmModal open={!!reopenTargetId} title="Reopen verification" description="This returns the account to the pending review queue without deleting the submitted identity document." confirmLabel="Reopen" confirmTone="approve" onConfirm={async () => { if (reopenTargetId) await reopenVerification(reopenTargetId); setReopenTargetId(null); setTab("Pending"); }} onClose={() => setReopenTargetId(null)} />
 
       <ConfirmModal
         open={!!approveTargetId}

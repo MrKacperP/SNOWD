@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import { initializeTestEnvironment, assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
 import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
 
-test('Firestore enforces verified cash listings, chat access, and server-owned card payments', { skip: !process.env.FIRESTORE_EMULATOR_HOST }, async () => {
+test('Firestore enforces verified cash listings, chat access, and server-owned payments and cash completion', { skip: !process.env.FIRESTORE_EMULATOR_HOST }, async () => {
   const [host, port] = process.env.FIRESTORE_EMULATOR_HOST.split(':');
   const env = await initializeTestEnvironment({ projectId: 'demo-snowd-audit', firestore: { host, port: Number(port), rules: fs.readFileSync('firestore.rules', 'utf8') } });
   try {
@@ -20,6 +20,25 @@ test('Firestore enforces verified cash listings, chat access, and server-owned c
     const job = { clientId: 'client', operatorId: 'operator', status: 'pending', paymentStatus: 'pending', paymentMethod: 'cash', price: 100 };
     await assertSucceeds(setDoc(doc(client, 'jobs/cash'), job));
     await assertSucceeds(getDoc(doc(operator, 'jobs/cash')));
+    await assertFails(setDoc(doc(client, 'jobs/forged-cash'), { ...job, cashConfirmedBy: 'operator' }));
+    await assertFails(updateDoc(doc(operator, 'jobs/cash'), { paymentStatus: 'paid' }));
+    await assertFails(setDoc(doc(operator, 'transactions/cash-cash'), { ...job, status: 'paid' }));
+    await assertFails(updateDoc(doc(operator, 'jobs/cash'), { status: 'completed', completionPhotoUrl: 'photo.jpg' }));
+    await env.withSecurityRulesDisabled(async context => {
+      await updateDoc(doc(context.firestore(), 'jobs/cash'), { status: 'in-progress', paymentStatus: 'paid', cashConfirmedBy: 'operator' });
+    });
+    await assertFails(updateDoc(doc(operator, 'jobs/cash'), { status: 'completed' }));
+    await assertFails(updateDoc(doc(client, 'jobs/cash'), { status: 'completed', completionPhotoUrl: 'photo.jpg' }));
+    // Cash completion goes through the server so the payment reminder is atomic.
+    await assertFails(updateDoc(doc(operator, 'jobs/cash'), { status: 'completed', completionPhotoUrl: 'photo.jpg' }));
+    await assertFails(updateDoc(doc(client, 'jobs/cash'), { cashPaymentDeferredAt: new Date() }));
+    await assertFails(updateDoc(doc(operator, 'jobs/cash'), { cashRefundedBy: 'operator' }));
+    await env.withSecurityRulesDisabled(async context => {
+      await updateDoc(doc(context.firestore(), 'jobs/cash'), { status: 'completed' });
+    });
+    await assertSucceeds(updateDoc(doc(client, 'jobs/cash'), { reviewSubmitted: true }));
+    await assertFails(updateDoc(doc(operator, 'jobs/cash'), { price: 1 }));
+
     await assertFails(getDoc(doc(stranger, 'jobs/cash')));
     await assertFails(setDoc(doc(client, 'jobs/card'), { ...job, paymentMethod: 'credit' }));
     await assertFails(setDoc(doc(client, 'jobs/unverified'), { ...job, operatorId: 'unverified' }));

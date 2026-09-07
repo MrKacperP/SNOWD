@@ -25,8 +25,8 @@ export default function AdminSupportPage() {
   };
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-[35%_65%] gap-4 min-h-[680px]">
-      <AdminCard className="p-3 overflow-y-auto">
+    <div className="grid grid-cols-1 xl:grid-cols-[minmax(260px,34%)_minmax(0,1fr)] gap-4 h-[calc(100dvh-128px)] min-h-[520px]">
+      <AdminCard className="p-3 min-h-0 overflow-y-auto">
         <div className="space-y-2">
           {sorted.map((ticket) => (
             <button
@@ -54,7 +54,7 @@ export default function AdminSupportPage() {
         </div>
       </AdminCard>
 
-      <AdminCard className="p-4 flex flex-col min-h-0">
+      <AdminCard className="p-4 flex min-h-0 flex-col overflow-hidden">
         {selected ? (
           <>
             <div className="flex items-center justify-between pb-3 border-b border-[var(--border)]">
@@ -72,11 +72,11 @@ export default function AdminSupportPage() {
                 <option>Resolved</option>
               </select>
             </div>
-            <div className="flex-1 overflow-y-auto py-3 space-y-2">
+            <div className="min-h-0 flex-1 overflow-y-auto py-3 space-y-2 pr-1">
               {selected.thread.map((entry) => (
                 <div key={entry.id} className={`flex ${entry.sender === "user" ? "justify-start" : "justify-end"}`}>
-                  <div className={`max-w-[72%] px-3 py-2 rounded-lg text-sm ${entry.sender === "user" ? "bg-[var(--bg-secondary)] text-[#1F2937]" : "bg-[var(--bg-secondary)] text-[#1E3A8A]"}`}>
-                    <p>{entry.text}</p>
+                  <div className={`max-w-[min(82%,38rem)] break-words px-3 py-2 rounded-2xl text-sm ${entry.sender === "user" ? "bg-[var(--bg-secondary)] text-[#1F2937]" : "bg-[#eaf0fa] text-[#1E3A8A]"}`}>
+                    <p className="whitespace-pre-wrap">{entry.text}</p>
                     <p className="text-[11px] text-[var(--text-muted)] mt-1">{entry.time}</p>
                   </div>
                 </div>
@@ -88,7 +88,7 @@ export default function AdminSupportPage() {
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder="Reply to user"
-                  className="flex-1 min-h-[88px] rounded-lg border-[3px] border-[var(--border)] bg-white p-2.5 text-sm"
+                  className="min-h-[72px] max-h-32 flex-1 resize-none rounded-2xl border border-[var(--border)] bg-white p-2.5 text-sm"
                 />
                 <button onClick={handleSend} className="h-10 px-3 rounded-lg bg-[var(--accent)] text-white inline-flex items-center gap-1.5 text-sm font-semibold">
                   <Send className="w-4 h-4" /> Send

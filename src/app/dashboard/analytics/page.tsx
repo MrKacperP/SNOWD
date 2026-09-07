@@ -1,54 +1,46 @@
 "use client";
+import PageHeader from "@/components/ui/PageHeader";
 
-import React, { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Job, OperatorProfile, Transaction } from "@/lib/types";
-import BackButton from "@/components/BackButton";
+import { Job,OperatorProfile } from "@/lib/types";
+import { format,isSameDay,startOfDay,subDays } from "date-fns";
+import { collection,getDocs,query,where } from "firebase/firestore";
 import { motion } from "framer-motion";
 import {
-  BarChart3,
-  TrendingUp,
-  TrendingDown,
-  Eye,
-  MousePointer,
-  MessageSquare,
-  DollarSign,
-  CheckCircle,
-  XCircle,
-  Clock,
-  Star,
-  Users,
-  CloudSnow,
-  CalendarDays,
-  MapPin,
+BarChart3,
+CheckCircle,
+CloudSnow,
+DollarSign,
+Eye,
+MapPin,
+MessageSquare,
+MousePointer,
+Star,
+Users
 } from "lucide-react";
+import { useEffect,useMemo,useState } from "react";
 import {
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  LineChart,
-  Line,
+Area,
+AreaChart,
+Bar,
+BarChart,
+CartesianGrid,
+Cell,
+Line,
+LineChart,
+Pie,
+PieChart,
+ResponsiveContainer,
+Tooltip,
+XAxis,
+YAxis,
 } from "recharts";
-import { format, subDays, startOfDay, isSameDay } from "date-fns";
-
-const COLORS = ["#061321", "#10B981", "#F59E0B", "#EF4444"];
 
 export default function AnalyticsPage() {
   const { profile } = useAuth();
   const operatorProfile = profile as OperatorProfile;
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d">("30d");
   const [chartType, setChartType] = useState<"area" | "bar" | "line">("area");
@@ -76,22 +68,6 @@ export default function AnalyticsPage() {
         });
         setJobs(allJobs);
 
-        // Fetch transactions
-        const txnQ = query(
-          collection(db, "transactions"),
-          where("operatorId", "==", profile.uid)
-        );
-        const txnSnap = await getDocs(txnQ);
-        const allTxns = txnSnap.docs.map((d) => {
-          const data = d.data();
-          return {
-            id: d.id,
-            ...data,
-            createdAt: data.createdAt?.toDate?.() || data.createdAt,
-            completedAt: data.completedAt?.toDate?.() || data.completedAt,
-          } as Transaction;
-        });
-        setTransactions(allTxns);
       } catch (error) {
         console.error("Error fetching analytics:", error);
       } finally {
@@ -192,14 +168,8 @@ export default function AnalyticsPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <BackButton href="/dashboard" />
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <BarChart3 className="w-6 h-6 text-[var(--accent)]" />
-            Analytics
-          </h1>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <PageHeader title="Analytics" description="How your business is doing." />
         <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5">
           {(["7d", "30d", "90d"] as const).map((r) => (
             <button
@@ -249,7 +219,7 @@ export default function AnalyticsPage() {
             animate={{ opacity: 1, y: 0 }}
             className="bg-[var(--accent)] rounded-2xl p-6 text-white"
           >
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-lg font-bold">Your Ranking Score</h3>
                 <p className="text-white/70 text-sm mt-1">
@@ -352,7 +322,7 @@ export default function AnalyticsPage() {
                   </ResponsiveContainer>
                   <div className="space-y-2 mt-2">
                     {statusDistribution.map((item) => (
-                      <div key={item.name} className="flex items-center justify-between">
+                      <div key={item.name} className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
                           <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
                           <span className="text-xs text-gray-600">{item.name}</span>

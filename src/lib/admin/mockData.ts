@@ -216,9 +216,9 @@ export const employeesSeed: EmployeeItem[] = [
 ];
 
 export const notificationsSeed: AdminNotification[] = [
-  { id: "n1", type: "verification", message: "New verification submission from Mia Scott", createdAt: nowIso(), read: false, href: "/admin/verifications" },
-  { id: "n2", type: "support", message: "New reply in ticket Refund not reflected", createdAt: nowIso(), read: false, href: "/admin/support-chats" },
-  { id: "n3", type: "job", message: "Urgent job flagged for review", createdAt: nowIso(), read: true, href: "/admin/jobs" },
+  { id: "n1", type: "verification", message: "New verification submission from Mia Scott", createdAt: nowIso(), read: false, priority: "high", actionRequired: true, href: "/admin/verifications" },
+  { id: "n2", type: "support", message: "New reply in ticket Refund not reflected", createdAt: nowIso(), read: false, priority: "medium", actionRequired: true, href: "/admin/support-chats" },
+  { id: "n3", type: "job", message: "Urgent job flagged for review", createdAt: nowIso(), read: true, priority: "high", actionRequired: true, href: "/admin/jobs" },
 ];
 
 export const activityChartSeed: ChartPoint[] = Array.from({ length: 30 }).map((_, idx) => ({

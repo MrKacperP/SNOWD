@@ -1,5 +1,5 @@
-import React, { forwardRef, useId } from 'react';
-import { motion, type HTMLMotionProps } from 'framer-motion';
+import { motion,type HTMLMotionProps } from 'framer-motion';
+import React,{ forwardRef,useId } from 'react';
 
 interface InputProps extends Omit<HTMLMotionProps<'input'>, 'ref'> {
   label?: string;
@@ -41,7 +41,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             aria-describedby={[props["aria-describedby"], (error || helperText) ? descriptionId : undefined].filter(Boolean).join(" ") || undefined}
             className={`
               w-full h-[52px] px-4 ${icon ? 'pl-12' : ''}
-              bg-white border-[3px] border-[var(--border)] rounded-xl
+              bg-white border border-[var(--border)] rounded-xl
               text-[var(--text-primary)] placeholder:text-[var(--text-muted)] text-base font-bold
               focus:outline-none focus:ring-2 focus:ring-[var(--accent-sun)] focus:border-[var(--accent)]
               transition-all duration-150

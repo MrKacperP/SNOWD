@@ -1,66 +1,68 @@
 "use client";
 
-import { isStripeAccountReady, stripeConnectFetch } from "@/lib/stripeConnectClient";
 import { canAcceptPlatformPayments } from "@/lib/operatorDiscovery";
+import { isStripeAccountReady,stripeConnectFetch } from "@/lib/stripeConnectClient";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useParams } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  addDoc,
-  setDoc,
-  updateDoc,
-  doc,
-  getDoc,
-  Timestamp,
-  increment,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import {
-  ChatMessage,
-  Job,
-  UserProfile,
-  JobStatus,
-  ClaimType,
-} from "@/lib/types";
-import StatusBadge from "@/components/StatusBadge";
-import ProgressTracker from "@/components/ProgressTracker";
-import StripeCheckout from "@/components/StripeCheckout";
-import Image from "next/image";
-import UserAvatar from "@/components/UserAvatar";
-import {
-  Send,
-  ArrowLeft,
-  MapPin,
-  Clock,
-  DollarSign,
-  CheckCircle,
-  Navigation,
-  Play,
-  CreditCard,
-  Camera,
-  Shield,
-  X,
-  Compass,
-  Star,
-  User,
-  Flag,
-  AlertTriangle,
-  Briefcase,
-  ExternalLink,
-  Paperclip,
-  Mic,
-  Square,
-  MessageSquare,
-} from "lucide-react";
-import Link from "next/link";
-import { format } from "date-fns";
 import CancellationPopup from "@/components/CancellationPopup";
+import ProgressTracker from "@/components/ProgressTracker";
+import StatusBadge from "@/components/StatusBadge";
+import StripeCheckout from "@/components/StripeCheckout";
+import SupportChatButton from "@/components/SupportChatButton";
+import Modal from "@/components/ui/Modal";
+import UserAvatar from "@/components/UserAvatar";
+import { useAuth } from "@/context/AuthContext";
+import { db } from "@/lib/firebase";
+import { sendAdminNotif } from "@/lib/adminNotifications";
+import {
+ChatMessage,
+ClaimType,
+Job,
+JobStatus,
+UserProfile,
+} from "@/lib/types";
+import { format } from "date-fns";
+import {
+addDoc,
+collection,
+doc,
+getDoc,
+increment,
+onSnapshot,
+orderBy,
+query,
+Timestamp,
+updateDoc,
+where
+} from "firebase/firestore";
+import {
+AlertTriangle,
+ArrowLeft,
+Briefcase,
+Camera,
+CheckCircle,
+Clock,
+CreditCard,
+DollarSign,
+ExternalLink,
+Flag,
+MapPin,
+MessageSquare,
+Mic,
+Navigation,
+Paperclip,
+Play,
+Send,
+Shield,
+Square,
+Star,
+User,
+X,
+} from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import React,{ useCallback,useEffect,useRef,useState } from "react";
+import "./chat.css";
 
 type QuickCommConfirmation = {
   title: string;
@@ -96,7 +98,18 @@ export default function ChatPage() {
   const [showMobileTasksSheet, setShowMobileTasksSheet] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [confirmingCash, setConfirmingCash] = useState(false);
+  const [cashError, setCashError] = useState("");
+  const [cashActionBusy, setCashActionBusy] = useState(false);
+  const [showCashPayment, setShowCashPayment] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const textarea = composerRef.current;
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 128)}px`;
+  }, [newMessage]);
 
   // Stripe state
   const [showCheckout, setShowCheckout] = useState(false);
@@ -154,7 +167,6 @@ export default function ChatPage() {
   const operatorName = isOperator ? profile?.displayName : otherUser?.displayName;
   const mapAddress = [job?.address, job?.city, job?.province].filter(Boolean).join(", ");
   const mapQuery = encodeURIComponent(mapAddress || "Canada");
-  const mapLink = `https://maps.google.com/?q=${mapQuery}`;
   const mapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   const mapStaticUrl = mapsApiKey
     ? `https://maps.googleapis.com/maps/api/staticmap?center=${mapQuery}&zoom=15&size=1200x600&scale=2&maptype=roadmap&markers=color:0x2F6FED|${mapQuery}&key=${mapsApiKey}`
@@ -388,7 +400,7 @@ export default function ChatPage() {
   // Auto scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, loading]);
 
   // Mark messages as read — runs when new messages arrive while chat is open.
   // Uses a ref to avoid clearing the other user's freshly-incremented counter.
@@ -468,6 +480,20 @@ export default function ChatPage() {
           (p: string) => p !== user.uid
         );
 
+        if (type === "text") {
+          void sendAdminNotif({
+            type: "system",
+            title: "New job message",
+            message: content,
+            senderName: profile?.displayName || "User",
+            chatLabel: `Job chat · ${chatData?.jobId || chatId.slice(0, 8)}`,
+            preview: content,
+            chatId,
+            uid: user.uid,
+            meta: { path: "/admin/chats", jobId: chatData?.jobId || "" },
+          });
+        }
+
         const updateData: Record<string, unknown> = {
           lastMessage:
             type === "text" ? content : `[${type.replace("-", " ")}]`,
@@ -540,7 +566,8 @@ export default function ChatPage() {
             updateData.paymentStatus = "paid";
           }
         } else if (job.paymentMethod === "cash") {
-          updateData.paymentStatus = "paid";
+          await cashPaymentAction("complete");
+          return;
         } else {
           alert("A confirmed platform payment is required before completing this job.");
           return;
@@ -548,12 +575,6 @@ export default function ChatPage() {
       }
 
       await updateDoc(doc(db, "jobs", job.id), updateData);
-      if (newStatus === "completed") {
-        await upsertTransaction(
-          { ...job, paymentStatus: "paid" },
-          "paid"
-        );
-      }
 
       const statusLabels: Record<string, string> = {
         accepted: "accepted this job",
@@ -630,14 +651,24 @@ export default function ChatPage() {
   };
 
   // Rehire operator from a completed/cancelled chat
-  const rehireOperator = async () => {
+  const rehireOperator = async (cashAccepted = false) => {
     if (!job || !user?.uid || !otherUser?.uid || rehiring || rehireSent) return;
+    if (job.paymentMethod === "cash" && job.status === "completed" && job.paymentStatus === "pending") {
+      setCashError("Settle this job's cash payment before booking again in this conversation.");
+      setShowMobileTasksSheet(true);
+      return;
+    }
     setRehiring(true);
     try {
       const { addDoc: ad, collection: col, Timestamp: Ts } = await import("firebase/firestore");
       const bookingOperator = isOperator ? profile : otherUser;
       if (!bookingOperator?.idVerified) throw new Error("The operator must verify their ID before receiving jobs.");
       const operatorRequiresCard = canAcceptPlatformPayments(bookingOperator) && (bookingOperator.stripeEnabledJobsOnly ?? true);
+
+      if (!operatorRequiresCard && !cashAccepted) {
+        setQuickCommConfirmation({ title: "Book a cash-only job?", confirmLabel: "Agree & request help", message: `Pay $${(job.price || 0).toFixed(2)} directly to the operator after the work. No card will be charged.`, onConfirm: () => rehireOperator(true) });
+        return;
+      }
 
       // Create a new job with the same details
       const newJobRef = await ad(col(db, "jobs"), {
@@ -657,6 +688,7 @@ export default function ChatPage() {
         price: job.price || 0,
         paymentMethod: operatorRequiresCard ? "credit" : "cash",
         requiresCardPayment: operatorRequiresCard,
+        cashPaymentAcknowledged: !operatorRequiresCard,
         paymentStatus: "pending",
         chatId: chatId,
         createdAt: Ts.now(),
@@ -673,7 +705,7 @@ export default function ChatPage() {
       setRehireSent(true);
 
       await sendMessage(
-        `${profile?.displayName} has requested a new job! Same service, same location.`,
+        `${profile?.displayName} has requested a new job! Same service, same location.${operatorRequiresCard ? "" : " Cash only: pay the operator directly after the work. No card will be charged."}`,
         "system"
       );
 
@@ -743,42 +775,35 @@ export default function ChatPage() {
     setShowMobileTasksSheet(false);
   };
 
-  const requestQuickCommConfirmation = (confirmation: QuickCommConfirmation) => {
-    setQuickCommConfirmation(confirmation);
+  const cashPaymentAction = async (action: "defer" | "complete" | "refund") => {
+    if (!job || cashActionBusy) return;
+    setCashActionBusy(true); setCashError("");
+    try {
+      const response = await stripeConnectFetch("/api/jobs/cash-payment", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jobId: job.id, action }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not update cash payment.");
+      setShowCashPayment(false);
+      setShowMobileTasksSheet(true);
+    } catch (error) {
+      setCashError(error instanceof Error ? error.message : "Could not update cash payment.");
+      setShowMobileTasksSheet(true);
+    } finally { setCashActionBusy(false); }
   };
 
-  const upsertTransaction = async (
-    activeJob: Job,
-    status: "held" | "paid" | "refunded" | "cancelled",
-    paymentIntentId?: string
-  ) => {
-    const resolvedPaymentIntentId = paymentIntentId || activeJob.stripePaymentIntentId || "";
-    // Platform transactions are persisted by the server and signed webhooks.
-    if (resolvedPaymentIntentId) return;
-    const transactionId = resolvedPaymentIntentId || `${activeJob.id}-${activeJob.paymentMethod || "cash"}`;
-    const transactionData: Record<string, unknown> = {
-      jobId: activeJob.id,
-      chatId,
-      clientId: activeJob.clientId,
-      operatorId: activeJob.operatorId,
-      amount: Math.round((activeJob.price || 0) * 100),
-      paymentMethod: resolvedPaymentIntentId ? "credit" : activeJob.paymentMethod,
-      status,
-      stripePaymentIntentId: resolvedPaymentIntentId,
-      description: `Snow removal - ${activeJob.serviceTypes?.join(", ") || "service"} at ${activeJob.address || "client address"}`,
-      serviceTypes: activeJob.serviceTypes || [],
-      address: activeJob.address || "",
-      clientName: clientName || "",
-      operatorName: operatorName || "",
-      createdAt: activeJob.createdAt || Timestamp.now(),
-      updatedAt: Timestamp.now(),
-    };
+  const confirmCashReceived = async () => {
+    if (!job || confirmingCash) return;
+    setConfirmingCash(true); setCashError("");
+    try {
+      const response = await stripeConnectFetch("/api/jobs/confirm-cash", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jobId: job.id }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not confirm cash received.");
+      if (!result.alreadyConfirmed) await sendMessage(`Cash payment of $${job.price} CAD received and confirmed by ${profile?.displayName || "the operator"}. No card was charged.`, "payment", { amount: job.price });
+    } catch (error) { setCashError(error instanceof Error ? error.message : "Could not confirm cash received."); }
+    finally { setConfirmingCash(false); }
+  };
 
-    if (status === "paid") {
-      transactionData.completedAt = Timestamp.now();
-    }
-
-    await setDoc(doc(db, "transactions", transactionId), transactionData, { merge: true });
+  const requestQuickCommConfirmation = (confirmation: QuickCommConfirmation) => {
+    setQuickCommConfirmation(confirmation);
   };
 
   const captureStripePaymentIfNeeded = async (activeJob: Job) => {
@@ -813,6 +838,7 @@ export default function ChatPage() {
 
   // Stripe payment initiation
   const initiatePayment = async () => {
+    if (job?.paymentMethod === "cash") { setShowCashPayment(true); return; }
     if (!job) return;
     setProcessingPayment(true);
     try {
@@ -959,7 +985,7 @@ export default function ChatPage() {
           recordingStreamRef.current = null;
         }
 
-        const blob = new Blob(recordingChunksRef.current, { type: "audio/webm" });
+        const blob = new Blob(recordingChunksRef.current, { type: recorder.mimeType || "audio/webm" });
         if (blob.size === 0) return;
 
         const durationMs = Math.max(1000, Date.now() - recordingStartedAtRef.current);
@@ -1063,9 +1089,9 @@ export default function ChatPage() {
   };
 
   const handleComposerKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
-      if (!sendingMessage && newMessage.trim()) {
+      if (!sendingMessage && !isRecordingVoice && newMessage.trim()) {
         sendMessage(newMessage);
       }
     }
@@ -1361,7 +1387,7 @@ export default function ChatPage() {
                 </span>
               </div>
               <p className="text-xs text-gray-600 leading-relaxed">{msg.content}</p>
-              {msg.type === "payment-request" && !isOperator && (job?.paymentStatus === "pending" || job?.paymentStatus === "refunded") && (
+              {msg.type === "payment-request" && !isOperator && job?.paymentMethod !== "cash" && (job?.paymentStatus === "pending" || job?.paymentStatus === "refunded") && (
                 <button
                   onClick={initiatePayment}
                   disabled={processingPayment}
@@ -1428,10 +1454,9 @@ export default function ChatPage() {
     );
   }
 
-  const otherUserId = otherUser?.uid || (messages.find((m) => m.senderId !== user?.uid)?.senderId);
 
   return (
-    <div className="relative left-1/2 flex h-[calc(100dvh-12rem-env(safe-area-inset-bottom))] w-full -translate-x-1/2 min-h-0 gap-0 overflow-hidden lg:h-[calc(100dvh-7rem)] xl:items-stretch">
+    <div className="chat-workspace flex w-full min-h-0 gap-0">
       {/* Chat Column */}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-y border-r border-[var(--border-color)] bg-[var(--bg-card-solid)] xl:border-l">
         {/* Chat Header */}
@@ -1443,53 +1468,11 @@ export default function ChatPage() {
           >
             <ArrowLeft className="w-5 h-5" />
           </Link>
-          {/* Desktop: open profile panel. Mobile: route to profile page. */}
-          <button type="button" onClick={() => setRightPanelView("profile")} className="hidden cursor-pointer transition xl:block" title="Show profile details">
-            <UserAvatar
-              photoURL={(otherUser as unknown as Record<string, string> | null)?.avatar}
-              role={otherUser?.role}
-              displayName={otherUser?.displayName}
-              size={44}
-              rounded="2xl"
-              className="border-[3px] border-[var(--border-color)]"
-            />
+          <button type="button" onClick={() => { setRightPanelView("profile"); setShowMobileTasksSheet(true); }} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={`View ${otherUser?.displayName || "user"} profile details`}>
+            <span className="hidden sm:block"><UserAvatar photoURL={(otherUser as unknown as Record<string, string> | null)?.avatar} role={otherUser?.role} displayName={otherUser?.displayName} size={44} /></span>
+            <span className="min-w-0"><span className="block truncate font-semibold">{otherUser?.displayName || "User"}</span><span className="block truncate text-xs text-[var(--text-muted)]">{[otherUser?.city, otherUser?.province].filter(Boolean).join(", ") || "View profile"}</span></span>
           </button>
-          <Link href={`/dashboard/u/${otherUserId || ""}`} className="xl:hidden">
-            <UserAvatar
-              photoURL={(otherUser as unknown as Record<string, string> | null)?.avatar}
-              role={otherUser?.role}
-              displayName={otherUser?.displayName}
-              size={44}
-              rounded="2xl"
-              className="border-[3px] border-[var(--border-color)]"
-            />
-          </Link>
-          <div className="flex-1 min-w-0">
-            <button
-              type="button"
-              onClick={() => setRightPanelView("profile")}
-              className="hidden xl:block hover:underline underline-offset-2"
-            >
-              <p className="truncate font-semibold text-[var(--text-primary)]">
-                {otherUser?.displayName || "User"}
-              </p>
-            </button>
-            <Link href={`/dashboard/u/${otherUserId || ""}`} className="xl:hidden hover:underline underline-offset-2">
-              <p className="truncate font-semibold text-[var(--text-primary)]">
-                {otherUser?.displayName || "User"}
-              </p>
-            </Link>
-            <p className="flex min-w-0 items-center gap-1.5 text-xs text-[var(--text-muted)]">
-              <MapPin className="w-3 h-3" />
-              <span className="truncate">{[otherUser?.city, otherUser?.province].filter(Boolean).join(", ") || "Location unavailable"}</span>
-              {distance !== null && (
-                <span className="ml-2 hidden shrink-0 items-center gap-0.5 font-semibold text-[var(--text-primary)] sm:flex">
-                  <Compass className="w-3 h-3" />
-                  {distance.toFixed(1)} km away
-                </span>
-              )}
-            </p>
-          </div>
+          <SupportChatButton inline />
           {job && (
             <div className="hidden lg:block">
               <StatusBadge status={job.status} />
@@ -1505,64 +1488,15 @@ export default function ChatPage() {
           </button>
         </div>
 
-        {/* Compact Job Context */}
         {job && (
-          <div className="border-b border-[var(--border-soft)] bg-[#f7f7f4] px-3 py-2 sm:px-4">
-            <div className="flex min-w-0 items-center gap-2 overflow-x-auto">
-              <span className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
-                Job
-              </span>
-              {job.serviceTypes?.slice(0, 2).map((s) => (
-                <span key={s} className="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-semibold capitalize text-[var(--text-primary)] ring-1 ring-[var(--border-color)]">
-                  {s.replace("-", " ")}
-                </span>
-              ))}
-              <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-semibold capitalize text-[var(--text-secondary)] ring-1 ring-[var(--border-color)]">
-                {job.propertySize?.replace("-", " ")}
-              </span>
-              <span className="shrink-0 rounded-full bg-[var(--ink)] px-2.5 py-1 text-xs font-semibold text-white">
-                ${job.price} CAD
-              </span>
-              <button
-                type="button"
-                onClick={() => setRightPanelView("updates")}
-                className="ml-auto hidden shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold text-[var(--text-muted)] transition hover:bg-white hover:text-[var(--text-primary)] xl:inline-flex"
-              >
-                Details
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Mobile progress strip */}
-        {job && (
-          <div className="xl:hidden px-3 py-2.5 bg-white border-b border-[var(--border-soft)]">
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-              <span className="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#EAF1FF] text-[var(--accent)]">
-                {job.status.replace("-", " ")}
-              </span>
-              <span
-                className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold ${
-                  job.paymentStatus === "paid"
-                    ? "bg-green-50 text-green-700"
-                    : job.paymentStatus === "held"
-                    ? "bg-amber-50 text-amber-700"
-                    : "bg-gray-100 text-gray-600"
-                }`}
-              >
-                Payment: {job.paymentStatus}
-              </span>
-              {job.eta ? (
-                <span className="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#F2F6FB] text-[#5B6B84]">
-                  ETA {job.eta} min
-                </span>
-              ) : null}
-            </div>
-          </div>
+          <button type="button" onClick={() => { setRightPanelView("updates"); setShowMobileTasksSheet(true); }} className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border-soft)] bg-[var(--bg-secondary)] px-4 py-3 text-left text-sm">
+            <span className="min-w-0 break-words"><span className="font-semibold capitalize">{job.status.replaceAll("-", " ")}</span> · ${job.price} CAD{job.paymentMethod === "cash" ? " · Cash only" : " · Card"}{job.eta ? ` · ETA ${job.eta} min` : ""}</span>
+            <span className="shrink-0 font-semibold underline underline-offset-4">Job details</span>
+          </button>
         )}
 
         {/* Messages */}
-        <div className="flex-1 space-y-1 overflow-y-auto bg-[var(--bg-primary)] px-3 pb-36 pt-4 sm:px-4 xl:pb-5">
+        <div role="log" aria-label="Conversation" className="chat-history min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain bg-[var(--bg-primary)] p-3 sm:p-5">
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center py-12 text-[var(--text-muted)]">
               <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border-[3px] border-[var(--border-soft)] bg-white shadow-[var(--surface-shadow)]">
@@ -1593,182 +1527,6 @@ export default function ChatPage() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Review Prompt — Auto-shows when job is completed */}
-        {job?.status === "completed" && !reviewSubmitted && (
-          <div className="hidden xl:block bg-yellow-50 border-x border-[var(--border)] px-4 py-4 border-t border-yellow-200">
-            <div className="text-center mb-3">
-              <Star className="w-6 h-6 text-yellow-500 mx-auto mb-1" />
-              <p className="text-sm font-semibold text-gray-900">
-                How was your experience with {otherUser?.displayName || "them"}?
-              </p>
-              <p className="text-xs text-gray-500">Your review helps the community</p>
-            </div>
-            {/* Star Rating */}
-            <div className="flex justify-center gap-2 mb-3">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  onClick={() => setReviewRating(star)}
-                  className="transition-transform hover:scale-110"
-                >
-                  <Star
-                    className={`w-8 h-8 ${
-                      star <= reviewRating
-                        ? "text-yellow-500 fill-yellow-500"
-                        : "text-gray-300"
-                    }`}
-                  />
-                </button>
-              ))}
-            </div>
-            {reviewRating > 0 && (
-              <div className="space-y-2">
-                <textarea
-                  value={reviewComment}
-                  onChange={(e) => setReviewComment(e.target.value)}
-                  placeholder={reviewRating < 3 ? "Please describe what went wrong (required)..." : "Add a comment (optional)..."}
-                  rows={2}
-                  className={`w-full px-3 py-2 border rounded-xl text-sm resize-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent outline-none ${
-                    reviewRating < 3 ? "border-red-300" : "border-gray-200"
-                  }`}
-                />
-                {reviewRating < 3 && !reviewComment.trim() && (
-                  <p className="text-xs text-red-600">* Description required for ratings below 3 stars</p>
-                )}
-                <button
-                  onClick={submitReview}
-                  disabled={submittingReview}
-                  className="w-full px-4 py-2.5 bg-yellow-500 text-white rounded-xl font-semibold text-sm hover:bg-yellow-600 transition disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {submittingReview ? "Submitting..." : "Submit Review"}
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-        {job?.status === "completed" && reviewSubmitted && (
-          <div className="hidden xl:block bg-green-50 border-x border-[var(--border)] px-4 py-3 border-t border-green-200 text-center">
-            <div className="flex items-center justify-center gap-2 text-green-700">
-              <CheckCircle className="w-4 h-4" />
-              <span className="text-sm font-medium">Thank you for your review!</span>
-            </div>
-          </div>
-        )}
-
-        {/* Client cancel button for pending jobs */}
-        {!isOperator && job?.status === "pending" && (
-          <div className="hidden xl:block bg-gray-50 border-x border-gray-100 px-4 py-3 border-t border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-800">Job Request Pending</p>
-                <p className="text-xs text-gray-600">Waiting for operator to accept</p>
-              </div>
-              <button
-                onClick={cancelJob}
-                className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg font-semibold text-sm transition flex items-center gap-2"
-              >
-                <X className="w-4 h-4" />
-                Cancel Request
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Client payment banner */}
-        {!isOperator && job?.status === "accepted" && (job?.paymentStatus === "pending" || job?.paymentStatus === "refunded") && (
-          <div className="hidden xl:block bg-yellow-50 border-x border-yellow-100 px-4 py-3 border-t border-yellow-200">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Shield className="w-5 h-5 text-yellow-600" />
-                <div>
-                  <p className="text-sm font-medium text-yellow-800">Pay ${job.price} CAD to confirm</p>
-                  <p className="text-xs text-yellow-600">Funds held securely until job completion</p>
-                </div>
-              </div>
-              <button
-                onClick={initiatePayment}
-                disabled={processingPayment}
-                className="px-4 py-2 bg-[var(--accent)] text-white rounded-lg font-semibold text-sm hover:bg-[var(--accent-dark)] transition disabled:opacity-50 flex items-center gap-2"
-              >
-                {processingPayment ? (
-                  <>
-                    <Image src="/logo.png" alt="Loading" width={16} height={16} className="animate-spin-slow" style={{ width: "auto", height: "auto" }} />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <CreditCard className="w-4 h-4" />
-                    Pay Now
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Completed Job — Rehire option (clients only, once) */}
-        {job?.status === "completed" && reviewSubmitted && !isOperator && !rehireSent && (
-          <div className="hidden xl:block bg-[var(--accent)]/5 border-x border-[var(--accent)]/10 px-4 py-3 border-t border-[var(--accent)]/20">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-900">Job Complete</p>
-                <p className="text-xs text-gray-500">Need this service again?</p>
-              </div>
-              <button
-                onClick={rehireOperator}
-                disabled={rehiring}
-                className="px-4 py-2 bg-[var(--accent)] text-white rounded-lg font-semibold text-sm hover:bg-[var(--accent-dark)] transition flex items-center gap-2 disabled:opacity-50"
-              >
-                <Briefcase className="w-4 h-4" />
-                {rehiring ? "Creating..." : "Rehire"}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Cancelled Job — Clients can reopen within 5 min, or either side can rehire. Operators cannot reopen. */}
-        {job?.status === "cancelled" && (
-          <div className="hidden xl:block bg-red-50 border-x border-red-100 px-4 py-3 border-t border-red-200">
-            {/* Only clients can reopen within 5-minute window */}
-            {!isOperator && reopenTimeLeft !== null && reopenTimeLeft > 0 ? (
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-red-800">Job Cancelled</p>
-                  <p className="text-xs text-red-600">
-                    Reopen within {Math.floor(reopenTimeLeft / 60000)}:{String(Math.floor((reopenTimeLeft % 60000) / 1000)).padStart(2, "0")}
-                  </p>
-                </div>
-                <button
-                  onClick={reopenJob}
-                  className="px-4 py-2 bg-[var(--accent)] text-white rounded-lg font-semibold text-sm hover:bg-[var(--accent-dark)] transition flex items-center gap-2"
-                >
-                  <Play className="w-4 h-4" />
-                  Reopen Job
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-red-800">Job Cancelled</p>
-                  {!isOperator && (
-                    <p className="text-xs text-red-600">Want to start a new job?</p>
-                  )}
-                </div>
-                {!isOperator && !rehireSent && (
-                  <button
-                    onClick={rehireOperator}
-                    disabled={rehiring}
-                    className="px-4 py-2 bg-[var(--accent)] text-white rounded-lg font-semibold text-sm hover:bg-[var(--accent-dark)] transition flex items-center gap-2 disabled:opacity-50"
-                  >
-                    <Briefcase className="w-4 h-4" />
-                    {rehiring ? "Creating..." : "Rehire"}
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
         {/* Message Input */}
         <div className="sticky bottom-0 z-20 shrink-0 border-t border-[var(--border-soft)] bg-white/95 px-2.5 pb-[max(10px,env(safe-area-inset-bottom))] pt-2.5 shadow-[var(--surface-shadow)] backdrop-blur sm:px-4">
           <input
@@ -1795,112 +1553,27 @@ export default function ChatPage() {
             className="hidden"
           />
 
-          {!newMessage.trim() && (
-            <div className="mb-2 flex gap-2 overflow-x-auto px-0.5">
-              {quickReplies.map((reply) => (
-                <button
-                  key={reply}
-                  type="button"
-                  onClick={() => setNewMessage(reply)}
-                  className="shrink-0 rounded-full border-[3px] border-[var(--border-color)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--text-secondary)] transition hover:border-[var(--text-primary)] hover:text-[var(--text-primary)]"
-                >
-                  {reply}
-                </button>
-              ))}
+          <details className="chat-tools mb-2">
+            <summary className="cursor-pointer rounded-lg px-2 py-2 text-sm font-medium">Photos & quick replies</summary>
+            <div className="flex flex-wrap gap-2 py-2">
+              <button type="button" onClick={() => chatAttachInputRef.current?.click()} className="rounded-xl border px-3 py-2 text-sm"><Paperclip className="mr-1 inline h-4 w-4" />Attach photo</button>
+              <button type="button" onClick={handleOpenCameraUpload} disabled={creatingGuestUploadLink} className="rounded-xl border px-3 py-2 text-sm disabled:opacity-50"><Camera className="mr-1 inline h-4 w-4" />{creatingGuestUploadLink ? "Opening camera…" : "Take photo"}</button>
+              {quickReplies.map(reply => <button key={reply} type="button" onClick={(event) => { setNewMessage(reply); event.currentTarget.closest("details")?.removeAttribute("open"); composerRef.current?.focus(); }} className="rounded-xl border px-3 py-2 text-sm">{reply}</button>)}
             </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="flex items-end gap-1.5 rounded-[1.2rem] border-[3px] border-[var(--border-color)] bg-[var(--bg-card-solid)] px-2 py-1.5 shadow-[var(--surface-shadow)] xl:hidden">
-            <button
-              type="button"
-              onClick={() => setShowMobileTasksSheet(true)}
-              className="mb-1 rounded-full bg-[var(--bg-secondary)] px-3 py-2 text-xs font-semibold text-[var(--text-primary)]"
-            >
-              Job
-            </button>
-            <button
-              type="button"
-              onClick={() => chatAttachInputRef.current?.click()}
-              className="mb-1 rounded-lg p-2 text-[var(--text-muted)] hover:bg-[var(--bg-secondary)] hover:text-[var(--accent)]"
-              title="Attach photo"
-            >
-              <Paperclip className="w-4.5 h-4.5" />
-            </button>
-            <button
-              type="button"
-              onClick={handleOpenCameraUpload}
-              disabled={creatingGuestUploadLink}
-              className="mb-1 rounded-lg p-2 text-[var(--text-muted)] hover:bg-[var(--bg-secondary)] hover:text-[var(--accent)] disabled:opacity-50"
-              title="Take photo"
-            >
-              <Camera className="w-4.5 h-4.5" />
-            </button>
+          </details>
+          {isRecordingVoice && <p role="status" className="mb-2 text-sm font-semibold text-red-600">Recording… Tap stop to send your voice message.</p>}
+          <form onSubmit={handleSubmit} className="flex items-end gap-1 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card-solid)] p-1.5">
             <textarea
-              value={newMessage}
-              onFocus={() => setShowMobileTasksSheet(false)}
-              onChange={(e) => setNewMessage(e.target.value)}
-              onKeyDown={handleComposerKeyDown}
-              aria-label="Message"
-              placeholder="Write a message..."
-              rows={1}
-              className="max-h-28 min-h-10 min-w-0 flex-1 resize-none bg-transparent px-2 py-2.5 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
-            />
-
-            {newMessage.trim() ? (
-              <button
-                type="submit"
-                disabled={sendingMessage}
-                aria-label={sendingMessage ? "Sending message" : "Send message"}
-                className="mb-0.5 rounded-full bg-[var(--ink)] p-2.5 text-white transition hover:bg-black disabled:opacity-40"
-              >
-                <Send className="w-4 h-4" />
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  if (isRecordingVoice) {
-                    stopVoiceRecorder();
-                  } else {
-                    void startVoiceRecorder();
-                  }
-                }}
-                className={`mb-0.5 rounded-full p-2.5 transition ${isRecordingVoice ? "bg-red-500 text-white" : "bg-[var(--bg-secondary)] text-[var(--text-primary)]"}`}
-                title={isRecordingVoice ? "Stop recording" : "Record voice"}
-              >
-                {isRecordingVoice ? <Square className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-              </button>
-            )}
-          </form>
-
-          <form onSubmit={handleSubmit} className="hidden items-end gap-2 rounded-[1.2rem] border-[3px] border-[var(--border-color)] bg-[var(--bg-card-solid)] p-2 xl:flex">
-            <button
-              type="button"
-              onClick={() => chatAttachInputRef.current?.click()}
-              className="rounded-lg p-2.5 text-[var(--text-muted)] transition hover:bg-[var(--bg-secondary)] hover:text-[var(--accent)]"
-              title="Attach photo"
-            >
-              <Paperclip className="w-5 h-5" />
-            </button>
-            <button
-              type="button"
-              onClick={handleOpenCameraUpload}
-              disabled={creatingGuestUploadLink}
-              className="rounded-lg p-2.5 text-[var(--text-muted)] transition hover:bg-[var(--bg-secondary)] hover:text-[var(--accent)] disabled:opacity-50"
-              title="Take photo"
-            >
-              <Camera className="w-5 h-5" />
-            </button>
-            <textarea
+              ref={composerRef}
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               onKeyDown={handleComposerKeyDown}
               aria-label="Message"
               placeholder="Type a message..."
               rows={1}
-              className="max-h-32 min-h-11 flex-1 resize-none rounded-xl border-[3px] border-[var(--border-color)] bg-[#fbfbf8] px-4 py-3 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--text-primary)] focus:bg-white"
+              className="max-h-32 min-h-11 min-w-0 flex-1 resize-none rounded-xl bg-transparent px-3 py-3 text-base text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--text-primary)] focus:bg-white"
             />
-            {newMessage.trim() ? (
+            {newMessage.trim() && !isRecordingVoice ? (
               <button
                 type="submit"
                 disabled={sendingMessage}
@@ -1935,14 +1608,12 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* Desktop Right Panel — dynamic: updates by default, profile on demand */}
-        {(job || otherUser) && (
-        <div className="hidden xl:flex flex-col w-[360px] shrink-0 h-full min-h-0">
-          <div className="h-full min-h-0 overflow-hidden border-y border-r border-[var(--border-color)] bg-[var(--bg-card-solid)] p-5">
+      <Modal isOpen={showMobileTasksSheet && !showCashPayment && !showCancelPopup && !quickCommConfirmation && !showMapModal && !showCheckout && !showPaymentGateModal && !showReportModal && !showCameraQrModal} onClose={() => setShowMobileTasksSheet(false)} title="Conversation details" size="lg">
+        <div className="chat-details">
             <div className="mb-4 flex items-center gap-2 rounded-xl border-[3px] border-[var(--border-soft)] bg-[var(--bg-secondary)] p-1">
               <button
                 type="button"
-                onClick={() => setRightPanelView("updates")}
+                onClick={() => { setRightPanelView("updates"); setShowMobileTasksSheet(true); }}
                 className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                   rightPanelView === "updates" ? "bg-white text-[var(--text-primary)] shadow-[var(--surface-shadow)]" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                 }`}
@@ -1951,7 +1622,7 @@ export default function ChatPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setRightPanelView("profile")}
+                onClick={() => { setRightPanelView("profile"); setShowMobileTasksSheet(true); }}
                 className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                   rightPanelView === "profile" ? "bg-white text-[var(--text-primary)] shadow-[var(--surface-shadow)]" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                 }`}
@@ -1962,9 +1633,201 @@ export default function ChatPage() {
 
             {rightPanelView === "updates" && job && (
               <>
+        {job?.paymentMethod === "cash" && <section className="mb-4 rounded-2xl bg-[#eaf1ee] p-4 text-sm">
+          <h3 className="text-base font-semibold">{job.paymentStatus === "paid" ? "Cash received" : job.paymentStatus === "refunded" ? "Cash refunded" : job.status === "completed" ? "Work complete · cash payment pending" : "Cash payment pending"}</h3>
+          <p className="mt-2">{job.paymentStatus === "paid" ? `The operator confirmed $${job.price} CAD in cash. Your receipt is in Payments.` : job.paymentStatus === "refunded" ? "The operator recorded a cash refund. The job remains open until completed or cancelled." : `Pay $${job.price} CAD directly to the operator ${job.status === "completed" ? "now that the work is complete" : "when the work is done"}. This is not a prepaid job.`}</p>
+          {isOperator && job.paymentStatus !== "paid" && job.status !== "cancelled" && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-amber-900">You are responsible for collecting cash. No advance payment is held through Stripe, so travelling and working before payment is at your own risk. You can complete the work while payment remains pending.</p>}
+          {!isOperator && job.paymentStatus !== "paid" && job.status !== "cancelled" && <button onClick={initiatePayment} className="btn-primary mt-4 w-full px-4 py-3">{job.status === "completed" ? "Pay cash · view instructions" : job.cashPaymentDeferredAt ? "View pending cash payment" : "Pay cash after the job"}</button>}
+          {isOperator && job.paymentStatus === "paid" && !["completed", "cancelled"].includes(job.status) && <button disabled={cashActionBusy} onClick={() => requestQuickCommConfirmation({ title: "Record cash refund?", message: `Only confirm after returning $${job.price} CAD to the client in cash. This records the refund; it does not transfer money or cancel the job.`, confirmLabel: "Cash returned to client", onConfirm: () => cashPaymentAction("refund") })} className="btn-secondary mt-4 w-full px-4 py-3">Record cash refund</button>}
+          {!isOperator && job.paymentStatus === "paid" && !["completed", "cancelled"].includes(job.status) && <button onClick={() => requestQuickCommConfirmation({ title: "Request cash refund?", message: "This asks the operator to return your cash. They must return the money directly and record the refund. The job stays open until cancelled or completed.", confirmLabel: "Send refund request", onConfirm: () => sendMessage(`Please return my $${job.price} CAD cash payment and record the refund. The work is not completed.`, "payment") })} className="btn-secondary mt-4 w-full px-4 py-3">Request cash refund</button>}
+          {job.paymentStatus !== "paid" && !["completed", "cancelled"].includes(job.status) && <button onClick={cancelJob} className="mt-3 w-full rounded-xl px-4 py-3 font-semibold text-red-700">Cancel job</button>}
+          {isOperator && ["in-progress", "completed"].includes(job.status) && job.paymentStatus !== "paid" && <button disabled={confirmingCash} onClick={() => requestQuickCommConfirmation({ title: "Confirm cash received?", message: `Confirm only after you have received $${job.price} CAD from the client. This records a cash receipt for both of you.`, confirmLabel: "Yes, cash received", onConfirm: confirmCashReceived })} className="mt-4 w-full rounded-full bg-[#17251e] px-4 py-3 font-semibold text-white disabled:opacity-50">{confirmingCash ? "Confirming…" : "Confirm cash received"}</button>}
+          {cashError && <p role="alert" className="mt-3 text-red-700">{cashError}</p>}
+        </section>}
+
+                        {/* Review Prompt — Auto-shows when job is completed */}
+        {job?.status === "completed" && !reviewSubmitted && (
+          <div className="bg-yellow-50 border-x border-[var(--border)] px-4 py-4 border-t border-yellow-200">
+            <div className="text-center mb-3">
+              <Star className="w-6 h-6 text-yellow-500 mx-auto mb-1" />
+              <p className="text-sm font-semibold text-gray-900">
+                How was your experience with {otherUser?.displayName || "them"}?
+              </p>
+              <p className="text-xs text-gray-500">Your review helps the community</p>
+            </div>
+            {/* Star Rating */}
+            <div className="flex justify-center gap-2 mb-3">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  aria-label={`Rate ${star} out of 5`}
+                  onClick={() => setReviewRating(star)}
+                  className="transition-transform hover:scale-110"
+                >
+                  <Star
+                    className={`w-8 h-8 ${
+                      star <= reviewRating
+                        ? "text-yellow-500 fill-yellow-500"
+                        : "text-gray-300"
+                    }`}
+                  />
+                </button>
+              ))}
+            </div>
+            {reviewRating > 0 && (
+              <div className="space-y-2">
+                <textarea
+                  value={reviewComment}
+                  aria-label="Review comment"
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  placeholder={reviewRating < 3 ? "Please describe what went wrong (required)..." : "Add a comment (optional)..."}
+                  rows={2}
+                  className={`w-full px-3 py-2 border rounded-xl text-sm resize-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent outline-none ${
+                    reviewRating < 3 ? "border-red-300" : "border-gray-200"
+                  }`}
+                />
+                {reviewRating < 3 && !reviewComment.trim() && (
+                  <p className="text-xs text-red-600">* Description required for ratings below 3 stars</p>
+                )}
+                <button
+                  onClick={submitReview}
+                  disabled={submittingReview}
+                  className="w-full px-4 py-2.5 bg-yellow-500 text-white rounded-xl font-semibold text-sm hover:bg-yellow-600 transition disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {submittingReview ? "Submitting..." : "Submit Review"}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        {job?.status === "completed" && reviewSubmitted && (
+          <div className="bg-green-50 border-x border-[var(--border)] px-4 py-3 border-t border-green-200 text-center">
+            <div className="flex items-center justify-center gap-2 text-green-700">
+              <CheckCircle className="w-4 h-4" />
+              <span className="text-sm font-medium">Thank you for your review!</span>
+            </div>
+          </div>
+        )}
+
+        {/* Client cancel button for pending jobs */}
+        {!isOperator && job?.status === "pending" && (
+          <div className="bg-gray-50 border-x border-gray-100 px-4 py-3 border-t border-gray-200">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-gray-800">Job Request Pending</p>
+                <p className="text-xs text-gray-600">Waiting for operator to accept</p>
+              </div>
+              <button
+                onClick={cancelJob}
+                className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg font-semibold text-sm transition flex items-center gap-2"
+              >
+                <X className="w-4 h-4" />
+                Cancel Request
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Client payment banner */}
+        {!isOperator && job?.paymentMethod !== "cash" && job?.status === "accepted" && (job?.paymentStatus === "pending" || job?.paymentStatus === "refunded") && (
+          <div className="bg-yellow-50 border-x border-yellow-100 px-4 py-3 border-t border-yellow-200">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Shield className="w-5 h-5 text-yellow-600" />
+                <div>
+                  <p className="text-sm font-medium text-yellow-800">Pay ${job.price} CAD to confirm</p>
+                  <p className="text-xs text-yellow-600">Funds held securely until job completion</p>
+                </div>
+              </div>
+              <button
+                onClick={initiatePayment}
+                disabled={processingPayment}
+                className="px-4 py-2 bg-[var(--accent)] text-white rounded-lg font-semibold text-sm hover:bg-[var(--accent-dark)] transition disabled:opacity-50 flex items-center gap-2"
+              >
+                {processingPayment ? (
+                  <>
+                    <Image src="/logo.png" alt="Loading" width={16} height={16} className="animate-spin-slow" style={{ width: "auto", height: "auto" }} />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="w-4 h-4" />
+                    Pay Now
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Completed Job — Rehire option (clients only, once) */}
+        {job?.status === "completed" && reviewSubmitted && !isOperator && !rehireSent && (
+          <div className="bg-[var(--accent)]/5 border-x border-[var(--accent)]/10 px-4 py-3 border-t border-[var(--accent)]/20">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-gray-900">Job Complete</p>
+                <p className="text-xs text-gray-500">Need this service again?</p>
+              </div>
+              <button
+                onClick={() => rehireOperator()}
+                disabled={rehiring}
+                className="px-4 py-2 bg-[var(--accent)] text-white rounded-lg font-semibold text-sm hover:bg-[var(--accent-dark)] transition flex items-center gap-2 disabled:opacity-50"
+              >
+                <Briefcase className="w-4 h-4" />
+                {rehiring ? "Creating..." : "Rehire"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Cancelled Job — Clients can reopen within 5 min, or either side can rehire. Operators cannot reopen. */}
+        {job?.status === "cancelled" && (
+          <div className="bg-red-50 border-x border-red-100 px-4 py-3 border-t border-red-200">
+            {/* Only clients can reopen within 5-minute window */}
+            {!isOperator && reopenTimeLeft !== null && reopenTimeLeft > 0 ? (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-red-800">Job Cancelled</p>
+                  <p className="text-xs text-red-600">
+                    Reopen within {Math.floor(reopenTimeLeft / 60000)}:{String(Math.floor((reopenTimeLeft % 60000) / 1000)).padStart(2, "0")}
+                  </p>
+                </div>
+                <button
+                  onClick={reopenJob}
+                  className="px-4 py-2 bg-[var(--accent)] text-white rounded-lg font-semibold text-sm hover:bg-[var(--accent-dark)] transition flex items-center gap-2"
+                >
+                  <Play className="w-4 h-4" />
+                  Reopen Job
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-red-800">Job Cancelled</p>
+                  {!isOperator && (
+                    <p className="text-xs text-red-600">Want to start a new job?</p>
+                  )}
+                </div>
+                {!isOperator && !rehireSent && (
+                  <button
+                    onClick={() => rehireOperator()}
+                    disabled={rehiring}
+                    className="px-4 py-2 bg-[var(--accent)] text-white rounded-lg font-semibold text-sm hover:bg-[var(--accent-dark)] transition flex items-center gap-2 disabled:opacity-50"
+                  >
+                    <Briefcase className="w-4 h-4" />
+                    {rehiring ? "Creating..." : "Rehire"}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+
                 <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-[var(--text-muted)]">Work order progress</h3>
             <ProgressTracker
               status={job.status}
+              paymentMethod={job.paymentMethod}
               paymentStatus={job.paymentStatus as "pending" | "held" | "paid" | "refunded" | undefined}
             />
 
@@ -2023,10 +1886,11 @@ export default function ChatPage() {
                     </button>
                     {(job.completionPhotoUrl || completionPhoto) && (
                       <button
-                        onClick={() => updateJobStatus("completed")}
+                        disabled={cashActionBusy}
+                        onClick={() => job.paymentMethod === "cash" && job.paymentStatus !== "paid" ? requestQuickCommConfirmation({ title: "Complete work with payment pending?", message: `The client will be notified to pay $${job.price} CAD in cash. You remain responsible for collecting it; no Stripe prepayment is held.`, confirmLabel: "Complete work · cash still due", onConfirm: () => updateJobStatus("completed") }) : updateJobStatus("completed")}
                         className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-green-600 text-white rounded-xl text-xs font-bold hover:bg-green-700 transition shadow-[var(--surface-shadow)]"
                       >
-                        <CheckCircle className="w-3.5 h-3.5" /> Complete & Release Payment
+                        <CheckCircle className="w-3.5 h-3.5" /> {job.paymentMethod === "cash" ? "Complete work order" : "Complete & release payment"}
                       </button>
                     )}
                     <button
@@ -2042,7 +1906,7 @@ export default function ChatPage() {
 
             {isOperator && (job.status === "accepted" || job.status === "en-route") && (
               <div className="mt-4 pt-3 border-t border-[var(--border)] space-y-2">
-                <p className="mb-2 text-xs font-bold uppercase tracking-widest text-gray-400">Quick Comms</p>
+                <p className="mb-2 text-xs font-bold uppercase tracking-widest text-gray-400">Send arrival time</p>
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     onClick={() => {
@@ -2055,7 +1919,7 @@ export default function ChatPage() {
                     }}
                     className="flex items-center justify-center gap-1 rounded-xl bg-[var(--bg-secondary)] px-2 py-2 text-xs font-semibold text-[var(--text-primary)] transition hover:bg-[var(--border)]"
                   >
-                    10m
+                    10 min
                   </button>
                   <button
                     onClick={() => {
@@ -2068,7 +1932,7 @@ export default function ChatPage() {
                     }}
                     className="flex items-center justify-center gap-1 rounded-xl bg-[var(--bg-secondary)] px-2 py-2 text-xs font-semibold text-[var(--text-primary)] transition hover:bg-[var(--border)]"
                   >
-                    20m
+                    20 min
                   </button>
                   <button
                     onClick={() => {
@@ -2081,10 +1945,10 @@ export default function ChatPage() {
                     }}
                     className="flex items-center justify-center gap-1 rounded-xl bg-[var(--bg-secondary)] px-2 py-2 text-xs font-semibold text-[var(--text-primary)] transition hover:bg-[var(--border)]"
                   >
-                    30m
+                    30 min
                   </button>
                 </div>
-                {job.status === "accepted" && (job.paymentStatus === "pending" || job.paymentStatus === "refunded") && (
+                {job.paymentMethod !== "cash" && job.status === "accepted" && (job.paymentStatus === "pending" || job.paymentStatus === "refunded") && (
                   <button
                     onClick={() => {
                       requestQuickCommConfirmation({
@@ -2108,12 +1972,18 @@ export default function ChatPage() {
               </div>
             )}
 
+            <dl className="mt-4 space-y-3 border-t border-[var(--border)] pt-4 text-sm">
+              <div><dt className="font-semibold">Scheduled</dt><dd>{formatMessageDay(job.scheduledDate) || "Date to be confirmed"}{job.scheduledTime ? ` · ${job.scheduledTime}` : ""}</dd></div>
+              {job.specialInstructions && <div><dt className="font-semibold">Special instructions</dt><dd className="whitespace-pre-wrap">{job.specialInstructions}</dd></div>}
+              <div><dt className="font-semibold">Property size</dt><dd className="capitalize">{job.propertySize?.replaceAll("-", " ") || "Not specified"}</dd></div>
+            </dl>
+
             {/* Job summary */}
             <div className="mt-4 border-t border-[var(--border)] pt-4 text-sm">
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-xl border-[3px] border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2.5">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-                    {isOperator ? "Profit" : "Price"}
+                    {isOperator ? "Job price" : "Price"}
                   </p>
                   <div className="mt-1 flex items-center gap-1">
                     <DollarSign className="h-4 w-4 text-[var(--accent)]" />
@@ -2127,7 +1997,7 @@ export default function ChatPage() {
                 </div>
                 <div className="rounded-xl border-[3px] border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2.5">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Service</p>
-                  <p className="mt-1 truncate text-sm font-semibold capitalize text-[var(--ink)]">
+                  <p className="mt-1 break-words text-sm font-semibold capitalize text-[var(--ink)]">
                     {job.serviceTypes?.map((s) => s.replace("-", " ")).join(", ") || "Service"}
                   </p>
                 </div>
@@ -2145,7 +2015,7 @@ export default function ChatPage() {
                 className="mt-2 flex w-full items-center gap-2 rounded-xl border-[3px] border-[var(--border)] bg-white px-3 py-2.5 text-left text-xs text-[var(--text-muted)] transition hover:text-[var(--accent)]"
               >
                 <MapPin className="h-3.5 w-3.5 shrink-0" />
-                <span className="min-w-0 flex-1 truncate">{job.address}, {job.city}</span>
+                <span className="min-w-0 flex-1 break-words">{job.address}, {job.city}</span>
                 <ExternalLink className="h-3.5 w-3.5 shrink-0" />
               </button>
             </div>
@@ -2153,7 +2023,7 @@ export default function ChatPage() {
                 <div className="mt-4 border-t border-[var(--border)] pt-3">
                   <button
                     type="button"
-                    onClick={() => setRightPanelView("profile")}
+                    onClick={() => { setRightPanelView("profile"); setShowMobileTasksSheet(true); }}
                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--bg-secondary)] px-3 py-2.5 text-xs font-semibold text-[var(--text-primary)] transition hover:bg-[var(--border)]"
                   >
                     <User className="w-3.5 h-3.5" /> View profile details
@@ -2206,161 +2076,17 @@ export default function ChatPage() {
             {rightPanelView === "profile" && !otherUser && (
               <p className="text-sm text-[var(--text-muted)]">Profile info unavailable.</p>
             )}
-          </div>
         </div>
-      )}
+      </Modal>
 
-
-      {/* Mobile Tasks Sheet */}
-      {showMobileTasksSheet && job && (
-        <div className="fixed inset-0 z-50 xl:hidden" onClick={() => setShowMobileTasksSheet(false)}>
-          <div className="absolute inset-0 bg-black/45" />
-          <div
-            className="absolute bottom-0 left-0 right-0 rounded-t-3xl bg-white border-t border-[var(--border)] p-4 pb-[max(16px,env(safe-area-inset-bottom))] shadow-[var(--surface-shadow)] max-h-[78dvh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-[var(--border)]" />
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-base font-bold text-[var(--ink)]">Work order</h3>
-              <button
-                type="button"
-                onClick={() => setShowMobileTasksSheet(false)}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="flex flex-wrap gap-2 mb-4">
-              <span className="rounded-full bg-[var(--bg-secondary)] px-2.5 py-1 text-[11px] font-semibold text-[var(--text-primary)]">{job.status.replace("-", " ")}</span>
-              <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${
-                job.paymentStatus === "paid"
-                  ? "bg-green-50 text-green-700"
-                  : job.paymentStatus === "held"
-                  ? "bg-amber-50 text-amber-700"
-                  : "bg-gray-100 text-gray-600"
-              }`}>
-                Payment: {job.paymentStatus}
-              </span>
-            </div>
-
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => window.open(mapLink, "_blank", "noopener,noreferrer")}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--bg-secondary)] px-3 py-2.5 text-sm font-semibold text-[var(--text-primary)]"
-              >
-                <MapPin className="w-4 h-4" /> Open Map
-              </button>
-
-              {isOperator && job.status === "pending" && (
-                <button onClick={() => updateJobStatus("accepted")} className="w-full px-3 py-2.5 rounded-xl bg-green-600 text-white text-sm font-semibold">Accept Job</button>
-              )}
-              {isOperator && job.status === "accepted" && (
-                <button onClick={() => updateJobStatus("en-route")} className="w-full px-3 py-2.5 rounded-xl bg-[var(--accent)] text-white text-sm font-semibold">I&apos;m On My Way</button>
-              )}
-              {isOperator && job.status === "en-route" && (
-                <div className="grid grid-cols-2 gap-2">
-                  <button onClick={() => updateJobStatus("in-progress")} className="px-3 py-2.5 rounded-xl bg-[var(--accent)] text-white text-sm font-semibold">Start Job</button>
-                  <button onClick={() => updateJobStatus("accepted")} className="px-3 py-2.5 rounded-xl bg-gray-100 text-gray-700 text-sm font-semibold">Go Back</button>
-                </div>
-              )}
-              {isOperator && job.status === "in-progress" && (
-                <>
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploadingPhoto}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[var(--accent)] text-white text-sm font-semibold disabled:opacity-50"
-                  >
-                    {uploadingPhoto ? "Uploading..." : job.completionPhotoUrl || completionPhoto ? "Update Photo Proof" : "Submit Photo Proof"}
-                  </button>
-                  {(job.completionPhotoUrl || completionPhoto) && (
-                    <button onClick={() => updateJobStatus("completed")} className="w-full px-3 py-2.5 rounded-xl bg-green-600 text-white text-sm font-semibold">Complete & Release Payment</button>
-                  )}
-                  <button onClick={() => updateJobStatus("en-route")} className="w-full px-3 py-2.5 rounded-xl bg-gray-100 text-gray-700 text-sm font-semibold">Back to En Route</button>
-                </>
-              )}
-
-              {isOperator && (job.status === "accepted" || job.status === "en-route") && (
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    onClick={() => {
-                      requestQuickCommConfirmation({
-                        title: "Send ETA update?",
-                        message: "This will message the client that your estimated arrival is 10 minutes.",
-                        confirmLabel: "Send 10m ETA",
-                        onConfirm: () => sendEtaUpdate(10),
-                      });
-                    }}
-                    className="px-2 py-2 rounded-xl bg-[var(--bg-secondary)] text-[var(--accent)] text-xs font-semibold"
-                  >
-                    ETA 10m
-                  </button>
-                  <button
-                    onClick={() => {
-                      requestQuickCommConfirmation({
-                        title: "Send ETA update?",
-                        message: "This will message the client that your estimated arrival is 20 minutes.",
-                        confirmLabel: "Send 20m ETA",
-                        onConfirm: () => sendEtaUpdate(20),
-                      });
-                    }}
-                    className="px-2 py-2 rounded-xl bg-[var(--bg-secondary)] text-[var(--accent)] text-xs font-semibold"
-                  >
-                    ETA 20m
-                  </button>
-                  <button
-                    onClick={() => {
-                      requestQuickCommConfirmation({
-                        title: "Send ETA update?",
-                        message: "This will message the client that your estimated arrival is 30 minutes.",
-                        confirmLabel: "Send 30m ETA",
-                        onConfirm: () => sendEtaUpdate(30),
-                      });
-                    }}
-                    className="px-2 py-2 rounded-xl bg-[var(--bg-secondary)] text-[var(--accent)] text-xs font-semibold"
-                  >
-                    ETA 30m
-                  </button>
-                </div>
-              )}
-
-              {!isOperator && job.status === "accepted" && (job.paymentStatus === "pending" || job.paymentStatus === "refunded") && (
-                <button onClick={initiatePayment} disabled={processingPayment} className="w-full px-3 py-2.5 rounded-xl bg-[var(--accent)] text-white text-sm font-semibold disabled:opacity-50">
-                  {processingPayment ? "Processing..." : `Pay $${job.price} CAD`}
-                </button>
-              )}
-
-              {!isOperator && job.status === "pending" && (
-                <button onClick={cancelJob} className="w-full px-3 py-2.5 rounded-xl bg-red-50 text-red-700 text-sm font-semibold">Cancel Request</button>
-              )}
-
-              {!isOperator && job.status === "cancelled" && reopenTimeLeft !== null && reopenTimeLeft > 0 && (
-                <button onClick={reopenJob} className="w-full px-3 py-2.5 rounded-xl bg-[var(--accent)] text-white text-sm font-semibold">Reopen Job</button>
-              )}
-
-              {!isOperator && (job.status === "completed" || job.status === "cancelled") && !rehireSent && (
-                <button onClick={rehireOperator} disabled={rehiring} className="w-full px-3 py-2.5 rounded-xl bg-[#EAF1FF] text-[var(--accent)] text-sm font-semibold disabled:opacity-50">
-                  {rehiring ? "Creating..." : "Rehire"}
-                </button>
-              )}
-
-              {job.status === "completed" && !reviewSubmitted && !isOperator && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowMobileTasksSheet(false);
-                    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-                  }}
-                  className="w-full px-3 py-2.5 rounded-xl bg-yellow-50 text-yellow-800 text-sm font-semibold"
-                >
-                  Leave Review Below
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal isOpen={showCashPayment && !showCancelPopup} onClose={() => { if (!cashActionBusy) setShowCashPayment(false); }} title="Cash payment" size="sm">
+        <p className="text-2xl font-semibold">${job?.price} CAD</p>
+        <p className="mt-3 text-sm leading-6">{job?.status === "completed" ? "The work is complete. Pay the operator directly in cash. Payment remains pending until they confirm receipt." : "Pay the operator directly after the work. Confirming below records payment as pending; no money is charged or held."}</p>
+        {cashError && <p role="alert" className="mt-3 text-sm text-red-700">{cashError}</p>}
+        {job && !["completed", "cancelled"].includes(job.status) && job.paymentStatus !== "paid" && <button disabled={cashActionBusy} onClick={() => cashPaymentAction("defer")} className="btn-primary mt-5 w-full px-4 py-3">{cashActionBusy ? "Saving…" : "Confirm · pay cash after work"}</button>}
+        <button disabled={cashActionBusy} onClick={() => { setShowCashPayment(false); setShowMobileTasksSheet(false); }} className="btn-secondary mt-3 w-full px-4 py-3">Return to job</button>
+        {job && !["completed", "cancelled"].includes(job.status) && job.paymentStatus !== "paid" && <button disabled={cashActionBusy} onClick={() => { setShowCashPayment(false); cancelJob(); }} className="mt-2 w-full rounded-xl px-4 py-3 font-semibold text-red-700">Cancel job before payment</button>}
+      </Modal>
 
       {/* Cancellation Popup */}
       <CancellationPopup
@@ -2369,54 +2095,20 @@ export default function ChatPage() {
         onConfirm={confirmCancelJob}
         loading={cancelling}
         title="Cancel this job?"
-        message={`This will cancel the ${job?.serviceTypes?.map(s => s.replace("-", " ")).join(", ") || "snow removal"} job at ${job?.address || "this address"}. Any held payment of $${job?.price || 0} will be refunded.`}
+        message={`This will cancel the ${job?.serviceTypes?.map(s => s.replace("-", " ")).join(", ") || "snow removal"} job at ${job?.address || "this address"}. ${job?.paymentMethod === "cash" ? "No card will be charged. Any cash already exchanged must be settled directly with the operator." : `Any held payment of $${job?.price || 0} will be released.`}`}
       />
 
-      {quickCommConfirmation && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4"
-          onClick={() => setQuickCommConfirmation(null)}
-        >
-          <div
-            className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-[var(--surface-shadow)]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-secondary)] text-[var(--accent)]">
-                <MessageSquare className="h-5 w-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h3 className="text-base font-bold text-[var(--ink)]">
-                  {quickCommConfirmation.title}
-                </h3>
-                <p className="mt-1 text-sm leading-6 text-[var(--text-muted)]">
-                  {quickCommConfirmation.message}
-                </p>
-              </div>
-            </div>
-            <div className="mt-5 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setQuickCommConfirmation(null)}
-                className="rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-200"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  const action = quickCommConfirmation.onConfirm;
-                  setQuickCommConfirmation(null);
-                  await action();
-                }}
-                className="rounded-xl bg-[var(--ink)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-black"
-              >
-                {quickCommConfirmation.confirmLabel}
-              </button>
-            </div>
-          </div>
+      <Modal isOpen={!!quickCommConfirmation} onClose={() => setQuickCommConfirmation(null)} title={quickCommConfirmation?.title} size="sm">
+        <p className="text-sm leading-6 text-[var(--text-muted)]">{quickCommConfirmation?.message}</p>
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <button type="button" onClick={() => setQuickCommConfirmation(null)} className="btn-secondary px-4 py-3">Cancel</button>
+          <button type="button" onClick={async () => {
+            const action = quickCommConfirmation?.onConfirm;
+            setQuickCommConfirmation(null);
+            await action?.();
+          }} className="btn-primary px-4 py-3">{quickCommConfirmation?.confirmLabel}</button>
         </div>
-      )}
+      </Modal>
 
       {/* Report / Claim Modal */}
       {showReportModal && (
@@ -2530,7 +2222,7 @@ export default function ChatPage() {
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="h-[50vh] min-h-[320px] bg-[#EFF4FB] overflow-hidden">
+            <div className="h-[45dvh] min-h-[160px] bg-[#EFF4FB] overflow-hidden">
               {mapStaticUrl ? (
                 <img
                   src={mapStaticUrl}

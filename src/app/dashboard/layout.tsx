@@ -2,27 +2,38 @@
 
 import { canAcceptPlatformPayments } from "@/lib/operatorDiscovery";
 
-import React, { Suspense, useRef, useState } from "react";
-import { useAuth } from "@/context/AuthContext";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import Navbar from "@/components/Navbar";
 import LoadingScreen from "@/components/LoadingScreen";
+import Navbar from "@/components/Navbar";
 import SupportChatButton from "@/components/SupportChatButton";
-import { WeatherProvider } from "@/context/WeatherContext";
-import { useEffect } from "react";
-import Link from "next/link";
-import { Shield, CheckCircle, Camera, ArrowLeft } from "lucide-react";
 import TutorialOverlay from "@/components/TutorialOverlay";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage, db } from "@/lib/firebase";
-import { doc, updateDoc } from "firebase/firestore";
+import { useAuth } from "@/context/AuthContext";
+import { WeatherProvider } from "@/context/WeatherContext";
 import { sendAdminNotif } from "@/lib/adminNotifications";
+import { db,storage } from "@/lib/firebase";
+import { doc,updateDoc } from "firebase/firestore";
+import { getDownloadURL,ref,uploadBytes } from "firebase/storage";
+import { ArrowLeft,Camera,CheckCircle,Shield } from "lucide-react";
+import Link from "next/link";
+import { usePathname,useRouter,useSearchParams } from "next/navigation";
+import React,{ Suspense,useEffect,useRef,useState } from "react";
 
 function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const { user, profile, loading, refreshProfile } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const inConversation = pathname.startsWith("/dashboard/messages/");
+  useEffect(() => {
+    if (!inConversation || !window.visualViewport) return;
+    const viewport = window.visualViewport;
+    const updateHeight = () => document.documentElement.style.setProperty("--conversation-height", `${viewport.height}px`);
+    updateHeight();
+    viewport.addEventListener("resize", updateHeight);
+    return () => {
+      viewport.removeEventListener("resize", updateHeight);
+      document.documentElement.style.removeProperty("--conversation-height");
+    };
+  }, [inConversation]);
   const [uploadingId, setUploadingId] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -74,11 +85,11 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
   return (
     <WeatherProvider>
-      <div className="min-h-screen bg-[var(--bg-primary)] transition-colors">
+      <div className="dashboard-shell min-h-screen bg-[var(--bg-primary)] transition-colors">
         <a href="#dashboard-content" className="skip-link">Skip to main content</a>
-        <Navbar key={pathname} />
-        <main id="dashboard-content" tabIndex={-1} className="min-h-screen min-w-0 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-20 lg:ml-[248px] lg:pb-10 lg:pt-8">
-          {isAdmin && (
+        <div className={inConversation ? "hidden lg:contents" : "contents"}><Navbar key={pathname} /></div>
+        <main id="dashboard-content" tabIndex={-1} className={inConversation ? "conversation-main flex h-dvh min-w-0 flex-col lg:ml-[248px]" : "min-h-screen min-w-0 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-20 lg:ml-[248px] lg:pb-10 lg:pt-8"}>
+          {!inConversation && isAdmin && (
             <div className="container-app mt-2 md:mt-0">
               <div className="flex items-center gap-3 rounded-[1.4rem] border border-red-200 bg-red-50 px-4 py-3">
               <Shield className="w-4 h-4 text-red-500 shrink-0" />
@@ -94,7 +105,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
             </div>
           )}
 
-          {profile.role === "operator" && !canAcceptPlatformPayments(profile) && (
+          {!inConversation && pathname !== "/dashboard" && profile.role === "operator" && !canAcceptPlatformPayments(profile) && (
             <div className="container-app mb-4">
               <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
                 <p className="font-semibold">{profile.idVerified ? "ID verified · Available for cash jobs" : "Verify your ID to go live for cash jobs"}</p>
@@ -103,7 +114,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
               </div>
             </div>
           )}
-          {!accountApproved && !isAdmin && (
+          {!inConversation && pathname !== "/dashboard" && !accountApproved && !isAdmin && (
             <div className="container-app mt-2 md:mt-0">
               <div className="rounded-[1.6rem] border border-blue-200 bg-blue-50 p-5">
               <div className="flex items-start gap-4">
@@ -150,9 +161,9 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
             </div>
           )}
 
-          <div className="container-app mt-4 md:mt-6">{children}</div>
+          <div className={inConversation ? "flex min-h-0 flex-1" : "container-app mt-4 md:mt-6"}>{children}</div>
         </main>
-        <SupportChatButton />
+        {!inConversation && <div className="hidden lg:block"><SupportChatButton /></div>}
         <TutorialOverlay />
       </div>
     </WeatherProvider>

@@ -4,7 +4,6 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from "
 import {
   addDoc,
   collection,
-  deleteDoc,
   doc,
   getDocs,
   onSnapshot,
@@ -14,10 +13,13 @@ import {
   updateDoc,
   writeBatch,
 } from "firebase/firestore";
+import { notificationHref, dailySeries } from "@/lib/admin/metrics";
 import { db, isFirebaseConfigured } from "@/lib/firebase";
+import { adminJobRequest } from "@/lib/admin/client";
 import {
   ActivityEvent,
   AdminNotification,
+  AdminNotificationPriority,
   AdminSettingsState,
   AdminUser,
   CallItem,
@@ -55,20 +57,20 @@ const DEFAULT_SETTINGS: AdminSettingsState = {
 };
 
 const toIsoDate = (value: unknown): string => {
-  if (!value) return new Date().toISOString();
+  if (!value) return "";
   if (value instanceof Date) return value.toISOString();
   if (typeof value === "object" && value !== null && "toDate" in value) {
     try {
       return (value as { toDate: () => Date }).toDate().toISOString();
     } catch {
-      return new Date().toISOString();
+      return "";
     }
   }
   if (typeof value === "string") {
     const d = new Date(value);
     if (!Number.isNaN(d.getTime())) return d.toISOString();
   }
-  return new Date().toISOString();
+  return "";
 };
 
 const toDateShort = (value: unknown): string => toIsoDate(value).slice(0, 10);
@@ -130,12 +132,14 @@ interface AdminContextValue {
   analyticsSupportResolution: Array<{ name: string; value: number }>;
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
-  pushNotification: (n: Omit<AdminNotification, "id" | "createdAt" | "read">) => void;
+  pushNotification: (n: Omit<AdminNotification, "id" | "createdAt" | "read" | "priority" | "actionRequired"> & Partial<Pick<AdminNotification, "priority" | "actionRequired">>) => void;
   setSupportTicketStatus: (id: string, status: SupportTicket["status"]) => void;
   sendSupportReply: (id: string, message: string) => void;
   reviewVerification: (id: string, decision: Decision, reviewedBy: string, options?: ReviewVerificationOptions) => void;
+  reopenVerification: (id: string) => Promise<void>;
   flagJob: (id: string) => void;
   deleteJob: (id: string) => void;
+  updateJob: (id: string, changes: { status?: string; operatorNotes?: string; specialInstructions?: string }) => Promise<void>;
   updateEmployeeRole: (id: string, role: EmployeeItem["role"]) => void;
   deactivateEmployee: (id: string) => void;
   inviteEmployee: (name: string, email: string, role: EmployeeItem["role"]) => void;
@@ -181,10 +185,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         const data = d.data() as Record<string, unknown>;
         const roleRaw = String(data.role || "client").toLowerCase();
         const status: AdminUser["status"] =
-          data.accountApproved === false
-            ? "Pending"
-            : data.disabled === true
-              ? "Suspended"
+          data.disabled === true
+            ? "Suspended"
+            : data.accountApproved === false
+              ? "Pending"
               : "Active";
 
         return {
@@ -202,6 +206,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
                   : "Client",
           status,
           joinDate: toDateShort(data.createdAt),
+          phone: String(data.phone || ""), bio: String(data.bio || ""),
+          idPhotoUrl: String(data.idPhotoUrl || ""),
+          portfolioPhotos: Array.isArray(data.portfolioPhotos) ? data.portfolioPhotos as string[] : [],
         };
       });
 
@@ -249,6 +256,13 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             reviewedByUid: typeof u.reviewedByAdminUid === "string" ? String(u.reviewedByAdminUid) : undefined,
             reviewedBy: status === "Pending" ? undefined : "Admin",
             reviewedDate: status === "Pending" ? undefined : toDateShort(u.approvedAt || u.rejectedAt || u.createdAt),
+            email: String(u.email || ""),
+            phone: String(u.phone || ""),
+            role: String(u.role || "client"),
+            address: String(u.address || ""),
+            city: String(u.city || ""),
+            province: String(u.province || ""),
+            postalCode: String(u.postalCode || ""),
           };
         });
 
@@ -261,7 +275,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         const serviceTypes = Array.isArray(data.serviceTypes) ? (data.serviceTypes as string[]) : [];
         const statusRaw = String(data.status || "pending").toLowerCase();
         const status: JobItem["status"] =
-          statusRaw === "completed"
+          data.adminFlagged === true ? "Flagged" : statusRaw === "cancelled" ? "Cancelled" : statusRaw === "completed"
             ? "Completed"
             : statusRaw === "in-progress" || statusRaw === "en-route" || statusRaw === "accepted"
               ? "In Progress"
@@ -273,13 +287,11 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
           id: d.id,
           title: serviceTypes.length ? serviceTypes.map(titleCase).join(", ") : "Job",
           postedBy: String(data.clientName || data.clientId || "Unknown"),
-          category: serviceTypes[0]
-            ? titleCase(serviceTypes[0]) === "Salting"
-              ? "Salting"
-              : titleCase(serviceTypes[0]) === "Shoveling"
-                ? "Shoveling"
-                : "Snow Removal"
-            : "Snow Removal",
+          category: serviceTypes[0] ? titleCase(serviceTypes[0]) : "Unspecified",
+          clientId: String(data.clientId || ""), address: String(data.address || ""),
+          operatorNotes: String(data.operatorNotes || ""), completionPhotoUrl: String(data.completionPhotoUrl || ""),
+          scheduledDate: toDateShort(data.scheduledDate), completionTime: toIsoDate(data.completionTime),
+          price: Number(data.price || 0), paymentStatus: String(data.paymentStatus || "pending"),
           status,
           datePosted: toDateShort(data.createdAt),
           description: String(data.specialInstructions || "No description provided."),
@@ -291,10 +303,27 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       setJobs(mapped);
     });
 
-    const unsubChats = onSnapshot(collection(db, "chats"), (snap) => {
-      const mapped: ChatItem[] = snap.docs.map((d) => {
+    const unsubChats = onSnapshot(collection(db, "chats"), async (snap) => {
+      const mapped: ChatItem[] = await Promise.all(snap.docs.map(async (d) => {
         const data = d.data() as Record<string, unknown>;
         const participants = Array.isArray(data.participants) ? (data.participants as string[]) : [];
+        let messages: ChatItem["messages"] = [];
+        try {
+          const messageSnap = await getDocs(
+            query(collection(db, "chats", d.id, "messages"), orderBy("createdAt", "asc"))
+          );
+          messages = messageSnap.docs.map((messageDoc) => {
+            const message = messageDoc.data() as Record<string, unknown>;
+            return {
+              id: messageDoc.id,
+              sender: String(message.senderId || "") === participants[0] ? "A" : "B",
+              text: String(message.text || message.content || ""),
+              time: toTimeLabel(message.createdAt),
+            };
+          });
+        } catch (error) {
+          console.warn(`[AdminProvider] Failed to load chat ${d.id}`, error);
+        }
         return {
           id: d.id,
           participantA: participants[0] || "User A",
@@ -304,9 +333,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
           lastMessage: String(data.lastMessage || ""),
           timestamp: toIsoDate(data.lastMessageTime),
           unreadCount: 0,
-          messages: [],
+          messages,
         };
-      });
+      }));
       setChats(mapped);
     });
 
@@ -352,6 +381,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             return {
               id: d.id,
               userName: String(data.userName || "User"),
+              userId: typeof data.userId === "string" ? data.userId : undefined,
+              createdAt: toIsoDate(data.createdAt),
               userAvatar: initials(String(data.userName || "U")),
               subject: String(data.subject || data.problemCategory || data.lastMessage || "Support ticket"),
               status,
@@ -377,12 +408,13 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         const data = d.data() as Record<string, unknown>;
         const statusRaw = String(data.status || "pending").toLowerCase();
         const status: TransactionItem["status"] =
-          statusRaw === "paid" ? "Completed" : statusRaw === "held" ? "Pending" : "Failed";
+          ["paid", "refunded", "completed"].includes(statusRaw) ? "Completed" : ["held", "pending"].includes(statusRaw) ? "Pending" : "Failed";
         return {
           id: d.id,
+          clientId: String(data.clientId || ""), operatorId: String(data.operatorId || ""),
           fromUser: String(data.clientName || data.clientId || "-"),
           toUser: String(data.operatorName || data.operatorId || "-"),
-          amount: Number(data.amount || 0),
+          amount: Number(data.amount || 0) / 100,
           type: statusRaw === "refunded" ? "Refund" : "Payment",
           status,
           date: toDateShort(data.createdAt),
@@ -402,9 +434,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
           claimantName: String(data.claimantName || data.claimantId || "User"),
           claimantAvatar: initials(String(data.claimantName || data.claimantId || "U")),
           claimType:
-            statusRaw === "billing"
+            String(data.claimType || data.type) === "billing"
               ? "Billing"
-              : statusRaw === "no-show"
+              : String(data.claimType || data.type) === "no-show"
                 ? "No Show"
                 : "Property Damage",
           amountDisputed: Number(data.amountDisputed || 0),
@@ -434,10 +466,21 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
               type === "claim"
                 ? type
                 : "system",
+              title: typeof data.title === "string" ? data.title : undefined,
             message: String(data.message || ""),
+              senderName: typeof data.senderName === "string" ? data.senderName : undefined,
+              chatLabel: typeof data.chatLabel === "string" ? data.chatLabel : undefined,
+              preview: typeof data.preview === "string" ? data.preview : undefined,
+              chatId: typeof data.chatId === "string" ? data.chatId : undefined,
             createdAt: toIsoDate(data.createdAt),
             read: Boolean(data.read),
-            href: typeof data.meta === "object" && data.meta !== null && "path" in data.meta ? String((data.meta as Record<string, unknown>).path || "/admin") : "/admin",
+            href: notificationHref(data),
+            priority: data.priority === "high" || data.priority === "medium" || data.priority === "low"
+              ? data.priority as AdminNotificationPriority
+              : type === "verification" || type === "claim" ? "high" : type === "support" ? "medium" : "low",
+            actionRequired: typeof data.actionRequired === "boolean"
+              ? data.actionRequired
+              : !Boolean(data.read) && ["verification", "support", "claim"].includes(type),
           };
         });
 
@@ -551,12 +594,14 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     [notifications]
   );
 
-  const pushNotification = async (n: Omit<AdminNotification, "id" | "createdAt" | "read">) => {
+  const pushNotification = async (n: Omit<AdminNotification, "id" | "createdAt" | "read" | "priority" | "actionRequired"> & Partial<Pick<AdminNotification, "priority" | "actionRequired">>) => {
     if (!isFirebaseConfigured || !db) return;
     await addDoc(collection(db, "adminNotifications"), {
       type: n.type,
       message: n.message,
       read: false,
+      priority: n.priority || (n.type === "verification" || n.type === "claim" ? "high" : n.type === "support" ? "medium" : "low"),
+      actionRequired: n.actionRequired ?? ["verification", "support", "claim"].includes(n.type),
       createdAt: serverTimestamp(),
       meta: { path: n.href },
     });
@@ -633,7 +678,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         await addDoc(collection(db, "notifications"), {
           uid: target.userId,
           type: decision === "Approved" ? "account_approved" : "account_rejected",
-          title: decision === "Approved" ? "Account Approved" : "Verification Rejected",
+          title: decision === "Approved" ? "Account approved" : "Verification needs attention",
           message:
             decision === "Approved"
               ? "Your ID has been approved. Your account is now public for client discovery."
@@ -657,6 +702,21 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         });
       }
     }
+  };
+
+  const reopenVerification = async (id: string) => {
+    const target = verifications.find((verification) => verification.id === id);
+    if (!target || !isFirebaseConfigured || !db) return;
+    await updateDoc(doc(db, "users", target.userId), {
+      verificationStatus: "pending",
+      verificationNote: "",
+      verificationReasonCategory: null,
+      accountApproved: false,
+      idVerified: false,
+      reopenedAt: new Date(),
+    });
+    setVerifications((prev) => prev.map((verification) => verification.id === id ? { ...verification, status: "Pending", rejectionReasonNote: undefined, rejectionReasonCategory: undefined } : verification));
+    await appendAdminActivityEvent({ userName: target.userName, userAvatar: target.userAvatar, description: "verification was reopened for review", timestamp: new Date().toISOString(), type: "Verification", href: "/admin/verifications", actionType: "verification-reopened", targetId: target.userId, where: "/admin/verifications" });
   };
 
   const setSupportTicketStatus = async (id: string, status: SupportTicket["status"]) => {
@@ -704,19 +764,20 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   };
 
   const flagJob = async (id: string) => {
+    await adminJobRequest(id, "PATCH", { adminFlagged: true });
     setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, status: "Flagged" } : j)));
     await pushNotification({ type: "job", message: `Job ${id.toUpperCase()} was flagged`, href: "/admin/jobs" });
-    if (isFirebaseConfigured && db) {
-      await updateDoc(doc(db, "jobs", id), { adminFlagged: true, updatedAt: new Date() });
-    }
   };
 
   const deleteJob = async (id: string) => {
+    await adminJobRequest(id, "DELETE");
     setJobs((prev) => prev.filter((j) => j.id !== id));
     await pushNotification({ type: "job", message: `Job ${id.toUpperCase()} was deleted`, href: "/admin/jobs" });
-    if (isFirebaseConfigured && db) {
-      await deleteDoc(doc(db, "jobs", id));
-    }
+  };
+
+  const updateJob = async (id: string, changes: { status?: string; operatorNotes?: string; specialInstructions?: string }) => {
+    await adminJobRequest(id, "PATCH", changes);
+    setJobs((prev) => prev.map((job) => job.id === id ? { ...job, ...changes, status: changes.status === "completed" ? "Completed" : changes.status === "cancelled" ? "Cancelled" : changes.status === "accepted" || changes.status === "in-progress" || changes.status === "en-route" ? "In Progress" : job.status } : job));
   };
 
   const resolveClaim = async (id: string, decision: "Approve Claim" | "Reject Claim" | "Request More Info") => {
@@ -784,34 +845,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const activityChart = useMemo(
-    () =>
-      Array.from({ length: 30 }).map((_, i) => ({
-        date: `Day ${i + 1}`,
-        value: activityEvents[Math.min(i, activityEvents.length - 1)] ? Math.max(1, activityEvents.length - i) : 0,
-      })),
-    [activityEvents]
-  );
-
-  const analyticsUsers = useMemo(
-    () =>
-      Array.from({ length: 12 }).map((_, i) => ({
-        date: `W${i + 1}`,
-        value: Math.floor((users.length * (i + 1)) / 12),
-      })),
-    [users.length]
-  );
-
-  const analyticsRevenue = useMemo(
-    () =>
-      Array.from({ length: 12 }).map((_, i) => ({
-        date: `W${i + 1}`,
-        value: transactions
-          .slice(0, Math.ceil(((i + 1) / 12) * Math.max(transactions.length, 1)))
-          .reduce((sum, t) => sum + t.amount, 0),
-      })),
-    [transactions]
-  );
+  const activityChart = useMemo(() => dailySeries(activityEvents.map(e => ({ date: e.timestamp, value: 1 })), 30), [activityEvents]);
+  const analyticsUsers = useMemo(() => dailySeries(users.map(u => ({ date: u.joinDate, value: 1 })), 90), [users]);
+  const analyticsRevenue = useMemo(() => dailySeries(transactions.filter(t => t.status === "Completed").map(t => ({ date: t.date, value: t.type === "Refund" ? -t.amount : t.amount })), 90), [transactions]);
 
   const analyticsCategories = useMemo(() => {
     const counts = jobs.reduce<Record<string, number>>((acc, job) => {
@@ -860,8 +896,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setSupportTicketStatus,
     sendSupportReply,
     reviewVerification,
+    reopenVerification,
     flagJob,
     deleteJob,
+    updateJob,
     updateEmployeeRole,
     deactivateEmployee,
     inviteEmployee,

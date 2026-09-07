@@ -22,10 +22,19 @@ export type AdminNotificationType =
   | "claim"
   | "system";
 
+export type AdminNotificationPriority = "high" | "medium" | "low";
+
 export interface AdminNotification {
   id: string;
   type: AdminNotificationType;
+  title?: string;
   message: string;
+  senderName?: string;
+  chatLabel?: string;
+  preview?: string;
+  chatId?: string;
+  priority: AdminNotificationPriority;
+  actionRequired: boolean;
   createdAt: string;
   read: boolean;
   href: string;
@@ -39,6 +48,10 @@ export interface AdminUser {
   role: "Client" | "Operator" | "Admin" | "Employee";
   status: "Active" | "Suspended" | "Pending";
   joinDate: string;
+  phone?: string;
+  bio?: string;
+  idPhotoUrl?: string;
+  portfolioPhotos?: string[];
 }
 
 export interface VerificationItem {
@@ -55,14 +68,29 @@ export interface VerificationItem {
   reviewedByUid?: string;
   reviewedBy?: string;
   reviewedDate?: string;
+  email?: string;
+  phone?: string;
+  role?: string;
+  address?: string;
+  city?: string;
+  province?: string;
+  postalCode?: string;
 }
 
 export interface JobItem {
   id: string;
   title: string;
   postedBy: string;
-  category: "Snow Removal" | "Salting" | "Shoveling";
-  status: "Open" | "In Progress" | "Completed" | "Flagged";
+  category: string;
+  clientId?: string;
+  address?: string;
+  operatorNotes?: string;
+  completionPhotoUrl?: string;
+  scheduledDate?: string;
+  completionTime?: string;
+  price?: number;
+  paymentStatus?: string;
+  status: "Open" | "In Progress" | "Completed" | "Flagged" | "Cancelled";
   datePosted: string;
   description: string;
   assignedUsers: string[];
@@ -86,6 +114,8 @@ export interface ChatItem {
 export interface SupportTicket {
   id: string;
   userName: string;
+  userId?: string;
+  createdAt?: string;
   userAvatar: string;
   subject: string;
   status: "Open" | "Waiting" | "Resolved";
@@ -118,6 +148,8 @@ export interface CallItem {
 
 export interface TransactionItem {
   id: string;
+  clientId?: string;
+  operatorId?: string;
   fromUser: string;
   toUser: string;
   amount: number;

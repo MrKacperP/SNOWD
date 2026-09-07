@@ -1,5 +1,5 @@
-import React from 'react';
 import { motion } from 'framer-motion';
+import React from 'react';
 
 interface CardProps {
   children: React.ReactNode;
@@ -16,7 +16,7 @@ export default function Card({
   variant = 'default',
   padding = 'lg'
 }: CardProps) {
-  const baseStyles = 'rounded-2xl border-[3px] border-[var(--border)] transition-all duration-150';
+  const baseStyles = 'rounded-2xl border border-[var(--border)] transition-all duration-150';
   
   const variants = {
     default: 'bg-white shadow-[var(--surface-shadow)]',

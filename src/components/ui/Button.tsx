@@ -1,5 +1,5 @@
+import { motion,useReducedMotion,type HTMLMotionProps } from 'framer-motion';
 import React from 'react';
-import { motion, useReducedMotion, type HTMLMotionProps } from 'framer-motion';
 
 interface ButtonProps extends Omit<HTMLMotionProps<'button'>, 'children' | 'onDrag' | 'onDragStart' | 'onDragEnd'> {
   variant?: 'primary' | 'secondary' | 'ghost' | 'success' | 'danger';
@@ -20,7 +20,7 @@ export default function Button({
   ...props
 }: ButtonProps) {
   const reduceMotion = useReducedMotion();
-  const baseStyles = 'inline-flex items-center justify-center gap-2 border-[3px] border-[var(--ink)] font-black transition-all duration-150 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed btn-lift';
+  const baseStyles = 'inline-flex items-center justify-center gap-2 border border-[var(--ink)] font-black transition-all duration-150 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed btn-lift';
   
   const variants = {
     primary: 'bg-[var(--accent)] hover:bg-[var(--accent-dark)] text-white shadow-[var(--surface-shadow)]',

@@ -1,43 +1,47 @@
 "use client";
+import SupportChatButton from "@/components/SupportChatButton";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
-import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
+import { useUserChats } from "@/hooks/useUserChats";
+
+import UserAvatar from "@/components/UserAvatar";
 import { useAuth } from "@/context/AuthContext";
-import {
-  doc,
-  updateDoc,
-  collection,
-  query,
-  where,
-  onSnapshot,
-  orderBy,
-  limit,
-  writeBatch,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import {
-  Bell,
-  Briefcase,
-  CalendarDays,
-  CheckCheck,
-  ClipboardList,
-  Home,
-  LogOut,
-  Menu,
-  MessageSquare,
-  Search,
-  Settings,
-  User,
-  X,
-} from "lucide-react";
 import { useWeather } from "@/context/WeatherContext";
 import { useDialogFocus } from "@/hooks/useDialogFocus";
-import UserAvatar from "@/components/UserAvatar";
+import { db } from "@/lib/firebase";
+import {
+collection,
+doc,
+limit,
+onSnapshot,
+orderBy,
+query,
+updateDoc,
+where,
+writeBatch,
+} from "firebase/firestore";
+import {
+Bell,
+Briefcase,
+CalendarDays,
+CheckCheck,
+ClipboardList,
+Home,
+LogOut,
+Menu,
+MessageSquare,
+Search,
+Settings,
+User,
+X,
+} from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { usePathname,useRouter } from "next/navigation";
+import { useEffect,useMemo,useRef,useState } from "react";
 
 type NotificationItem = {
   id: string;
+  chatId?: string;
   type?: string;
   title?: string;
   message?: string;
@@ -54,7 +58,6 @@ export default function Navbar() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [pendingJobCount, setPendingJobCount] = useState(0);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
@@ -64,6 +67,13 @@ export default function Navbar() {
   const drawerRef = useRef<HTMLDivElement>(null);
   useDialogFocus(drawerOpen, drawerRef);
   const notifRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!window.matchMedia("(min-width: 1024px)").matches) return;
+    const target = profileMenuOpen ? menuRef.current : notifOpen ? notifRef.current : null;
+    if (!target) return;
+    const frame = requestAnimationFrame(() => target.scrollIntoView({ block: "end", behavior: "instant" }));
+    return () => cancelAnimationFrame(frame);
+  }, [profileMenuOpen, notifOpen]);
 
   const isClient = profile?.role === "client";
   const simplifiedClient =
@@ -95,7 +105,7 @@ export default function Navbar() {
       { href: "/dashboard/jobs", label: "Jobs", icon: Briefcase },
       { href: "/dashboard/messages", label: "Messages", icon: MessageSquare },
       { href: "/dashboard/calendar", label: "Calendar", icon: CalendarDays },
-      { href: "/dashboard/analytics", label: "Analytics", icon: ClipboardList },
+      { href: "/dashboard/transactions", label: "Payments", icon: Briefcase },
     ];
   }, [isClient, simplifiedClient]);
 
@@ -127,17 +137,8 @@ export default function Navbar() {
     return () => window.removeEventListener("keydown", close);
   }, []);
 
-  useEffect(() => {
-    if (!profile?.uid) return;
-    const q = query(collection(db, "chats"), where("participants", "array-contains", profile.uid));
-    return onSnapshot(q, (snapshot) => {
-      let total = 0;
-      snapshot.docs.forEach((chatDoc) => {
-        total += chatDoc.data().unreadCount?.[profile.uid] || 0;
-      });
-      setUnreadCount(total);
-    });
-  }, [profile?.uid]);
+  const { chats: inboxChats } = useUserChats(profile?.uid, profile?.role);
+  const unreadCount = inboxChats.reduce((count, chat) => count + (chat.unreadCount?.[profile?.uid || ""] || 0), 0);
 
   useEffect(() => {
     if (!profile?.uid || isClient) return;
@@ -172,14 +173,18 @@ export default function Navbar() {
 
   const unreadNotifications = notifications.filter((notification) => !notification.read).length;
 
-  const notificationTime = (createdAt?: { seconds?: number }) => {
-    if (!createdAt?.seconds) return "Just now";
-    return new Date(createdAt.seconds * 1000).toLocaleString([], {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
+  const notificationTitle = (notification: NotificationItem) => {
+    const titles: Record<string, string> = {
+      "Cash payment pending": "Cash payment needed",
+      "Cash payment needed": "Cash payment needed",
+      "Work completed · cash payment due": "Cash payment due",
+      "Work completed": "Job complete",
+      "Cash refund recorded": "Cash refund recorded",
+      "Account Approved": "Account approved",
+      "Verification Rejected": "Verification needs attention",
+    };
+    const title = notification.title?.trim();
+    return title ? titles[title] || title : "New update";
   };
 
   const toggleOnlineStatus = async () => {
@@ -282,10 +287,10 @@ export default function Navbar() {
           })}
         </nav>
 
-        <div className="relative mt-4" ref={notifRef}>
+        <div className="joined-menu relative mt-4 shrink-0" ref={notifRef}>
           <button
             aria-expanded={notifOpen}
-            onClick={() => setNotifOpen((value) => !value)}
+            onClick={() => { setProfileMenuOpen(false); setNotifOpen((value) => !value); }}
             className="flex w-full items-center gap-3 rounded-[1.2rem] border-[3px] border-[var(--border-color)] bg-white px-4 py-3 text-left"
           >
             <Bell className="h-4 w-4" />
@@ -293,7 +298,7 @@ export default function Navbar() {
             {unreadNotifications > 0 ? <span className="unread-badge">{unreadNotifications > 9 ? "9+" : unreadNotifications}</span> : null}
           </button>
           {notifOpen ? (
-            <div className="absolute bottom-full left-0 right-0 mb-3 overflow-hidden rounded-[1.4rem] border-[3px] border-[var(--border-color)] bg-white shadow-[var(--surface-shadow)]">
+            <div className="joined-menu-panel">
               <div className="flex items-center justify-between border-b-[3px] border-[var(--border-color)] px-4 py-3">
                 <div className="text-sm font-bold">Notifications</div>
                 {unreadNotifications > 0 ? (
@@ -303,17 +308,18 @@ export default function Navbar() {
                   </button>
                 ) : null}
               </div>
-              <div className="max-h-80 overflow-y-auto">
+              <div className="max-h-[min(320px,calc(100dvh-160px))] overflow-y-auto">
                 {notifications.length ? (
                   notifications.map((notification) => (
                     <button
                       key={notification.id}
-                      onClick={() => markNotificationRead(notification.id)}
+                      onClick={() => { markNotificationRead(notification.id); if (notification.chatId) { setNotifOpen(false); router.push(`/dashboard/messages/${encodeURIComponent(notification.chatId)}`); } }}
                       className={`w-full border-b border-[var(--border-soft)] px-4 py-3 text-left last:border-b-0 ${notification.read ? "bg-white" : "bg-[var(--accent-soft)]"}`}
                     >
-                      <div className="text-sm font-bold text-[var(--text-primary)]">{notification.title || "Notification"}</div>
-                      <div className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{notification.message || "You have a new update."}</div>
-                      <div className="mt-2 text-[10px] uppercase tracking-[0.15em] text-[var(--text-muted)]">{notificationTime(notification.createdAt)}</div>
+                      <span className="flex items-center gap-3 text-sm font-semibold leading-5 text-[var(--text-primary)]">
+                        {!notification.read && <span aria-label="Unread" className="h-2 w-2 shrink-0 rounded-full bg-[var(--accent)]" />}
+                        <span className="min-w-0 break-words">{notificationTitle(notification)}</span>
+                      </span>
                     </button>
                   ))
                 ) : (
@@ -324,10 +330,10 @@ export default function Navbar() {
           ) : null}
         </div>
 
-        <div className="relative mt-4" ref={menuRef}>
+        <div className="joined-menu relative mt-4 shrink-0" ref={menuRef}>
           <button
             aria-expanded={profileMenuOpen}
-            onClick={() => setProfileMenuOpen((value) => !value)}
+            onClick={() => { setNotifOpen(false); setProfileMenuOpen((value) => !value); }}
             className="flex w-full items-center gap-3 rounded-[1.2rem] border-[3px] border-[var(--ink)] bg-white px-4 py-3 shadow-[var(--surface-shadow)]"
           >
             <div className="relative">
@@ -347,7 +353,7 @@ export default function Navbar() {
           </button>
 
           {profileMenuOpen ? (
-            <div className="absolute bottom-full left-0 right-0 mb-3 overflow-hidden rounded-[1.4rem] border-[3px] border-[var(--border-color)] bg-white shadow-[var(--surface-shadow)]">
+            <div className="joined-menu-panel">
               <button onClick={toggleOnlineStatus} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-[var(--bg-secondary)]">
                 <div className={`status-dot ${isOnline ? "online" : "offline"}`} />
                 <span className="text-sm font-bold">{isOnline ? "Go offline" : "Go online"}</span>
@@ -375,15 +381,16 @@ export default function Navbar() {
             <Image src="/logo.png" alt="snowd logo" width={30} height={30} />
             <div>
               <div className="text-base font-headline font-bold leading-none">snowd<span className="text-[var(--accent-sun)]">.</span></div>
-              <div className="mt-1 text-[10px] uppercase tracking-[0.18em] text-[var(--text-muted)]">marketplace</div>
+              <div className="mt-1 hidden min-[360px]:block text-[10px] uppercase tracking-[0.18em] text-[var(--text-muted)]">marketplace</div>
             </div>
           </Link>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <SupportChatButton inline />
             <button ref={mobileNotifButtonRef} aria-label="Notifications" aria-expanded={notifOpen} onClick={() => setNotifOpen((value) => !value)} className="relative rounded-full border-[3px] border-[var(--border-color)] bg-white p-2">
               <Bell className="h-4 w-4" />
               {unreadNotifications > 0 ? <span className="absolute -right-1 -top-1 unread-badge">{unreadNotifications > 9 ? "9+" : unreadNotifications}</span> : null}
             </button>
-            <button aria-label="Open account menu" aria-expanded={drawerOpen} onClick={() => { setNotifOpen(false); setDrawerOpen(true); }} className="rounded-full border-[3px] border-[var(--border-color)] bg-white p-2">
+            <button aria-label="Account" aria-expanded={drawerOpen} onClick={() => { setNotifOpen(false); setDrawerOpen(true); }} className="rounded-full border-[3px] border-[var(--border-color)] bg-white p-2">
               <Menu className="h-4 w-4" />
             </button>
           </div>
@@ -391,7 +398,7 @@ export default function Navbar() {
       </header>
 
       {notifOpen ? (
-        <div className="fixed right-4 top-16 z-40 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-[1.4rem] border-[3px] border-[var(--border-color)] bg-white shadow-[var(--surface-shadow)] lg:hidden" ref={mobileNotifRef}>
+        <div className="fixed left-0 right-0 top-[69px] z-40 w-full overflow-hidden rounded-b-3xl border border-t-0 border-[var(--border-color)] bg-white shadow-[var(--surface-shadow)] lg:hidden" ref={mobileNotifRef}>
           <div className="flex items-center justify-between border-b-[3px] border-[var(--border-color)] px-4 py-3">
             <div className="text-sm font-bold">Notifications</div>
             {unreadNotifications > 0 ? (
@@ -400,12 +407,14 @@ export default function Navbar() {
               </button>
             ) : null}
           </div>
-          <div className="max-h-80 overflow-y-auto">
+          <div className="max-h-[min(320px,calc(100dvh-160px))] overflow-y-auto">
             {notifications.length ? (
               notifications.map((notification) => (
-                <button key={notification.id} onClick={() => markNotificationRead(notification.id)} className="w-full border-b border-[var(--border-soft)] px-4 py-3 text-left last:border-b-0">
-                  <div className="text-sm font-bold">{notification.title || "Notification"}</div>
-                  <div className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{notification.message || "You have a new update."}</div>
+                <button key={notification.id} onClick={() => { markNotificationRead(notification.id); if (notification.chatId) { setNotifOpen(false); router.push(`/dashboard/messages/${encodeURIComponent(notification.chatId)}`); } }} className="w-full border-b border-[var(--border-soft)] px-4 py-3 text-left last:border-b-0">
+                  <span className="flex items-center gap-3 text-sm font-semibold leading-5">
+                    {!notification.read && <span aria-label="Unread" className="h-2 w-2 shrink-0 rounded-full bg-[var(--accent)]" />}
+                    <span className="min-w-0 break-words">{notificationTitle(notification)}</span>
+                  </span>
                 </button>
               ))
             ) : (
@@ -422,7 +431,7 @@ export default function Navbar() {
             const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`));
             const count = item.href.includes("messages") ? unreadCount : item.href.includes("jobs") ? pendingJobCount : 0;
             return (
-              <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined} className={`relative flex flex-col items-center gap-1 rounded-[1rem] px-2 py-2 text-[11px] font-bold ${active ? "bg-[var(--ink)] text-white [&_*]:text-white" : "text-[var(--text-muted)]"}`}>
+              <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined} className={`relative flex flex-col items-center gap-1 rounded-[1rem] px-1 py-2 whitespace-nowrap text-[11px] font-bold ${active ? "bg-[var(--ink)] text-white [&_*]:text-white" : "text-[var(--text-muted)]"}`}>
                 <Icon className="h-4 w-4" />
                 {item.label}
                 {count > 0 ? <span className={`absolute right-2 top-1 unread-badge ${active ? "bg-white text-black" : ""}`}>{count > 9 ? "9+" : count}</span> : null}
@@ -434,7 +443,7 @@ export default function Navbar() {
 
       {drawerOpen ? (
         <div className="fixed inset-0 z-40 bg-black/35 lg:hidden" onClick={() => setDrawerOpen(false)}>
-          <div ref={drawerRef} role="dialog" aria-modal="true" aria-label="Account menu" tabIndex={-1} className="absolute right-0 top-0 overflow-y-auto h-full w-[88vw] max-w-[360px] bg-white px-5 py-5 shadow-[var(--surface-shadow)]" onClick={(event) => event.stopPropagation()}>
+          <div ref={drawerRef} role="dialog" aria-modal="true" aria-label="Account menu" tabIndex={-1} className="absolute bottom-0 left-0 right-0 overflow-y-auto max-h-[85dvh] w-full rounded-t-3xl bg-white px-5 pt-5 pb-[max(20px,env(safe-area-inset-bottom))] shadow-[var(--surface-shadow)]" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <UserAvatar
@@ -453,27 +462,16 @@ export default function Navbar() {
               </button>
             </div>
 
-            {weather ? (
-              <div className="mt-5 rounded-[1.4rem] bg-[var(--bg-secondary)] px-4 py-4">
-                <div className="text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]">Weather</div>
-                <div className="mt-2 flex items-center gap-2 text-sm font-bold">
-                  <span>{weather.icon}</span>
-                  <span>{weather.temp}°C</span>
-                  <span className="text-[var(--text-muted)]">{weather.condition}</span>
-                </div>
-              </div>
-            ) : null}
-
-            <div className="mt-5 grid gap-2">
-              <button onClick={toggleOnlineStatus} className="flex items-center gap-3 rounded-[1.2rem] bg-[var(--bg-secondary)] px-4 py-3 text-left">
+            <div className="mt-5 grid divide-y divide-[var(--border-color)] border-t border-[var(--border-color)]">
+              <button onClick={toggleOnlineStatus} className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)] text-left">
                 <div className={`status-dot ${isOnline ? "online" : "offline"}`} />
                 <span className="text-sm font-bold">{isOnline ? "Go offline" : "Go online"}</span>
               </button>
-              <Link href={`/dashboard/u/${profile?.uid}`} onClick={() => setDrawerOpen(false)} className="flex items-center gap-3 rounded-[1.2rem] bg-[var(--bg-secondary)] px-4 py-3">
+              <Link href={`/dashboard/u/${profile?.uid}`} onClick={() => setDrawerOpen(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)]">
                 <User className="h-4 w-4" />
                 <span className="text-sm font-bold">View profile</span>
               </Link>
-              <Link href="/dashboard/settings" onClick={() => setDrawerOpen(false)} className="flex items-center gap-3 rounded-[1.2rem] bg-[var(--bg-secondary)] px-4 py-3">
+              <Link href="/dashboard/settings" onClick={() => setDrawerOpen(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)]">
                 <Settings className="h-4 w-4" />
                 <span className="text-sm font-bold">Settings</span>
               </Link>

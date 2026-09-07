@@ -1,13 +1,15 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { collection, query, orderBy, onSnapshot, addDoc, doc, updateDoc, setDoc } from "firebase/firestore";
+import { sendAdminNotif } from "@/lib/adminNotifications";
 import { db } from "@/lib/firebase";
-import { MessageSquare, Send, X, Headphones, Phone, ChevronRight, AlertTriangle } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
+import { addDoc,collection,doc,onSnapshot,orderBy,query,setDoc,updateDoc } from "firebase/firestore";
+import { AnimatePresence,motion } from "framer-motion";
+import { AlertTriangle,ChevronRight,Headphones,MessageSquare,Phone,Send,X } from "lucide-react";
+import { useEffect,useRef,useState } from "react";
+import { createPortal } from "react-dom";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 
 const ADMIN_UID = "SNOWD_ADMIN";
 const SUPPORT_PHONE = "437-922-3895";
@@ -32,9 +34,8 @@ const PROBLEM_CATEGORIES = [
   { id: "other", emoji: "💬", label: "Other", desc: "Something else" },
 ];
 
-export default function SupportChatButton() {
+export default function SupportChatButton({ inline = false }: { inline?: boolean }) {
   const { user, profile } = useAuth();
-  const inConversation = usePathname().startsWith("/dashboard/messages/");
   const [isOpen, setIsOpen] = useState(false);
   const [chatPhase, setChatPhase] = useState<"select" | "urgent" | "chat">("select");
   const [selectedProblem, setSelectedProblem] = useState<string | null>(null);
@@ -44,6 +45,28 @@ export default function SupportChatButton() {
   const [supportChatId, setSupportChatId] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [viewport, setViewport] = useState<{ top: number; left: number; width: number; height: number }>();
+  useDialogFocus(isOpen, panelRef);
+  useEffect(() => {
+    if (!isOpen) return;
+    const update = () => {
+      const visible = window.visualViewport;
+      setViewport({ top: visible?.offsetTop || 0, left: visible?.offsetLeft || 0, width: visible?.width || window.innerWidth, height: visible?.height || window.innerHeight });
+    };
+    const close = (event: KeyboardEvent) => { if (event.key === "Escape") setIsOpen(false); };
+    update();
+    window.visualViewport?.addEventListener("resize", update);
+    window.visualViewport?.addEventListener("scroll", update);
+    window.addEventListener("resize", update);
+    window.addEventListener("keydown", close);
+    return () => {
+      window.visualViewport?.removeEventListener("resize", update);
+      window.visualViewport?.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+      window.removeEventListener("keydown", close);
+    };
+  }, [isOpen]);
 
   // Don't show for admin/employee users
   if (profile?.role === "admin" || profile?.role === "employee") return null;
@@ -116,6 +139,17 @@ export default function SupportChatButton() {
         senderId: user.uid, senderName: profile?.displayName || "User",
         content: autoMsg, createdAt: new Date(), read: false,
       });
+      void sendAdminNotif({
+        type: "support",
+        title: "New support message",
+        message: autoMsg,
+        senderName: profile?.displayName || "User",
+        chatLabel: prob.label,
+        preview: autoMsg,
+        chatId: supportChatId,
+        uid: user.uid,
+        meta: { path: "/admin/support-chats" },
+      });
       // Send automated follow-up questions after a brief delay
       const followUp = FOLLOW_UP_QUESTIONS[problemId] || FOLLOW_UP_QUESTIONS.other;
       setTimeout(async () => {
@@ -153,6 +187,17 @@ export default function SupportChatButton() {
         senderId: user.uid, senderName: profile?.displayName || "User",
         content, createdAt: new Date(), read: false,
       });
+      void sendAdminNotif({
+        type: "support",
+        title: "New support message",
+        message: content,
+        senderName: profile?.displayName || "User",
+        chatLabel: "Support chat",
+        preview: content,
+        chatId: supportChatId,
+        uid: user.uid,
+        meta: { path: "/admin/support-chats" },
+      });
     } catch (error) { console.error(error); }
     finally { setSending(false); }
   };
@@ -171,9 +216,10 @@ export default function SupportChatButton() {
             transition={{ type: "spring", stiffness: 260, damping: 20 }}
             onClick={() => { setIsOpen(true); if (messages.length === 0) setChatPhase("select"); }}
             data-tour="support-chat"
-            className={`fixed ${inConversation ? "bottom-[calc(4.25rem+env(safe-area-inset-bottom))] w-11 h-11 lg:w-14 lg:h-14" : "bottom-24 w-14 h-14"} lg:bottom-6 right-4 md:right-6 z-[100] bg-[var(--accent)] hover:bg-[var(--accent-dark)] text-white rounded-full shadow-[var(--surface-shadow)] flex items-center justify-center transition-all duration-200 hover:scale-105 group`}
+            aria-label="Contact support"
+            className={`${inline ? "relative h-11 w-11 shrink-0" : "fixed bottom-24 lg:bottom-6 right-4 md:right-6 w-14 h-14"} z-[100] bg-[var(--accent)] hover:bg-[var(--accent-dark)] text-white rounded-full shadow-[var(--surface-shadow)] flex items-center justify-center transition-all duration-200 hover:scale-105 group`}
           >
-            <Headphones className="w-6 h-6" />
+            <Headphones className={inline ? "w-4 h-4" : "w-6 h-6"} />
             {unreadCount > 0 && (
               <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center shadow">
                 {unreadCount}
@@ -187,23 +233,29 @@ export default function SupportChatButton() {
       </AnimatePresence>
 
       {/* Chat panel */}
-      <AnimatePresence>
-        {isOpen && (
+      <>
+        {isOpen && createPortal(
+          <div className="fixed z-[10000] flex items-end justify-center bg-black/25 p-3 sm:justify-end" style={{ top: viewport?.top ?? 0, left: viewport?.left ?? 0, width: viewport?.width ?? "100%", height: viewport?.height ?? "100dvh" }} onClick={event => { if (event.target === event.currentTarget) setIsOpen(false); }}>
           <motion.div
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Help and support"
+            tabIndex={-1}
             initial={{ opacity: 0, y: 24, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 24, scale: 0.95 }}
             transition={{ type: "spring", duration: 0.4, bounce: 0.15 }}
-            className="fixed bottom-24 lg:bottom-6 right-4 md:right-6 z-[100] w-[370px] max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-[var(--surface-shadow)] border-[3px] border-[var(--ink)] overflow-hidden flex flex-col"
-            style={{ height: "min(520px, calc(100dvh - 11rem))", maxHeight: "calc(100dvh - 11rem)" }}
+            className="relative flex min-h-0 w-[370px] max-w-full flex-col overflow-hidden rounded-2xl border border-[var(--border-color)] bg-white shadow-[var(--surface-shadow)]"
+            style={{ height: "min(520px, 100%)", maxHeight: "100%" }}
           >
             {/* Header — clean, no gradient */}
             <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
                 <div className="w-9 h-9 bg-[var(--accent)] rounded-xl flex items-center justify-center shrink-0">
                   <Headphones className="w-4.5 h-4.5 text-white" style={{ width: 18, height: 18 }} />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="font-bold text-gray-900 text-sm">snowd.ca Support</p>
                   <div className="flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 bg-green-500 rounded-full" />
@@ -211,14 +263,14 @@ export default function SupportChatButton() {
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex shrink-0 items-center gap-1">
                 {chatPhase === "chat" && messages.length > 0 && (
                   <button onClick={() => setChatPhase("select")}
                     className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition text-gray-600 text-xs font-semibold">
                     Topics
                   </button>
                 )}
-                <button onClick={() => setIsOpen(false)} className="p-1.5 hover:bg-gray-100 rounded-lg transition">
+                <button aria-label="Close support" onClick={() => setIsOpen(false)} className="flex h-11 w-11 items-center justify-center hover:bg-gray-100 rounded-lg transition">
                   <X className="w-4 h-4 text-gray-500" />
                 </button>
               </div>
@@ -229,7 +281,7 @@ export default function SupportChatButton() {
               {/* Problem selection */}
               {chatPhase === "select" && (
                 <motion.div key="select" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                  transition={{ duration: 0.18 }} className="flex-1 overflow-y-auto bg-[var(--bg-primary)]">
+                  transition={{ duration: 0.18 }} className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[var(--bg-primary)]">
                   <div className="p-4 pb-2">
                     <p className="text-sm font-bold text-gray-900">Hi, {profile.displayName?.split(" ")[0] || "there"}!</p>
                     <p className="text-xs text-gray-500 mt-0.5">What can we help you with? Select a topic below.</p>
@@ -260,7 +312,7 @@ export default function SupportChatButton() {
               {/* Urgent */}
               {chatPhase === "urgent" && (
                 <motion.div key="urgent" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.97 }}
-                  transition={{ duration: 0.2 }} className="flex-1 overflow-y-auto p-5 flex flex-col items-center justify-center gap-5 text-center bg-white">
+                  transition={{ duration: 0.2 }} className="min-h-0 flex-1 overflow-y-auto p-5 flex flex-col items-center gap-5 text-center bg-white">
                   <div className="w-16 h-16 bg-red-50 border border-red-100 rounded-2xl flex items-center justify-center">
                     <Phone className="w-7 h-7 text-red-500" />
                   </div>
@@ -285,8 +337,8 @@ export default function SupportChatButton() {
               {/* Chat */}
               {chatPhase === "chat" && (
                 <motion.div key="chat" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                  transition={{ duration: 0.18 }} className="flex flex-col flex-1 overflow-hidden">
-                  <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1 bg-[var(--bg-secondary)]">
+                  transition={{ duration: 0.18 }} className="flex min-h-0 flex-col flex-1 overflow-hidden">
+                  <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3 space-y-1 bg-[var(--bg-secondary)]">
                     {messages.length === 0 && (
                       <div className="flex flex-col items-center justify-center h-full py-8 text-center">
                         <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-[var(--surface-shadow)] mb-2">
@@ -344,7 +396,7 @@ export default function SupportChatButton() {
                       <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
                         placeholder="Type your message..."
-                        className="flex-1 px-3.5 py-2.5 bg-gray-50 border-[3px] border-[var(--ink)] rounded-xl text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-[var(--accent)]/40 focus:bg-white transition" />
+                        className="min-w-0 flex-1 px-3.5 py-2.5 bg-gray-50 border border-[var(--border-color)] rounded-xl text-base text-gray-900 placeholder:text-gray-400 outline-none focus:border-[var(--accent)]/40 focus:bg-white transition" />
                       <button onClick={handleSend} disabled={!newMessage.trim() || sending}
                         className="p-2.5 bg-[var(--accent)] hover:bg-[var(--accent-dark)] text-white rounded-xl transition disabled:opacity-40 shrink-0">
                         <Send className="w-4 h-4" />
@@ -355,8 +407,9 @@ export default function SupportChatButton() {
               )}
             </AnimatePresence>
           </motion.div>
+          </div>, document.body
         )}
-      </AnimatePresence>
+      </>
     </>
   );
 }

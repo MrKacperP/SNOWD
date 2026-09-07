@@ -1,0 +1,90 @@
+.admin-shell {
+  --admin-navy: #061321;
+  --admin-ice: #f3f8fb;
+  --admin-sky: #dfeef8;
+  --admin-orange: #ff820e;
+  --admin-muted: #5e6873;
+  background: var(--admin-ice);
+}
+
+.admin-shell input,
+.admin-shell select,
+.admin-shell textarea {
+  border-color: #dce4e0 !important;
+  border-radius: 1rem !important;
+  background: #fff !important;
+}
+
+.admin-shell input:focus,
+.admin-shell select:focus,
+.admin-shell textarea:focus {
+  outline: 3px solid rgba(255, 130, 14, 0.24);
+  border-color: var(--admin-orange) !important;
+}
+
+.admin-shell button,
+.admin-shell a {
+  transition: transform 160ms ease, background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.admin-shell button:not(:disabled):hover,
+.admin-shell a:hover {
+  transition-duration: 160ms;
+}
+
+.admin-shell .admin-nav-link[data-active="true"] {
+  background: var(--admin-navy);
+  color: #fff;
+  box-shadow: none;
+}
+
+.admin-shell .admin-nav-link[data-active="false"] {
+  color: var(--admin-navy);
+}
+
+.admin-shell .admin-nav-link[data-active="false"]:hover {
+  background: var(--admin-sky);
+}
+
+.admin-shell .admin-header {
+  background: rgba(255, 255, 255, 0.94);
+  border-bottom: 3px solid var(--admin-navy);
+}
+
+.admin-shell .admin-sidebar {
+  background: var(--admin-ice);
+  border-right: 3px solid var(--admin-navy);
+}
+
+.admin-shell .admin-sidebar-brand {
+  border-bottom: 3px solid var(--admin-navy);
+}
+
+.admin-shell .admin-sidebar-footer {
+  border-top: 3px solid var(--admin-navy);
+}
+
+.admin-shell .admin-notification-button {
+  border-color: var(--admin-navy);
+  background: #fff;
+}
+
+.admin-shell .admin-notification-button:hover {
+  background: var(--admin-orange);
+}
+
+.admin-shell .admin-content {
+  max-width: 1280px;
+}
+
+.admin-shell .admin-live-tray,
+.admin-shell .admin-tray-toggle {
+  display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-shell button,
+  .admin-shell a {
+    transition: none;
+  }
+}

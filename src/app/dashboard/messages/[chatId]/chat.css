@@ -1,0 +1,37 @@
+/* The conversation owns the viewport; only history and detail dialogs scroll. */
+.chat-workspace { height: 100%; overflow-wrap: anywhere; }
+.chat-workspace button { min-height: 44px; }
+.chat-workspace button:focus-visible, .chat-workspace summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.chat-history { scrollbar-gutter: stable; }
+.chat-history audio { max-width: 100%; }
+.chat-history img { max-width: 100%; }
+.chat-tools[open] > div { max-height: min(24dvh, 180px); overflow-y: auto; }
+.chat-details { overflow-wrap: anywhere; }
+.chat-details button { min-height: 44px; }
+.chat-workspace > .fixed > div:not(.absolute) { max-height: calc(100dvh - 2rem); overflow-y: auto; }
+@media (max-width: 639px) {
+  .chat-workspace { padding-top: env(safe-area-inset-top); }
+}
+
+.conversation-main { height: var(--conversation-height, 100dvh); }
+
+.chat-workspace textarea[aria-label="Message"] { border: 0; border-radius: 12px; background: transparent; }
+.chat-history > .chat-bubble { max-width: 960px; margin-inline: auto; }
+.chat-tools { position: relative; }
+.chat-tools[open] > div {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  max-height: min(40dvh, 240px);
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  background: var(--bg-card-solid);
+  box-shadow: 0 8px 24px #0002;
+  overscroll-behavior: contain;
+}
+@media (max-height: 500px) {
+  .chat-workspace textarea[aria-label="Message"] { max-height: 80px; }
+}

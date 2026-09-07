@@ -1,51 +1,51 @@
 "use client";
 
+import PageHeader from "@/components/ui/PageHeader";
+
 import StripeOnboarding from "@/components/StripeOnboarding";
 import { stripeConnectFetch } from "@/lib/stripeConnectClient";
 
-import React, { useState, useEffect } from "react";
+import ServiceRadiusMap from "@/components/ServiceRadiusMap";
 import { useAuth } from "@/context/AuthContext";
-import styles from "./settings.module.css";
-import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
-import { doc, updateDoc } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db, storage } from "@/lib/firebase";
 import { sendAdminNotif } from "@/lib/adminNotifications";
+import { db,storage } from "@/lib/firebase";
 import { buildGoogleMapsEmbedUrl } from "@/lib/googleMaps";
 import {
-  UserProfile,
-  ClientProfile,
-  OperatorProfile,
-  CANADIAN_PROVINCES,
+CANADIAN_PROVINCES,
+ClientProfile,
+OperatorProfile,
+UserProfile,
 } from "@/lib/types";
-import ServiceRadiusMap from "@/components/ServiceRadiusMap";
+import { doc,updateDoc } from "firebase/firestore";
+import { getDownloadURL,ref,uploadBytes } from "firebase/storage";
 import {
-  User,
-  MapPin,
-  Sun,
-  CreditCard,
-  Save,
-  CheckCircle,
-  ChevronRight,
-  Shield,
-  Bell,
-  Building2,
-  LogOut,
-  ExternalLink,
-  Loader2,
-  ArrowLeft,
-  RefreshCw,
-  Camera,
-  ShieldCheck,
-  GraduationCap,
-  Upload,
-  Palette,
-  ImagePlus,
-  Trash2,
-  Briefcase,
-  AlertCircle,
+AlertCircle,
+Bell,
+Briefcase,
+Building2,
+Camera,
+CheckCircle,
+ChevronRight,
+CreditCard,
+ExternalLink,
+GraduationCap,
+ImagePlus,
+Loader2,
+LogOut,
+MapPin,
+Palette,
+RefreshCw,
+Save,
+Shield,
+ShieldCheck,
+Sun,
+Trash2,
+Upload,
+User
 } from "lucide-react";
+import { useRouter,useSearchParams } from "next/navigation";
+import React,{ useEffect,useState } from "react";
+import styles from "./settings.module.css";
 
 export default function SettingsPage() {
   const { user, profile, signOut, refreshProfile, deleteAccount } = useAuth();
@@ -486,17 +486,12 @@ export default function SettingsPage() {
   const activeTabMeta = TABS.find((tab) => tab.key === activeTab);
 
   return (
-    <div className={`${styles.settings} max-w-6xl mx-auto px-3 sm:px-5 lg:px-6 py-5 sm:py-8`}>
-      <header className={styles.header}>
-        <Link href="/dashboard" className={styles.back}><ArrowLeft size={18} /> Dashboard</Link>
-        <div className={styles.headingRow}>
-          <div><p className={styles.eyebrow}>YOUR ACCOUNT, YOUR WAY</p><h1>make yourself at home.</h1><p>Keep your details and preferences in one place.</p></div>
-          <span className={styles.headerIcon} aria-hidden="true"><User size={32} /></span>
-        </div>
-      </header>
+    <div className={`${styles.settings} max-w-[1040px] mx-auto space-y-5`}>
+      <PageHeader title="Settings" description="Your account and preferences." />
       <div className={styles.layout}>
         <aside className={styles.sidebar}>
           <p className={styles.navLabel}>Settings</p>
+          <select aria-label="Settings section" className={styles.mobileSelect} value={activeTab} onChange={event => setActiveTab(event.target.value as typeof activeTab)}>{TABS.map(tab => <option key={tab.key} value={tab.key}>{tab.label}</option>)}</select>
           <nav aria-label="Settings sections" className={styles.navigation}>
             {TABS.map((tab) => {
               const Icon = tab.icon;
@@ -517,7 +512,7 @@ export default function SettingsPage() {
       {/* General Settings */}
       {activeTab === "general" && (
         <div className="space-y-6">
-          <div className={`rounded-2xl border p-4 ${
+          {missingGeneralFields.length > 0 && <div className={`rounded-2xl border p-4 ${
             missingGeneralFields.length === 0
               ? "bg-green-50 border-green-200"
               : "bg-amber-50 border-amber-200"
@@ -543,7 +538,7 @@ export default function SettingsPage() {
                 <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
               )}
             </div>
-          </div>
+          </div>}
 
           {/* Profile Info */}
           <div className={styles.card}>
@@ -749,7 +744,7 @@ export default function SettingsPage() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className={`btn-primary w-full flex items-center justify-center gap-2 px-6 py-3 text-white rounded-xl font-semibold text-sm transition disabled:opacity-50 ${
+            className={`mobile-save-action btn-primary w-full flex items-center justify-center gap-2 px-6 py-3 text-white rounded-xl font-semibold text-sm transition disabled:opacity-50 ${
               saved ? "bg-green-600 hover:bg-green-700" : "bg-[var(--accent)] hover:bg-[var(--accent-dark)]"
             }`}
           >

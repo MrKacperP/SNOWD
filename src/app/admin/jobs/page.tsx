@@ -8,7 +8,7 @@ import { useAdminData } from "@/components/admin/AdminProvider";
 type SortKey = "title" | "postedBy" | "category" | "status" | "datePosted";
 
 export default function AdminJobsPage() {
-  const { jobs, flagJob, deleteJob } = useAdminData();
+  const { jobs, flagJob, deleteJob, updateJob } = useAdminData();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
   const [status, setStatus] = useState("All");
@@ -16,6 +16,11 @@ export default function AdminJobsPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [jobDrawerId, setJobDrawerId] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ type: "flag" | "delete"; id: string } | null>(null);
+  const [editingJobId, setEditingJobId] = useState<string | null>(null);
+  const [editStatus, setEditStatus] = useState("pending");
+  const [editNotes, setEditNotes] = useState("");
+  const [editInstructions, setEditInstructions] = useState("");
+  const [editError, setEditError] = useState("");
 
   const rows = useMemo(() => {
     let list = [...jobs];
@@ -36,6 +41,14 @@ export default function AdminJobsPage() {
   }, [jobs, query, category, status, sortKey, sortDir]);
 
   const selected = rows.find((j) => j.id === jobDrawerId) || jobs.find((j) => j.id === jobDrawerId) || null;
+
+  const openEditor = (job: typeof jobs[number]) => {
+    setEditingJobId(job.id);
+    setEditStatus(job.status === "Completed" ? "completed" : job.status === "Cancelled" ? "cancelled" : job.status === "In Progress" ? "in-progress" : "pending");
+    setEditNotes(job.operatorNotes || "");
+    setEditInstructions(job.description || "");
+    setEditError("");
+  };
 
   const setSort = (key: SortKey) => {
     if (key === sortKey) {
@@ -98,7 +111,7 @@ export default function AdminJobsPage() {
                   <td className={tableCell}>
                     <div className="flex items-center gap-1">
                       <button onClick={() => setJobDrawerId(job.id)} className="h-8 px-2 rounded-lg border-[3px] border-[var(--border)] text-xs">View</button>
-                      <button className="w-8 h-8 rounded-lg border-[3px] border-[var(--border)] inline-flex items-center justify-center"><Pencil className="w-4 h-4" /></button>
+                      <button aria-label={`Edit ${job.title}`} onClick={() => openEditor(job)} className="w-8 h-8 rounded-lg border-[3px] border-[var(--border)] inline-flex items-center justify-center"><Pencil className="w-4 h-4" /></button>
                       <button onClick={() => setConfirmAction({ type: "flag", id: job.id })} className="w-8 h-8 rounded-lg border-[3px] border-[var(--border)] inline-flex items-center justify-center"><Flag className="w-4 h-4" /></button>
                       <button onClick={() => setConfirmAction({ type: "delete", id: job.id })} className="w-8 h-8 rounded-lg border-[3px] border-[var(--border)] inline-flex items-center justify-center"><Trash2 className="w-4 h-4 text-[#DC2626]" /></button>
                     </div>
@@ -136,6 +149,26 @@ export default function AdminJobsPage() {
               <p className="text-sm text-[var(--text-secondary)]">Transaction: {selected.transactionId || "N/A"}</p>
             </AdminCard>
           </div>
+        )}
+      </SideDrawer>
+
+      <SideDrawer open={!!editingJobId} title="Edit service report" onClose={() => setEditingJobId(null)}>
+        {editingJobId && (
+          <form className="space-y-4" onSubmit={async (event) => {
+            event.preventDefault();
+            try {
+              await updateJob(editingJobId, { status: editStatus, operatorNotes: editNotes, specialInstructions: editInstructions });
+              setEditingJobId(null);
+            } catch (error) {
+              setEditError((error as Error).message);
+            }
+          }}>
+            {editError && <p role="alert" className="text-sm text-[#B91C1C]">{editError}</p>}
+            <label className="block text-sm font-medium">Status<select value={editStatus} onChange={(event) => setEditStatus(event.target.value)} className="mt-1 w-full h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-white"><option value="pending">Pending</option><option value="accepted">Accepted</option><option value="in-progress">In progress</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label>
+            <label className="block text-sm font-medium">Service instructions<textarea value={editInstructions} onChange={(event) => setEditInstructions(event.target.value)} rows={4} className="mt-1 w-full px-3 py-2 rounded-lg border-[3px] border-[var(--border)] bg-[var(--bg-primary)]" /></label>
+            <label className="block text-sm font-medium">Operator notes<textarea value={editNotes} onChange={(event) => setEditNotes(event.target.value)} rows={4} className="mt-1 w-full px-3 py-2 rounded-lg border-[3px] border-[var(--border)] bg-[var(--bg-primary)]" /></label>
+            <button type="submit" className="w-full h-10 rounded-lg bg-[var(--accent)] text-white text-sm font-semibold">Save report</button>
+          </form>
         )}
       </SideDrawer>
 

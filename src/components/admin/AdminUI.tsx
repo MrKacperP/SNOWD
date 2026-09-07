@@ -4,7 +4,7 @@ import React, { useEffect } from "react";
 import { ArrowDown, ArrowUp, X } from "lucide-react";
 
 const baseCard =
-  "rounded-xl bg-white border-[3px] border-[var(--border)] shadow-[var(--surface-shadow)]";
+  "rounded-[1.35rem] bg-white shadow-[var(--surface-shadow)]";
 
 export function AdminCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return <div className={`${baseCard} ${className}`}>{children}</div>;

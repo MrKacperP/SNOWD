@@ -2,14 +2,14 @@
 
 import React from "react";
 import Link from "next/link";
-import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Bell, BriefcaseBusiness, MessageSquare, ShieldCheck, Users } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { AdminCard, EmptyState, StatusTag } from "@/components/admin/AdminUI";
 import { useAdminData } from "@/components/admin/AdminProvider";
 import { relativeTime } from "@/lib/admin/utils";
 
 export default function AdminOverviewPage() {
-  const { users, jobs, pendingVerificationCount, transactions, activityChart, activityEvents } = useAdminData();
+  const { users, jobs, pendingVerificationCount, transactions, activityChart, activityEvents, notifications, openSupportCount, chats } = useAdminData();
 
   const revenueThisMonth = transactions
     .filter((t) => t.status === "Completed" && t.type === "Payment")
@@ -22,8 +22,22 @@ export default function AdminOverviewPage() {
     { label: "Revenue This Month", value: `$${revenueThisMonth.toFixed(2)}`, trend: 6.8 },
   ];
 
+  const workQueue = [
+    { label: "Unread notifications", value: notifications.filter((n) => !n.read).length, href: "/admin", icon: Bell, tone: "text-[#C2410C]" },
+    { label: "Verifications to review", value: pendingVerificationCount, href: "/admin/verifications", icon: ShieldCheck, tone: "text-[#0369A1]" },
+    { label: "Open support tickets", value: openSupportCount, href: "/admin/support-chats", icon: MessageSquare, tone: "text-[#7C3AED]" },
+    { label: "Active conversations", value: chats.length, href: "/admin/chats", icon: Users, tone: "text-[#15803D]" },
+  ];
+
+  const greeting = new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 17 ? "Good afternoon" : "Good evening";
+
   return (
     <div className="space-y-4">
+      <header className="pb-1">
+        <p className="text-sm text-[var(--text-secondary)]">{greeting}, SNOWD team</p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Keep the day moving.</h1>
+        <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--text-secondary)]">A simple view of the people, jobs, messages, and payments that need your attention.</p>
+      </header>
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {statCards.map((card) => {
           const positive = card.trend >= 0;
@@ -44,6 +58,27 @@ export default function AdminOverviewPage() {
           );
         })}
       </div>
+
+      <AdminCard className="p-4">
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">Command center</p>
+            <h2 className="text-lg font-semibold text-[var(--ink)] mt-1">Work that needs attention</h2>
+          </div>
+          <BriefcaseBusiness className="w-5 h-5 text-[var(--text-muted)]" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+          {workQueue.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link key={item.label} href={item.href} className="rounded-lg border-[3px] border-[var(--border)] bg-[var(--bg-primary)] p-3 hover:border-[var(--accent)] transition-colors">
+                <div className="flex items-center justify-between gap-2"><Icon className={`w-4 h-4 ${item.tone}`} /><span className="text-2xl font-semibold text-[var(--ink)]">{item.value}</span></div>
+                <p className="text-sm text-[var(--text-secondary)] mt-2">{item.label}</p>
+              </Link>
+            );
+          })}
+        </div>
+      </AdminCard>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <AdminCard className="p-4 h-[360px]">

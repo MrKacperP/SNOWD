@@ -1,16 +1,16 @@
 "use client";
+import PageHeader from "@/components/ui/PageHeader";
 
-import React, { useState, useEffect } from "react";
-import { useAuth } from "@/context/AuthContext";
-import { collection, query, where, getDocs, orderBy, doc, getDoc, updateDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { Job, UserProfile } from "@/lib/types";
 import StatusBadge from "@/components/StatusBadge";
-import BackButton from "@/components/BackButton";
-import { motion, AnimatePresence } from "framer-motion";
-import { ClipboardList, MapPin, Calendar, DollarSign, User, MessageCircle, ExternalLink, RotateCcw } from "lucide-react";
-import Link from "next/link";
+import { useAuth } from "@/context/AuthContext";
+import { db } from "@/lib/firebase";
+import { Job,UserProfile } from "@/lib/types";
 import { format } from "date-fns";
+import { collection,doc,getDoc,getDocs,query,updateDoc,where } from "firebase/firestore";
+import { AnimatePresence,motion } from "framer-motion";
+import { Calendar,ClipboardList,ExternalLink,MapPin,MessageCircle,RotateCcw,User } from "lucide-react";
+import Link from "next/link";
+import { useEffect,useState } from "react";
 
 const safeFormatDate = (date: unknown): string => {
   try {
@@ -128,13 +128,7 @@ export default function JobLogPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-5">
-      <div className="flex items-center gap-3">
-        <BackButton href="/dashboard" />
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <ClipboardList className="w-6 h-6 text-[var(--accent)]" />
-          Job Log
-        </h1>
-      </div>
+      <PageHeader title="Job history" description="Your past and current work orders." />
 
       {/* Filter Tabs */}
       <div className="flex gap-1 bg-gray-100 rounded-xl p-1 overflow-x-auto">

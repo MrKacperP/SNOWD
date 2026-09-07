@@ -19,8 +19,8 @@ export default function AdminChatsPage() {
   const selected = filtered.find((c) => c.id === selectedId) || chats.find((c) => c.id === selectedId) || null;
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-[35%_65%] gap-4 min-h-[680px]">
-      <AdminCard className="p-3 flex flex-col min-h-0">
+    <div className="grid grid-cols-1 xl:grid-cols-[minmax(260px,34%)_minmax(0,1fr)] gap-4 h-[calc(100dvh-128px)] min-h-[520px]">
+      <AdminCard className="p-3 flex min-h-0 flex-col">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -54,18 +54,18 @@ export default function AdminChatsPage() {
         </div>
       </AdminCard>
 
-      <AdminCard className="p-4 flex flex-col min-h-0">
+      <AdminCard className="p-4 flex min-h-0 flex-col overflow-hidden">
         {selected ? (
           <>
             <div className="pb-3 border-b border-[var(--border)]">
               <p className="font-semibold text-[var(--ink)]">{selected.participantA} and {selected.participantB}</p>
               <p className="text-xs text-[var(--text-muted)]">Conversation details</p>
             </div>
-            <div className="flex-1 overflow-y-auto py-3 space-y-2">
+            <div className="min-h-0 flex-1 overflow-y-auto py-3 space-y-2 pr-1">
               {selected.messages.map((m) => (
                 <div key={m.id} className={`flex ${m.sender === "A" ? "justify-start" : "justify-end"}`}>
-                  <div className={`max-w-[70%] px-3 py-2 rounded-lg text-sm ${m.sender === "A" ? "bg-[var(--bg-secondary)] text-[#1F2937]" : "bg-[var(--bg-secondary)] text-[#1E3A8A]"}`}>
-                    <p>{m.text}</p>
+                  <div className={`max-w-[min(82%,38rem)] break-words px-3 py-2 rounded-2xl text-sm ${m.sender === "A" ? "bg-[var(--bg-secondary)] text-[#1F2937]" : "bg-[#eaf0fa] text-[#1E3A8A]"}`}>
+                    <p className="whitespace-pre-wrap">{m.text}</p>
                     <p className="text-[11px] text-[var(--text-muted)] mt-1">{m.time}</p>
                   </div>
                 </div>

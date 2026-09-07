@@ -155,6 +155,12 @@ export interface Job {
   paymentStatus: "pending" | "held" | "paid" | "refunded";
   stripePaymentIntentId?: string;
   requiresCardPayment?: boolean;
+  cashPaymentAcknowledged?: boolean;
+  cashPaymentDeferredAt?: Date;
+  cashRefundedAt?: Date;
+  cashRefundedBy?: string;
+  cashConfirmedBy?: string;
+  cashConfirmedAt?: Date;
   paymentCapturedAt?: Date;
   paymentCaptureAttempts?: number;
   completionPhotoUrl?: string;
@@ -229,7 +235,7 @@ export interface Transaction {
   cashReceived?: number;
   paymentMethod?: PaymentMethod;
   status: "held" | "paid" | "refunded" | "cancelled";
-  stripePaymentIntentId: string;
+  stripePaymentIntentId?: string;
   description: string;
   serviceTypes: ServiceType[];
   address: string;

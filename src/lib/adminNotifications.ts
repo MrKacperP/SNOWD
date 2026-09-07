@@ -15,6 +15,8 @@ export type AdminNotifType =
   | "document_uploaded"
   | "job_created"
   | "payment"
+  | "support"
+  | "system"
   | "login"
   | "profile_saved"
   | "job_status_change"
@@ -23,8 +25,14 @@ export type AdminNotifType =
 
 export interface AdminNotifPayload {
   type: AdminNotifType;
-  /** Human-readable message shown in the admin feed */
+  /** Legacy fallback text for older admin notification records. */
   message: string;
+  /** Short notification heading and optional conversation context. */
+  title?: string;
+  senderName?: string;
+  chatLabel?: string;
+  preview?: string;
+  chatId?: string;
   /** UID if authenticated, null for anonymous visits */
   uid?: string | null;
   /** Extra metadata */

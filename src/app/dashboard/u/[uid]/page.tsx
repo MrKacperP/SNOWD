@@ -4,7 +4,7 @@ import { canAcceptPlatformPayments } from "@/lib/operatorDiscovery";
 
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { doc, getDoc, collection, query, where, getDocs, orderBy, limit } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, getDocs, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -16,7 +16,6 @@ import {
 } from "@/lib/types";
 import StarRating from "@/components/StarRating";
 import ServiceRadiusMap from "@/components/ServiceRadiusMap";
-import AddressMap from "@/components/AddressMap";
 import Image from "next/image";
 import Link from "next/link";
 import UserAvatar from "@/components/UserAvatar";
@@ -28,7 +27,6 @@ import {
   DollarSign,
   GraduationCap,
   MessageSquare,
-  Calendar,
   Briefcase,
   Snowflake,
   Camera,
@@ -206,7 +204,7 @@ export default function PublicProfilePage() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      {isOperator && <p className="mb-4 rounded-xl bg-blue-50 p-4 text-sm font-semibold">{canAcceptPlatformPayments(operatorProfile) ? "Platform payments available" : "Cash jobs only. Pay the operator in cash after the job."}</p>}
+      {isOperator && <p className="mb-4 rounded-xl bg-blue-50 p-4 text-sm font-semibold">{canAcceptPlatformPayments(operatorProfile) && (operatorProfile.stripeEnabledJobsOnly ?? true) ? "Card payments available" : "Cash jobs only. Pay the operator in cash after the job."}</p>}
       {/* Back button */}
       <button
         onClick={() => router.back()}
@@ -218,12 +216,12 @@ export default function PublicProfilePage() {
 
       {/* Profile Header - Instagram-like */}
       <div className="surface-card overflow-hidden">
-        <div className="relative h-40 bg-[var(--ink)]">
+        <div className="relative h-20 bg-[var(--ink)]">
           <div className="absolute inset-0 bg-[var(--bg-secondary)]" />
         </div>
 
         <div className="-mt-12 px-6 pb-6">
-          <div className="flex items-end gap-4 mb-4">
+          <div className="flex flex-wrap items-end gap-4 mb-4">
             <div className="relative">
               <UserAvatar
                 photoURL={(profileData as unknown as Record<string, string>)?.avatar}
@@ -236,7 +234,7 @@ export default function PublicProfilePage() {
               <div className={`absolute -bottom-1 -right-1 h-5 w-5 rounded-full border-2 border-white ${isOnline ? "bg-green-500" : "bg-gray-400"}`} />
             </div>
             <div className="flex-1 min-w-0 pb-1">
-              <h1 className="truncate text-2xl font-headline font-bold text-[var(--text-primary)]">{profileData.displayName}</h1>
+              <h1 className="break-words text-2xl font-headline font-bold text-[var(--text-primary)]">{profileData.displayName}</h1>
               <p className="flex items-center gap-1 text-sm text-[var(--text-muted)]">
                 <MapPin className="w-3.5 h-3.5" />
                 {profileData.city}, {profileData.province} area
@@ -250,7 +248,7 @@ export default function PublicProfilePage() {
           </div>
 
           {/* Stats Row */}
-          <div className="mb-5 flex items-center gap-6">
+          <div className="mb-5 flex flex-wrap items-center gap-5">
             {isOperator && (
               <>
                 <div className="text-center">
@@ -300,7 +298,7 @@ export default function PublicProfilePage() {
 
           {/* Action Buttons */}
           {!isOwnProfile && (
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               {myProfile?.role === "client" && isOperator && (
                 <>
                   <button

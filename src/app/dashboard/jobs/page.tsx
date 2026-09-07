@@ -1,36 +1,28 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useAuth } from "@/context/AuthContext";
-import { collection, doc, getDoc, onSnapshot, query, where } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { Job, UserProfile } from "@/lib/types";
-import { getDistanceKm } from "@/lib/operatorDiscovery";
 import StatusBadge from "@/components/StatusBadge";
+import PageHeader from "@/components/ui/PageHeader";
+import { useAuth } from "@/context/AuthContext";
+import { db } from "@/lib/firebase";
+import { getDistanceKm } from "@/lib/operatorDiscovery";
+import { Job,UserProfile } from "@/lib/types";
+import { format } from "date-fns";
+import { collection,doc,getDoc,onSnapshot,query,where } from "firebase/firestore";
 import {
-  AlertTriangle,
-  ArrowLeft,
-  Briefcase,
-  Calendar,
-  CheckCircle,
-  Clock,
-  Compass,
-  ListOrdered,
-  MapPin,
-  Navigation,
-  Snowflake,
-  TrendingUp,
-  Zap,
+Calendar,
+Clock,
+Compass,
+MapPin,
+Navigation,
+Snowflake
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { format } from "date-fns";
+import { useCallback,useEffect,useMemo,useState } from "react";
 
 type QueueSort = "time" | "distance";
 
 export default function JobsPage() {
   const { profile } = useAuth();
-  const router = useRouter();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [clientNames, setClientNames] = useState<Record<string, string>>({});
   const [clientLocations, setClientLocations] = useState<Record<string, { lat: number; lng: number }>>({});
@@ -141,80 +133,10 @@ export default function JobsPage() {
     }
   };
 
-  const totalEarnings = completedJobs.reduce((sum, job) => sum + (job.price || 0), 0);
 
   return (
     <div className="mx-auto max-w-6xl space-y-5">
-      <section className="surface-card overflow-hidden p-4 md:p-5">
-        <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
-          <div className="rounded-[1.8rem] bg-[var(--ink)] p-5 text-white md:p-6">
-            <div className="flex items-center gap-3">
-              <button onClick={() => router.back()} className="rounded-full bg-white/10 p-2 transition hover:bg-white/16">
-                <ArrowLeft className="h-5 w-5" />
-              </button>
-              <div className="chip border border-white/10 bg-white/8 text-white">
-                <Briefcase className="h-4 w-4" />
-                Work orders
-              </div>
-            </div>
-            <h1 className="mt-5 text-3xl font-headline font-bold leading-none md:text-5xl">Run your route from one work order board.</h1>
-            <p className="mt-4 max-w-xl text-sm leading-6 text-white/72 md:text-base">
-              New requests, accepted jobs, active service, and completed payouts all live in one operator board tailored to snow removal work.
-            </p>
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-[1.2rem] border border-white/10 bg-white/8 px-4 py-4">
-                <div className="text-xs uppercase tracking-[0.16em] text-white/48">Active</div>
-                <div className="mt-2 text-2xl font-headline font-bold">{activeJob ? 1 : 0}</div>
-                <div className="mt-1 text-xs text-white/62">job in motion</div>
-              </div>
-              <div className="rounded-[1.2rem] border border-white/10 bg-white/8 px-4 py-4">
-                <div className="text-xs uppercase tracking-[0.16em] text-white/48">Queue</div>
-                <div className="mt-2 text-2xl font-headline font-bold">{queueJobs.length}</div>
-                <div className="mt-1 text-xs text-white/62">awaiting action</div>
-              </div>
-              <div className="rounded-[1.2rem] border border-white/10 bg-white/8 px-4 py-4">
-                <div className="text-xs uppercase tracking-[0.16em] text-white/48">Gross</div>
-                <div className="mt-2 text-2xl font-headline font-bold">${totalEarnings}</div>
-                <div className="mt-1 text-xs text-white/62">completed earnings</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="surface-panel p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-[0.16em] text-[var(--text-muted)]">Summary</p>
-                <p className="mt-1 text-2xl font-headline font-bold text-[var(--text-primary)]">Today&apos;s route</p>
-              </div>
-              <Link href="/dashboard/transactions" className="rounded-full bg-[var(--bg-secondary)] px-3 py-1.5 text-xs font-semibold text-[var(--text-primary)]">
-                Payouts
-              </Link>
-            </div>
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <button onClick={() => setFilter("active")} className="rounded-[1.2rem] bg-[var(--bg-secondary)] p-4 text-left transition hover:bg-[#edf8f1]">
-                <Zap className="mb-2 h-4 w-4 text-[#17994f]" />
-                <p className="text-2xl font-headline font-bold text-[var(--text-primary)]">{activeJob ? 1 : 0}</p>
-                <p className="mt-1 text-xs uppercase tracking-[0.14em] text-[var(--text-muted)]">In motion</p>
-              </button>
-              <button onClick={() => setFilter("queue")} className="rounded-[1.2rem] bg-[var(--bg-secondary)] p-4 text-left transition hover:bg-[#eef2fb]">
-                <ListOrdered className="mb-2 h-4 w-4 text-[var(--accent)]" />
-                <p className="text-2xl font-headline font-bold text-[var(--text-primary)]">{queueJobs.length}</p>
-                <p className="mt-1 text-xs uppercase tracking-[0.14em] text-[var(--text-muted)]">Waiting</p>
-              </button>
-              <button onClick={() => setFilter("completed")} className="rounded-[1.2rem] bg-[var(--bg-secondary)] p-4 text-left transition hover:bg-[#edf8f1]">
-                <CheckCircle className="mb-2 h-4 w-4 text-[#17994f]" />
-                <p className="text-2xl font-headline font-bold text-[var(--text-primary)]">{completedJobs.length}</p>
-                <p className="mt-1 text-xs uppercase tracking-[0.14em] text-[var(--text-muted)]">Completed</p>
-              </button>
-              <Link href="/dashboard/transactions" className="rounded-[1.2rem] bg-[var(--bg-secondary)] p-4 text-left transition hover:bg-[#f2f1eb]">
-                <TrendingUp className="mb-2 h-4 w-4 text-[var(--text-primary)]" />
-                <p className="text-2xl font-headline font-bold text-[var(--text-primary)]">${totalEarnings}</p>
-                <p className="mt-1 text-xs uppercase tracking-[0.14em] text-[var(--text-muted)]">Earnings</p>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
+      <PageHeader title="Work orders" description="Your current work and next requests." />
 
       {activeJob ? (
         <Link href={`/dashboard/messages/${activeJob.chatId}`} className="surface-card block overflow-hidden p-5 md:p-6">

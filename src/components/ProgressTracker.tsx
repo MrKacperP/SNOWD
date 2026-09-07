@@ -1,20 +1,21 @@
 "use client";
 
-import React from "react";
-import {
-  CheckCircle,
-  Truck,
-  PlayCircle,
-  Camera,
-  CheckCircle2,
-  Circle,
-} from "lucide-react";
 import { JobStatus } from "@/lib/types";
+import {
+Camera,
+CheckCircle,
+CheckCircle2,
+Circle,
+PlayCircle,
+Truck,
+} from "lucide-react";
+import React from "react";
 
 interface ProgressTrackerProps {
   status: JobStatus;
   paymentStatus?: "pending" | "held" | "paid" | "refunded";
   compact?: boolean;
+  paymentMethod?: string;
 }
 
 const STEPS = [
@@ -39,6 +40,7 @@ const STATUS_ORDER: Record<string, number> = {
 export default function ProgressTracker({
   status,
   paymentStatus,
+  paymentMethod,
   compact = false,
 }: ProgressTrackerProps) {
   const currentIndex = STATUS_ORDER[status] ?? 0;
@@ -111,7 +113,7 @@ export default function ProgressTracker({
               ? "Payment Released"
               : paymentStatus === "refunded"
               ? "Refunded"
-              : "Awaiting Payment"}
+              : paymentMethod === "cash" ? (status === "completed" ? "Cash payment pending" : "Cash due after work") : "Awaiting Payment"}
           </span>
         )}
       </div>

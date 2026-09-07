@@ -1,49 +1,44 @@
 "use client";
 
+import Modal from "@/components/ui/Modal";
+import PageHeader from "@/components/ui/PageHeader";
+
 import { canAcceptPlatformPayments } from "@/lib/operatorDiscovery";
 
-import React, { useState, useEffect } from "react";
-import { useAuth } from "@/context/AuthContext";
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  addDoc,
-  Timestamp,
-  doc,
-  getDoc,
-  updateDoc,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { OperatorProfile, ClientProfile, ServiceType } from "@/lib/types";
-import {
-  getDistanceKm,
-  isOperatorPublic,
-  isClientWithinOperatorRadius,
-} from "@/lib/operatorDiscovery";
-import StarRating from "@/components/StarRating";
 import UserAvatar from "@/components/UserAvatar";
-import {
-  Search,
-  MapPin,
-  Snowflake,
-  GraduationCap,
-  Filter,
-  MessageSquare,
-  ChevronDown,
-  ChevronUp,
-  X,
-  Heart,
-  ArrowLeft,
-  CalendarDays,
-  Clock,
-  Zap,
-} from "lucide-react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { format, addDays } from "date-fns";
+import { useAuth } from "@/context/AuthContext";
 import { sendAdminNotif } from "@/lib/adminNotifications";
+import { db } from "@/lib/firebase";
+import {
+getDistanceKm,
+isClientWithinOperatorRadius,
+isOperatorPublic,
+} from "@/lib/operatorDiscovery";
+import { ClientProfile,OperatorProfile,ServiceType } from "@/lib/types";
+import { addDays,format } from "date-fns";
+import {
+addDoc,
+collection,
+doc,
+getDoc,
+getDocs,
+query,
+Timestamp,
+updateDoc,
+where,
+} from "firebase/firestore";
+import {
+CalendarDays,
+Filter,
+MapPin,
+MessageSquare,
+Search,
+Snowflake,
+Zap
+} from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect,useState } from "react";
 
 const SERVICE_LABELS: Record<ServiceType, string> = {
   driveway: "Driveway",
@@ -68,7 +63,6 @@ export default function FindOperatorsPage() {
   const [filterVerified, setFilterVerified] = useState(false);
   const [filterEquipment, setFilterEquipment] = useState<string>("all");
   const [sortBy, setSortBy] = useState<"rating" | "price" | "distance">("rating");
-  const [expandedOperator, setExpandedOperator] = useState<string | null>(null);
   const [booking, setBooking] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [favoriteOperatorId, setFavoriteOperatorId] = useState<string | null>(null);
@@ -208,19 +202,31 @@ export default function FindOperatorsPage() {
   ]);
 
   // Book an operator — show scheduling modal first
+  const [cashAcknowledged, setCashAcknowledged] = useState(false);
+  const [bookingError, setBookingError] = useState("");
+
   const bookOperator = async (operator: OperatorProfile) => {
     if (!user?.uid || !profile) return;
     setSchedulingOperator(operator);
-    setScheduleType("asap");
-    setScheduledDate(format(new Date(), "yyyy-MM-dd"));
-    setScheduledTime("09:00");
+    const requestedDate = new URLSearchParams(window.location.search).get("date");
+    const validDate = requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate) ? requestedDate : null;
+    setCashAcknowledged(false);
+    setBookingError("");
+    setScheduleType(validDate ? "scheduled" : "asap");
+    setScheduledDate(validDate || format(new Date(), "yyyy-MM-dd"));
+    setScheduledTime(validDate && validDate > format(new Date(), "yyyy-MM-dd") ? "09:00" : format(new Date(Date.now() + 60 * 60 * 1000), "HH:mm"));
   };
 
   // Confirm booking after schedule selection
   const confirmBooking = async () => {
     if (!schedulingOperator || !user?.uid || !profile) return;
     const operator = schedulingOperator;
-    setSchedulingOperator(null);
+    const cardRequired = canAcceptPlatformPayments(operator) && (operator.stripeEnabledJobsOnly ?? true);
+    if (!cardRequired && !cashAcknowledged) return;
+    const scheduleMillis = new Date(`${scheduledDate}T${scheduledTime}`).getTime();
+    if (scheduleType === "scheduled" && (!Number.isFinite(scheduleMillis) || scheduleMillis <= Date.now() || scheduledDate > format(addDays(new Date(), 30), "yyyy-MM-dd"))) {
+      setBookingError("Choose a future date and time."); return;
+    }
     setBooking(true);
 
     try {
@@ -233,32 +239,22 @@ export default function FindOperatorsPage() {
       const activeStatuses = ["pending", "accepted", "en-route", "in-progress"];
       const hasActiveJob = activeJobsSnap.docs.some(d => activeStatuses.includes(d.data().status));
       if (hasActiveJob) {
-        alert("You already have an active job. Please complete or cancel your current job before requesting a new one.");
+        setBookingError("You already have an active job. Complete or cancel it before requesting another.");
         setBooking(false);
         return;
       }
 
-      // Check if there's an existing chat with this operator
-      const chatsQuery = query(
-        collection(db, "chats"),
-        where("participants", "array-contains", user.uid)
-      );
-      const chatsSnap = await getDocs(chatsQuery);
-      const existingChat = chatsSnap.docs.find((d) => {
-        const data = d.data();
-        return data.participants?.includes(operator.uid);
-      });
-
-      if (existingChat) {
-        // Navigate directly to existing chat — re-hire/re-book options are inside the chat
+      const existingJob = activeJobsSnap.docs.find(item => item.data().operatorId === operator.uid && item.data().chatId);
+      if (existingJob) {
+        router.push(`/dashboard/messages/${existingJob.data().chatId}`);
         setBooking(false);
-        router.push(`/dashboard/messages/${existingChat.id}`);
         return;
       }
 
       // No existing chat — create new job + chat
       await createNewJobAndChat(operator);
     } catch (error) {
+      setBookingError("Could not request this job. Please try again.");
       console.error("Error booking operator:", error);
       setBooking(false);
     }
@@ -294,6 +290,7 @@ export default function FindOperatorsPage() {
             (clientProfile?.propertyDetails?.propertySize || "medium") as "small" | "medium" | "large"
           ] || 40,
         paymentMethod: operatorRequiresCard ? "credit" : "cash",
+        cashPaymentAcknowledged: !operatorRequiresCard && cashAcknowledged,
         requiresCardPayment: operatorRequiresCard,
         paymentStatus: "pending",
         createdAt: Timestamp.now(),
@@ -317,11 +314,11 @@ export default function FindOperatorsPage() {
         : "";
       const paymentInfo = operatorRequiresCard
         ? " Card payment is required for this operator."
-        : "";
+        : " Cash payment only. The client agreed to pay the operator directly after the work.";
 
       await addDoc(collection(db, "messages"), {
         chatId: chatRef.id,
-        senderId: "system",
+        senderId: user.uid,
         senderName: "snowd.ca",
         type: "system",
         content: `${clientProfile?.displayName} has requested snow removal service.${scheduleInfo}${paymentInfo} Please discuss details and confirm the booking.`,
@@ -343,6 +340,7 @@ export default function FindOperatorsPage() {
       });
       router.push(`/dashboard/messages/${chatRef.id}`);
     } catch (error) {
+      setBookingError("Could not create this booking. Please try again.");
       console.error("Error creating job:", error);
     } finally {
       setBooking(false);
@@ -386,86 +384,9 @@ export default function FindOperatorsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-[1220px] space-y-5">
-      <section className="surface-card overflow-hidden p-4 md:p-5">
-        <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-          <div className="rounded-[1.8rem] bg-[var(--ink)] p-5 text-white md:p-6">
-            <div className="flex items-center gap-3">
-              <Link href="/dashboard" className="rounded-full bg-white/10 p-2 transition hover:bg-white/16" title="Back to dashboard">
-                <ArrowLeft className="h-5 w-5" />
-              </Link>
-              <div className="chip border border-white/12 bg-white/8 text-white">
-                <Search className="h-4 w-4" />
-                Book snow service
-              </div>
-            </div>
-
-            <h1 className="mt-5 text-3xl font-headline font-bold leading-none md:text-5xl">Choose an operator and move straight into the job thread.</h1>
-            <p className="mt-4 max-w-xl text-sm leading-6 text-white/72 md:text-base">
-              Compare trusted snow operators in {clientProfile?.city || "your area"}, review distance and pricing, and open the same thread you will use to confirm and track the work.
-            </p>
-
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-[1.2rem] border border-white/10 bg-white/8 px-4 py-4">
-                <div className="text-xs uppercase tracking-[0.16em] text-white/48">Nearby</div>
-                <div className="mt-2 text-2xl font-headline font-bold">{filteredOperators.length}</div>
-                <div className="mt-1 text-xs text-white/62">operators matched</div>
-              </div>
-              <div className="rounded-[1.2rem] border border-white/10 bg-white/8 px-4 py-4">
-                <div className="text-xs uppercase tracking-[0.16em] text-white/48">Service area</div>
-                <div className="mt-2 text-lg font-headline font-bold">{clientProfile?.city || "Local"}</div>
-                <div className="mt-1 text-xs text-white/62">{clientHasCoordinates ? "precise radius on" : "address precision recommended"}</div>
-              </div>
-              <div className="rounded-[1.2rem] border border-white/10 bg-white/8 px-4 py-4">
-                <div className="text-xs uppercase tracking-[0.16em] text-white/48">Flow</div>
-                <div className="mt-2 text-lg font-headline font-bold">Search, confirm, track</div>
-                <div className="mt-1 text-xs text-white/62">one shared flow across mobile and web</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="map-shell relative min-h-[320px] overflow-hidden p-4 md:p-5">
-            <div className="absolute left-[15%] top-[22%] h-4 w-4 rounded-full bg-[#17994f] shadow-[var(--surface-shadow)]" />
-            <div className="absolute left-[62%] top-[34%] h-4 w-4 rounded-full bg-[var(--ink)] shadow-[var(--surface-shadow)]" />
-            <div className="absolute left-[42%] top-[62%] h-4 w-4 rounded-full bg-[var(--accent)] shadow-[var(--surface-shadow)]" />
-            <div className="relative z-10 flex h-full flex-col justify-between gap-4">
-              <div className="ml-auto max-w-[270px] rounded-[1.5rem] bg-white p-4 shadow-[var(--surface-shadow)]">
-                <div className="text-xs uppercase tracking-[0.14em] text-[var(--text-muted)]">Pickup</div>
-                <div className="mt-2 flex items-center gap-2 text-sm font-semibold">
-                  <MapPin className="h-4 w-4" />
-                  {clientProfile?.address || `${clientProfile?.city || "Your city"}, ${clientProfile?.province || ""}`}
-                </div>
-                <div className="mt-3 rounded-2xl bg-[var(--bg-secondary)] px-3 py-3 text-xs text-[var(--text-muted)]">
-                  The booking flow stays map-led and thread-based so request details do not get lost after you choose an operator.
-                </div>
-              </div>
-              <div className="rounded-[1.6rem] bg-[var(--ink)] p-4 text-white shadow-[var(--surface-shadow)]">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-xs uppercase tracking-[0.14em] text-white/48">Nearby matches</div>
-                    <div className="mt-1 text-lg font-headline font-bold">Best operators nearby</div>
-                  </div>
-                  <div className="rounded-full bg-[#7ddc7a] px-3 py-1 text-[10px] font-bold text-[var(--ink)]">active</div>
-                </div>
-                <div className="mt-4 grid gap-2">
-                  {filteredOperators.slice(0, 2).map((operator) => (
-                    <div key={operator.uid} className="flex items-center justify-between rounded-[1rem] bg-white/10 px-3 py-3">
-                      <div>
-                        <div className="text-sm font-semibold">{operator.businessName || operator.displayName}</div>
-                        <div className="mt-1 text-xs text-white/58">{getDistanceKm(clientProfile, operator)?.toFixed(1) || "Nearby"} km away</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-bold">${operator.pricing?.driveway?.medium || "–"}</div>
-                        <div className="text-xs text-white/58">est. medium</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+    <div className="mx-auto max-w-[1040px] space-y-5">
+      <PageHeader title="Book help" description={`Find trusted snow help in ${clientProfile?.city || "your neighbourhood"}.`} />
+      <div className="rounded-2xl bg-[#eaf1ee] px-5 py-4 text-sm text-[#43574b]"><MapPin className="mr-2 inline h-4 w-4" />{clientProfile?.address || "Add your service address"} <Link href="/dashboard/settings" className="ml-2 font-semibold underline">Change</Link></div>
 
       <section className="surface-panel p-4 md:p-5">
         <div className="flex flex-col gap-3 lg:flex-row">
@@ -558,220 +479,32 @@ export default function FindOperatorsPage() {
           </p>
         </div>
       ) : (
-        <section className="space-y-3">
-          <div className="flex items-center justify-between px-1">
-            <p className="text-sm text-[var(--text-muted)]">{filteredOperators.length} operators found</p>
-            <p className="text-xs uppercase tracking-[0.16em] text-[var(--text-muted)]">chat-first marketplace</p>
-          </div>
-          {filteredOperators.map((op) => {
-            const isExpanded = expandedOperator === op.uid;
-            const mediumPrice = op.pricing?.driveway?.medium || "–";
-            const distanceKm = getDistanceKm(clientProfile, op);
-            return (
-              <div
-                key={op.uid}
-                className={`surface-panel overflow-hidden transition ${
-                  op.uid === favoriteOperatorId ? "border-[var(--ink)] shadow-[var(--surface-shadow)]" : ""
-                }`}
-              >
-                <div
-                  className="cursor-pointer px-5 py-5"
-                  onClick={() => setExpandedOperator(isExpanded ? null : op.uid)}
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="w-14 h-14 shrink-0">
-                      <UserAvatar
-                        photoURL={(op as unknown as Record<string, string>)?.avatar}
-                        role="operator"
-                        displayName={op.displayName}
-                        size={56}
-                        rounded="xl"
-                      />
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Link
-                          href={`/dashboard/u/${op.uid}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="font-semibold text-[var(--text-primary)] transition hover:underline"
-                        >
-                          {op.businessName || op.displayName}
-                        </Link>
-                        {op.uid === favoriteOperatorId && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--ink)] px-2.5 py-1 text-xs font-medium text-white">
-                            <Snowflake className="h-3 w-3 fill-white" />
-                            Favorite
-                          </span>
-                        )}
-                        <span className="text-xs font-semibold">{canAcceptPlatformPayments(op) ? "Platform payments available" : "Cash jobs only"} · {op.serviceRadius || 10} km service area</span>
-                        {op.isStudent && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--bg-secondary)] px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)]">
-                            <GraduationCap className="w-3 h-3" /> Student
-                          </span>
-                        )}
-                        {op.idVerified && (
-                          <span className="inline-flex items-center rounded-full bg-[#eaf7ef] px-2.5 py-1 text-xs font-medium text-[var(--accent-mint)]">
-                            Verified
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-3 mt-1 flex-wrap">
-                        <div className="flex items-center gap-1">
-                          <StarRating rating={op.rating} size="sm" />
-                          <span className="text-xs text-[var(--text-muted)]">
-                            ({op.reviewCount})
-                          </span>
-                        </div>
-                        <span className="text-xs text-[var(--text-muted)] flex items-center gap-0.5">
-                          <MapPin className="w-3 h-3" />
-                          {op.city}, {op.province}
-                        </span>
-                        {distanceKm != null && (
-                          <span className="text-xs text-[var(--text-muted)]">
-                            {distanceKm.toFixed(1)} km away
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
-                        <span className="rounded-full bg-[#eaf7ef] px-3 py-1 font-semibold text-[var(--accent-mint)]">
-                          From ${mediumPrice}
-                        </span>
-                        <span className="rounded-full bg-[var(--bg-secondary)] px-3 py-1 text-xs text-[var(--text-muted)]">
-                          {op.equipment?.slice(0, 2).join(", ")}{op.equipment && op.equipment.length > 2 ? ` +${op.equipment.length - 2}` : ""}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="shrink-0 flex flex-col items-center gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setAsFavorite(op.uid);
-                        }}
-                        className="rounded-xl p-2 transition hover:bg-[var(--bg-secondary)]"
-                        title={op.uid === favoriteOperatorId ? "Remove as favorite" : "Set as favorite"}
-                      >
-                        <Snowflake
-                          className={`w-5 h-5 ${
-                            op.uid === favoriteOperatorId
-                              ? "fill-[var(--ink)] text-[var(--ink)]"
-                              : "text-[var(--text-muted)]"
-                          }`}
-                        />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleFavorite(op.uid);
-                        }}
-                        className="rounded-xl p-2 transition hover:bg-[var(--bg-secondary)]"
-                        title={favorites.includes(op.uid) ? "Remove from saved" : "Save operator"}
-                      >
-                        <Heart
-                          className={`w-5 h-5 ${
-                            favorites.includes(op.uid)
-                              ? "fill-red-500 text-red-500"
-                              : "text-[var(--text-muted)]"
-                          }`}
-                        />
-                      </button>
-                      {isExpanded ? (
-                        <ChevronUp className="w-5 h-5 text-[var(--text-muted)]" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-[var(--text-muted)]" />
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {isExpanded && (
-                  <div className="border-t border-[var(--border-soft)] px-5 pb-5 pt-0">
-                    <p className="mt-4 text-sm leading-6 text-[var(--text-secondary)]">{op.bio}</p>
-
-                    <div className="mt-4 space-y-2">
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Pricing (CAD)</p>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        {op.pricing?.driveway?.small != null && (
-                          <div className="rounded-xl bg-[var(--bg-secondary)] px-3 py-3 text-center">
-                            <p className="text-xs text-[var(--text-muted)]">Small</p>
-                            <p className="font-bold text-[var(--text-primary)]">${op.pricing.driveway.small}</p>
-                          </div>
-                        )}
-                        {op.pricing?.driveway?.medium != null && (
-                          <div className="rounded-xl bg-[var(--bg-secondary)] px-3 py-3 text-center">
-                            <p className="text-xs text-[var(--text-muted)]">Medium</p>
-                            <p className="font-bold text-[var(--text-primary)]">${op.pricing.driveway.medium}</p>
-                          </div>
-                        )}
-                        {op.pricing?.driveway?.large != null && (
-                          <div className="rounded-xl bg-[var(--bg-secondary)] px-3 py-3 text-center">
-                            <p className="text-xs text-[var(--text-muted)]">Large</p>
-                            <p className="font-bold text-[var(--text-primary)]">${op.pricing.driveway.large}</p>
-                          </div>
-                        )}
-                        {op.pricing?.walkway != null && (
-                          <div className="rounded-xl bg-[var(--bg-secondary)] px-3 py-3 text-center">
-                            <p className="text-xs text-[var(--text-muted)]">Walkway</p>
-                            <p className="font-bold text-[var(--text-primary)]">${op.pricing.walkway}</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {op.equipment && op.equipment.length > 0 && (
-                      <div className="mt-3">
-                        <p className="mb-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Equipment</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {op.equipment.map((eq) => (
-                            <span
-                              key={eq}
-                              className="rounded-full bg-[var(--bg-secondary)] px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)]"
-                            >
-                              {eq}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="mt-4 flex gap-2">
-                      <button
-                        onClick={() => bookOperator(op)}
-                        disabled={booking}
-                        className="btn-primary flex-1 px-4 py-3"
-                      >
-                        <MessageSquare className="w-4 h-4" />
-                        {booking ? "Booking..." : "Request & Chat"}
-                      </button>
-                    </div>
-                  </div>
-                )}
+        <section className="grid gap-4 sm:grid-cols-2" aria-label="Nearby operators">
+          {filteredOperators.map(op => {
+            const cashOnly = !canAcceptPlatformPayments(op) || !(op.stripeEnabledJobsOnly ?? true);
+            const price = op.pricing?.driveway?.[(clientProfile?.propertyDetails?.propertySize || "medium") as "small" | "medium" | "large"] || 40;
+            const distance = getDistanceKm(clientProfile, op);
+            return <article key={op.uid} className="overflow-hidden rounded-3xl bg-white border border-[var(--border-color)]">
+              <div className="p-5 space-y-4">
+                <div className="flex items-center gap-3"><UserAvatar photoURL={(op as unknown as Record<string,string>).avatar} role="operator" displayName={op.displayName} size={48} /><div className="min-w-0"><h2 className="text-xl font-semibold break-words">{op.businessName || op.displayName}</h2><p className="mt-1 text-sm text-[var(--text-secondary)]">{op.rating ? `${op.rating.toFixed(1)} ★` : "New operator"}{distance !== null ? ` · ${distance.toFixed(1)} km away` : ` · ${op.city}`}</p></div></div>
+                <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-2xl font-semibold">${price}<span className="ml-1 text-sm font-normal text-[var(--text-muted)]">CAD</span></p><span className="rounded-full bg-[#eaf1ee] px-3 py-1.5 text-sm font-medium">{cashOnly ? "Cash only" : "Pay by card"}</span></div>
+                <button onClick={() => bookOperator(op)} disabled={booking} className="btn-primary w-full px-4 py-3">Request help</button>
               </div>
-            );
+              <details className="operator-details border-t border-[var(--border-color)]"><summary className="cursor-pointer px-5 py-4 text-sm font-semibold">About & options</summary><div className="space-y-4 px-5 pb-5">
+                <p className="text-sm leading-6 text-[var(--text-secondary)]">{op.bio || "View the operator’s profile for more information."}</p>
+                <p className="text-sm text-[var(--text-secondary)]">{op.equipment?.join(", ")}</p>
+                <Link href={`/dashboard/u/${op.uid}`} className="inline-block font-semibold underline">View full profile</Link>
+                <div className="flex flex-wrap gap-2"><button onClick={() => toggleFavorite(op.uid)} className="rounded-xl border px-3 py-2 text-sm">{favorites.includes(op.uid) ? "Unsave operator" : "Save operator"}</button><button onClick={() => setAsFavorite(op.uid)} className="rounded-xl border px-3 py-2 text-sm">{favoriteOperatorId === op.uid ? "Remove favourite" : "Make favourite"}</button></div>
+              </div></details>
+            </article>;
           })}
         </section>
       )}
 
       {/* Scheduling Modal */}
-      {schedulingOperator && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="w-full max-w-sm overflow-hidden rounded-[1.8rem] bg-white shadow-[var(--surface-shadow)]">
-            <div className="relative bg-[var(--ink)] p-5 text-white">
-              <button
-                onClick={() => setSchedulingOperator(null)}
-                className="absolute right-3 top-3 rounded-lg p-1 transition hover:bg-white/20"
-              >
-                <X className="w-5 h-5" />
-              </button>
-              <h2 className="font-bold text-lg">When do you need it?</h2>
-              <p className="text-white/80 text-sm mt-1">
-                Booking {schedulingOperator.businessName || schedulingOperator.displayName}
-              </p>
-            </div>
-            <div className="p-5 space-y-4">
+      <Modal isOpen={!!schedulingOperator} onClose={() => setSchedulingOperator(null)} title="When do you need help?" subtitle={schedulingOperator?.businessName || schedulingOperator?.displayName}>
+        {schedulingOperator && <div className="space-y-4">
+
               {/* ASAP or Scheduled toggle */}
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -811,6 +544,7 @@ export default function FindOperatorsPage() {
                     <label className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">Date</label>
                     <input
                       type="date"
+                      aria-label="Job date"
                       value={scheduledDate}
                       min={format(new Date(), "yyyy-MM-dd")}
                       max={format(addDays(new Date(), 30), "yyyy-MM-dd")}
@@ -820,32 +554,21 @@ export default function FindOperatorsPage() {
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">Preferred Time</label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {["07:00", "09:00", "12:00", "14:00", "16:00", "18:00"].map((t) => (
-                        <button
-                          key={t}
-                          onClick={() => setScheduledTime(t)}
-                          className={`flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg border text-xs font-medium transition ${
-                            scheduledTime === t
-                              ? "border-[var(--ink)] bg-[var(--accent-soft)] text-[var(--ink)]"
-                              : "border-[var(--border-color)] text-[var(--text-muted)] hover:border-[var(--ink)]/30"
-                          }`}
-                        >
-                          <Clock className="w-3 h-3" />
-                          {t.replace(":00", "")}:00
-                        </button>
-                      ))}
-                    </div>
+                    <input aria-label="Preferred time" type="time" value={scheduledTime} onChange={event => setScheduledTime(event.target.value)} className="w-full min-h-12 rounded-xl border px-4 py-3" />
                   </div>
                   <p className="text-center text-[10px] text-[var(--text-muted)]">
-                    Scheduled for {format(new Date(scheduledDate + "T12:00:00"), "EEEE, MMM d")} at {scheduledTime}
+                    Scheduled for {scheduledDate && Number.isFinite(new Date(scheduledDate + "T12:00:00").getTime()) ? format(new Date(scheduledDate + "T12:00:00"), "EEEE, MMM d") : "Choose a date"} at {scheduledTime}
                   </p>
                 </div>
               )}
 
+              <div className="rounded-2xl bg-[#eaf1ee] p-4 text-sm">
+                {canAcceptPlatformPayments(schedulingOperator) && (schedulingOperator.stripeEnabledJobsOnly ?? true) ? <p>Pay securely by card after your request is accepted.</p> : <><p className="font-semibold">Cash only</p><p className="mt-1">Pay the operator directly when the work is done. No card or Stripe account is needed.</p><label className="mt-3 flex items-start gap-3"><input type="checkbox" checked={cashAcknowledged} onChange={event => setCashAcknowledged(event.target.checked)} className="mt-1 h-5 w-5 shrink-0" /><span>I understand this is a cash job.</span></label></>}
+              </div>
+              {bookingError && <p role="alert" className="text-sm text-red-700">{bookingError}</p>}
               <button
                 onClick={confirmBooking}
-                disabled={booking}
+                disabled={booking || ((!canAcceptPlatformPayments(schedulingOperator) || !(schedulingOperator.stripeEnabledJobsOnly ?? true)) && !cashAcknowledged)}
                 className="btn-primary w-full px-4 py-3.5"
               >
                 <MessageSquare className="w-4 h-4" />
@@ -857,10 +580,8 @@ export default function FindOperatorsPage() {
               >
                 Cancel
               </button>
-            </div>
-          </div>
-        </div>
-      )}
+        </div>}
+      </Modal>
     </div>
   );
 }

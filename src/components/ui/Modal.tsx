@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useEffect, useId, useRef } from "react";
 import { useDialogFocus } from "@/hooks/useDialogFocus";
+import { AnimatePresence,motion } from "framer-motion";
 import { X } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import React,{ useEffect,useId,useRef } from "react";
 
 interface ModalProps {
   isOpen: boolean;
@@ -78,7 +78,7 @@ export default function Modal({
       {isOpen && (
         <motion.div
           ref={overlayRef}
-          className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+          className="app-modal-overlay fixed inset-0 z-[9999] flex items-end justify-center p-0 sm:items-center sm:p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -99,7 +99,7 @@ export default function Modal({
             aria-label={title ? undefined : "Dialog"}
             aria-describedby={subtitle ? subtitleId : undefined}
             tabIndex={-1}
-            className={`relative max-h-[calc(100dvh-2rem)] overflow-y-auto w-full ${sizeStyles[size]} bg-[var(--bg-card-solid)] rounded-2xl shadow-[var(--surface-shadow)] border-[3px] border-[var(--border-color)]`}
+            className={`app-modal-panel relative max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto w-full ${sizeStyles[size]} bg-[var(--bg-card-solid)] rounded-t-3xl sm:rounded-3xl shadow-[var(--surface-shadow)] border border-[var(--border-color)]`}
             initial={{ scale: 0.9, opacity: 0, y: 50 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 50 }}
@@ -129,7 +129,7 @@ export default function Modal({
               </button>
             )}
 
-            <div className="p-6 pt-8">
+            <div className="p-5 pt-8 pb-[max(20px,env(safe-area-inset-bottom))] sm:p-6 sm:pt-8">
               {/* Icon */}
               {icon && (
                 <div className={`w-14 h-14 ${style.iconBg} rounded-2xl flex items-center justify-center mx-auto mb-4`}>
