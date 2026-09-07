@@ -1860,12 +1860,20 @@ export default function ChatPage() {
                   </div>
                 )}
                 {job.status === "accepted" && (
-                  <button
-                    onClick={() => updateJobStatus("en-route")}
-                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-[var(--accent)] text-white rounded-xl text-xs font-bold hover:bg-[var(--accent-dark)] transition shadow-[var(--surface-shadow)]"
-                  >
-                    <Navigation className="w-3.5 h-3.5" /> Mark En Route
-                  </button>
+                  <>
+                    <button
+                      onClick={() => updateJobStatus("en-route")}
+                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-[var(--accent)] text-white rounded-xl text-xs font-bold hover:bg-[var(--accent-dark)] transition shadow-[var(--surface-shadow)]"
+                    >
+                      <Navigation className="w-3.5 h-3.5" /> Mark En Route
+                    </button>
+                    <button
+                      onClick={cancelJob}
+                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-red-50 text-red-600 rounded-xl text-xs font-medium hover:bg-red-100 transition"
+                    >
+                      <X className="w-3.5 h-3.5" /> Cancel Job
+                    </button>
+                  </>
                 )}
                 {job.status === "en-route" && (
                   <>
@@ -1880,6 +1888,12 @@ export default function ChatPage() {
                       className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-100 text-gray-500 rounded-xl text-xs font-medium hover:bg-gray-200 transition"
                     >
                       <ArrowLeft className="w-3.5 h-3.5" /> Go Back
+                    </button>
+                    <button
+                      onClick={cancelJob}
+                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-red-50 text-red-600 rounded-xl text-xs font-medium hover:bg-red-100 transition"
+                    >
+                      <X className="w-3.5 h-3.5" /> Cancel Job
                     </button>
                   </>
                 )}
