@@ -8,6 +8,7 @@ type PartialLocation = {
 };
 
 const EARTH_RADIUS_KM = 6371;
+const DEFAULT_SERVICE_RADIUS_KM = 10;
 
 function toFiniteNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -50,17 +51,9 @@ export function isOperatorPublic(operator: OperatorProfile): boolean {
 export function isClientWithinOperatorRadius(client: ClientProfile, operator: OperatorProfile): boolean {
   if (!client) return false;
   const distance = getDistanceKm(client, operator);
+  if (distance == null) return false;
 
-  // Fallback when coordinates are missing on one side: treat same city/province as discoverable.
-  if (distance == null) {
-    const clientCity = (client.city || "").trim().toLowerCase();
-    const clientProvince = (client.province || "").trim().toLowerCase();
-    const operatorCity = (operator.city || "").trim().toLowerCase();
-    const operatorProvince = (operator.province || "").trim().toLowerCase();
-    return Boolean(clientCity && clientProvince && clientCity === operatorCity && clientProvince === operatorProvince);
-  }
-
-  const radius = toFiniteNumber(operator.serviceRadius) ?? 0;
+  const radius = toFiniteNumber(operator.serviceRadius) ?? DEFAULT_SERVICE_RADIUS_KM;
   if (radius <= 0) return false;
   return distance <= radius;
 }

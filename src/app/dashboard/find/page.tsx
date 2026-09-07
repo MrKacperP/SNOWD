@@ -221,6 +221,10 @@ export default function FindOperatorsPage() {
   const confirmBooking = async () => {
     if (!schedulingOperator || !user?.uid || !profile) return;
     const operator = schedulingOperator;
+    if (!isOperatorPublic(operator) || !isClientWithinOperatorRadius(clientProfile, operator)) {
+      setBookingError("This operator is no longer available in your service area.");
+      return;
+    }
     const cardRequired = canAcceptPlatformPayments(operator) && (operator.stripeEnabledJobsOnly ?? true);
     if (!cardRequired && !cashAcknowledged) return;
     const scheduleMillis = new Date(`${scheduledDate}T${scheduledTime}`).getTime();
