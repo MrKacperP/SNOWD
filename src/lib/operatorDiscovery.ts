@@ -19,6 +19,10 @@ function toFiniteNumber(value: unknown): number | null {
   return null;
 }
 
+function normalizeAddress(value: string | null | undefined): string {
+  return (value || "").trim().toLowerCase().replace(/\s+/g, " ").replace(/[.,]/g, "");
+}
+
 export function getDistanceKm(
   a: PartialLocation | null | undefined,
   b: PartialLocation | null | undefined
@@ -50,11 +54,17 @@ export function isOperatorPublic(operator: OperatorProfile): boolean {
 
 export function isClientWithinOperatorRadius(client: ClientProfile, operator: OperatorProfile): boolean {
   if (!client) return false;
-  const distance = getDistanceKm(client, operator);
-  if (distance == null) return false;
-
   const radius = toFiniteNumber(operator.serviceRadius) ?? DEFAULT_SERVICE_RADIUS_KM;
   if (radius <= 0) return false;
+
+  const distance = getDistanceKm(client, operator);
+  if (distance == null) {
+    const sameAddress = normalizeAddress(client.address) === normalizeAddress(operator.address);
+    const sameCity = normalizeAddress(client.city) === normalizeAddress(operator.city);
+    const sameProvince = normalizeAddress(client.province) === normalizeAddress(operator.province);
+    return Boolean(client.address && operator.address && sameAddress && sameCity && sameProvince);
+  }
+
   return distance <= radius;
 }
 
