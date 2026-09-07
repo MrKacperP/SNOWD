@@ -82,12 +82,11 @@ export default function FindOperatorsPage() {
         const q = query(
           collection(db, "users"),
           where("role", "==", "operator"),
-          where("onboardingComplete", "==", true)
         );
         const snap = await getDocs(q);
         const fetchedOperators = snap.docs
           .map((d) => ({ uid: d.id, ...d.data() } as OperatorProfile))
-          .filter(isOperatorPublic);
+          .filter((operator) => operator.onboardingComplete !== false && isOperatorPublic(operator));
         setOperators(fetchedOperators);
         
         // Load user's favorites
