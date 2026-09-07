@@ -527,8 +527,12 @@ export default function ChatPage() {
 
       // ── Guard: one active job at a time on accept ──────────────────────────
       if (newStatus === "accepted") {
-        if (!profile?.idVerified || (job.paymentMethod !== "cash" && !(await isStripeAccountReady(profile.stripeConnectAccountId)))) {
-          alert("ID verification is required. Until Stripe setup is complete, you can accept cash jobs only.");
+        if (!profile?.idVerified) {
+          alert("ID verification is required before accepting a job.");
+          return;
+        }
+        if (job.paymentMethod !== "cash" && !(await isStripeAccountReady(profile.stripeConnectAccountId))) {
+          alert("Stripe setup is required for card-paid jobs. Cash jobs can be accepted without Stripe.");
           return;
         }
         const { getDocs: gd, query: q2, collection: col2, where: w2 } = await import("firebase/firestore");
@@ -610,11 +614,15 @@ export default function ChatPage() {
 
   const cancelJob = async () => {
     if (!job?.id) return;
+    if (job.status === "in-progress") {
+      alert("This job cannot be cancelled after work has started.");
+      return;
+    }
     setShowCancelPopup(true);
   };
 
   const confirmCancelJob = async () => {
-    if (!job?.id) return;
+    if (!job?.id || job.status === "in-progress") return;
     setCancelling(true);
     const userRole = isOperator ? "operator" : "client";
     try {
@@ -1640,7 +1648,7 @@ export default function ChatPage() {
           {!isOperator && job.paymentStatus !== "paid" && job.status !== "cancelled" && <button onClick={initiatePayment} className="btn-primary mt-4 w-full px-4 py-3">{job.status === "completed" ? "Pay cash · view instructions" : job.cashPaymentDeferredAt ? "View pending cash payment" : "Pay cash after the job"}</button>}
           {isOperator && job.paymentStatus === "paid" && !["completed", "cancelled"].includes(job.status) && <button disabled={cashActionBusy} onClick={() => requestQuickCommConfirmation({ title: "Record cash refund?", message: `Only confirm after returning $${job.price} CAD to the client in cash. This records the refund; it does not transfer money or cancel the job.`, confirmLabel: "Cash returned to client", onConfirm: () => cashPaymentAction("refund") })} className="btn-secondary mt-4 w-full px-4 py-3">Record cash refund</button>}
           {!isOperator && job.paymentStatus === "paid" && !["completed", "cancelled"].includes(job.status) && <button onClick={() => requestQuickCommConfirmation({ title: "Request cash refund?", message: "This asks the operator to return your cash. They must return the money directly and record the refund. The job stays open until cancelled or completed.", confirmLabel: "Send refund request", onConfirm: () => sendMessage(`Please return my $${job.price} CAD cash payment and record the refund. The work is not completed.`, "payment") })} className="btn-secondary mt-4 w-full px-4 py-3">Request cash refund</button>}
-          {job.paymentStatus !== "paid" && !["completed", "cancelled"].includes(job.status) && <button onClick={cancelJob} className="mt-3 w-full rounded-xl px-4 py-3 font-semibold text-red-700">Cancel job</button>}
+          {job.paymentStatus !== "paid" && ["pending", "accepted", "en-route"].includes(job.status) && <button onClick={cancelJob} className="mt-3 w-full rounded-xl px-4 py-3 font-semibold text-red-700">Cancel job</button>}
           {isOperator && ["in-progress", "completed"].includes(job.status) && job.paymentStatus !== "paid" && <button disabled={confirmingCash} onClick={() => requestQuickCommConfirmation({ title: "Confirm cash received?", message: `Confirm only after you have received $${job.price} CAD from the client. This records a cash receipt for both of you.`, confirmLabel: "Yes, cash received", onConfirm: confirmCashReceived })} className="mt-4 w-full rounded-full bg-[#17251e] px-4 py-3 font-semibold text-white disabled:opacity-50">{confirmingCash ? "Confirming…" : "Confirm cash received"}</button>}
           {cashError && <p role="alert" className="mt-3 text-red-700">{cashError}</p>}
         </section>}
@@ -1710,19 +1718,19 @@ export default function ChatPage() {
         )}
 
         {/* Client cancel button for pending jobs */}
-        {!isOperator && job?.status === "pending" && (
+        {!isOperator && ["pending", "accepted", "en-route"].includes(job?.status || "") && job?.paymentStatus !== "paid" && (
           <div className="bg-gray-50 border-x border-gray-100 px-4 py-3 border-t border-gray-200">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-medium text-gray-800">Job Request Pending</p>
-                <p className="text-xs text-gray-600">Waiting for operator to accept</p>
+                <p className="text-sm font-medium text-gray-800">Cancel this job?</p>
+                <p className="text-xs text-gray-600">You can cancel until the operator starts the work.</p>
               </div>
               <button
                 onClick={cancelJob}
                 className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg font-semibold text-sm transition flex items-center gap-2"
               >
                 <X className="w-4 h-4" />
-                Cancel Request
+                Cancel Job
               </button>
             </div>
           </div>

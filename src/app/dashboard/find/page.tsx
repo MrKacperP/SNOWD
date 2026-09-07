@@ -563,7 +563,7 @@ export default function FindOperatorsPage() {
               )}
 
               <div className="rounded-2xl bg-[#eaf1ee] p-4 text-sm">
-                {canAcceptPlatformPayments(schedulingOperator) && (schedulingOperator.stripeEnabledJobsOnly ?? true) ? <p>Pay securely by card after your request is accepted.</p> : <><p className="font-semibold">Cash only</p><p className="mt-1">Pay the operator directly when the work is done. No card or Stripe account is needed.</p><label className="mt-3 flex items-start gap-3"><input type="checkbox" checked={cashAcknowledged} onChange={event => setCashAcknowledged(event.target.checked)} className="mt-1 h-5 w-5 shrink-0" /><span>I understand this is a cash job.</span></label></>}
+                {canAcceptPlatformPayments(schedulingOperator) && (schedulingOperator.stripeEnabledJobsOnly ?? true) ? <p>Pay securely by card after your request is accepted.</p> : <><p className="font-semibold">Cash only</p><p className="mt-1">Pay the operator directly after the job is done. No card or Stripe account is needed.</p><label className="mt-3 flex items-start gap-3"><input type="checkbox" checked={cashAcknowledged} onChange={event => setCashAcknowledged(event.target.checked)} className="mt-1 h-5 w-5 shrink-0" /><span>I agree to pay the operator in cash after the job is done.</span></label></>}
               </div>
               {bookingError && <p role="alert" className="text-sm text-red-700">{bookingError}</p>}
               <button

@@ -4,6 +4,7 @@ import StatusBadge from "@/components/StatusBadge";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
 import { ClientProfile,Job,UserProfile } from "@/lib/types";
+import { stripeConnectFetch } from "@/lib/stripeConnectClient";
 import { format } from "date-fns";
 import { collection,doc,getDoc,getDocs,query,updateDoc,where } from "firebase/firestore";
 import { ArrowRight,Calendar,CreditCard,MapPin,MessageCircle,Snowflake,User,X } from "lucide-react";
@@ -87,17 +88,32 @@ export default function ClientDashboard() {
   }, [profile?.uid]);
 
   const cancelJob = async (jobId: string) => {
-    if (!confirm("Are you sure you want to cancel this job?")) return;
+    const job = activeJobs.find((item) => item.id === jobId);
+    if (!job || job.status === "in-progress") return;
+    if (!job || !confirm("Are you sure you want to cancel this job? Any held card payment will be released.")) return;
     setCancellingJob(jobId);
     try {
+      if (job.stripePaymentIntentId) {
+        const response = await stripeConnectFetch("/api/stripe/cancel-payment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paymentIntentId: job.stripePaymentIntentId }),
+        });
+        const result = await response.json();
+        if (!response.ok || result.status !== "canceled") {
+          throw new Error(result.error || "Could not release the payment hold.");
+        }
+      }
       await updateDoc(doc(db, "jobs", jobId), {
         status: "cancelled",
+        cancelledAt: new Date(),
+        cancelledBy: profile?.uid,
         updatedAt: new Date(),
       });
       setActiveJobs((jobs) => jobs.filter((j) => j.id !== jobId));
     } catch (error) {
       console.error("Error cancelling job:", error);
-      alert("Failed to cancel job. Please try again.");
+      alert(error instanceof Error ? error.message : "Failed to cancel job. Please try again.");
     } finally {
       setCancellingJob(null);
     }
@@ -172,7 +188,7 @@ export default function ClientDashboard() {
                   </div>
                   <StatusBadge status={job.status} />
                 </Link>
-                {job.status === "pending" && (
+                {job.status !== "in-progress" && job.paymentStatus !== "paid" && (
                   <button onClick={() => cancelJob(job.id)} disabled={cancellingJob === job.id} aria-label="Cancel job" className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-[var(--text-muted)] transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50"><X className="h-4 w-4" /></button>
                 )}
               </div>
