@@ -1,29 +1,31 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { AdminCard } from "@/components/admin/AdminUI";
+import { dailySeries } from "@/lib/admin/metrics";
 import { useAdminData } from "@/components/admin/AdminProvider";
 
 const donutColors = ["#061321", "#E5E7EB"];
 
 export default function AdminAnalyticsPage() {
-  const {
-    analyticsUsers,
-    analyticsCategories,
-    analyticsRevenue,
-    analyticsSupportResolution,
-  } = useAdminData();
+  const { users, jobs, transactions, supportTickets } = useAdminData();
   const [range, setRange] = useState("Last 30 days");
-
-  const summary = useMemo(() => {
-    return {
-      users: analyticsUsers[analyticsUsers.length - 1]?.value || 0,
+  const days = Number(range.match(/\d+/)?.[0] || 30);
+  const start = new Date(); start.setUTCHours(0, 0, 0, 0); start.setUTCDate(start.getUTCDate() - days + 1);
+  const inRange = (date: string) => !!date && new Date(date) >= start && new Date(date) <= new Date();
+  const analyticsUsers = dailySeries(users.map(u => ({ date: u.joinDate, value: 1 })), days);
+  const analyticsRevenue = dailySeries(transactions.filter(t => t.status === "Completed" && t.type === "Payment").map(t => ({ date: t.date, value: t.amount })), days);
+  const categories = jobs.filter(j => inRange(j.datePosted)).reduce<Record<string, number>>((acc, j) => { acc[j.category] = (acc[j.category] || 0) + 1; return acc; }, {});
+  const analyticsCategories = Object.entries(categories).map(([category, value]) => ({ category, value }));
+  const tickets = supportTickets.filter(t => inRange(t.createdAt || ""));
+  const analyticsSupportResolution = [{ name: "Resolved", value: tickets.filter(t => t.status === "Resolved").length }, { name: "Open", value: tickets.filter(t => t.status !== "Resolved").length }];
+  const summary = {
+      users: analyticsUsers.reduce((sum, item) => sum + item.value, 0),
       jobsByCategory: analyticsCategories.reduce((sum, item) => sum + item.value, 0),
       revenue: analyticsRevenue.reduce((sum, item) => sum + item.value, 0),
-      resolution: analyticsSupportResolution[0]?.value || 0,
+      resolution: analyticsSupportResolution.reduce((sum, t) => sum + t.value, 0) ? Math.round(100 * analyticsSupportResolution[0].value / analyticsSupportResolution.reduce((sum, t) => sum + t.value, 0)) : 0,
     };
-  }, [analyticsCategories, analyticsRevenue, analyticsSupportResolution, analyticsUsers]);
 
   return (
     <div className="space-y-4">
@@ -32,7 +34,6 @@ export default function AdminAnalyticsPage() {
           <option>Last 7 days</option>
           <option>Last 30 days</option>
           <option>Last 90 days</option>
-          <option>Custom</option>
         </select>
       </div>
 
@@ -66,7 +67,7 @@ export default function AdminAnalyticsPage() {
         </AdminCard>
 
         <AdminCard className="p-4 h-[340px]">
-          <h3 className="font-semibold text-[var(--ink)]">Revenue Over Time</h3>
+          <h3 className="font-semibold text-[var(--ink)]">Collected payments (CAD)</h3>
           <ResponsiveContainer width="100%" height="80%">
             <AreaChart data={analyticsRevenue}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
@@ -76,7 +77,7 @@ export default function AdminAnalyticsPage() {
               <Area type="monotone" dataKey="value" stroke="#061321" fill="#dfeef8" fillOpacity={0.45} />
             </AreaChart>
           </ResponsiveContainer>
-          <p className="text-sm text-[var(--text-muted)]">Summary: ${summary.revenue.toFixed(2)} in revenue.</p>
+          <p className="text-sm text-[var(--text-muted)]">Summary: ${summary.revenue.toFixed(2)} collected; excludes holds, released authorizations, and platform fee estimates.</p>
         </AdminCard>
 
         <AdminCard className="p-4 h-[340px]">

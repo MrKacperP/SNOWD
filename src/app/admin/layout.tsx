@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -61,17 +61,25 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     supportUnreadCount,
     markNotificationRead,
     markAllNotificationsRead,
-    supportTickets,
+    supportTickets, users, jobs, dataErrors, loading,
   } = useAdminData();
 
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const [search, setSearch] = useState("");
+  const [actionError, setActionError] = useState("");
+  const searchResults = search.trim() ? [
+    ...users.filter(u => [u.id, u.name, u.email].join(" ").toLowerCase().includes(search.toLowerCase())).map(u => ({ label: u.name, detail: u.email, href: `/admin/users/${u.id}` })),
+    ...jobs.filter(j => [j.id, j.title, j.address].join(" ").toLowerCase().includes(search.toLowerCase())).map(j => ({ label: j.title, detail: j.address, href: `/admin/jobs?id=${j.id}` })),
+    ...supportTickets.filter(t => [t.id, t.subject, t.userName].join(" ").toLowerCase().includes(search.toLowerCase())).map(t => ({ label: t.subject, detail: t.userName, href: `/admin/support-chats?id=${t.id}` })),
+  ].slice(0, 12) : [];
+  const readNotification = async (id: string) => { try { await markNotificationRead(id); } catch { setActionError("Could not save notification read status."); } };
+
   const [trayCollapsed, setTrayCollapsed] = useState(true);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
     const resize = () => {
-      setTrayCollapsed(window.innerWidth <= 1024);
+      setTrayCollapsed(window.innerWidth < 1280);
     };
     resize();
     window.addEventListener("resize", resize);
@@ -81,6 +89,8 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const pageTitle = useMemo(() => {
     const map: Record<string, string> = {
       "/admin": "Overview",
+      "/admin/reports": "Service reports",
+      "/admin/notifications": "Notifications",
       "/admin/users": "Users",
       "/admin/verifications": "Verifications",
       "/admin/jobs": "Jobs",
@@ -89,7 +99,6 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       "/admin/calls": "Calls",
       "/admin/transactions": "Transactions",
       "/admin/claims": "Claims",
-      "/admin/reports": "Reports",
       "/admin/analytics": "Analytics",
       "/admin/activity": "User Activity",
       "/admin/employees": "Employees",
@@ -103,6 +112,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       title: "Workspace",
       items: [
         { href: "/admin", label: "Home", icon: Home },
+        { href: "/admin/notifications", label: "Notifications", icon: Bell, badge: unreadNotifications },
         { href: "/admin/users", label: "Accounts", icon: Users },
         { href: "/admin/jobs", label: "Jobs", icon: Briefcase },
         { href: "/admin/verifications", label: "Reviews", icon: ShieldCheck, badge: pendingVerificationCount },
@@ -110,6 +120,11 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         { href: "/admin/support-chats", label: "Support", icon: Headphones, badge: openSupportCount },
         { href: "/admin/transactions", label: "Payments", icon: DollarSign },
         { href: "/admin/reports", label: "Reports", icon: FileWarning },
+        { href: "/admin/analytics", label: "Analytics", icon: DollarSign },
+        { href: "/admin/claims", label: "Claims", icon: FileWarning },
+        { href: "/admin/activity", label: "Audit history", icon: ShieldCheck },
+        { href: "/admin/employees", label: "Team", icon: Users },
+        { href: "/admin/calls", label: "Calls", icon: Headphones },
         { href: "/admin/settings", label: "Settings", icon: Settings },
       ],
     },
@@ -139,7 +154,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                     <div className="space-y-0.5">
                       {section.items.map((item) => {
                         const Icon = item.icon;
-                        const active = pathname === item.href;
+                        const active = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href + "/"));
                         return (
                           <Link
                             key={item.href}
@@ -192,7 +207,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                   <div className="space-y-0.5">
                     {section.items.map((item) => {
                       const Icon = item.icon;
-                      const active = pathname === item.href;
+                      const active = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href + "/"));
                       return (
                         <Link
                           key={item.href}
@@ -257,11 +272,15 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                   <input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
+                    aria-label="Search accounts, jobs and support"
+                    onKeyDown={e => { if (e.key === "Escape") setSearch(""); }}
                     placeholder="Search users, jobs, tickets..."
                     className="w-full h-10 rounded-lg border-[3px] border-[var(--border)] bg-[var(--bg-primary)] pl-9 pr-3 text-sm outline-none focus:border-[var(--accent)]"
                   />
+                  {search.trim() && <div className="absolute left-0 right-0 top-full mt-2 rounded-2xl bg-white border shadow-lg max-h-80 overflow-y-auto z-50">{searchResults.map(result => <Link key={result.href} href={result.href} onClick={() => setSearch("")} className="block p-3 hover:bg-[var(--ice)]"><span className="block text-sm font-semibold">{result.label}</span><span className="text-xs text-[var(--text-muted)]">{result.detail}</span></Link>)}{!searchResults.length && <p className="p-4 text-sm">No matching records.</p>}</div>}
                 </div>
                 <div className="ml-auto flex items-center gap-2">
+                  <Link href="/admin/support-chats" aria-label={`Support messages, ${supportUnreadCount} unread`} className="relative admin-secondary"><MessageSquare className="w-4 h-4" />{supportUnreadCount > 0 && <span className="text-xs font-bold">{supportUnreadCount}</span>}</Link>
                   <div className="relative">
                     <button
                       onClick={() => setShowNotifDropdown((v) => !v)}
@@ -274,15 +293,16 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                     {showNotifDropdown && (
                       <div className="absolute right-0 mt-2 w-[min(360px,92vw)] rounded-xl border-[3px] border-[var(--border)] bg-white shadow-[var(--surface-shadow)] overflow-hidden z-50">
                         <div className="px-3 py-2 border-b border-[var(--border)] flex items-center justify-between">
-                          <p className="text-sm font-semibold">Notifications</p>
-                          <button onClick={markAllNotificationsRead} className="text-xs text-[var(--accent)] font-medium">Mark all as read</button>
+                          <Link href="/admin/notifications" onClick={() => setShowNotifDropdown(false)} className="text-sm font-semibold">All notifications →</Link>
+                          <button onClick={async () => { try { await markAllNotificationsRead(); } catch { setActionError("Could not mark notifications read."); } }} className="text-xs text-[var(--accent)] font-medium">Mark all as read</button>
                         </div>
                         <div className="max-h-[380px] overflow-y-auto">
+                          {!notifications.length && <p className="p-4 text-sm">You’re all caught up.</p>}
                           {notifications.slice(0, 20).map((n) => (
                             <button
                               key={n.id}
                               onClick={() => {
-                                markNotificationRead(n.id);
+                                void readNotification(n.id);
                                 setShowNotifDropdown(false);
                                 router.push(n.href);
                               }}
@@ -302,7 +322,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
               </header>
 
               <main className="p-3 sm:p-5 lg:p-7 overflow-x-hidden">
-                <div className="admin-content mx-auto w-full">{children}</div>
+                <div className="admin-content mx-auto w-full">{loading && <p role="status" className="mb-4">Loading platform records…</p>}{dataErrors.map(error => <p role="alert" key={error} className="mb-3 p-3 border border-red-200 rounded-xl text-red-700">{error}</p>)}{actionError && <p role="alert" className="text-red-700 mb-3">{actionError}</p>}<Suspense fallback={<p>Loading workspace…</p>}>{children}</Suspense></div>
               </main>
             </div>
 
@@ -325,11 +345,11 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                       {unreadNotifications > 0 && <StatusTag label={String(unreadNotifications)} tone="blue" />}
                     </div>
                     <div className="space-y-2 max-h-[280px] overflow-y-auto">
-                      {notifications.slice(0, 8).map((n) => (
+                      {notifications.filter(n => !n.read).slice(0, 8).map((n) => (
                         <button
                           key={n.id}
                           onClick={() => {
-                            markNotificationRead(n.id);
+                            void readNotification(n.id);
                             router.push(n.href);
                           }}
                           className={`w-full text-left p-2 rounded-lg border ${!n.read ? "bg-[var(--bg-secondary)] border-[#BFDBFE]" : "bg-white border-[var(--border)]"}`}
@@ -351,7 +371,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                         .filter((t) => t.status !== "Resolved")
                         .slice(0, 8)
                         .map((ticket) => (
-                          <Link key={ticket.id} href="/admin/support-chats" className="block p-2 rounded-lg border-[3px] border-[var(--border)] hover:bg-[var(--bg-primary)]">
+                          <Link key={ticket.id} href={`/admin/support-chats?id=${ticket.id}`} className="block p-2 rounded-lg border-[3px] border-[var(--border)] hover:bg-[var(--bg-primary)]">
                             <p className="text-sm text-[var(--ink)] font-medium truncate">{ticket.subject}</p>
                             <div className="mt-1 flex items-center justify-between">
                               <p className="text-xs text-[var(--text-muted)] truncate">{ticket.userName}</p>

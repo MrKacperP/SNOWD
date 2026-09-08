@@ -17,7 +17,7 @@ isOperatorPublic,
 import { ClientProfile,OperatorProfile,ServiceType } from "@/lib/types";
 import { addDays,format } from "date-fns";
 import {
-addDoc,
+writeBatch,
 collection,
 doc,
 getDoc,
@@ -201,12 +201,24 @@ export default function FindOperatorsPage() {
   ]);
 
   // Book an operator — show scheduling modal first
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "credit">("cash");
   const [cashAcknowledged, setCashAcknowledged] = useState(false);
   const [bookingError, setBookingError] = useState("");
+  const [openedInvitation, setOpenedInvitation] = useState(false);
+  useEffect(() => {
+    if (loading || openedInvitation || !profile) return;
+    const operatorId = new URLSearchParams(window.location.search).get("operator");
+    if (!operatorId) return;
+    setOpenedInvitation(true);
+    const operator = operators.find(item => item.uid === operatorId);
+    if (operator && isClientWithinOperatorRadius(clientProfile, operator)) setSchedulingOperator(operator);
+    else setBookingError("This operator is not currently available in your service area.");
+  }, [loading, openedInvitation, profile, operators, clientProfile]);
 
   const bookOperator = async (operator: OperatorProfile) => {
     if (!user?.uid || !profile) return;
     setSchedulingOperator(operator);
+    setPaymentMethod("cash");
     const requestedDate = new URLSearchParams(window.location.search).get("date");
     const validDate = requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate) ? requestedDate : null;
     setCashAcknowledged(false);
@@ -219,46 +231,29 @@ export default function FindOperatorsPage() {
   // Confirm booking after schedule selection
   const confirmBooking = async () => {
     if (!schedulingOperator || !user?.uid || !profile) return;
-    const operator = schedulingOperator;
-    if (!isOperatorPublic(operator) || !isClientWithinOperatorRadius(clientProfile, operator)) {
-      setBookingError("This operator is no longer available in your service area.");
-      return;
-    }
-    const cardRequired = canAcceptPlatformPayments(operator) && (operator.stripeEnabledJobsOnly ?? true);
-    if (!cardRequired && !cashAcknowledged) return;
-    const scheduleMillis = new Date(`${scheduledDate}T${scheduledTime}`).getTime();
-    if (scheduleType === "scheduled" && (!Number.isFinite(scheduleMillis) || scheduleMillis <= Date.now() || scheduledDate > format(addDays(new Date(), 30), "yyyy-MM-dd"))) {
-      setBookingError("Choose a future date and time."); return;
-    }
     setBooking(true);
-
     try {
-      // Check if client already has an active job (one at a time limit)
-      const activeJobsQuery = query(
-        collection(db, "jobs"),
-        where("clientId", "==", user.uid)
-      );
-      const activeJobsSnap = await getDocs(activeJobsQuery);
-      const activeStatuses = ["pending", "accepted", "en-route", "in-progress"];
-      const hasActiveJob = activeJobsSnap.docs.some(d => activeStatuses.includes(d.data().status));
-      if (hasActiveJob) {
-        setBookingError("You already have an active job. Complete or cancel it before requesting another.");
-        setBooking(false);
+      const operatorSnapshot = await getDoc(doc(db, "users", schedulingOperator.uid));
+      const operator = { ...operatorSnapshot.data(), uid: schedulingOperator.uid } as OperatorProfile;
+      if (!operatorSnapshot.exists() || !isOperatorPublic(operator) || !isClientWithinOperatorRadius(clientProfile, operator)) {
+        setBookingError("This operator is no longer available in your service area.");
         return;
       }
-
-      const existingJob = activeJobsSnap.docs.find(item => item.data().operatorId === operator.uid && item.data().chatId);
-      if (existingJob) {
-        router.push(`/dashboard/messages/${existingJob.data().chatId}`);
-        setBooking(false);
-        return;
+      const cardRequired = paymentMethod === "credit" && canAcceptPlatformPayments(operator);
+      if (paymentMethod === "credit" && !cardRequired) { setBookingError("Card payments are no longer available. Select cash to continue."); return; }
+      if (!cardRequired && !cashAcknowledged) return;
+      const scheduleMillis = new Date(`${scheduledDate}T${scheduledTime}`).getTime();
+      if (scheduleType === "scheduled" && (!Number.isFinite(scheduleMillis) || scheduleMillis <= Date.now() || scheduledDate > format(addDays(new Date(), 30), "yyyy-MM-dd"))) {
+        setBookingError("Choose a future date and time."); return;
       }
-
-      // No existing chat — create new job + chat
+      // Each request is its own work order, so clients can schedule overlapping
+      // visits with the same operator or with different operators.
       await createNewJobAndChat(operator);
     } catch (error) {
       setBookingError("Could not request this job. Please try again.");
       console.error("Error booking operator:", error);
+      setBooking(false);
+    } finally {
       setBooking(false);
     }
   };
@@ -270,9 +265,13 @@ export default function FindOperatorsPage() {
 
     try {
       const operatorRequiresCard =
-        canAcceptPlatformPayments(operator) && (operator.stripeEnabledJobsOnly ?? true);
+        paymentMethod === "credit" && canAcceptPlatformPayments(operator);
 
-      const jobRef = await addDoc(collection(db, "jobs"), {
+      const batch = writeBatch(db);
+      const jobRef = doc(collection(db, "jobs"));
+      const chatRef = doc(collection(db, "chats"));
+      batch.set(jobRef, {
+        chatId: chatRef.id,
         clientId: user.uid,
         operatorId: operator.uid,
         status: "pending",
@@ -300,7 +299,7 @@ export default function FindOperatorsPage() {
         updatedAt: Timestamp.now(),
       });
 
-      const chatRef = await addDoc(collection(db, "chats"), {
+      batch.set(chatRef, {
         jobId: jobRef.id,
         participants: [user.uid, operator.uid],
         lastMessage: "Job request sent",
@@ -309,8 +308,6 @@ export default function FindOperatorsPage() {
         createdAt: Timestamp.now(),
       });
 
-      const { updateDoc, doc } = await import("firebase/firestore");
-      await updateDoc(doc(db, "jobs", jobRef.id), { chatId: chatRef.id });
 
       const scheduleInfo = scheduleType === "scheduled"
         ? ` Scheduled for ${format(new Date(scheduledDate), "MMM d")} at ${scheduledTime}.`
@@ -319,7 +316,7 @@ export default function FindOperatorsPage() {
         ? " Card payment is required for this operator."
         : " Cash payment only. The client agreed to pay the operator directly after the work.";
 
-      await addDoc(collection(db, "messages"), {
+      batch.set(doc(collection(db, "messages")), {
         chatId: chatRef.id,
         senderId: user.uid,
         senderName: "snowd.ca",
@@ -328,6 +325,8 @@ export default function FindOperatorsPage() {
         read: false,
         createdAt: Timestamp.now(),
       });
+
+      await batch.commit();
 
       sendAdminNotif({
         type: "job_created",
@@ -484,13 +483,13 @@ export default function FindOperatorsPage() {
       ) : (
         <section className="grid gap-4 sm:grid-cols-2" aria-label="Nearby operators">
           {filteredOperators.map(op => {
-            const cashOnly = !canAcceptPlatformPayments(op) || !(op.stripeEnabledJobsOnly ?? true);
+            const cashOnly = !canAcceptPlatformPayments(op);
             const price = op.pricing?.driveway?.[(clientProfile?.propertyDetails?.propertySize || "medium") as "small" | "medium" | "large"] || 40;
             const distance = getDistanceKm(clientProfile, op);
             return <article key={op.uid} className="overflow-hidden rounded-3xl bg-white border border-[var(--border-color)]">
               <div className="p-5 space-y-4">
                 <div className="flex items-center gap-3"><UserAvatar photoURL={(op as unknown as Record<string,string>).avatar} role="operator" displayName={op.displayName} size={48} /><div className="min-w-0"><h2 className="text-xl font-semibold break-words">{op.businessName || op.displayName}</h2><p className="mt-1 text-sm text-[var(--text-secondary)]">{op.rating ? `${op.rating.toFixed(1)} ★` : "New operator"}{distance !== null ? ` · ${distance.toFixed(1)} km away` : ` · ${op.city}`}</p></div></div>
-                <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-2xl font-semibold">${price}<span className="ml-1 text-sm font-normal text-[var(--text-muted)]">CAD</span></p><span className="rounded-full bg-[#eaf1ee] px-3 py-1.5 text-sm font-medium">{cashOnly ? "Cash only" : "Pay by card"}</span></div>
+                <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-2xl font-semibold">${price}<span className="ml-1 text-sm font-normal text-[var(--text-muted)]">CAD</span></p><span className="rounded-full bg-[#eaf1ee] px-3 py-1.5 text-sm font-medium">{cashOnly ? "Cash only" : "Cash or card"}</span></div>
                 <button onClick={() => bookOperator(op)} disabled={booking} className="btn-primary w-full px-4 py-3">Request help</button>
               </div>
               <details className="operator-details border-t border-[var(--border-color)]"><summary className="cursor-pointer px-5 py-4 text-sm font-semibold">About & options</summary><div className="space-y-4 px-5 pb-5">
@@ -504,6 +503,7 @@ export default function FindOperatorsPage() {
         </section>
       )}
 
+      {bookingError && !schedulingOperator && <p role="alert" className="text-red-700">{bookingError}</p>}
       {/* Scheduling Modal */}
       <Modal isOpen={!!schedulingOperator} onClose={() => setSchedulingOperator(null)} title="When do you need help?" subtitle={schedulingOperator?.businessName || schedulingOperator?.displayName}>
         {schedulingOperator && <div className="space-y-4">
@@ -566,12 +566,13 @@ export default function FindOperatorsPage() {
               )}
 
               <div className="rounded-2xl bg-[#eaf1ee] p-4 text-sm">
-                {canAcceptPlatformPayments(schedulingOperator) && (schedulingOperator.stripeEnabledJobsOnly ?? true) ? <p>Pay securely by card after your request is accepted.</p> : <><p className="font-semibold">Cash only</p><p className="mt-1">Pay the operator directly after the job is done. No card or Stripe account is needed.</p><label className="mt-3 flex items-start gap-3"><input type="checkbox" checked={cashAcknowledged} onChange={event => setCashAcknowledged(event.target.checked)} className="mt-1 h-5 w-5 shrink-0" /><span>I agree to pay the operator in cash after the job is done.</span></label></>}
+                {canAcceptPlatformPayments(schedulingOperator) && <label className="mb-3 block font-semibold">Payment method<select aria-label="Payment method" value={paymentMethod} onChange={event => { setPaymentMethod(event.target.value as "cash" | "credit"); setCashAcknowledged(false); }} className="mt-2 block w-full rounded-xl border bg-white p-3"><option value="cash">Cash after the job</option><option value="credit">Card</option></select></label>}
+                {paymentMethod === "credit" ? <p>Pay securely by card after your request is accepted.</p> : <><p className="font-semibold">Cash only</p><p className="mt-1">Pay the operator directly after the job is done. No card or Stripe account is needed.</p><label className="mt-3 flex items-start gap-3"><input type="checkbox" checked={cashAcknowledged} onChange={event => setCashAcknowledged(event.target.checked)} className="mt-1 h-5 w-5 shrink-0" /><span>I agree to pay the operator in cash after the job is done.</span></label></>}
               </div>
               {bookingError && <p role="alert" className="text-sm text-red-700">{bookingError}</p>}
               <button
                 onClick={confirmBooking}
-                disabled={booking || ((!canAcceptPlatformPayments(schedulingOperator) || !(schedulingOperator.stripeEnabledJobsOnly ?? true)) && !cashAcknowledged)}
+                disabled={booking || (paymentMethod === "cash" && !cashAcknowledged)}
                 className="btn-primary w-full px-4 py-3.5"
               >
                 <MessageSquare className="w-4 h-4" />

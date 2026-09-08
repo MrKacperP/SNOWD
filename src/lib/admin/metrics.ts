@@ -8,8 +8,9 @@ export function dailySeries(rows: Array<{ date: string; value: number }>, days: 
 export function notificationHref(data: Record<string, unknown>): string {
   const meta = (data.meta || {}) as Record<string, unknown>;
   const path = String(meta.path || '');
+  if ((path === '/admin/support-chats' || path === '/admin/chats') && (data.chatId || meta.chatId)) return `${path}?id=${encodeURIComponent(String(data.chatId || meta.chatId))}`;
   if (path === '/admin' || path.startsWith('/admin/')) return path;
-  const id = encodeURIComponent(String(meta.jobId || meta.chatId || data.uid || ''));
+  const id = encodeURIComponent(String(meta.jobId || meta.chatId || data.chatId || data.uid || ''));
   const type = String(data.type || '');
   if (type === 'document_uploaded' || type.includes('account_') || type === 'verification') return data.uid ? `/admin/users/${encodeURIComponent(String(data.uid))}` : '/admin/verifications';
   if (type.includes('job')) return `/admin/jobs${id ? `?id=${id}` : ''}`;

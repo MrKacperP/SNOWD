@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect } from "react";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
+import React, { useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, X } from "lucide-react";
 
 const baseCard =
@@ -80,9 +81,14 @@ export function ConfirmModal({
   description: string;
   confirmLabel: string;
   confirmTone: "danger" | "approve";
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
   onClose: () => void;
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
+  useDialogFocus(open, dialogRef);
+  const close = () => { if (!pending) { setError(""); onClose(); } };
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -95,23 +101,24 @@ export function ConfirmModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center px-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[80] flex items-center justify-center px-4" onClick={close}>
       <div className="absolute inset-0 bg-black/35" />
-      <div className="relative w-full max-w-md rounded-xl bg-white border-[3px] border-[var(--border)] shadow-[var(--surface-shadow)] p-5" onClick={(e) => e.stopPropagation()}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} className="relative w-full max-w-md rounded-xl bg-white border-[3px] border-[var(--border)] shadow-[var(--surface-shadow)] p-5" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3">
           <h3 className="text-lg font-semibold text-[var(--ink)]">{title}</h3>
-          <button onClick={onClose} className="p-1 rounded hover:bg-[var(--bg-secondary)]">
+          <button aria-label="Close dialog" onClick={close} className="p-1 rounded hover:bg-[var(--bg-secondary)]">
             <X className="w-4 h-4 text-[var(--text-muted)]" />
           </button>
         </div>
-        <p className="text-sm text-[var(--text-muted)] mt-2">{description}</p>
+        <p className="text-sm text-[var(--text-muted)] mt-2">{description}</p>{error && <p role="alert" className="text-red-700 mt-2">{error}</p>}
         <div className="mt-5 flex items-center justify-end gap-2">
-          <button onClick={onClose} className="px-3 py-2 text-sm rounded-lg border-[3px] border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-primary)]">Cancel</button>
+          <button onClick={close} className="px-3 py-2 text-sm rounded-lg border-[3px] border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-primary)]">Cancel</button>
           <button
-            onClick={onConfirm}
+            disabled={pending}
+            onClick={async () => { setPending(true); setError(""); try { await onConfirm(); } catch (error) { setError((error as Error).message || "Could not save changes."); } finally { setPending(false); } }}
             className={`px-3 py-2 text-sm rounded-lg text-white font-semibold ${confirmTone === "danger" ? "bg-[#DC2626] hover:bg-[#B91C1C]" : "bg-[#16A34A] hover:bg-[#15803D]"}`}
           >
-            {confirmLabel}
+            {pending ? "Working…" : confirmLabel}
           </button>
         </div>
       </div>
@@ -130,6 +137,8 @@ export function SideDrawer({
   onClose: () => void;
   children: React.ReactNode;
 }) {
+  const drawerRef = useRef<HTMLElement>(null);
+  useDialogFocus(open, drawerRef);
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -145,13 +154,13 @@ export function SideDrawer({
         className={`fixed inset-0 z-[70] bg-black/25 transition-opacity ${open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
         onClick={onClose}
       />
-      <aside
+      <aside ref={drawerRef} role="dialog" aria-modal={open || undefined} aria-label={title} tabIndex={-1} inert={!open}
         className={`fixed top-0 right-0 z-[75] h-full w-[540px] max-w-[92vw] bg-white border-l border-[var(--border)] shadow-[var(--surface-shadow)] transition-transform ${open ? "translate-x-0" : "translate-x-full"}`}
       >
         <div className="h-full flex flex-col">
           <div className="p-4 border-b border-[var(--border)] flex items-center justify-between">
             <h3 className="font-semibold text-[var(--ink)]">{title}</h3>
-            <button onClick={onClose} className="p-1 rounded hover:bg-[var(--bg-secondary)]"><X className="w-4 h-4 text-[var(--text-muted)]" /></button>
+            <button aria-label="Close dialog" onClick={onClose} className="p-1 rounded hover:bg-[var(--bg-secondary)]"><X className="w-4 h-4 text-[var(--text-muted)]" /></button>
           </div>
           <div className="p-4 overflow-y-auto flex-1">{children}</div>
         </div>

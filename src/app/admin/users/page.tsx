@@ -214,7 +214,7 @@ export default function AdminUsersPage() {
         description="This will change the user account status between Active and Suspended."
         confirmLabel="Confirm"
         confirmTone="danger"
-        onConfirm={() => suspendTarget && toggleSuspend(suspendTarget)}
+        onConfirm={async () => { if (suspendTarget) await toggleSuspend(suspendTarget); }}
         onClose={() => setSuspendTarget(null)}
       />
     </div>

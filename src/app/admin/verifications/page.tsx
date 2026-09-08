@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+import { useAuth } from "@/context/AuthContext";
 import React, { useMemo, useState } from "react";
 import { Check, Eye, RotateCcw, X } from "lucide-react";
 import { AdminCard, ConfirmModal, EmptyState, SideDrawer, StatusTag, tableCell, tableHead } from "@/components/admin/AdminUI";
@@ -8,6 +10,7 @@ import { useAdminData } from "@/components/admin/AdminProvider";
 type RejectionReasonCategory = "document-quality" | "name-mismatch" | "expired-id" | "unsupported-document" | "other";
 
 export default function AdminVerificationsPage() {
+  const { user, profile } = useAuth();
   const { verifications, reviewVerification, reopenVerification } = useAdminData();
   const [tab, setTab] = useState<"Pending" | "Reviewed">("Pending");
   const [approveTargetId, setApproveTargetId] = useState<string | null>(null);
@@ -55,7 +58,7 @@ export default function AdminVerificationsPage() {
                 <p>{[item.address, item.city, item.province, item.postalCode].filter(Boolean).join(", ") || "No address on profile"}</p>
                 <p>Submitted {item.submissionDate}</p>
               </div>
-              {item.idPhotoUrl && <img src={item.idPhotoUrl} alt={`${item.userName} identity document`} className="h-28 w-full rounded-xl border border-[var(--border)] object-cover" />}
+              {item.idPhotoUrl && <Image unoptimized width={600} height={360} src={item.idPhotoUrl} alt={`${item.userName} identity document`} className="h-28 w-full rounded-xl border border-[var(--border)] object-cover" />}
               <div className="flex items-center gap-2">
                 <button onClick={() => setSelectedId(item.id)} className="h-9 rounded-xl border border-[var(--border)] px-3 text-sm font-semibold inline-flex items-center gap-1"><Eye className="w-4 h-4" /> Details</button>
                 <button
@@ -136,7 +139,7 @@ export default function AdminVerificationsPage() {
         {selected && <div className="space-y-4">
           <div className="flex items-center gap-3"><div className="grid h-12 w-12 place-items-center rounded-full bg-[var(--bg-secondary)] text-sm font-bold text-[var(--accent)]">{selected.userAvatar}</div><div><h3 className="font-semibold text-[var(--ink)]">{selected.userName}</h3><p className="text-xs text-[var(--text-muted)]">{selected.role} · {selected.status}</p></div></div>
           <AdminCard className="p-3"><p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Account information</p><dl className="mt-2 space-y-2 text-sm"><div className="flex justify-between gap-3"><dt className="text-[var(--text-muted)]">Email</dt><dd className="text-right">{selected.email || "-"}</dd></div><div className="flex justify-between gap-3"><dt className="text-[var(--text-muted)]">Phone</dt><dd className="text-right">{selected.phone || "-"}</dd></div><div className="flex justify-between gap-3"><dt className="text-[var(--text-muted)]">Address</dt><dd className="text-right">{[selected.address, selected.city, selected.province, selected.postalCode].filter(Boolean).join(", ") || "-"}</dd></div></dl></AdminCard>
-          <div><p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Submitted identity document</p>{selected.idPhotoUrl ? <a href={selected.idPhotoUrl} target="_blank" rel="noreferrer"><img src={selected.idPhotoUrl} alt={`${selected.userName} identity document`} className="max-h-[360px] w-full rounded-2xl border border-[var(--border)] object-contain bg-[var(--bg-primary)]" /></a> : <EmptyState title="No ID uploaded" subtitle="This account has no identity document attached." />}</div>
+          <div><p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Submitted identity document</p>{selected.idPhotoUrl ? <a href={selected.idPhotoUrl} target="_blank" rel="noreferrer"><Image unoptimized width={800} height={600} src={selected.idPhotoUrl} alt={`${selected.userName} identity document`} className="max-h-[360px] w-full rounded-2xl border border-[var(--border)] object-contain bg-[var(--bg-primary)]" /></a> : <EmptyState title="No ID uploaded" subtitle="This account has no identity document attached." />}</div>
           {selected.status !== "Pending" && <button onClick={() => setReopenTargetId(selected.id)} className="h-10 w-full rounded-xl bg-[var(--accent)] text-sm font-semibold text-white inline-flex items-center justify-center gap-2"><RotateCcw className="w-4 h-4" /> Reopen for review</button>}
         </div>}
       </SideDrawer>
@@ -149,10 +152,10 @@ export default function AdminVerificationsPage() {
         description="This will approve the submitted verification and make the operator publicly discoverable if all other profile gates are met."
         confirmLabel="Approve"
         confirmTone="approve"
-        onConfirm={() => {
+        onConfirm={async () => {
           if (!approveTargetId) return;
-          reviewVerification(approveTargetId, "Approved", "Admin", {
-            reviewedByUid: "admin",
+          await reviewVerification(approveTargetId, "Approved", profile?.displayName || "Admin", {
+            reviewedByUid: user?.uid,
             where: "/admin/verifications",
           });
           setApproveTargetId(null);
@@ -197,19 +200,19 @@ export default function AdminVerificationsPage() {
             <div className="mt-5 flex justify-end gap-2">
               <button onClick={() => setRejectTargetId(null)} className="h-9 px-3 rounded-lg border-[3px] border-[var(--border)] text-sm">Cancel</button>
               <button
-                onClick={() => {
+                onClick={async () => {
                   const note = rejectNote.trim();
                   if (!note) {
                     setRejectError("Admin note is required for rejected verifications.");
                     return;
                   }
-                  reviewVerification(rejectTargetId, "Rejected", "Admin", {
+                  try { await reviewVerification(rejectTargetId, "Rejected", profile?.displayName || "Admin", {
                     reasonCategory: rejectCategory,
                     reasonNote: note,
-                    reviewedByUid: "admin",
+                    reviewedByUid: user?.uid,
                     where: "/admin/verifications",
                   });
-                  setRejectTargetId(null);
+                  setRejectTargetId(null); } catch { setRejectError("Could not save the review. Please retry."); }
                 }}
                 className="h-9 px-3 rounded-lg bg-[#DC2626] text-white text-sm font-semibold"
               >

@@ -161,7 +161,11 @@ export default function MessagesPage() {
 
               return (
                 <li key={chat.id}>
-                  <Link href={`/dashboard/messages/${chat.id}`} className="block px-4 py-4 transition hover:bg-[#f7f7f4] focus:bg-[#f7f7f4] focus:outline-none">
+                  <Link
+                    href={`/dashboard/messages/${chat.id}`}
+                    aria-label={`${unread > 0 ? "Unread conversation with" : "Conversation with"} ${title}${unread > 0 ? `, ${unread} new message${unread === 1 ? "" : "s"}` : ""}`}
+                    className={`block border-l-4 px-4 py-4 transition focus:outline-none ${unread > 0 ? "border-[var(--accent)] bg-[var(--accent-soft)] hover:bg-[#fff4d9] focus:bg-[#fff4d9]" : "border-transparent hover:bg-[#f7f7f4] focus:bg-[#f7f7f4]"}`}
+                  >
                     <div className="flex items-start gap-3">
                       <UserAvatar
                         photoURL={(chat.otherUser as unknown as Record<string, string> | undefined)?.avatar}
@@ -169,21 +173,22 @@ export default function MessagesPage() {
                         displayName={title}
                         size={48}
                         rounded="2xl"
-                        className="border border-[var(--border-color)] bg-[var(--bg-secondary)]"
+                        className={`border bg-[var(--bg-secondary)] ${unread > 0 ? "border-[var(--accent)] ring-2 ring-[var(--accent-soft)]" : "border-[var(--border-color)]"}`}
                       />
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-3">
-                          <p className="truncate text-base font-semibold text-[var(--text-primary)]">
-                            {title}
-                          </p>
+                          <div className="flex min-w-0 items-center gap-2">
+                            <p className={`truncate text-base text-[var(--text-primary)] ${unread > 0 ? "font-extrabold" : "font-semibold"}`}>{title}</p>
+                            {unread > 0 && <span className="shrink-0 rounded-full bg-[var(--accent)] px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-[var(--ink)]">Unread</span>}
+                          </div>
                           <p className="shrink-0 text-xs text-[var(--text-muted)]">
                             {formatChatTime(chat.lastMessageTime)}
                           </p>
                         </div>
 
                         <div className="mt-1 flex items-center justify-between gap-3">
-                          <p className={`truncate text-sm leading-6 ${unread > 0 ? "font-semibold text-[var(--text-primary)]" : "text-[var(--text-muted)]"}`}>
+                          <p className={`truncate text-sm leading-6 ${unread > 0 ? "font-bold text-[var(--text-primary)]" : "text-[var(--text-muted)]"}`}>
                             {chat.lastMessage || "No messages yet"}
                           </p>
                           {unread > 0 && (

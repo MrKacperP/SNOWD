@@ -182,6 +182,7 @@ export type MessageType = "text" | "system" | "payment" | "eta-update" | "status
 export interface ChatMessage {
   id: string;
   chatId: string;
+  jobId?: string;
   senderId: string;
   senderName: string;
   type: MessageType;

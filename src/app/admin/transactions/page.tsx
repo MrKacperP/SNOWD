@@ -1,5 +1,7 @@
 "use client";
 
+import { useAdminSelection } from "@/hooks/useAdminSelection";
+import Link from "next/link";
 import React, { useMemo, useState } from "react";
 import { AdminCard, EmptyState, SideDrawer, SortHeader, StatusTag, tableCell, tableHead } from "@/components/admin/AdminUI";
 import { useAdminData } from "@/components/admin/AdminProvider";
@@ -14,10 +16,12 @@ export default function AdminTransactionsPage() {
   const [dateRange, setDateRange] = useState("Last 30 days");
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useAdminSelection();
 
   const rows = useMemo(() => {
-    let list = [...transactions];
+    const days = Number(dateRange.match(/\d+/)?.[0] || 30);
+    const cutoff = new Date(); cutoff.setUTCHours(0, 0, 0, 0); cutoff.setUTCDate(cutoff.getUTCDate() - days + 1);
+    let list = transactions.filter(t => t.date && new Date(t.date) >= cutoff && new Date(t.date) <= new Date());
     if (query.trim()) {
       const q = query.toLowerCase();
       list = list.filter((t) => [t.id, t.fromUser, t.toUser].join(" ").toLowerCase().includes(q));
@@ -32,12 +36,12 @@ export default function AdminTransactionsPage() {
       return 0;
     });
     return list;
-  }, [transactions, query, type, status, sortKey, sortDir]);
+  }, [transactions, query, type, status, sortKey, sortDir, dateRange]);
 
   const selected = rows.find((r) => r.id === selectedId) || transactions.find((r) => r.id === selectedId) || null;
 
   const summary = {
-    totalVolume: rows.filter((t) => t.status === "Completed").reduce((sum, t) => sum + t.amount, 0),
+    totalVolume: rows.filter((t) => t.status === "Completed" && t.type === "Payment").reduce((sum, t) => sum + t.amount, 0),
     totalRefunds: rows.filter((t) => t.type === "Refund").reduce((sum, t) => sum + t.amount, 0),
     pendingAmount: rows.filter((t) => t.status === "Pending").reduce((sum, t) => sum + t.amount, 0),
   };
@@ -54,7 +58,7 @@ export default function AdminTransactionsPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
-        <StatusTag label={`Total Volume: $${summary.totalVolume.toFixed(2)}`} tone="blue" />
+        <StatusTag label={`Collected CAD: $${summary.totalVolume.toFixed(2)}`} tone="blue" />
         <StatusTag label={`Total Refunds: $${summary.totalRefunds.toFixed(2)}`} tone="yellow" />
         <StatusTag label={`Pending Amount: $${summary.pendingAmount.toFixed(2)}`} tone="red" />
       </div>
@@ -69,7 +73,7 @@ export default function AdminTransactionsPage() {
           <select value={type} onChange={(e) => setType(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] text-sm bg-white">
             <option>All</option>
             <option>Payment</option>
-            <option>Refund</option>
+            <option>Refund</option><option>Released hold</option>
             <option>Fee</option>
           </select>
           <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] text-sm bg-white">
@@ -135,7 +139,7 @@ export default function AdminTransactionsPage() {
               <p className="text-sm mt-1">{selected.linkedJobId || "No linked job"}</p>
             </AdminCard>
             <AdminCard className="p-3">
-              <p className="text-sm font-semibold">Dispute History</p>
+              <p className="text-sm font-semibold">Linked records</p><div className="flex flex-wrap gap-2 my-2">{selected.linkedJobId && <Link href={`/admin/jobs?id=${selected.linkedJobId}`} className="admin-secondary">Open job & report</Link>}{selected.clientId && <Link className="admin-secondary" href={`/admin/users/${selected.clientId}`}>Client account</Link>}{selected.operatorId && <Link className="admin-secondary" href={`/admin/users/${selected.operatorId}`}>Operator account</Link>}</div>
               <div className="text-sm mt-1 text-[var(--text-secondary)] space-y-1">
                 {(selected.disputeHistory || []).length ? (selected.disputeHistory || []).map((d) => <p key={d}>• {d}</p>) : <p>No disputes on record.</p>}
               </div>

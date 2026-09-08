@@ -204,7 +204,7 @@ export default function PublicProfilePage() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      {isOperator && <p className="mb-4 rounded-xl bg-blue-50 p-4 text-sm font-semibold">{canAcceptPlatformPayments(operatorProfile) && (operatorProfile.stripeEnabledJobsOnly ?? true) ? "Card payments available" : "Cash jobs only. Pay the operator in cash after the job."}</p>}
+      {isOperator && <p className="mb-4 rounded-xl bg-blue-50 p-4 text-sm font-semibold">{canAcceptPlatformPayments(operatorProfile) ? "Cash or card payments available" : "Cash jobs only. Pay the operator in cash after the job."}</p>}
       {/* Back button */}
       <button
         onClick={() => router.back()}
@@ -303,8 +303,7 @@ export default function PublicProfilePage() {
                 <>
                   <button
                     onClick={() => {
-                      // In future: create a chat/job with this operator
-                      router.push("/dashboard/find");
+                      router.push(`/dashboard/find?operator=${encodeURIComponent(uid)}`);
                     }}
                     className="btn-primary flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold"
                   >

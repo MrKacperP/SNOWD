@@ -48,7 +48,7 @@ export default function AdminClaimsPage() {
                   <p className="text-xs text-[var(--text-muted)]">Evidence</p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {claim.evidence.map((ev) => (
-                      <div key={ev} className="w-24 h-16 rounded-lg border-[3px] border-[var(--border)] bg-[var(--bg-secondary)] text-xs text-[var(--text-muted)] flex items-center justify-center">{ev}</div>
+                      <a key={ev} href={ev} target="_blank" rel="noopener noreferrer" className="admin-secondary">Open evidence upload ↗</a>
                     ))}
                   </div>
                 </div>
@@ -70,12 +70,12 @@ export default function AdminClaimsPage() {
       <ConfirmModal
         open={!!pendingAction}
         title={pendingAction?.action || "Confirm action"}
-        description="This action will update the claim workflow and notify relevant users."
+        description="This records the review decision. Approving a claim does not issue a refund."
         confirmLabel="Confirm"
         confirmTone={pendingAction?.action === "Approve Claim" ? "approve" : "danger"}
-        onConfirm={() => {
+        onConfirm={async () => {
           if (!pendingAction) return;
-          resolveClaim(pendingAction.id, pendingAction.action);
+          await resolveClaim(pendingAction.id, pendingAction.action);
           setPendingAction(null);
         }}
         onClose={() => setPendingAction(null)}

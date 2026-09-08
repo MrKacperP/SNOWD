@@ -1,5 +1,7 @@
 "use client";
 
+import { Conversation } from "@/components/admin/Conversation";
+import { useAdminSelection } from "@/hooks/useAdminSelection";
 import React, { useMemo, useState } from "react";
 import { Send } from "lucide-react";
 import { AdminCard, EmptyState, StatusTag } from "@/components/admin/AdminUI";
@@ -9,7 +11,7 @@ const urgencyOrder: Record<string, number> = { High: 0, Medium: 1, Low: 2 };
 
 export default function AdminSupportPage() {
   const { supportTickets, setSupportTicketStatus, sendSupportReply } = useAdminData();
-  const [selectedId, setSelectedId] = useState<string | null>(supportTickets[0]?.id || null);
+  const [selectedId, setSelectedId] = useAdminSelection();
   const [message, setMessage] = useState("");
 
   const sorted = useMemo(() => {
@@ -18,10 +20,14 @@ export default function AdminSupportPage() {
 
   const selected = sorted.find((t) => t.id === selectedId) || sorted[0] || null;
 
-  const handleSend = () => {
-    if (!selected || !message.trim()) return;
-    sendSupportReply(selected.id, message.trim());
-    setMessage("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const handleSend = async () => {
+    if (!selected || !message.trim() || busy) return;
+    setBusy(true); setError("");
+    try { await sendSupportReply(selected.id, message.trim()); setMessage(""); }
+    catch { setError("Reply could not be sent. Your draft has been kept."); }
+    finally { setBusy(false); }
   };
 
   return (
@@ -64,7 +70,7 @@ export default function AdminSupportPage() {
               </div>
               <select
                 value={selected.status}
-                onChange={(e) => setSupportTicketStatus(selected.id, e.target.value as "Open" | "Waiting" | "Resolved")}
+                onChange={async (e) => { try { await setSupportTicketStatus(selected.id, e.target.value as "Open" | "Waiting" | "Resolved"); } catch { setError("Could not save ticket status."); } }}
                 className="h-9 px-2.5 rounded-lg border-[3px] border-[var(--border)] bg-white text-sm"
               >
                 <option>Open</option>
@@ -73,16 +79,9 @@ export default function AdminSupportPage() {
               </select>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto py-3 space-y-2 pr-1">
-              {selected.thread.map((entry) => (
-                <div key={entry.id} className={`flex ${entry.sender === "user" ? "justify-start" : "justify-end"}`}>
-                  <div className={`max-w-[min(82%,38rem)] break-words px-3 py-2 rounded-2xl text-sm ${entry.sender === "user" ? "bg-[var(--bg-secondary)] text-[#1F2937]" : "bg-[#eaf0fa] text-[#1E3A8A]"}`}>
-                    <p className="whitespace-pre-wrap">{entry.text}</p>
-                    <p className="text-[11px] text-[var(--text-muted)] mt-1">{entry.time}</p>
-                  </div>
-                </div>
-              ))}
+              <Conversation key={selected.id} id={selected.id} support />
             </div>
-            <div className="pt-3 border-t border-[var(--border)]">
+            <div className="pt-3 border-t border-[var(--border)]">{error && <p role="alert" className="text-red-700">{error}</p>}
               <div className="flex items-end gap-2">
                 <textarea
                   value={message}
@@ -90,8 +89,8 @@ export default function AdminSupportPage() {
                   placeholder="Reply to user"
                   className="min-h-[72px] max-h-32 flex-1 resize-none rounded-2xl border border-[var(--border)] bg-white p-2.5 text-sm"
                 />
-                <button onClick={handleSend} className="h-10 px-3 rounded-lg bg-[var(--accent)] text-white inline-flex items-center gap-1.5 text-sm font-semibold">
-                  <Send className="w-4 h-4" /> Send
+                <button disabled={busy || !message.trim()} onClick={handleSend} className="h-10 px-3 rounded-lg bg-[var(--accent)] text-white inline-flex items-center gap-1.5 text-sm font-semibold">
+                  <Send className="w-4 h-4" /> {busy ? "Sending…" : "Send"}
                 </button>
               </div>
             </div>

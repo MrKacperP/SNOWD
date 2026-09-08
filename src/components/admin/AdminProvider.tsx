@@ -5,8 +5,7 @@ import {
   addDoc,
   collection,
   doc,
-  getDocs,
-  onSnapshot,
+    onSnapshot,
   orderBy,
   query,
   serverTimestamp,
@@ -75,14 +74,10 @@ const toIsoDate = (value: unknown): string => {
 
 const toDateShort = (value: unknown): string => toIsoDate(value).slice(0, 10);
 
-const toTimeLabel = (value: unknown): string => {
-  const iso = toIsoDate(value);
-  const date = new Date(iso);
-  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-};
-
 const toRelativeLabel = (value: unknown): string => {
-  const date = new Date(toIsoDate(value));
+  const iso = toIsoDate(value);
+  if (!iso) return "Time unavailable";
+  const date = new Date(iso);
   const diffMs = Date.now() - date.getTime();
   if (diffMs < 60_000) return "Just now";
   if (diffMs < 3_600_000) return `${Math.floor(diffMs / 60_000)}m ago`;
@@ -107,6 +102,8 @@ const titleCase = (value: string): string =>
     .join(" ");
 
 interface AdminContextValue {
+  dataErrors: string[];
+  loading: boolean;
   users: AdminUser[];
   setUsers: React.Dispatch<React.SetStateAction<AdminUser[]>>;
   verifications: VerificationItem[];
@@ -130,20 +127,17 @@ interface AdminContextValue {
   analyticsRevenue: Array<{ date: string; value: number }>;
   analyticsCategories: Array<{ category: string; value: number }>;
   analyticsSupportResolution: Array<{ name: string; value: number }>;
-  markNotificationRead: (id: string) => void;
-  markAllNotificationsRead: () => void;
+  markNotificationRead: (id: string) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
   pushNotification: (n: Omit<AdminNotification, "id" | "createdAt" | "read" | "priority" | "actionRequired"> & Partial<Pick<AdminNotification, "priority" | "actionRequired">>) => void;
-  setSupportTicketStatus: (id: string, status: SupportTicket["status"]) => void;
-  sendSupportReply: (id: string, message: string) => void;
-  reviewVerification: (id: string, decision: Decision, reviewedBy: string, options?: ReviewVerificationOptions) => void;
+  setSupportTicketStatus: (id: string, status: SupportTicket["status"]) => Promise<void>;
+  sendSupportReply: (id: string, message: string) => Promise<void>;
+  reviewVerification: (id: string, decision: Decision, reviewedBy: string, options?: ReviewVerificationOptions) => Promise<void>;
   reopenVerification: (id: string) => Promise<void>;
-  flagJob: (id: string) => void;
-  deleteJob: (id: string) => void;
+  flagJob: (id: string) => Promise<void>;
+  deleteJob: (id: string) => Promise<void>;
   updateJob: (id: string, changes: { status?: string; operatorNotes?: string; specialInstructions?: string }) => Promise<void>;
-  updateEmployeeRole: (id: string, role: EmployeeItem["role"]) => void;
-  deactivateEmployee: (id: string) => void;
-  inviteEmployee: (name: string, email: string, role: EmployeeItem["role"]) => void;
-  resolveClaim: (id: string, decision: "Approve Claim" | "Reject Claim" | "Request More Info") => void;
+  resolveClaim: (id: string, decision: "Approve Claim" | "Reject Claim" | "Request More Info") => Promise<void>;
 }
 
 const AdminContext = createContext<AdminContextValue | null>(null);
@@ -151,6 +145,8 @@ const AdminContext = createContext<AdminContextValue | null>(null);
 const createId = (prefix: string) => `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
 
 export function AdminProvider({ children }: { children: React.ReactNode }) {
+  const [dataErrors, setDataErrors] = useState<string[]>(isFirebaseConfigured ? [] : ["Firebase is not configured."]);
+  const [loading, setLoading] = useState(isFirebaseConfigured);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [verifications, setVerifications] = useState<VerificationItem[]>([]);
   const [jobs, setJobs] = useState<JobItem[]>([]);
@@ -179,6 +175,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isFirebaseConfigured || !db) return;
+    const loaded = new Set<string>();
+    const expected = 9;
+    const finish = (name: string) => { loaded.add(name); if (loaded.size >= expected) setLoading(false); };
+    const failure = (name: string) => () => { finish(name); setDataErrors(prev => [...new Set([...prev, `${name} could not load. Check access and connection, then refresh.`])]); };
 
     const unsubUsers = onSnapshot(collection(db, "users"), (snap) => {
       const mappedUsers: AdminUser[] = snap.docs.map((d) => {
@@ -267,7 +267,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         });
 
       setVerifications(verificationRows);
-    });
+      finish("Users");
+    }, failure("Users"));
 
     const unsubJobs = onSnapshot(collection(db, "jobs"), (snap) => {
       const mapped: JobItem[] = snap.docs.map((d) => {
@@ -291,7 +292,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
           clientId: String(data.clientId || ""), address: String(data.address || ""),
           operatorNotes: String(data.operatorNotes || ""), completionPhotoUrl: String(data.completionPhotoUrl || ""),
           scheduledDate: toDateShort(data.scheduledDate), completionTime: toIsoDate(data.completionTime),
-          price: Number(data.price || 0), paymentStatus: String(data.paymentStatus || "pending"),
+          rawStatus: statusRaw, price: Number(data.price || 0), paymentStatus: String(data.paymentStatus || "pending"),
           status,
           datePosted: toDateShort(data.createdAt),
           description: String(data.specialInstructions || "No description provided."),
@@ -301,29 +302,13 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         };
       });
       setJobs(mapped);
-    });
+      finish("Jobs");
+    }, failure("Jobs"));
 
-    const unsubChats = onSnapshot(collection(db, "chats"), async (snap) => {
-      const mapped: ChatItem[] = await Promise.all(snap.docs.map(async (d) => {
+    const unsubChats = onSnapshot(collection(db, "chats"), (snap) => {
+      const mapped: ChatItem[] = snap.docs.map((d) => {
         const data = d.data() as Record<string, unknown>;
         const participants = Array.isArray(data.participants) ? (data.participants as string[]) : [];
-        let messages: ChatItem["messages"] = [];
-        try {
-          const messageSnap = await getDocs(
-            query(collection(db, "chats", d.id, "messages"), orderBy("createdAt", "asc"))
-          );
-          messages = messageSnap.docs.map((messageDoc) => {
-            const message = messageDoc.data() as Record<string, unknown>;
-            return {
-              id: messageDoc.id,
-              sender: String(message.senderId || "") === participants[0] ? "A" : "B",
-              text: String(message.text || message.content || ""),
-              time: toTimeLabel(message.createdAt),
-            };
-          });
-        } catch (error) {
-          console.warn(`[AdminProvider] Failed to load chat ${d.id}`, error);
-        }
         return {
           id: d.id,
           participantA: participants[0] || "User A",
@@ -333,75 +318,31 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
           lastMessage: String(data.lastMessage || ""),
           timestamp: toIsoDate(data.lastMessageTime),
           unreadCount: 0,
-          messages,
+          messages: [],
         };
-      }));
+      });
       setChats(mapped);
-    });
+      finish("Chats");
+    }, failure("Chats"));
 
-    const unsubSupport = onSnapshot(
-      collection(db, "supportChats"),
-      async (snap) => {
-        const mapped = await Promise.all(
-          snap.docs.map(async (d) => {
-            const data = d.data() as Record<string, unknown>;
-            const statusRaw = String(data.status || "open").toLowerCase();
-            const status: SupportTicket["status"] =
-              statusRaw === "resolved" || statusRaw === "closed"
-                ? "Resolved"
-                : statusRaw === "in-progress"
-                  ? "Waiting"
-                  : "Open";
-
-            let thread: SupportTicket["thread"] = [];
-            let unreadReplies = 0;
-            try {
-              const messagesSnap = await getDocs(
-                query(collection(db, "supportChats", d.id, "messages"), orderBy("createdAt", "asc"))
-              );
-              thread = messagesSnap.docs.map((msgDoc) => {
-                const msg = msgDoc.data() as Record<string, unknown>;
-                const senderId = String(msg.senderId || "");
-                const isUserMessage = senderId !== "SNOWD_ADMIN";
-                const isRead = Boolean(msg.read);
-                if (isUserMessage && !isRead) unreadReplies += 1;
-                return {
-                  id: msgDoc.id,
-                  sender: senderId === "SNOWD_ADMIN" ? "admin" : "user",
-                  text: String(msg.content || ""),
-                  time: toTimeLabel(msg.createdAt),
-                };
-              });
-            } catch (error) {
-              console.error("[AdminProvider] Failed to load support thread", error);
-            }
-
-            const sortTime = new Date(toIsoDate(data.lastMessageTime || data.updatedAt || data.createdAt)).getTime();
-
-            return {
-              id: d.id,
-              userName: String(data.userName || "User"),
-              userId: typeof data.userId === "string" ? data.userId : undefined,
-              createdAt: toIsoDate(data.createdAt),
-              userAvatar: initials(String(data.userName || "U")),
-              subject: String(data.subject || data.problemCategory || data.lastMessage || "Support ticket"),
-              status,
-              urgency: "Medium",
-              lastMessageAgo: toRelativeLabel(data.lastMessageTime || data.updatedAt),
-              unreadReplies,
-              thread,
-              sortTime,
-            } as SupportTicket & { sortTime: number };
-          })
-        );
-
-        mapped.sort((a, b) => {
-          return b.sortTime - a.sortTime;
-        });
-
-        setSupportTickets(mapped.map(({ sortTime: _sortTime, ...ticket }) => ticket));
-      }
-    );
+    const supportListeners = new Map<string, () => void>();
+    const unsubSupport = onSnapshot(collection(db, "supportChats"), snap => {
+      const ids = new Set(snap.docs.map(d => d.id));
+      supportListeners.forEach((unsubscribe, id) => { if (!ids.has(id)) { unsubscribe(); supportListeners.delete(id); } });
+      setSupportTickets(prev => snap.docs.map(d => {
+        const data = d.data();
+        const existing = prev.find(t => t.id === d.id);
+        return { id: d.id, userId: String(data.userId || data.uid || d.id.replace(/^support_/, "")), userName: String(data.userName || "User"), userAvatar: initials(String(data.userName || "U")), subject: String(data.subject || data.problemCategory || "Support conversation"), status: ["resolved", "closed"].includes(data.status) ? "Resolved" : data.status === "in-progress" ? "Waiting" : "Open", urgency: ["High", "Medium", "Low"].includes(data.urgency) ? data.urgency : "Medium", lastMessageAgo: toRelativeLabel(data.lastMessageTime || data.updatedAt), createdAt: toIsoDate(data.createdAt), unreadReplies: existing?.unreadReplies || 0, thread: existing?.thread || [] } as SupportTicket;
+      }));
+      snap.docs.forEach(d => {
+        if (supportListeners.has(d.id)) return;
+        supportListeners.set(d.id, onSnapshot(collection(db, "supportChats", d.id, "messages"), messages => {
+          const unreadReplies = messages.docs.filter(m => m.data().senderId !== "SNOWD_ADMIN" && !m.data().read).length;
+          setSupportTickets(prev => prev.map(t => t.id === d.id ? { ...t, unreadReplies } : t));
+        }, failure("Support messages")));
+      });
+      finish("Support");
+    }, failure("Support"));
 
     const unsubTransactions = onSnapshot(collection(db, "transactions"), (snap) => {
       const mapped: TransactionItem[] = snap.docs.map((d) => {
@@ -415,15 +356,16 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
           fromUser: String(data.clientName || data.clientId || "-"),
           toUser: String(data.operatorName || data.operatorId || "-"),
           amount: Number(data.amount || 0) / 100,
-          type: statusRaw === "refunded" ? "Refund" : "Payment",
+          type: statusRaw === "refunded" ? (data.stripePaymentIntentId && !data.completedAt ? "Released hold" : "Refund") : "Payment",
           status,
-          date: toDateShort(data.createdAt),
+          date: toDateShort(data.completedAt || data.confirmedAt || data.updatedAt || data.createdAt),
           linkedJobId: String(data.jobId || ""),
           disputeHistory: [],
         };
       });
       setTransactions(mapped);
-    });
+      finish("Transactions");
+    }, failure("Transactions"));
 
     const unsubClaims = onSnapshot(collection(db, "claims"), (snap) => {
       const mapped: ClaimItem[] = snap.docs.map((d) => {
@@ -447,7 +389,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         };
       });
       setClaims(mapped);
-    });
+      finish("Claims");
+    }, failure("Claims"));
 
     const unsubNotifications = onSnapshot(
       query(collection(db, "adminNotifications"), orderBy("createdAt", "desc")),
@@ -477,7 +420,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             href: notificationHref(data),
             priority: data.priority === "high" || data.priority === "medium" || data.priority === "low"
               ? data.priority as AdminNotificationPriority
-              : type === "verification" || type === "claim" ? "high" : type === "support" ? "medium" : "low",
+              : ["verification", "document_uploaded", "claim"].includes(type) ? "high" : type === "support" ? "medium" : "low",
             actionRequired: typeof data.actionRequired === "boolean"
               ? data.actionRequired
               : !Boolean(data.read) && ["verification", "support", "claim"].includes(type),
@@ -485,7 +428,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         });
 
         setNotifications(mapped);
-      }
+        finish("Notifications");
+      }, failure("Notifications")
     );
 
     const unsubAdminActivity = onSnapshot(
@@ -526,7 +470,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         if (code !== "permission-denied") {
           console.warn("[AdminProvider] adminActivity listener unavailable", error);
         }
-      }
+        finish("AdminActivity");
+      }, failure("AdminActivity")
     );
 
     const unsubCalls = onSnapshot(collection(db, "calls"), (snap) => {
@@ -559,13 +504,15 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         };
       });
       setCalls(mapped);
-    });
+      finish("Calls");
+    }, failure("Calls"));
 
     return () => {
       unsubUsers();
       unsubJobs();
       unsubChats();
       unsubSupport();
+      supportListeners.forEach(unsubscribe => unsubscribe());
       unsubTransactions();
       unsubClaims();
       unsubNotifications();
@@ -608,20 +555,20 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   };
 
   const markNotificationRead = async (id: string) => {
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
     if (isFirebaseConfigured && db) {
       await updateDoc(doc(db, "adminNotifications", id), { read: true });
     }
   };
 
   const markAllNotificationsRead = async () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     if (isFirebaseConfigured && db) {
       const unread = notifications.filter((n) => !n.read);
       if (!unread.length) return;
-      const batch = writeBatch(db);
-      unread.forEach((n) => batch.update(doc(db, "adminNotifications", n.id), { read: true }));
-      await batch.commit();
+      for (let i = 0; i < unread.length; i += 400) {
+        const batch = writeBatch(db);
+        unread.slice(i, i + 400).forEach(n => batch.update(doc(db, "adminNotifications", n.id), { read: true }));
+        await batch.commit();
+      }
     }
   };
 
@@ -631,77 +578,17 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     reviewedBy: string,
     options?: ReviewVerificationOptions
   ) => {
-    const reviewedDate = new Date().toISOString().slice(0, 10);
-    const normalizedReasonNote = options?.reasonNote?.trim() || "";
-    const normalizedReasonCategory = options?.reasonCategory;
-    setVerifications((prev) =>
-      prev.map((v) =>
-        v.id === id
-          ? {
-              ...v,
-              status: decision,
-              rejectionReasonCategory: decision === "Rejected" ? normalizedReasonCategory : undefined,
-              rejectionReasonNote: decision === "Rejected" ? normalizedReasonNote : undefined,
-              reviewedByUid: options?.reviewedByUid,
-              reviewedBy,
-              reviewedDate,
-            }
-          : v
-      )
-    );
-
-    const target = verifications.find((v) => v.id === id);
-    if (target) {
-      await pushNotification({
-        type: "verification",
-        message: `${target.userName} verification ${decision.toLowerCase()}`,
-        href: "/admin/verifications",
-      });
-      await appendAdminActivityEvent({
-        userName: target.userName,
-        userAvatar: target.userAvatar,
-        description:
-          decision === "Rejected" && normalizedReasonNote
-            ? `verification was rejected (${normalizedReasonNote})`
-            : `verification was ${decision.toLowerCase()}`,
-        timestamp: new Date().toISOString(),
-        type: "Verification",
-        href: "/admin/verifications",
-        actorUid: options?.reviewedByUid,
-        actorRole: options?.reviewedByUid ? "Admin" : "System",
-        actionType: decision === "Approved" ? "verification-approved" : "verification-rejected",
-        targetId: target.userId,
-        where: options?.where || "/admin/verifications",
-      });
-
-      if (isFirebaseConfigured && db) {
-        await addDoc(collection(db, "notifications"), {
-          uid: target.userId,
-          type: decision === "Approved" ? "account_approved" : "account_rejected",
-          title: decision === "Approved" ? "Account approved" : "Verification needs attention",
-          message:
-            decision === "Approved"
-              ? "Your ID has been approved. Your account is now public for client discovery."
-              : normalizedReasonNote
-                ? `Your ID verification was rejected: ${normalizedReasonNote}`
-                : "Your ID verification was rejected. Please upload a clearer document.",
-          read: false,
-          createdAt: serverTimestamp(),
-        });
-
-        await updateDoc(doc(db, "users", target.userId), {
-          verificationStatus: decision.toLowerCase(),
-          idVerified: decision === "Approved",
-          accountApproved: decision === "Approved",
-          approvedAt: decision === "Approved" ? new Date() : null,
-          rejectedAt: decision === "Rejected" ? new Date() : null,
-          approvedByAdmin: decision === "Approved" ? reviewedBy : null,
-          reviewedByAdminUid: options?.reviewedByUid || null,
-          verificationReasonCategory: decision === "Rejected" ? normalizedReasonCategory || "other" : null,
-          verificationNote: decision === "Rejected" ? normalizedReasonNote : "",
-        });
-      }
-    }
+    const target = verifications.find(v => v.id === id);
+    if (!target) throw new Error("Verification not found.");
+    const approved = decision === "Approved";
+    const note = options?.reasonNote?.trim() || "";
+    if (!approved && !note) throw new Error("A rejection reason is required.");
+    const batch = writeBatch(db);
+    batch.update(doc(db, "users", target.userId), { verificationStatus: decision.toLowerCase(), idVerified: approved, accountApproved: approved, approvedAt: approved ? serverTimestamp() : null, rejectedAt: approved ? null : serverTimestamp(), approvedByAdmin: approved ? reviewedBy : null, reviewedByAdminUid: options?.reviewedByUid || null, verificationReasonCategory: approved ? null : options?.reasonCategory || "other", verificationNote: note });
+    batch.set(doc(collection(db, "notifications")), { uid: target.userId, type: approved ? "account_approved" : "account_rejected", title: approved ? "Account approved" : "Verification needs attention", message: approved ? "Your ID verification has been approved." : note, read: false, createdAt: serverTimestamp() });
+    batch.set(doc(collection(db, "adminActivity")), { userName: reviewedBy, userAvatar: "AD", actorUid: options?.reviewedByUid || "", type: "Verification", description: `${decision} verification for ${target.userName}${note ? `: ${note}` : ""}`, targetId: target.userId, href: `/admin/users/${target.userId}`, createdAt: serverTimestamp() });
+    batch.set(doc(collection(db, "adminNotifications")), { type: "verification", message: `${target.userName}: verification ${decision.toLowerCase()}`, actionRequired: false, read: false, meta: { path: `/admin/users/${target.userId}` }, createdAt: serverTimestamp() });
+    await batch.commit();
   };
 
   const reopenVerification = async (id: string) => {
@@ -720,134 +607,32 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   };
 
   const setSupportTicketStatus = async (id: string, status: SupportTicket["status"]) => {
-    setSupportTickets((prev) => prev.map((t) => (t.id === id ? { ...t, status, unreadReplies: status === "Resolved" ? 0 : t.unreadReplies } : t)));
-    await pushNotification({
-      type: "support",
-      message: `Support ticket ${id.toUpperCase()} moved to ${status}`,
-      href: "/admin/support-chats",
-    });
-    if (isFirebaseConfigured && db) {
-      await updateDoc(doc(db, "supportChats", id), {
-        status: status === "Resolved" ? "resolved" : status === "Waiting" ? "in-progress" : "open",
-        updatedAt: new Date(),
-      });
-    }
+    await updateDoc(doc(db, "supportChats", id), { status: status === "Resolved" ? "resolved" : status === "Waiting" ? "in-progress" : "open", updatedAt: serverTimestamp() });
   };
-
   const sendSupportReply = async (id: string, message: string) => {
-    setSupportTickets((prev) =>
-      prev.map((t) =>
-        t.id === id
-          ? {
-              ...t,
-              lastMessageAgo: "Just now",
-              unreadReplies: 0,
-              thread: [...t.thread, { id: createId("st"), sender: "admin", text: message, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }],
-            }
-          : t
-      )
-    );
-    if (isFirebaseConfigured && db) {
-      await addDoc(collection(db, "supportChats", id, "messages"), {
-        senderId: "SNOWD_ADMIN",
-        senderName: "SNOWD Support",
-        content: message,
-        createdAt: new Date(),
-        read: false,
-      });
-      await updateDoc(doc(db, "supportChats", id), {
-        lastMessage: message,
-        lastMessageTime: new Date(),
-        updatedAt: new Date(),
-      });
-    }
+    const batch = writeBatch(db);
+    batch.set(doc(collection(db, "supportChats", id, "messages")), { senderId: "SNOWD_ADMIN", senderName: "SNOWD Support", content: message, createdAt: serverTimestamp(), read: false });
+    batch.update(doc(db, "supportChats", id), { lastMessage: message, lastMessageTime: serverTimestamp(), updatedAt: serverTimestamp() });
+    await batch.commit();
   };
-
   const flagJob = async (id: string) => {
     await adminJobRequest(id, "PATCH", { adminFlagged: true });
-    setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, status: "Flagged" } : j)));
-    await pushNotification({ type: "job", message: `Job ${id.toUpperCase()} was flagged`, href: "/admin/jobs" });
   };
-
+  const updateJob = async (id: string, changes: { status?: string; operatorNotes?: string; specialInstructions?: string }) => { await adminJobRequest(id, "PATCH", changes); };
   const deleteJob = async (id: string) => {
     await adminJobRequest(id, "DELETE");
-    setJobs((prev) => prev.filter((j) => j.id !== id));
-    await pushNotification({ type: "job", message: `Job ${id.toUpperCase()} was deleted`, href: "/admin/jobs" });
-  };
-
-  const updateJob = async (id: string, changes: { status?: string; operatorNotes?: string; specialInstructions?: string }) => {
-    await adminJobRequest(id, "PATCH", changes);
-    setJobs((prev) => prev.map((job) => job.id === id ? { ...job, ...changes, status: changes.status === "completed" ? "Completed" : changes.status === "cancelled" ? "Cancelled" : changes.status === "accepted" || changes.status === "in-progress" || changes.status === "en-route" ? "In Progress" : job.status } : job));
   };
 
   const resolveClaim = async (id: string, decision: "Approve Claim" | "Reject Claim" | "Request More Info") => {
-    setClaims((prev) =>
-      prev.map((c) =>
-        c.id === id
-          ? {
-              ...c,
-              status: decision === "Request More Info" ? "Open" : "Resolved",
-            }
-          : c
-      )
-    );
-    await pushNotification({
-      type: "claim",
-      message: `Claim ${id.toUpperCase()}: ${decision}`,
-      href: "/admin/claims",
-    });
-    if (isFirebaseConfigured && db) {
-      await updateDoc(doc(db, "claims", id), {
-        status: decision === "Request More Info" ? "under-review" : "resolved",
-        updatedAt: new Date(),
-      });
-    }
-  };
-
-  const updateEmployeeRole = async (id: string, role: EmployeeItem["role"]) => {
-    setEmployees((prev) => prev.map((e) => (e.id === id ? { ...e, role } : e)));
-    if (isFirebaseConfigured && db) {
-      await updateDoc(doc(db, "users", id), {
-        role: role === "Super Admin" ? "admin" : "employee",
-      });
-    }
-  };
-
-  const deactivateEmployee = async (id: string) => {
-    setEmployees((prev) => prev.map((e) => (e.id === id ? { ...e, status: "Inactive" } : e)));
-    await pushNotification({ type: "system", message: `Employee ${id.toUpperCase()} deactivated`, href: "/admin/employees" });
-    if (isFirebaseConfigured && db) {
-      await updateDoc(doc(db, "users", id), {
-        disabled: true,
-      });
-    }
-  };
-
-  const inviteEmployee = async (name: string, email: string, role: EmployeeItem["role"]) => {
-    const employee: EmployeeItem = {
-      id: createId("e"),
-      avatar: name.slice(0, 2).toUpperCase(),
-      name,
-      email,
-      role,
-      status: "Active",
-      lastLogin: "Never",
-    };
-    setEmployees((prev) => [employee, ...prev]);
-    await pushNotification({ type: "system", message: `Employee invited: ${name}`, href: "/admin/employees" });
-    if (isFirebaseConfigured && db) {
-      await addDoc(collection(db, "employeeInvites"), {
-        name,
-        email,
-        role,
-        createdAt: serverTimestamp(),
-      });
-    }
+    const batch = writeBatch(db);
+    batch.update(doc(db, "claims", id), { status: decision === "Request More Info" ? "under-review" : "resolved", decision, updatedAt: serverTimestamp() });
+    batch.set(doc(collection(db, "adminNotifications")), { type: "claim", message: `Claim ${id}: ${decision}`, read: false, actionRequired: decision === "Request More Info", meta: { path: "/admin/claims" }, createdAt: serverTimestamp() });
+    await batch.commit();
   };
 
   const activityChart = useMemo(() => dailySeries(activityEvents.map(e => ({ date: e.timestamp, value: 1 })), 30), [activityEvents]);
   const analyticsUsers = useMemo(() => dailySeries(users.map(u => ({ date: u.joinDate, value: 1 })), 90), [users]);
-  const analyticsRevenue = useMemo(() => dailySeries(transactions.filter(t => t.status === "Completed").map(t => ({ date: t.date, value: t.type === "Refund" ? -t.amount : t.amount })), 90), [transactions]);
+  const analyticsRevenue = useMemo(() => dailySeries(transactions.filter(t => t.status === "Completed" && t.type === "Payment").map(t => ({ date: t.date, value: t.type === "Refund" ? -t.amount : t.amount })), 90), [transactions]);
 
   const analyticsCategories = useMemo(() => {
     const counts = jobs.reduce<Record<string, number>>((acc, job) => {
@@ -867,6 +652,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   }, [supportTickets]);
 
   const value: AdminContextValue = {
+    dataErrors,
+    loading,
     users,
     setUsers,
     verifications,
@@ -900,9 +687,6 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     flagJob,
     deleteJob,
     updateJob,
-    updateEmployeeRole,
-    deactivateEmployee,
-    inviteEmployee,
     resolveClaim,
   };
 

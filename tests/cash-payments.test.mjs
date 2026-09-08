@@ -118,3 +118,57 @@ test('repeated cash actions do not duplicate notices and cancelled jobs reject a
     assert.equal(f.writes.length, 0);
   }
 });
+
+test('cancelled cash jobs can record money returned without reopening work', async () => {
+  const f = cashActionFixture({ status: 'cancelled', paymentStatus: 'paid' });
+  assert.equal((await f.run('refund')).status, 200);
+  assert.equal(f.writes[0].data.paymentStatus, 'refunded');
+  assert.equal(f.writes[0].data.status, undefined);
+  assert.match(f.writes.find(w => w.path.startsWith('messages/')).data.content, /remains cancelled/);
+});
+
+function cancelFixture({ uid = 'client', status = 'in-progress', method = 'cash', payment = 'requires_capture', failRelease = false } = {}) {
+  const writes = [];
+  let releases = 0;
+  const job = { clientId: 'client', operatorId: 'operator', chatId: 'chat', status, paymentMethod: method, paymentStatus: 'pending', ...(method === 'credit' ? { stripePaymentIntentId: 'pi_1' } : {}) };
+  const transaction = { get: async () => ({ data: () => job }), update: (path, data) => writes.push({ path, data }), set: (path, data) => writes.push({ path, data }) };
+  const route = load('src/app/api/jobs/cancel/route.ts', {
+    'next/server': { NextResponse: { json: (body, options) => ({ body, status: options?.status || 200 }) } },
+    'firebase-admin/firestore': { FieldValue: { serverTimestamp: () => 'now', increment: n => n } },
+    '@/lib/firebaseAdmin': { getAdminAuth: () => ({ verifyIdToken: async () => ({ uid }) }), getAdminDb: () => ({ doc: path => path, runTransaction: fn => fn(transaction) }) },
+    '@/lib/stripe': { getStripe: () => ({ paymentIntents: { retrieve: async () => ({ id: 'pi_1', status: payment, metadata: { jobId: 'job', clientId: 'client', operatorId: 'operator' } }), cancel: async () => { releases++; if (failRelease) throw Error(); return { status: 'canceled' }; } } }) },
+    '@/lib/stripePaymentState': { syncStripePayment: async () => {} },
+  });
+  return { writes, releases: () => releases, run: () => route.POST({ headers: new Map([['authorization', 'Bearer valid']]), json: async () => ({ jobId: 'job' }) }) };
+}
+test('either participant can cancel every unfinished job and notify the other party', async () => {
+  for (const uid of ['client', 'operator']) for (const status of ['pending', 'accepted', 'en-route', 'in-progress']) {
+    const f = cancelFixture({ uid, status });
+    assert.equal((await f.run()).status, 200);
+    assert.equal(f.writes[0].data.status, 'cancelled');
+    assert.equal(f.writes[0].data.paymentStatus, undefined);
+    assert.equal(f.writes.find(w => w.path.startsWith('notifications/')).data.uid, uid === 'client' ? 'operator' : 'client');
+    assert.equal(f.releases(), 0);
+  }
+});
+test('completed jobs and unrelated callers cannot cancel', async () => {
+  for (const options of [{ status: 'completed' }, { uid: 'stranger' }]) {
+    const f = cancelFixture(options);
+    assert.ok((await f.run()).status >= 400);
+    assert.equal(f.writes.length, 0);
+  }
+});
+test('card cancellation releases holds, retries safely and reports captured payments', async () => {
+  const f = cancelFixture({ method: 'credit' });
+  assert.equal((await f.run()).status, 200);
+  assert.equal(f.releases(), 1);
+  const retry = cancelFixture({ method: 'credit', status: 'cancelled' });
+  assert.equal((await retry.run()).status, 200);
+  assert.equal(retry.writes.length, 0);
+  assert.equal(retry.releases(), 1);
+  const failed = cancelFixture({ method: 'credit', failRelease: true });
+  assert.match((await failed.run()).body.warning, /could not be released/);
+  const captured = cancelFixture({ method: 'credit', payment: 'succeeded' });
+  assert.match((await captured.run()).body.warning, /already captured/);
+  assert.equal(captured.releases(), 0);
+});

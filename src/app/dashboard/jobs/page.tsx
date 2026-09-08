@@ -70,7 +70,8 @@ export default function JobsPage() {
     return () => unsubscribe();
   }, [profile?.uid]);
 
-  const activeJob = useMemo(() => jobs.find((job) => ["en-route", "in-progress"].includes(job.status)), [jobs]);
+  const activeJobs = useMemo(() => jobs.filter((job) => ["en-route", "in-progress"].includes(job.status)), [jobs]);
+  const activeJob = activeJobs[0];
   const acceptedJobs = useMemo(() => jobs.filter((job) => job.status === "accepted"), [jobs]);
   const pendingJobs = useMemo(() => jobs.filter((job) => job.status === "pending"), [jobs]);
   const completedJobs = useMemo(() => jobs.filter((job) => job.status === "completed"), [jobs]);
@@ -107,14 +108,14 @@ export default function JobsPage() {
 
   const filteredJobs = useMemo(() => {
     if (filter === "queue") return queueJobs;
-    if (filter === "active") return activeJob ? [activeJob] : [];
+    if (filter === "active") return activeJobs;
     if (filter === "completed") return completedJobs;
     return [...jobs].sort((a, b) => {
       const aTime = a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
       const bTime = b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
       return bTime - aTime;
     });
-  }, [activeJob, completedJobs, filter, jobs, queueJobs]);
+  }, [activeJobs, completedJobs, filter, jobs, queueJobs]);
 
   const getJobDistance = (job: Job): number | null => {
     if (!profile?.lat || !profile?.lng) return null;
@@ -137,6 +138,7 @@ export default function JobsPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-5">
       <PageHeader title="Work orders" description="Your current work and next requests." />
+      <Link href="/dashboard/clients" className="inline-block rounded-xl bg-[#eaf1ee] px-4 py-3 font-semibold">Find nearby clients</Link>
 
       {activeJob ? (
         <Link href={`/dashboard/messages/${activeJob.chatId}`} className="surface-card block overflow-hidden p-5 md:p-6">
@@ -165,9 +167,9 @@ export default function JobsPage() {
         </Link>
       ) : null}
 
-      {activeJob && queueJobs.length > 0 ? (
+      {activeJobs.length > 1 ? (
         <div className="rounded-[1.4rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-          <span className="font-semibold">One active job at a time.</span> Complete the current work order before starting the next queued request.
+          <span className="font-semibold">{activeJobs.length} active work orders.</span> Each order has its own schedule and conversation.
         </div>
       ) : null}
 
@@ -176,7 +178,7 @@ export default function JobsPage() {
           {([
             { key: "all" as const, label: "All", count: jobs.length },
             { key: "queue" as const, label: "Queue", count: queueJobs.length },
-            { key: "active" as const, label: "Active", count: activeJob ? 1 : 0 },
+            { key: "active" as const, label: "Active", count: activeJobs.length },
             { key: "completed" as const, label: "Done", count: completedJobs.length },
           ]).map((tab) => (
             <button

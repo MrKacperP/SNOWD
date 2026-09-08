@@ -24,9 +24,9 @@ async function manage(request: NextRequest, context: { params: Promise<{ uid: st
       // Disable first: a partial failure must never leave a deleted profile with an active login.
       try { await getAdminAuth().updateUser(uid, { disabled: true }); await getAdminAuth().revokeRefreshTokens(uid); }
       catch (error) { if ((error as { code?: string }).code !== 'auth/user-not-found') throw error; }
-      await db.recursiveDelete(ref);
       try { await getAdminAuth().deleteUser(uid); }
       catch (error) { if ((error as { code?: string }).code !== 'auth/user-not-found') throw error; }
+      await db.recursiveDelete(ref);
     } else {
       const body = await request.json();
       const allowed = ['displayName', 'email', 'phone', 'bio', 'role', 'disabled'];

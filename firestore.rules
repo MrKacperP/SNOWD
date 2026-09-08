@@ -4,7 +4,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     function isSignedIn() {
-      return request.auth != null;
+      return request.auth != null && (!exists(/databases/$(database)/documents/users/$(request.auth.uid)) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get("disabled", false) != true);
     }
 
     function isSelf(uid) {
@@ -35,6 +35,7 @@ service cloud.firestore {
       return isSelf(userId)
         && !changedUserKeys().hasAny([
           "role",
+          "disabled",
           "stripeConnectAccountId",
           "stripeAccountStatus",
           "stripeReady",
@@ -73,14 +74,14 @@ service cloud.firestore {
       allow read: if isSelf(userId);
       allow read: if isAdminOrEmployee();
       allow read: if isSignedIn() && resource.data.role in ["client", "operator"];
-      allow create: if isAdminOrEmployee() || (isSelf(userId) &&
+      allow create: if isAdmin() || (isSelf(userId) &&
         request.resource.data.role in ["client", "operator"] &&
         (request.resource.data.role == "client" || request.resource.data.get("idVerified", false) == false) &&
         request.resource.data.get("stripeConnectAccountId", "") == "" &&
         request.resource.data.get("stripeAccountStatus", "pending") != "connected" &&
         request.resource.data.get("stripeReady", false) == false);
-      allow delete: if isSelf(userId) || isAdminOrEmployee();
-      allow update: if isAdminOrEmployee() || selfCanUpdateUser(userId);
+      allow delete: if isSelf(userId) || isAdmin();
+      allow update: if isAdmin() || (isAdminOrEmployee() && !changedUserKeys().hasAny(["role", "disabled", "employeePermissions"])) || selfCanUpdateUser(userId);
     }
 
     // Retains account continuity when a user starts over with the same email.
@@ -120,6 +121,9 @@ service cloud.firestore {
         && request.resource.data.get("stripePaymentIntentId", "") == ""
         && !request.resource.data.keys().hasAny(["cashConfirmedBy", "cashConfirmedAt", "cashPaymentDeferredAt", "cashRefundedBy", "cashRefundedAt"]);
       allow update: if isParticipant(resource.data)
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(["status"]) ||
+          (resource.data.status != "completed" && request.resource.data.status != "cancelled" &&
+            (resource.data.status != "cancelled" || request.resource.data.status == "pending")))
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(["clientId", "operatorId", "stripePaymentIntentId", "paymentCapturedAt", "paymentMethod", "cashConfirmedBy", "cashConfirmedAt", "cashPaymentDeferredAt", "cashRefundedBy", "cashRefundedAt", "paymentStatus"])
         && (resource.data.paymentMethod == "cash" && resource.data.get("stripePaymentIntentId", "") == "" ||
           !request.resource.data.diff(resource.data).affectedKeys().hasAny(["paymentStatus", "price"]))
@@ -153,7 +157,7 @@ service cloud.firestore {
           request.resource.data.senderId in [request.auth.uid, "system"])
       ) &&
       (request.resource.data.chatId is string &&
-        isParticipant(get(/databases/$(database)/documents/chats/$(request.resource.data.chatId)).data));
+        isParticipant(getAfter(/databases/$(database)/documents/chats/$(request.resource.data.chatId)).data));
       allow update: if isAdminOrEmployee() ||
         (
           resource.data.chatId is string &&
@@ -246,6 +250,11 @@ service cloud.firestore {
         (request.auth.uid == resource.data.uid || isAdminOrEmployee());
       allow create: if isAdminOrEmployee();
       allow delete: if isAdmin();
+    }
+
+    match /calls/{callId} {
+      allow read: if isAdminOrEmployee();
+      allow update: if isAdminOrEmployee() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["notes", "updatedAt"]);
     }
 
     // ── Site Visits ────────────────────────────────────────────────────────

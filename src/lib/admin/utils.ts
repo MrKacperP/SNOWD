@@ -1,4 +1,5 @@
 export function relativeTime(iso: string) {
+  if (!iso || Number.isNaN(new Date(iso).getTime())) return "Time unavailable";
   const diffMs = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diffMs / 60000);
   if (mins < 1) return "just now";
@@ -18,7 +19,7 @@ export function csvFromRows<T extends Record<string, unknown>>(rows: T[]) {
       headers
         .map((h) => {
           const value = row[h] ?? "";
-          const safe = String(value).replaceAll('"', '""');
+          const safe = (/^[=+@\-\t\r]/.test(String(value)) ? `'${String(value)}` : String(value)).replaceAll('"', '""');
           return `"${safe}"`;
         })
         .join(",")

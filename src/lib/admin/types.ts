@@ -90,6 +90,7 @@ export interface JobItem {
   completionTime?: string;
   price?: number;
   paymentStatus?: string;
+  rawStatus?: string;
   status: "Open" | "In Progress" | "Completed" | "Flagged" | "Cancelled";
   datePosted: string;
   description: string;
@@ -153,7 +154,7 @@ export interface TransactionItem {
   fromUser: string;
   toUser: string;
   amount: number;
-  type: "Payment" | "Refund" | "Fee";
+  type: "Payment" | "Refund" | "Fee" | "Released hold";
   status: "Completed" | "Pending" | "Failed";
   date: string;
   linkedJobId?: string;

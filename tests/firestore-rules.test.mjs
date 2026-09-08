@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import fs from 'node:fs';
 import { initializeTestEnvironment, assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
-import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, writeBatch } from 'firebase/firestore';
 
 test('Firestore enforces verified cash listings, chat access, and server-owned payments and cash completion', { skip: !process.env.FIRESTORE_EMULATOR_HOST }, async () => {
   const [host, port] = process.env.FIRESTORE_EMULATOR_HOST.split(':');
@@ -18,7 +18,13 @@ test('Firestore enforces verified cash listings, chat access, and server-owned p
     const operator = env.authenticatedContext('operator').firestore();
     const stranger = env.authenticatedContext('stranger').firestore();
     const job = { clientId: 'client', operatorId: 'operator', status: 'pending', paymentStatus: 'pending', paymentMethod: 'cash', price: 100 };
+    const booking = writeBatch(client);
+    booking.set(doc(client, 'jobs/batch-job'), { ...job, chatId: 'batch-chat' });
+    booking.set(doc(client, 'chats/batch-chat'), { jobId: 'batch-job', participants: ['client', 'operator'] });
+    booking.set(doc(client, 'messages/batch-message'), { chatId: 'batch-chat', senderId: 'client', content: 'Cash booking requested' });
+    await assertSucceeds(booking.commit());
     await assertSucceeds(setDoc(doc(client, 'jobs/cash'), job));
+    await assertFails(updateDoc(doc(client, 'jobs/cash'), { status: 'cancelled' }));
     await assertSucceeds(getDoc(doc(operator, 'jobs/cash')));
     await assertFails(setDoc(doc(client, 'jobs/forged-cash'), { ...job, cashConfirmedBy: 'operator' }));
     await assertFails(updateDoc(doc(operator, 'jobs/cash'), { paymentStatus: 'paid' }));
@@ -37,6 +43,8 @@ test('Firestore enforces verified cash listings, chat access, and server-owned p
       await updateDoc(doc(context.firestore(), 'jobs/cash'), { status: 'completed' });
     });
     await assertSucceeds(updateDoc(doc(client, 'jobs/cash'), { reviewSubmitted: true }));
+    await assertFails(updateDoc(doc(client, 'jobs/cash'), { status: 'pending' }));
+    await assertFails(updateDoc(doc(client, 'jobs/cash'), { status: 'cancelled' }));
     await assertFails(updateDoc(doc(operator, 'jobs/cash'), { price: 1 }));
 
     await assertFails(getDoc(doc(stranger, 'jobs/cash')));

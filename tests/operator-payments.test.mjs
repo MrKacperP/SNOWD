@@ -165,3 +165,14 @@ test('a delayed authorization response cannot downgrade captured or released fun
     assert.equal(writes.length, 0);
   }
 });
+
+test('radius calculation handles zero coordinates, invalid coordinates and the exact boundary', () => {
+  const operator = { lat: 0, lng: 0, serviceRadius: 10 };
+  const client = { lat: 0.05, lng: 0 };
+  const boundary = discovery.getDistanceKm(client, operator);
+  assert.equal(discovery.isClientWithinOperatorRadius(client, { ...operator, serviceRadius: boundary }), true);
+  assert.equal(discovery.isClientWithinOperatorRadius(client, { ...operator, serviceRadius: boundary - 0.001 }), false);
+  assert.equal(discovery.getDistanceKm({ lat: 91, lng: 0 }, operator), null);
+  assert.equal(discovery.getDistanceKm({ lat: 0, lng: -181 }, operator), null);
+  assert.equal(discovery.isClientWithinOperatorRadius({}, operator), false);
+});

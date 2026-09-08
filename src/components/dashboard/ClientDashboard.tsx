@@ -6,7 +6,7 @@ import { db } from "@/lib/firebase";
 import { ClientProfile,Job,UserProfile } from "@/lib/types";
 import { stripeConnectFetch } from "@/lib/stripeConnectClient";
 import { format } from "date-fns";
-import { collection,doc,getDoc,getDocs,query,updateDoc,where } from "firebase/firestore";
+import { collection,doc,getDoc,getDocs,query,where } from "firebase/firestore";
 import { ArrowRight,Calendar,CreditCard,MapPin,MessageCircle,Snowflake,User,X } from "lucide-react";
 import Link from "next/link";
 import { useEffect,useState } from "react";
@@ -89,27 +89,14 @@ export default function ClientDashboard() {
 
   const cancelJob = async (jobId: string) => {
     const job = activeJobs.find((item) => item.id === jobId);
-    if (!job || job.status === "in-progress") return;
-    if (!job || !confirm("Are you sure you want to cancel this job? Any held card payment will be released.")) return;
+    if (!job || ["completed", "cancelled"].includes(job.status)) return;
+    if (!job || !confirm("Are you sure you want to cancel this job? Any held card payment will be released. Cash already exchanged must be settled directly with the operator.")) return;
     setCancellingJob(jobId);
     try {
-      if (job.stripePaymentIntentId) {
-        const response = await stripeConnectFetch("/api/stripe/cancel-payment", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ paymentIntentId: job.stripePaymentIntentId }),
-        });
-        const result = await response.json();
-        if (!response.ok || result.status !== "canceled") {
-          throw new Error(result.error || "Could not release the payment hold.");
-        }
-      }
-      await updateDoc(doc(db, "jobs", jobId), {
-        status: "cancelled",
-        cancelledAt: new Date(),
-        cancelledBy: profile?.uid,
-        updatedAt: new Date(),
-      });
+      const response = await stripeConnectFetch("/api/jobs/cancel", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jobId }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not cancel this job.");
+      if (result.warning) alert(result.warning);
       setActiveJobs((jobs) => jobs.filter((j) => j.id !== jobId));
     } catch (error) {
       console.error("Error cancelling job:", error);
@@ -188,7 +175,7 @@ export default function ClientDashboard() {
                   </div>
                   <StatusBadge status={job.status} />
                 </Link>
-                {job.status !== "in-progress" && job.paymentStatus !== "paid" && (
+                {!["completed", "cancelled"].includes(job.status) && (
                   <button onClick={() => cancelJob(job.id)} disabled={cancellingJob === job.id} aria-label="Cancel job" className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-[var(--text-muted)] transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50"><X className="h-4 w-4" /></button>
                 )}
               </div>

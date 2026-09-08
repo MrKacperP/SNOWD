@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       const job = snapshot.data() as Job;
       if (uid !== (action === "defer" ? job.clientId : job.operatorId)) return { error: "You cannot perform this action for this job.", status: 403 };
       if (job.paymentMethod !== "cash" || job.stripePaymentIntentId || !Number.isFinite(job.price) || job.price <= 0) return { error: "A valid cash job is required.", status: 409 };
-      if (job.status === "cancelled") return { error: "This job is cancelled.", status: 409 };
+      if (job.status === "cancelled" && action !== "refund") return { error: "This job is cancelled.", status: 409 };
       const now = FieldValue.serverTimestamp();
       let message: string;
       let title: string;
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
         transaction.update(ref, { paymentStatus: "refunded", cashRefundedAt: now, cashRefundedBy: uid, updatedAt: now });
         transaction.set(db.doc(`transactions/${jobId}-cash`), { jobId, clientId: job.clientId, operatorId: job.operatorId, chatId: job.chatId || "", amount: Math.round(job.price * 100), paymentMethod: "cash", status: "refunded", refundedAt: now, refundedBy: uid, updatedAt: now }, { merge: true });
         title = "Cash refund recorded";
-        message = `The operator confirmed that $${job.price} CAD was returned to you in cash. No electronic refund was issued. Your unfinished job remains open; cancel it if the work is no longer needed.`;
+        message = `The operator confirmed that $${job.price} CAD was returned to you in cash. No electronic refund was issued. ${job.status === "cancelled" ? "Your job remains cancelled." : "Your unfinished job remains open; cancel it if the work is no longer needed."}`;
       }
       const recipient = action === "defer" ? job.operatorId : job.clientId;
       transaction.set(db.doc(`notifications/${jobId}-cash-${action}`), { uid: recipient, type: "payment", title, message, jobId, chatId: job.chatId || "", read: false, createdAt: now });

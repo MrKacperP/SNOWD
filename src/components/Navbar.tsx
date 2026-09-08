@@ -38,15 +38,23 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname,useRouter } from "next/navigation";
 import { useEffect,useMemo,useRef,useState } from "react";
+import { formatDistanceToNow } from "date-fns";
 
 type NotificationItem = {
   id: string;
   chatId?: string;
+  operatorId?: string;
   type?: string;
   title?: string;
   message?: string;
   read?: boolean;
   createdAt?: { seconds?: number };
+  preview?: string;
+};
+
+const formatNotificationTime = (createdAt?: { seconds?: number }) => {
+  if (!createdAt?.seconds) return "Just now";
+  return formatDistanceToNow(new Date(createdAt.seconds * 1000), { addSuffix: true });
 };
 
 export default function Navbar() {
@@ -313,12 +321,17 @@ export default function Navbar() {
                   notifications.map((notification) => (
                     <button
                       key={notification.id}
-                      onClick={() => { markNotificationRead(notification.id); if (notification.chatId) { setNotifOpen(false); router.push(`/dashboard/messages/${encodeURIComponent(notification.chatId)}`); } }}
-                      className={`w-full border-b border-[var(--border-soft)] px-4 py-3 text-left last:border-b-0 ${notification.read ? "bg-white" : "bg-[var(--accent-soft)]"}`}
+                      onClick={() => { markNotificationRead(notification.id); if (notification.type === "booking-invite" && notification.operatorId) { setNotifOpen(false); router.push(`/dashboard/find?operator=${encodeURIComponent(notification.operatorId)}`); } else if (notification.chatId) { setNotifOpen(false); router.push(`/dashboard/messages/${encodeURIComponent(notification.chatId)}`); } }}
+                      aria-label={`${notification.read ? "Read" : "Unread"} notification: ${notificationTitle(notification)}`}
+                      className={`w-full border-b border-[var(--border-soft)] border-l-4 px-4 py-3 text-left transition last:border-b-0 hover:bg-[var(--bg-secondary)] ${notification.read ? "border-l-transparent bg-white" : "border-l-[var(--accent)] bg-[var(--accent-soft)]"}`}
                     >
-                      <span className="flex items-center gap-3 text-sm font-semibold leading-5 text-[var(--text-primary)]">
-                        {!notification.read && <span aria-label="Unread" className="h-2 w-2 shrink-0 rounded-full bg-[var(--accent)]" />}
-                        <span className="min-w-0 break-words">{notificationTitle(notification)}</span>
+                      <span className="flex items-start gap-3 text-sm leading-5 text-[var(--text-primary)]">
+                        <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${notification.read ? "bg-[var(--border-color)]" : "bg-[var(--accent)]"}`} aria-hidden="true" />
+                        <span className="min-w-0 flex-1">
+                          <span className={`block break-words ${notification.read ? "font-semibold" : "font-extrabold"}`}>{notificationTitle(notification)}</span>
+                          {(notification.preview || notification.message) && <span className="mt-1 block line-clamp-2 text-xs font-normal leading-4 text-[var(--text-secondary)]">{notification.preview || notification.message}</span>}
+                          <span className="mt-1 block text-[11px] font-normal text-[var(--text-muted)]">{formatNotificationTime(notification.createdAt)}</span>
+                        </span>
                       </span>
                     </button>
                   ))
@@ -410,7 +423,7 @@ export default function Navbar() {
           <div className="max-h-[min(320px,calc(100dvh-160px))] overflow-y-auto">
             {notifications.length ? (
               notifications.map((notification) => (
-                <button key={notification.id} onClick={() => { markNotificationRead(notification.id); if (notification.chatId) { setNotifOpen(false); router.push(`/dashboard/messages/${encodeURIComponent(notification.chatId)}`); } }} className="w-full border-b border-[var(--border-soft)] px-4 py-3 text-left last:border-b-0">
+                <button key={notification.id} onClick={() => { markNotificationRead(notification.id); if (notification.type === "booking-invite" && notification.operatorId) { setNotifOpen(false); router.push(`/dashboard/find?operator=${encodeURIComponent(notification.operatorId)}`); } else if (notification.chatId) { setNotifOpen(false); router.push(`/dashboard/messages/${encodeURIComponent(notification.chatId)}`); } }} className="w-full border-b border-[var(--border-soft)] px-4 py-3 text-left last:border-b-0">
                   <span className="flex items-center gap-3 text-sm font-semibold leading-5">
                     {!notification.read && <span aria-label="Unread" className="h-2 w-2 shrink-0 rounded-full bg-[var(--accent)]" />}
                     <span className="min-w-0 break-words">{notificationTitle(notification)}</span>

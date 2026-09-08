@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { ArrowDownRight, ArrowUpRight, Bell, BriefcaseBusiness, MessageSquare, ShieldCheck, Users } from "lucide-react";
+import { Bell, BriefcaseBusiness, MessageSquare, ShieldCheck, Users } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { AdminCard, EmptyState, StatusTag } from "@/components/admin/AdminUI";
 import { useAdminData } from "@/components/admin/AdminProvider";
@@ -12,21 +12,21 @@ export default function AdminOverviewPage() {
   const { users, jobs, pendingVerificationCount, transactions, activityChart, activityEvents, notifications, openSupportCount, chats } = useAdminData();
 
   const revenueThisMonth = transactions
-    .filter((t) => t.status === "Completed" && t.type === "Payment")
+    .filter((t) => t.status === "Completed" && t.type === "Payment" && t.date.slice(0, 7) === new Date().toISOString().slice(0, 7))
     .reduce((sum, t) => sum + t.amount, 0);
 
   const statCards = [
-    { label: "Total Users", value: String(users.length), trend: 12.4 },
-    { label: "Active Jobs", value: String(jobs.filter((j) => j.status === "Open" || j.status === "In Progress").length), trend: 8.1 },
-    { label: "Pending Verifications", value: String(pendingVerificationCount), trend: -4.2 },
-    { label: "Revenue This Month", value: `$${revenueThisMonth.toFixed(2)}`, trend: 6.8 },
+    { label: "Total Users", value: String(users.length) },
+    { label: "Active Jobs", value: String(jobs.filter((j) => j.status === "Open" || j.status === "In Progress").length) },
+    { label: "Pending Verifications", value: String(pendingVerificationCount) },
+    { label: "Collected this month (CAD)", value: `$${revenueThisMonth.toFixed(2)}` },
   ];
 
   const workQueue = [
-    { label: "Unread notifications", value: notifications.filter((n) => !n.read).length, href: "/admin", icon: Bell, tone: "text-[#C2410C]" },
+    { label: "Unread notifications", value: notifications.filter((n) => !n.read).length, href: "/admin/notifications", icon: Bell, tone: "text-[#C2410C]" },
     { label: "Verifications to review", value: pendingVerificationCount, href: "/admin/verifications", icon: ShieldCheck, tone: "text-[#0369A1]" },
     { label: "Open support tickets", value: openSupportCount, href: "/admin/support-chats", icon: MessageSquare, tone: "text-[#7C3AED]" },
-    { label: "Active conversations", value: chats.length, href: "/admin/chats", icon: Users, tone: "text-[#15803D]" },
+    { label: "Conversations", value: chats.length, href: "/admin/chats", icon: Users, tone: "text-[#15803D]" },
   ];
 
   const greeting = new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 17 ? "Good afternoon" : "Good evening";
@@ -40,20 +40,11 @@ export default function AdminOverviewPage() {
       </header>
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {statCards.map((card) => {
-          const positive = card.trend >= 0;
           return (
             <AdminCard key={card.label} className="p-4">
               <p className="text-sm text-[var(--text-muted)]">{card.label}</p>
               <p className="text-2xl font-semibold mt-2 text-[var(--ink)]">{card.value}</p>
-              <div className="mt-3 inline-flex items-center gap-1 text-xs font-semibold">
-                {positive ? (
-                  <ArrowUpRight className="w-3.5 h-3.5 text-[#16A34A]" />
-                ) : (
-                  <ArrowDownRight className="w-3.5 h-3.5 text-[#DC2626]" />
-                )}
-                <span className={positive ? "text-[#16A34A]" : "text-[#DC2626]"}>{Math.abs(card.trend)}%</span>
-                <span className="text-[var(--text-muted)]">vs last period</span>
-              </div>
+              <p className="mt-3 text-xs text-[var(--text-muted)]">From recorded platform data</p>
             </AdminCard>
           );
         })}
@@ -92,7 +83,7 @@ export default function AdminOverviewPage() {
               <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#6B7280" }} />
               <YAxis tick={{ fontSize: 11, fill: "#6B7280" }} />
               <Tooltip />
-              <Area type="monotone" dataKey="value" stroke="#3B82F6" fill="#93C5FD" fillOpacity={0.45} />
+              <Area type="monotone" dataKey="value" stroke="#061321" fill="#dfeef8" fillOpacity={0.45} />
             </AreaChart>
           </ResponsiveContainer>
         </AdminCard>

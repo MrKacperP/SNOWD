@@ -84,6 +84,7 @@ export default function OperatorDashboard() {
 
       <nav aria-label="Dashboard shortcuts" className="grid grid-cols-3 gap-2 sm:gap-3">
         {[
+          { href: "/dashboard/clients", label: "Nearby clients", description: "Invite clients in your service area", icon: MessageCircle, color: "bg-[#eaf1ee] text-[#43574b]" },
           { href: "/dashboard/messages", label: "Messages", description: "Talk to your clients", icon: MessageCircle, color: "bg-[#fff0e2] text-[#9b5420]" },
           { href: "/dashboard/calendar", label: "Calendar", description: "Plan your schedule", icon: Calendar, color: "bg-[#eaf0fa] text-[#46628d]" },
           { href: "/dashboard/transactions", label: "Payments", description: "See earnings & payouts", icon: CreditCard, color: "bg-[#eaf1ee] text-[#43574b]" },

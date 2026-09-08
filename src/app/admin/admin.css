@@ -88,3 +88,17 @@
     transition: none;
   }
 }
+
+.admin-shell .admin-primary, .admin-shell .admin-secondary {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  padding: .65rem 1rem; min-height: 42px; border-radius: .85rem;
+  font-size: .875rem; font-weight: 650; border: 1px solid var(--border);
+}
+.admin-shell .admin-primary { background: var(--ink); color: white; border-color: var(--ink); }
+.admin-shell .admin-primary:hover { background: var(--ink-2); }
+.admin-shell .admin-secondary { background: white; }
+.admin-shell .admin-secondary:hover { background: var(--sky); }
+.admin-shell button:disabled { opacity: .5; cursor: not-allowed; }
+.admin-shell :is(button, a):focus-visible { outline: 3px solid var(--accent-sun); outline-offset: 3px; }
+.admin-shell td { padding-top: .8rem; padding-bottom: .8rem; }
+.admin-shell th { padding-top: .8rem; padding-bottom: .8rem; background: var(--ice); }

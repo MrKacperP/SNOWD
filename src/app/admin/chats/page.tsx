@@ -1,22 +1,24 @@
 "use client";
 
+import { Conversation } from "@/components/admin/Conversation";
+import { useAdminSelection } from "@/hooks/useAdminSelection";
 import React, { useMemo, useState } from "react";
 import { AdminCard, EmptyState, StatusTag } from "@/components/admin/AdminUI";
 import { useAdminData } from "@/components/admin/AdminProvider";
 
 export default function AdminChatsPage() {
-  const { chats } = useAdminData();
+  const { chats, users } = useAdminData();
   const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState<string | null>(chats[0]?.id || null);
+  const [selectedId, setSelectedId] = useAdminSelection();
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
     const list = [...chats].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     if (!q) return list;
-    return list.filter((c) => [c.participantA, c.participantB, c.lastMessage].join(" ").toLowerCase().includes(q));
-  }, [chats, query]);
+    return list.filter((c) => [c.participantA, c.participantB, users.find(u => u.id === c.participantA)?.name, users.find(u => u.id === c.participantB)?.name, c.lastMessage].join(" ").toLowerCase().includes(q));
+  }, [chats, query, users]);
 
-  const selected = filtered.find((c) => c.id === selectedId) || chats.find((c) => c.id === selectedId) || null;
+  const selected = filtered.find((c) => c.id === selectedId) || chats.find((c) => c.id === selectedId) || filtered[0] || null;
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[minmax(260px,34%)_minmax(0,1fr)] gap-4 h-[calc(100dvh-128px)] min-h-[520px]">
@@ -41,7 +43,7 @@ export default function AdminChatsPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold truncate text-[var(--ink)]">{chat.participantA} / {chat.participantB}</p>
+                    <p className="text-sm font-semibold truncate text-[var(--ink)]">{users.find(u => u.id === chat.participantA)?.name || chat.participantA} / {users.find(u => u.id === chat.participantB)?.name || chat.participantB}</p>
                     <p className="text-[11px] text-[var(--text-muted)] shrink-0">{new Date(chat.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</p>
                   </div>
                   <p className="text-xs text-[var(--text-muted)] truncate mt-0.5">{chat.lastMessage}</p>
@@ -58,18 +60,11 @@ export default function AdminChatsPage() {
         {selected ? (
           <>
             <div className="pb-3 border-b border-[var(--border)]">
-              <p className="font-semibold text-[var(--ink)]">{selected.participantA} and {selected.participantB}</p>
+              <p className="font-semibold text-[var(--ink)]">{users.find(u => u.id === selected.participantA)?.name || selected.participantA} and {users.find(u => u.id === selected.participantB)?.name || selected.participantB}</p>
               <p className="text-xs text-[var(--text-muted)]">Conversation details</p>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto py-3 space-y-2 pr-1">
-              {selected.messages.map((m) => (
-                <div key={m.id} className={`flex ${m.sender === "A" ? "justify-start" : "justify-end"}`}>
-                  <div className={`max-w-[min(82%,38rem)] break-words px-3 py-2 rounded-2xl text-sm ${m.sender === "A" ? "bg-[var(--bg-secondary)] text-[#1F2937]" : "bg-[#eaf0fa] text-[#1E3A8A]"}`}>
-                    <p className="whitespace-pre-wrap">{m.text}</p>
-                    <p className="text-[11px] text-[var(--text-muted)] mt-1">{m.time}</p>
-                  </div>
-                </div>
-              ))}
+              <Conversation key={selected.id} id={selected.id} />
             </div>
             <div className="pt-3 border-t border-[var(--border)]">
               <p className="text-sm text-[var(--text-muted)]">Read-only: admins can view conversations but cannot send messages.</p>

@@ -14,7 +14,7 @@ ID-verified, available operators can appear publicly and receive cash jobs witho
 
 An accepted job supplies the amount, customer and destination from Firestore. The API checks live Stripe readiness and creates a manual-capture CAD PaymentIntent. A retry resumes an existing checkout; a canceled authorization gets a fresh intent. The browser asks the authenticated status endpoint to reconcile the result. Signed webhooks also reconcile results if the browser closes or a redirect occurs.
 
-The server persists held/paid/released state and one transaction per PaymentIntent. Capture requires job participation and saved photo proof. Cancellation releases an authorization before the UI marks the job canceled; settled payments need a separate support refund process. Reopening a canceled card job requires a new payment before work proceeds.
+The server persists held/paid/released state and one transaction per PaymentIntent. Capture requires job participation and saved photo proof. Cancellation closes an unfinished job in a server transaction, notifies the other participant, and releases an authorization. Repeating cancellation retries a failed hold release; settled payments need a separate support refund process. Reopening a canceled card job requires a new payment before work proceeds.
 
 Stripe authorization holds expire; a canceled/expired intent is reconciled to `refunded` in the app's existing schema, indicating the hold is released, not that a settled charge was refunded. [Stripe manual-capture documentation](https://docs.stripe.com/payments/place-a-hold-on-a-payment-method).
 
@@ -41,3 +41,11 @@ firebase emulators:exec --only firestore,auth --project snowd-6ca54 --config fir
 The project ID matches the public ID embedded in the Next build, but all test users, jobs, and transactions stay in the emulators. The test verifies embedded onboarding session creation, account readiness, ownership rejection, checkout retries, CAD authorization, 15% commission, signed webhook reconciliation, photo-proof enforcement, capture, cancellation, and transaction history. Only sandbox payment records are created; no real funds move. This passed on September 5, 2026.
 
 The `jwks-rsa` dependency is scoped to `jose@5.10.0` through an npm override because Firebase Admin 14 otherwise imports ESM-only jose through CommonJS and fails in the Vercel runtime. The sandbox server runs with `--no-experimental-require-module` to cover this production behavior. See [Firebase Admin issue 3181](https://github.com/firebase/firebase-admin-node/issues/3181). Remove the override after upstream compatibility is fixed and this runtime check passes.
+
+## Nearby booking and cash jobs
+
+Clients see verified, available operators whose service radius covers the client’s saved property. Operators can open Nearby clients from their dashboard or work orders to see the same matches and send one booking invitation per client. Invitations link to that operator’s booking form, which rechecks availability and location before submitting. Job, chat and initial message creation use one atomic batch.
+
+Every new booking offers cash; connected operators also offer card. Cash needs the client’s explicit acknowledgement, stays pending until the assigned operator confirms receipt, and can be completed with photo proof before cash is collected. Cash does not create a Stripe charge, payout or automatic platform commission. Existing card commission behavior is unchanged.
+
+Either participant can cancel pending, accepted, en-route or in-progress work. Completed work cannot be cancelled. Cancellation preserves cash receipts; the operator may record a direct cash refund after cancellation. Captured card payments need support to arrange a refund. Deploy the updated Firestore rules with these routes so cancellation and its notifications remain server-owned.

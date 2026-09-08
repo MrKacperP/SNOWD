@@ -34,6 +34,7 @@ export function getDistanceKm(
   const lng2 = toFiniteNumber(b.lng);
 
   if (lat1 == null || lng1 == null || lat2 == null || lng2 == null) return null;
+  if (Math.abs(lat1) > 90 || Math.abs(lat2) > 90 || Math.abs(lng1) > 180 || Math.abs(lng2) > 180) return null;
 
   const toRad = (deg: number) => (deg * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1);
@@ -45,7 +46,7 @@ export function getDistanceKm(
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(radLat1) * Math.cos(radLat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
 
-  return 2 * EARTH_RADIUS_KM * Math.asin(Math.sqrt(h));
+  return 2 * EARTH_RADIUS_KM * Math.asin(Math.sqrt(Math.min(1, Math.max(0, h))));
 }
 
 export function isOperatorPublic(operator: OperatorProfile): boolean {
