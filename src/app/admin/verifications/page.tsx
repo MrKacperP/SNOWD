@@ -166,7 +166,7 @@ export default function AdminVerificationsPage() {
       {rejectTargetId && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center px-4" onClick={() => setRejectTargetId(null)}>
           <div className="absolute inset-0 bg-black/40" />
-          <div className="relative w-full max-w-lg rounded-xl bg-white border-[3px] border-[var(--border)] shadow-[var(--surface-shadow)] p-5" onClick={(e) => e.stopPropagation()}>
+          <div className="relative max-h-[calc(100dvh-2rem)] overflow-y-auto w-full max-w-lg rounded-xl bg-white border-[3px] border-[var(--border)] shadow-[var(--surface-shadow)] p-5" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-[var(--ink)]">Reject verification</h3>
             <p className="text-sm text-[var(--text-muted)] mt-1">Provide structured reason and guidance for resubmission.</p>
 

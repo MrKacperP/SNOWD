@@ -47,7 +47,7 @@ export default function DeleteConfirmPopup({
 
           {/* Modal */}
           <motion.div
-            className="relative w-full max-w-sm bg-[var(--bg-card-solid)] rounded-3xl shadow-[var(--surface-shadow)] border-[3px] border-[var(--border-color)] overflow-hidden"
+            className="relative max-h-[calc(100dvh-2rem)] overflow-y-auto w-full max-w-sm bg-[var(--bg-card-solid)] rounded-3xl shadow-[var(--surface-shadow)] border-[3px] border-[var(--border-color)]"
             initial={{ opacity: 0, scale: 0.85, y: 30 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}

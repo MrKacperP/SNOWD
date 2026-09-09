@@ -438,7 +438,7 @@ export default function OnboardingFlow({
                 {role === "client" && (
                   <div>
                     <h2 className="mb-2 text-sm font-black">Property size</h2>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 min-[400px]:grid-cols-2 gap-3">
                       {propertySizes.map(([size, label, description]) => (
                         <Choice
                           key={size}

@@ -5,7 +5,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, X } from "lucide-react";
 
 const baseCard =
-  "rounded-[1.35rem] bg-white shadow-[var(--surface-shadow)]";
+  "min-w-0 rounded-[1.35rem] bg-white shadow-[var(--surface-shadow)]";
 
 export function AdminCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return <div className={`${baseCard} ${className}`}>{children}</div>;
@@ -103,7 +103,7 @@ export function ConfirmModal({
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center px-4" onClick={close}>
       <div className="absolute inset-0 bg-black/35" />
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} className="relative w-full max-w-md rounded-xl bg-white border-[3px] border-[var(--border)] shadow-[var(--surface-shadow)] p-5" onClick={(e) => e.stopPropagation()}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} className="relative max-h-[calc(100dvh-2rem)] overflow-y-auto w-full max-w-md rounded-xl bg-white border-[3px] border-[var(--border)] shadow-[var(--surface-shadow)] p-5" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3">
           <h3 className="text-lg font-semibold text-[var(--ink)]">{title}</h3>
           <button aria-label="Close dialog" onClick={close} className="p-1 rounded hover:bg-[var(--bg-secondary)]">
@@ -111,7 +111,7 @@ export function ConfirmModal({
           </button>
         </div>
         <p className="text-sm text-[var(--text-muted)] mt-2">{description}</p>{error && <p role="alert" className="text-red-700 mt-2">{error}</p>}
-        <div className="mt-5 flex items-center justify-end gap-2">
+        <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
           <button onClick={close} className="px-3 py-2 text-sm rounded-lg border-[3px] border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-primary)]">Cancel</button>
           <button
             disabled={pending}
@@ -155,14 +155,14 @@ export function SideDrawer({
         onClick={onClose}
       />
       <aside ref={drawerRef} role="dialog" aria-modal={open || undefined} aria-label={title} tabIndex={-1} inert={!open}
-        className={`fixed top-0 right-0 z-[75] h-full w-[540px] max-w-[92vw] bg-white border-l border-[var(--border)] shadow-[var(--surface-shadow)] transition-transform ${open ? "translate-x-0" : "translate-x-full"}`}
+        className={`fixed top-0 right-0 z-[75] h-dvh w-full sm:w-[540px] sm:max-w-[92vw] bg-white border-l border-[var(--border)] shadow-[var(--surface-shadow)] transition-transform ${open ? "translate-x-0" : "translate-x-full"}`}
       >
         <div className="h-full flex flex-col">
           <div className="p-4 border-b border-[var(--border)] flex items-center justify-between">
             <h3 className="font-semibold text-[var(--ink)]">{title}</h3>
             <button aria-label="Close dialog" onClick={onClose} className="p-1 rounded hover:bg-[var(--bg-secondary)]"><X className="w-4 h-4 text-[var(--text-muted)]" /></button>
           </div>
-          <div className="p-4 overflow-y-auto flex-1">{children}</div>
+          <div className="min-h-0 p-4 pb-[max(16px,env(safe-area-inset-bottom))] overflow-y-auto overscroll-contain flex-1">{children}</div>
         </div>
       </aside>
     </>

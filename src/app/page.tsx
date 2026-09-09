@@ -8,6 +8,12 @@ import {
   Check,
   ChevronDown,
   Shovel,
+  CarFront,
+  Footprints,
+  House,
+  Camera,
+  MessageCircle,
+  MapPin,
 } from "lucide-react";
 import styles from "./landing.module.css";
 
@@ -74,6 +80,7 @@ function Brand() {
 }
 
 export default function HomePage() {
+  const [preview, setPreview] = useState<"job" | "chat">("job");
   const [audience, setAudience] = useState<"help" | "earn">("help");
 
   return (
@@ -97,34 +104,49 @@ export default function HomePage() {
 
       <main id="main">
         <section className={styles.hero} aria-labelledby="hero-title">
-          <p className={styles.eyebrow}>LOCAL SNOW REMOVAL</p>
-          <h1 id="hero-title">
-            Find local help
-            <br />
-            with snow removal.
-          </h1>
-          <p className={styles.intro}>
-            Connect with a nearby shoveler to clear your driveway,
-            <br className={styles.desktopBreak} /> walkway, or front steps.
-          </p>
-          <div className={styles.booking}>
-            <div className={styles.bookingService}>
-              <Shovel size={26} strokeWidth={1.5} aria-hidden="true" />
-              <div>
-                <strong>Get snow cleared</strong>
-                <span>Create an account, then post your job.</span>
+          <div className={styles.heroInner}>
+            <div className={styles.heroCopy}>
+              <p className={styles.eyebrow}>LOCAL SNOW REMOVAL</p>
+              <h1 id="hero-title">Snow to clear?<br />Find a local shoveler.</h1>
+              <p className={styles.intro}>Post what needs clearing, arrange the details with your shoveler, and review the finished work. All in one place.</p>
+              <div className={styles.heroActions}>
+                <Link href="/signup" className={styles.primary}>Get snow help <ArrowRight size={18} aria-hidden="true" /></Link>
+                <a href="#how" className={styles.secondary}>See how it works <ChevronDown size={16} aria-hidden="true" /></a>
               </div>
+              <p className={styles.signupNote}>Create an account, then post your first job.</p>
+              <div className={styles.reassurance}>
+                <span><MessageCircle size={16} aria-hidden="true" /> Direct job chat</span>
+                <span><Camera size={16} aria-hidden="true" /> Completion photos</span>
+              </div>
+              <p className={styles.earnLink}>Have a shovel? <a href="#students">Earn close to home <ArrowUpRight size={15} aria-hidden="true" /></a></p>
             </div>
-            <Link href="/signup" className={styles.primary}>
-              Find snow help <ArrowRight size={18} aria-hidden="true" />
-            </Link>
+            <figure className={styles.productPreview}>
+              <figcaption className={styles.previewHeader}><span>snowd.</span><span>Example job · Preview</span></figcaption>
+              <div className={styles.previewTabs} role="group" aria-label="Explore an example job">
+                <button type="button" aria-pressed={preview === "job"} onClick={() => setPreview("job")}>Work order</button>
+                <button type="button" aria-pressed={preview === "chat"} onClick={() => setPreview("chat")}>Messages</button>
+              </div>
+              <div className={styles.previewBody} aria-live="polite">
+                {preview === "job" ? <>
+                  <div className={styles.orderHeading}><Shovel size={23} aria-hidden="true" /><span>Snow removal</span></div>
+                  <h2>Driveway & front steps</h2>
+                  <p className={styles.exampleAddress}><MapPin size={15} aria-hidden="true" /> Your property address</p>
+                  <dl className={styles.orderDetails}>
+                    <div><dt>Areas to clear</dt><dd>Driveway, steps</dd></div>
+                    <div><dt>Access notes</dt><dd>Please leave a path to the side gate.</dd></div>
+                  </dl>
+                  <div className={styles.previewNote}><Camera size={19} aria-hidden="true" /><p><strong>Check the work before approving</strong><span>Your shoveler shares completion photos.</span></p></div>
+                </> : <>
+                  <div className={styles.orderHeading}><MessageCircle size={23} aria-hidden="true" /><span>Job conversation</span></div>
+                  <h2>Keep the details together.</h2>
+                  <div className={styles.sampleChat}><span>You · Example message</span><p>Please leave a path to the side gate.</p></div>
+                  <div className={styles.sampleReply}><span>Shoveler · Example reply</span><p>Got it. I’ll include the path when I clear the driveway.</p></div>
+                  <p className={styles.chatNote}>Discuss timing and access directly in your job chat.</p>
+                </>}
+              </div>
+              <div className={styles.previewFooter}><span>1. Post a job</span><span>2. Stay in touch</span><span>3. Review</span></div>
+            </figure>
           </div>
-          <p className={styles.earnLink}>
-            Looking for work?{" "}
-            <a href="#students">
-              Earn by shoveling <ArrowUpRight size={15} aria-hidden="true" />
-            </a>
-          </p>
         </section>
 
         <section
@@ -132,21 +154,21 @@ export default function HomePage() {
           aria-label="Snow-clearing services"
         >
           <article>
-            <span className={styles.serviceNumber}>01</span>
+            <span className={styles.serviceIcon}><CarFront size={25} aria-hidden="true" /></span>
             <div>
               <h2>Driveways</h2>
               <p>Clear the way in and out.</p>
             </div>
           </article>
           <article>
-            <span className={styles.serviceNumber}>02</span>
+            <span className={styles.serviceIcon}><Footprints size={25} aria-hidden="true" /></span>
             <div>
               <h2>Walkways</h2>
               <p>Make the path to your door easier.</p>
             </div>
           </article>
           <article>
-            <span className={styles.serviceNumber}>03</span>
+            <span className={styles.serviceIcon}><House size={25} aria-hidden="true" /></span>
             <div>
               <h2>Steps & entrances</h2>
               <p>Help with the spots a plow can’t reach.</p>
@@ -159,7 +181,7 @@ export default function HomePage() {
             <div>
               <p className={styles.eyebrow}>HOW IT WORKS</p>
               <h2 id="how-title">
-                Snow clearing
+                Snow clearing{" "}
                 <br />
                 in three steps.
               </h2>
@@ -204,20 +226,19 @@ export default function HomePage() {
           <div className={styles.homeownerCopy}>
             <p className={styles.eyebrow}>FOR HOMEOWNERS & SENIORS</p>
             <h2 id="homeowners-title">
-              Help with the
+              Know what’s happening
               <br />
-              heavy lifting.
+              with your job.
             </h2>
             <p>
-              Get help with the heavy lifting from someone in your
-              neighbourhood. Share what you need, stay in touch, and see the
-              results.
+              Your job details, conversation, and completion photos stay together, so you can follow the work from request to approval.
             </p>
             <Link href="/signup" className={styles.textLink}>
               Post your first job <ArrowUpRight size={18} aria-hidden="true" />
             </Link>
           </div>
           <div className={styles.detailsList}>
+
             <article>
               <Check size={19} aria-hidden="true" />
               <div>
@@ -290,6 +311,13 @@ export default function HomePage() {
               </details>
             ))}
           </div>
+        </section>
+        <section className={styles.finalCta} aria-labelledby="ready-title">
+          <p className={styles.eyebrow}>GET STARTED</p>
+          <h2 id="ready-title">Need help with the next snowfall?</h2>
+          <p>Start with an account. Post a job when you need a hand.</p>
+          <Link href="/signup" className={styles.primary}>Get started <ArrowRight size={18} aria-hidden="true" /></Link>
+          <span className={styles.availability}>Shoveler availability varies by location and weather.</span>
         </section>
       </main>
 

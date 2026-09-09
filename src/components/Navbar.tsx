@@ -1,4 +1,6 @@
 "use client";
+import AvailabilityToggle from "@/components/dashboard/AvailabilityToggle";
+import MobileNavigation from "@/components/dashboard/MobileNavigation";
 import SupportChatButton from "@/components/SupportChatButton";
 
 import { useUserChats } from "@/hooks/useUserChats";
@@ -63,6 +65,9 @@ export default function Navbar() {
   const router = useRouter();
   const { weather } = useWeather();
 
+  const [statusSaving, setStatusSaving] = useState(false);
+  const [statusError, setStatusError] = useState("");
+  const statusLock = useRef(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -196,11 +201,18 @@ export default function Navbar() {
   };
 
   const toggleOnlineStatus = async () => {
-    if (!profile?.uid) return;
+    if (!profile?.uid || statusLock.current) return;
+    statusLock.current = true;
+    setStatusSaving(true);
+    setStatusError("");
     try {
       await updateDoc(doc(db, "users", profile.uid), { isOnline: !isOnline });
     } catch (error) {
       console.error("Error toggling status:", error);
+      setStatusError("Could not update your status. Please try again.");
+    } finally {
+      statusLock.current = false;
+      setStatusSaving(false);
     }
   };
 
@@ -257,6 +269,7 @@ export default function Navbar() {
             </div>
             <div className={`status-dot ${isOnline ? "online" : "offline"}`} />
           </div>
+          <div className="mt-3"><AvailabilityToggle online={isOnline} saving={statusSaving} error={statusError} onToggle={toggleOnlineStatus} /></div>
           {weather ? (
             <div className="mt-4 rounded-[1.2rem] bg-[var(--bg-secondary)] px-3 py-3">
               <div className="text-xs text-[var(--text-muted)]">Local weather</div>
@@ -269,29 +282,14 @@ export default function Navbar() {
           ) : null}
         </div>
 
-        <nav aria-label="Primary navigation" className="mt-4 flex-1 space-y-2">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`));
-            const showMessagesCount = item.href.includes("messages") && unreadCount > 0;
-            const showJobCount = item.href.includes("jobs") && pendingJobCount > 0;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={active ? "page" : undefined}
-                className={`flex items-center gap-3 rounded-[1.2rem] px-4 py-3 text-sm font-bold transition ${
-                  active
-                    ? "bg-[var(--ink)] text-white shadow-[var(--surface-shadow)] [&_*]:text-white"
-                    : "bg-white/60 text-[var(--text-secondary)] hover:bg-white hover:text-[var(--text-primary)]"
-                }`}
-              >
-                <Icon className="h-5 w-5" />
-                <span className="flex-1">{item.label}</span>
-                {showMessagesCount ? <span className={`unread-badge ${active ? "bg-white text-black" : ""}`}>{unreadCount > 9 ? "9+" : unreadCount}</span> : null}
-                {showJobCount ? <span className="unread-badge bg-[#17994f]">{pendingJobCount > 9 ? "9+" : pendingJobCount}</span> : null}
-              </Link>
-            );
+        <nav aria-label="Primary navigation" className="desktop-navigation mt-5 grid gap-1">
+          {navItems.map(({ href, label, icon: Icon }) => {
+            const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(`${href}/`));
+            const count = href.includes("messages") ? unreadCount : href.includes("jobs") ? pendingJobCount : 0;
+            return <Link key={href} href={href} aria-current={active ? "page" : undefined}>
+              <Icon size={20} aria-hidden="true" /><span className="flex-1">{label}</span>
+              {count > 0 && <span className="unread-badge">{count > 9 ? "9+" : count}</span>}
+            </Link>;
           })}
         </nav>
 
@@ -367,10 +365,6 @@ export default function Navbar() {
 
           {profileMenuOpen ? (
             <div className="joined-menu-panel">
-              <button onClick={toggleOnlineStatus} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-[var(--bg-secondary)]">
-                <div className={`status-dot ${isOnline ? "online" : "offline"}`} />
-                <span className="text-sm font-bold">{isOnline ? "Go offline" : "Go online"}</span>
-              </button>
               <Link href={`/dashboard/u/${profile?.uid}`} className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)]">
                 <User className="h-4 w-4" />
                 <span className="text-sm font-bold">View profile</span>
@@ -403,9 +397,7 @@ export default function Navbar() {
               <Bell className="h-4 w-4" />
               {unreadNotifications > 0 ? <span className="absolute -right-1 -top-1 unread-badge">{unreadNotifications > 9 ? "9+" : unreadNotifications}</span> : null}
             </button>
-            <button aria-label="Account" aria-expanded={drawerOpen} onClick={() => { setNotifOpen(false); setDrawerOpen(true); }} className="rounded-full border-[3px] border-[var(--border-color)] bg-white p-2">
-              <Menu className="h-4 w-4" />
-            </button>
+
           </div>
         </div>
       </header>
@@ -437,26 +429,11 @@ export default function Navbar() {
         </div>
       ) : null}
 
-      <nav aria-label="Primary navigation" className="fixed bottom-0 left-0 right-0 z-30 border-t-[3px] border-[var(--border-color)] bg-white px-2 pb-[max(env(safe-area-inset-bottom),0.6rem)] pt-2  lg:hidden">
-        <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${navItems.length}, minmax(0, 1fr))` }}>
-          {navItems.slice(0, 5).map((item) => {
-            const Icon = item.icon;
-            const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`));
-            const count = item.href.includes("messages") ? unreadCount : item.href.includes("jobs") ? pendingJobCount : 0;
-            return (
-              <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined} className={`relative flex flex-col items-center gap-1 rounded-[1rem] px-1 py-2 whitespace-nowrap text-[11px] font-bold ${active ? "bg-[var(--ink)] text-white [&_*]:text-white" : "text-[var(--text-muted)]"}`}>
-                <Icon className="h-4 w-4" />
-                {item.label}
-                {count > 0 ? <span className={`absolute right-2 top-1 unread-badge ${active ? "bg-white text-black" : ""}`}>{count > 9 ? "9+" : count}</span> : null}
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
+      <MobileNavigation pathname={pathname} unreadMessages={unreadCount} pendingJobs={pendingJobCount} menuOpen={drawerOpen} onOpenMenu={() => { setNotifOpen(false); setDrawerOpen(true); }} />
 
       {drawerOpen ? (
         <div className="fixed inset-0 z-40 bg-black/35 lg:hidden" onClick={() => setDrawerOpen(false)}>
-          <div ref={drawerRef} role="dialog" aria-modal="true" aria-label="Account menu" tabIndex={-1} className="absolute bottom-0 left-0 right-0 overflow-y-auto max-h-[85dvh] w-full rounded-t-3xl bg-white px-5 pt-5 pb-[max(20px,env(safe-area-inset-bottom))] shadow-[var(--surface-shadow)]" onClick={(event) => event.stopPropagation()}>
+          <div id="mobile-account-menu" ref={drawerRef} role="dialog" aria-modal="true" aria-label="Account menu" tabIndex={-1} className="absolute bottom-0 left-0 right-0 overflow-y-auto max-h-[85dvh] w-full rounded-t-3xl bg-white px-5 pt-5 pb-[max(20px,env(safe-area-inset-bottom))] shadow-[var(--surface-shadow)]" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <UserAvatar
@@ -476,10 +453,9 @@ export default function Navbar() {
             </div>
 
             <div className="mt-5 grid divide-y divide-[var(--border-color)] border-t border-[var(--border-color)]">
-              <button onClick={toggleOnlineStatus} className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)] text-left">
-                <div className={`status-dot ${isOnline ? "online" : "offline"}`} />
-                <span className="text-sm font-bold">{isOnline ? "Go offline" : "Go online"}</span>
-              </button>
+              <Link href="/dashboard/calendar" onClick={() => setDrawerOpen(false)} className="flex min-h-13 items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)]"><CalendarDays className="h-5 w-5" /><span>Schedule</span></Link>
+              <Link href="/dashboard/transactions" onClick={() => setDrawerOpen(false)} className="flex min-h-13 items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)]"><Briefcase className="h-5 w-5" /><span>Payments</span></Link>
+              <AvailabilityToggle online={isOnline} saving={statusSaving} error={statusError} onToggle={toggleOnlineStatus} />
               <Link href={`/dashboard/u/${profile?.uid}`} onClick={() => setDrawerOpen(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)]">
                 <User className="h-4 w-4" />
                 <span className="text-sm font-bold">View profile</span>

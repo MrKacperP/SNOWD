@@ -31,8 +31,8 @@ export default function AdminSupportPage() {
   };
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-[minmax(260px,34%)_minmax(0,1fr)] gap-4 h-[calc(100dvh-128px)] min-h-[520px]">
-      <AdminCard className="p-3 min-h-0 overflow-y-auto">
+    <div className="grid grid-cols-1 xl:grid-cols-[minmax(260px,34%)_minmax(0,1fr)] gap-4 xl:h-[calc(100dvh-128px)] xl:min-h-[520px]">
+      <AdminCard className="p-3 max-h-[320px] xl:max-h-none min-h-0 overflow-y-auto">
         <div className="space-y-2">
           {sorted.map((ticket) => (
             <button
@@ -60,7 +60,7 @@ export default function AdminSupportPage() {
         </div>
       </AdminCard>
 
-      <AdminCard className="p-4 flex min-h-0 flex-col overflow-hidden">
+      <AdminCard className="p-4 flex min-h-[360px] xl:min-h-0 flex-col overflow-hidden">
         {selected ? (
           <>
             <div className="flex items-center justify-between pb-3 border-b border-[var(--border)]">

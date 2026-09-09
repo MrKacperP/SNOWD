@@ -190,7 +190,7 @@ export default function TutorialOverlay() {
 
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
-    const tooltipWidth = Math.min(TOOLTIP_WIDTH, viewportWidth - 16);
+    const tooltipWidth = Math.min(TOOLTIP_WIDTH, viewportWidth - 20);
     const padding = 10;
 
     let left = targetRect.left + targetRect.width / 2 - tooltipWidth / 2;
@@ -205,6 +205,8 @@ export default function TutorialOverlay() {
       left,
       top,
       width: tooltipWidth,
+      maxHeight: viewportHeight - top - 10,
+      overflowY: "auto",
     };
   }, [hasTarget, targetRect]);
 
@@ -256,7 +258,7 @@ export default function TutorialOverlay() {
             className={hasTarget ? "fixed" : "fixed inset-0 flex items-center justify-center p-4"}
             style={hasTarget ? tooltipStyle : undefined}
           >
-            <div className="w-full max-w-[340px] bg-[var(--bg-card-solid)] border-[3px] border-[var(--border)] rounded-2xl shadow-[var(--surface-shadow)] p-4">
+            <div className="w-full max-h-[calc(100dvh-2rem)] overflow-y-auto max-w-[340px] bg-[var(--bg-card-solid)] border-[3px] border-[var(--border)] rounded-2xl shadow-[var(--surface-shadow)] p-4">
               <div className="flex items-start gap-3">
                 <div className="w-9 h-9 rounded-xl bg-[var(--accent-soft)] text-[var(--accent)] flex items-center justify-center shrink-0 mt-0.5">
                   <Compass className="w-4.5 h-4.5" style={{ width: 18, height: 18 }} />

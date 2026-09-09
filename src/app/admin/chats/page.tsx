@@ -21,8 +21,8 @@ export default function AdminChatsPage() {
   const selected = selectedId ? chats.find(c => c.id === selectedId) || null : filtered[0] || null;
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-[minmax(260px,34%)_minmax(0,1fr)] gap-4 h-[calc(100dvh-128px)] min-h-[520px]">
-      <AdminCard className="p-3 flex min-h-0 flex-col">
+    <div className="grid grid-cols-1 xl:grid-cols-[minmax(260px,34%)_minmax(0,1fr)] gap-4 xl:h-[calc(100dvh-128px)] xl:min-h-[520px]">
+      <AdminCard className="p-3 max-h-[320px] xl:max-h-none flex min-h-0 flex-col">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -56,7 +56,7 @@ export default function AdminChatsPage() {
         </div>
       </AdminCard>
 
-      <AdminCard className="p-4 flex min-h-0 flex-col overflow-hidden">
+      <AdminCard className="p-4 flex min-h-[360px] xl:min-h-0 flex-col overflow-hidden">
         {selected ? (
           <>
             <div className="pb-3 border-b border-[var(--border)]">

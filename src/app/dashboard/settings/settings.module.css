@@ -66,3 +66,12 @@
   .mobileSelect { display: block; width: 100%; padding: 12px; }
   .content { padding: 20px; }
 }
+@media (max-width: 767px) {
+  .sectionHeading { flex-wrap: wrap; }
+  .sectionHeading > div { min-width: 0; }
+  .content { padding: 16px; }
+}
+.mobileSelectLabel { display: none; }
+@media (max-width: 767px) {
+  .mobileSelectLabel { display: block; padding: 4px 2px 8px; color: var(--text-secondary); font-size: 13px; font-weight: 500; }
+}

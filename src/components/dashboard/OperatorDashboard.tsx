@@ -1,11 +1,12 @@
 "use client";
 
+import { HomeActions } from "./HomeActions";
 import StatusBadge from "@/components/StatusBadge";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
 import { Job,OperatorProfile } from "@/lib/types";
 import { collection,doc,onSnapshot,query,updateDoc,where } from "firebase/firestore";
-import { ArrowRight,Calendar,CreditCard,MessageCircle } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useEffect,useState } from "react";
 
@@ -48,18 +49,18 @@ export default function OperatorDashboard() {
     <div className="mx-auto max-w-[1040px] space-y-5 pb-6 text-[var(--text-primary)]">
       <header>
         <p className="text-sm text-[var(--text-secondary)]">Welcome, {operator?.displayName?.split(" ")[0] || "there"}</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Your day, at a glance.</h1>
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-4xl">Your work</h1>
       </header>
 
       <section aria-labelledby="availability-heading" className="rounded-3xl bg-[#eaf1ee] p-6 text-[#17251e]">
         <div className="flex flex-wrap items-center justify-between gap-5">
           <div>
             <h2 id="availability-heading" className="text-lg font-medium">Availability</h2>
-            <p className="mt-2 text-3xl font-semibold">{available ? "Ready for requests" : "Taking a break"}</p>
+            <p className="mt-2 text-2xl font-semibold">{available ? "Accepting requests" : "Requests paused"}</p>
             <p className="mt-2 text-base text-[#43574b]">{available ? "Clients can request your help." : "Turn on availability when you’re ready."}</p>
           </div>
           <button type="button" role="switch" aria-checked={available} aria-label="Available for job requests" disabled={saving} onClick={toggleAvailability} className="min-h-12 rounded-full bg-[#17251e] px-6 py-3 text-base font-semibold text-white disabled:opacity-50">
-            {saving ? "Saving…" : available ? "Go unavailable" : "Go available"}
+            {saving ? "Saving…" : available ? "Pause requests" : "Accept requests"}
           </button>
         </div>
         {!operator?.idVerified && <Link href="/dashboard/settings?tab=verification" className="mt-4 inline-block font-semibold underline">Verify your ID to receive jobs</Link>}
@@ -82,17 +83,7 @@ export default function OperatorDashboard() {
         </>}
       </section>
 
-      <nav aria-label="Dashboard shortcuts" className="grid grid-cols-3 gap-2 sm:gap-3">
-        {[
-          { href: "/dashboard/clients", label: "Nearby clients", description: "Invite clients in your service area", icon: MessageCircle, color: "bg-[#eaf1ee] text-[#43574b]" },
-          { href: "/dashboard/messages", label: "Messages", description: "Talk to your clients", icon: MessageCircle, color: "bg-[#fff0e2] text-[#9b5420]" },
-          { href: "/dashboard/calendar", label: "Calendar", description: "Plan your schedule", icon: Calendar, color: "bg-[#eaf0fa] text-[#46628d]" },
-          { href: "/dashboard/transactions", label: "Payments", description: "See earnings & payouts", icon: CreditCard, color: "bg-[#eaf1ee] text-[#43574b]" },
-        ].map(({ href, label, description, icon: Icon, color }) => <Link key={href} href={href} className="flex min-w-0 flex-col sm:flex-row items-center gap-2 rounded-2xl bg-[var(--bg-card)] p-3 sm:p-5 transition hover:bg-[var(--bg-secondary)]">
-          <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${color}`}><Icon className="h-5 w-5" /></span>
-          <div className="min-w-0"><h2 className="text-base sm:text-lg font-semibold">{label}</h2><p className="mt-1 hidden sm:block text-sm text-[var(--text-secondary)]">{description}</p></div>
-        </Link>)}
-      </nav>
+      <HomeActions operator />
     </div>
   );
 }

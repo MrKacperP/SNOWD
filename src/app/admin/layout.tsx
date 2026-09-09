@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense, useEffect, useMemo, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -23,6 +23,7 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 import LoadingScreen from "@/components/LoadingScreen";
 import { AdminProvider, useAdminData } from "@/components/admin/AdminProvider";
 import { StatusTag } from "@/components/admin/AdminUI";
@@ -76,6 +77,17 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
   const [trayCollapsed, setTrayCollapsed] = useState(true);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const mobileNavRef = useRef<HTMLElement>(null);
+  useDialogFocus(mobileNavOpen, mobileNavRef);
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const close = (event: KeyboardEvent) => { if (event.key === "Escape") setMobileNavOpen(false); };
+    const desktop = window.matchMedia("(min-width: 1024px)");
+    const resize = () => { if (desktop.matches) setMobileNavOpen(false); };
+    window.addEventListener("keydown", close);
+    desktop.addEventListener("change", resize);
+    return () => { window.removeEventListener("keydown", close); desktop.removeEventListener("change", resize); };
+  }, [mobileNavOpen]);
 
   useEffect(() => {
     const resize = () => {
@@ -136,7 +148,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       {mobileNavOpen && (
         <div className="lg:hidden fixed inset-0 z-50">
           <div className="absolute inset-0 bg-black/35" onClick={() => setMobileNavOpen(false)} />
-          <aside className="absolute left-0 top-0 h-full w-[280px] bg-white border-r border-[var(--border)] shadow-[var(--surface-shadow)]">
+          <aside ref={mobileNavRef} role="dialog" aria-modal="true" aria-label="Admin navigation" tabIndex={-1} className="absolute left-0 top-0 h-full w-[280px] max-w-[calc(100vw-24px)] bg-white border-r border-[var(--border)] shadow-[var(--surface-shadow)]">
             <div className="h-full flex flex-col">
               <div className="px-4 py-4 border-b border-[var(--border)] flex items-center justify-between">
                 <Link href="/admin" className="flex items-center gap-2" onClick={() => setMobileNavOpen(false)}>
@@ -147,7 +159,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                   <X className="w-4 h-4 text-[var(--text-muted)]" />
                 </button>
               </div>
-              <nav className="px-3 py-3 flex-1 overflow-y-auto">
+              <nav className="px-3 py-3 pb-[max(12px,env(safe-area-inset-bottom))] min-h-0 flex-1 overflow-y-auto">
                 {navSections.map((section) => (
                   <div key={section.title} className="mb-4">
                     <p className="px-2 mb-1.5 text-[11px] uppercase tracking-wide text-[var(--text-muted)] font-semibold">{section.title}</p>
@@ -200,7 +212,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
               <div className="mt-3 rounded-2xl bg-[#eaf1ee] px-3 py-2 text-xs font-semibold text-[#43574b]">Live platform data</div>
             </div>
 
-            <nav className="px-3 py-3 flex-1 overflow-y-auto">
+            <nav className="px-3 py-3 pb-[max(12px,env(safe-area-inset-bottom))] min-h-0 flex-1 overflow-y-auto">
               {navSections.map((section) => (
                 <div key={section.title} className="mb-4">
                   <p className="px-2 mb-1.5 text-[11px] uppercase tracking-wide text-[var(--text-muted)] font-semibold">{section.title}</p>

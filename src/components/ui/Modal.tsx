@@ -66,6 +66,28 @@ export default function Modal({
   useDialogFocus(isOpen, dialogRef);
 
   useEffect(() => {
+    if (!isOpen || !window.visualViewport) return;
+    const viewport = window.visualViewport;
+    const update = () => {
+      const overlay = overlayRef.current;
+      if (!overlay) return;
+      overlay.style.top = `${viewport.offsetTop}px`;
+      overlay.style.left = `${viewport.offsetLeft}px`;
+      overlay.style.width = `${viewport.width}px`;
+      overlay.style.height = `${viewport.height}px`;
+      overlay.style.bottom = "auto";
+      overlay.style.setProperty("--modal-viewport-height", `${viewport.height}px`);
+    };
+    update();
+    viewport.addEventListener("resize", update);
+    viewport.addEventListener("scroll", update);
+    return () => {
+      viewport.removeEventListener("resize", update);
+      viewport.removeEventListener("scroll", update);
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
@@ -93,6 +115,7 @@ export default function Modal({
           {/* Modal */}
           <motion.div
             ref={dialogRef}
+            style={{ maxHeight: "calc(var(--modal-viewport-height, 100dvh) - 2rem)" }}
             role="dialog"
             aria-modal="true"
             aria-labelledby={title ? titleId : undefined}
@@ -139,12 +162,12 @@ export default function Modal({
 
               {/* Title */}
               {title && (
-                <h2 id={titleId} className="text-xl font-black text-[var(--text-primary)] text-center">
+                <h2 id={titleId} className="text-xl font-black text-[var(--text-primary)] text-center px-10 break-words">
                   {title}
                 </h2>
               )}
               {subtitle && (
-                <p id={subtitleId} className="text-sm text-[var(--text-secondary)] text-center mt-1.5">
+                <p id={subtitleId} className="text-sm text-[var(--text-secondary)] text-center mt-1.5 break-words">
                   {subtitle}
                 </p>
               )}

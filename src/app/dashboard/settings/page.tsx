@@ -491,7 +491,8 @@ export default function SettingsPage() {
       <div className={styles.layout}>
         <aside className={styles.sidebar}>
           <p className={styles.navLabel}>Settings</p>
-          <select aria-label="Settings section" className={styles.mobileSelect} value={activeTab} onChange={event => setActiveTab(event.target.value as typeof activeTab)}>{TABS.map(tab => <option key={tab.key} value={tab.key}>{tab.label}</option>)}</select>
+          <label className={styles.mobileSelectLabel} htmlFor="settings-section">Settings section</label>
+          <select id="settings-section" className={styles.mobileSelect} value={activeTab} onChange={event => setActiveTab(event.target.value as typeof activeTab)}>{TABS.map(tab => <option key={tab.key} value={tab.key}>{tab.label}</option>)}</select>
           <nav aria-label="Settings sections" className={styles.navigation}>
             {TABS.map((tab) => {
               const Icon = tab.icon;
@@ -1258,8 +1259,9 @@ export default function SettingsPage() {
                   <div key={index} className="relative group aspect-square rounded-xl overflow-hidden border-[3px] border-[var(--border)]">
                     <img src={url} alt={`Portfolio ${index + 1}`} className="w-full h-full object-cover" />
                     <button
+                      aria-label={`Remove portfolio photo ${index + 1}`}
                       onClick={() => removePortfolioPhoto(index)}
-                      className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition shadow-[var(--surface-shadow)]"
+                      className="absolute top-2 right-2 min-h-11 min-w-11 flex items-center justify-center bg-red-500 text-white rounded-lg transition shadow-[var(--surface-shadow)]"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>

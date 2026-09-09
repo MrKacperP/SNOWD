@@ -78,10 +78,10 @@ export default function SignUpPage() {
             Create account
           </div>
           <h2 className="mt-3 font-headline text-[clamp(2rem,7vw,3rem)] font-black lowercase leading-none">
-            Your snow day starts here<span className="text-[#ff820e]">.</span>
+            Create your account<span className="text-[#ff820e]">.</span>
           </h2>
           <p className="mt-2 text-sm font-bold leading-5 text-[#061321]/62 sm:text-base">
-            One click to join. Then three quick steps to make snowd yours.
+            Sign up with Google, then choose homeowner or shoveler and add your details.
           </p>
 
           <div className="mt-4 space-y-3">
@@ -119,7 +119,7 @@ export default function SignUpPage() {
             Already have an account?{" "}
             <Link
               href="/login"
-              className="font-black text-[#061321] underline decoration-[#ff820e] decoration-4 underline-offset-4"
+              className="inline-flex min-h-11 items-center font-black text-[#061321] underline decoration-[#ff820e] decoration-4 underline-offset-4"
             >
               Log in
             </Link>

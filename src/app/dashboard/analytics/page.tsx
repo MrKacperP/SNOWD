@@ -247,13 +247,13 @@ export default function AnalyticsPage() {
           {/* Charts Row */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Earnings Chart */}
-            <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 p-6">
-              <div className="flex items-center justify-between mb-4">
+            <div className="min-w-0 lg:col-span-2 bg-white rounded-2xl border border-gray-100 p-6">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                 <h3 className="font-bold text-gray-900 flex items-center gap-2">
                   <DollarSign className="w-5 h-5 text-green-600" />
                   Earnings Trend
                 </h3>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <div className="flex bg-gray-100 rounded-lg p-0.5">
                     {(["area", "bar", "line"] as const).map((t) => (
                       <button key={t} onClick={() => setChartType(t)} className={`px-2.5 py-1 text-xs rounded-md capitalize transition ${chartType === t ? "bg-white text-[var(--accent)] font-medium shadow-[var(--surface-shadow)]" : "text-gray-500"}`}>{t}</button>
@@ -381,7 +381,7 @@ export default function AnalyticsPage() {
               <CloudSnow className="w-5 h-5 text-[var(--accent)]" />
               Booking Patterns
             </h3>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="text-center p-4 bg-[var(--accent)]/10 rounded-xl">
                 <p className="text-2xl font-bold text-[var(--accent)]">
                   {Math.round(stats.totalRequests * 0.4)}

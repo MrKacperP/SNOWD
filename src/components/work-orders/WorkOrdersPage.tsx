@@ -8,6 +8,7 @@ import {
   orderSection,
   hasScheduleConflict,
 } from "@/lib/workOrders";
+import JobFilters, { JOB_FILTERS } from "./JobFilters";
 import OrderCard from "./OrderCard";
 export default function WorkOrdersPage({
   history = false,
@@ -20,12 +21,6 @@ export default function WorkOrdersPage({
   const [tab, setTab] = useState(history ? "history" : "attention"),
     [date, setDate] = useState("");
   const [notice, setNotice] = useState("");
-  const tabs = [
-    ["attention", "Needs attention"],
-    ["upcoming", "Upcoming"],
-    ["progress", "In progress"],
-    ["history", "History"],
-  ];
   const localDate = (value: unknown) => {
     const d = new Date(dateMillis(value));
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -56,7 +51,7 @@ export default function WorkOrdersPage({
       ))
     ) : (
       <p className="rounded-2xl bg-[var(--bg-secondary)] p-6 text-[var(--text-secondary)]">
-        No work orders here.
+        No jobs in this view.
       </p>
     );
   return (
@@ -64,12 +59,12 @@ export default function WorkOrdersPage({
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="font-headline text-3xl font-bold">
-            {schedule ? "Schedule" : "Work orders"}
+            {schedule ? "Schedule" : "Jobs"}
           </h1>
           <p className="mt-2 text-[var(--text-secondary)]">
             {schedule
-              ? "Your appointments and ASAP queue, with actions ready here."
-              : "Every visit has its own order, progress, and conversation."}
+              ? "Your confirmed visits and requests for help as soon as possible."
+              : "Track requests, upcoming visits, and completed work."}
           </p>
         </div>
         {!isOperator && (
@@ -141,21 +136,7 @@ export default function WorkOrdersPage({
         </>
       ) : (
         <>
-          <nav aria-label="Work order filters" className="flex flex-wrap gap-2">
-            {tabs.map(([key, label]) => (
-              <button
-                key={key}
-                aria-pressed={tab === key}
-                className={`min-h-12 rounded-xl border px-4 py-3 font-semibold ${tab === key ? "bg-[var(--ink)] text-white" : "bg-white"}`}
-                onClick={() => setTab(key)}
-              >
-                {label}{" "}
-                <span className="ml-1">
-                  {jobs.filter((j) => orderSection(j, uid) === key).length}
-                </span>
-              </button>
-            ))}
-          </nav>
+          <JobFilters value={tab} onChange={setTab} counts={Object.fromEntries(JOB_FILTERS.map(([key]) => [key, jobs.filter(job => orderSection(job, uid) === key).length]))} />
           <div className="space-y-4">
             {cards(sorted.filter((j) => orderSection(j, uid) === tab))}
           </div>

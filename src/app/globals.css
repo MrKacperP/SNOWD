@@ -644,3 +644,71 @@ html { scroll-padding-top: 6rem; }
   .dashboard-shell :is(button,a):active { opacity: .75; }
   .dashboard-shell :is(.hover-lift,.interactive-card):hover { transform: none; }
 }
+
+/* Form controls must shrink inside narrow cards, including native date fields. */
+:where(input, select, textarea) { min-width: 0; max-width: 100%; }
+.page-heading > div { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea { font-size: 16px; }
+  .auth-page { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+  .auth-page button { min-height: 44px; }
+  .dashboard-shell .surface-card, .dashboard-shell .surface-panel { min-width: 0; }
+}
+
+/* Mobile app rhythm: readable content, quieter surfaces, consistent controls. */
+@media (max-width: 767px) {
+  .dashboard-shell { --bg-primary: #f6f8f6; --bg-card: #fff; --surface-shadow: none; }
+  .dashboard-shell .container-app { padding-inline: 16px; }
+  .dashboard-shell .surface-panel, .dashboard-shell .surface-card { border-radius: 16px; }
+  .dashboard-shell .page-heading h1 { font-size: 28px; line-height: 1.2; }
+  .dashboard-shell .page-heading p { font-size: 15px; line-height: 1.6; }
+  .dashboard-shell :is(input,select,textarea) { scroll-margin-block: 100px; }
+  .dashboard-shell :is(h1,h2,h3,p) { overflow-wrap: anywhere; }
+}
+
+@media (max-width: 767px) {
+  .auth-page { background: #f6f8f6; }
+  .auth-page .auth-frame { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+  .auth-page .auth-form-section { background: transparent; padding: 12px 4px; }
+  .auth-page .auth-form-content { padding-top: 28px; justify-content: flex-start; }
+  .auth-page .auth-form-content [class*="shadow-"] { box-shadow: none; }
+  .auth-page .auth-form-content [class*="border-[3px]"] { border-width: 1px; border-color: #ccd7d0; }
+  .auth-page .auth-form-content :is(h1,h2) { font-family: "Instrument Sans", sans-serif; font-size: 30px; font-weight: 600; line-height: 1.15; text-transform: none; }
+  .auth-page .auth-form-content :is(p,label) { font-weight: 400; line-height: 1.6; }
+  .auth-page .auth-form-content label { text-transform: none; letter-spacing: 0; font-size: 14px; }
+  .auth-page .auth-form-content button { font-weight: 600; border-radius: 10px; }
+  .auth-page .auth-form-content input:not([type="checkbox"]) { border-radius: 10px; font-weight: 400; }
+  .auth-page .login-badge { display: none; }
+}
+
+/* Desktop navigation follows the same calm, clearly labelled app surfaces. */
+.desktop-navigation a { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 12px; border-radius: 12px; color: #526058; font-size: 14px; font-weight: 500; }
+.desktop-navigation a:hover { background: #f0f4f1; }
+.desktop-navigation a[aria-current="page"] { background: #e5efe8; color: #234f37; font-weight: 700; }
+.desktop-navigation a[aria-current="page"] svg { color: #36704e; }
+.availability-toggle { display: flex; width: 100%; min-height: 48px; align-items: center; gap: 10px; padding: 8px; border-radius: 12px; background: #f1f3f2; color: #526058; font-size: 13px; text-align: left; transition: background 300ms ease, color 300ms ease; }
+.availability-toggle[data-online="true"] { background: #e5f2e9; color: #245b38; }
+.availability-track { display: block; flex-shrink: 0; width: 44px; height: 26px; padding: 3px; border-radius: 20px; background: #89958e; transition: background 300ms ease; }
+.availability-thumb { display: block; width: 20px; height: 20px; background: white; border-radius: 50%; box-shadow: 0 1px 4px #17251e26; transition: transform 380ms cubic-bezier(.22,1.3,.36,1); }
+.availability-toggle[data-online="true"] .availability-track { background: #367c50; }
+.availability-toggle[data-online="true"] .availability-thumb { transform: translateX(18px); }
+.availability-toggle[aria-busy="true"] .availability-track { animation: availability-saving 900ms ease-in-out infinite alternate; }
+@keyframes availability-saving { to { opacity: .45; } }
+
+/* The auth entry point shares the mobile app's typography and surface palette. */
+.auth-page { background: #f6f8f6; color: #17251e; }
+.auth-welcome { background: linear-gradient(150deg, #e7f1e9, #eef4f0 60%, #fff0dd); }
+.auth-page .auth-form-content [class*="shadow-"] { box-shadow: none; }
+.auth-page .auth-form-content [class*="border-[3px]"] { border-width: 1px; border-color: #ccd7d0; }
+.auth-page .auth-form-content :is(h1,h2) { font-family: "Instrument Sans", sans-serif; font-size: 30px; font-weight: 600; line-height: 1.15; text-transform: none; }
+.auth-page .auth-form-content :is(p,label) { font-weight: 400; line-height: 1.6; }
+.auth-page .auth-form-content label { text-transform: none; letter-spacing: 0; font-size: 14px; }
+.auth-page .auth-form-content button { font-weight: 600; border-radius: 10px; }
+.auth-page .auth-form-content input:not([type="checkbox"]) { border-radius: 10px; font-weight: 400; background: #f6f8f6; }
+.auth-page .auth-form-content button[type="submit"] { background: #17251e; color: white; }
+.auth-page .login-badge, .auth-page .login-helper { display: none; }
+.auth-page .login-card { padding: 0; border: 0; background: transparent; }
+@media (prefers-reduced-motion: reduce) {
+  .availability-toggle, .availability-track, .availability-thumb { transition: none; animation: none; }
+  .status-dot.online { animation: none; }
+}

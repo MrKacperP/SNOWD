@@ -340,7 +340,7 @@ export default function FindOperatorsPage() {
 
   return (
     <div className="mx-auto max-w-[1040px] space-y-5">
-      <PageHeader title="Book help" description={`Find trusted snow help in ${clientProfile?.city || "your neighbourhood"}.`} />
+      <PageHeader title="Find a shoveler" description={`Choose snow help in ${clientProfile?.city || "your neighbourhood"}.`} />
       <div className="rounded-2xl bg-[#eaf1ee] px-5 py-4 text-sm text-[#43574b]"><MapPin className="mr-2 inline h-4 w-4" />{clientProfile?.address || "Add your service address"} <Link href="/dashboard/settings" className="ml-2 font-semibold underline">Change</Link></div>
 
       <section className="surface-panel p-4 md:p-5">
@@ -352,7 +352,7 @@ export default function FindOperatorsPage() {
               aria-label="Search operators"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search operators, services, city, or equipment"
+              placeholder="Search by name, service, or city"
               className="h-13 w-full rounded-[1.3rem] border-[3px] border-[var(--border-color)] bg-[#fbfbf8] pl-12 pr-4 text-[var(--text-primary)] outline-none transition focus:border-[var(--ink)]"
             />
           </div>

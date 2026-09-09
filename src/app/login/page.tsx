@@ -180,7 +180,7 @@ function LoginPageInner() {
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold sm:text-sm">
-                <label className="inline-flex items-center gap-2 text-[#061321]/62">
+                <label className="inline-flex min-h-11 items-center gap-2 text-[#061321]/62">
                   <input
                     type="checkbox"
                     checked={remember}
@@ -189,7 +189,7 @@ function LoginPageInner() {
                   />
                   Keep me signed in
                 </label>
-                <button type="button" onClick={handlePasswordReset} disabled={loading} className="font-black text-[#061321]">
+                <button type="button" onClick={handlePasswordReset} disabled={loading} className="min-h-11 font-black text-[#061321]">
                   Forgot password
                 </button>
               </div>
@@ -225,7 +225,7 @@ function LoginPageInner() {
 
             <p className="mt-3 text-sm font-bold text-[#061321]/62">
               Don&apos;t have an account?{" "}
-              <Link href="/signup" className="font-black text-[#061321] underline decoration-[#ff820e] decoration-4 underline-offset-4">
+              <Link href="/signup" className="inline-flex min-h-11 items-center font-black text-[#061321] underline decoration-[#ff820e] decoration-4 underline-offset-4">
                 Create one
               </Link>
             </p>

@@ -88,7 +88,7 @@ export default function AdminCallsPage() {
         </div>
       </AdminCard>
 
-      <AdminCard className="overflow-hidden">
+      <AdminCard className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr>
