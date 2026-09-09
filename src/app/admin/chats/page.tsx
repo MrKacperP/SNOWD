@@ -18,7 +18,7 @@ export default function AdminChatsPage() {
     return list.filter((c) => [c.participantA, c.participantB, users.find(u => u.id === c.participantA)?.name, users.find(u => u.id === c.participantB)?.name, c.lastMessage].join(" ").toLowerCase().includes(q));
   }, [chats, query, users]);
 
-  const selected = filtered.find((c) => c.id === selectedId) || chats.find((c) => c.id === selectedId) || filtered[0] || null;
+  const selected = selectedId ? chats.find(c => c.id === selectedId) || null : filtered[0] || null;
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[minmax(260px,34%)_minmax(0,1fr)] gap-4 h-[calc(100dvh-128px)] min-h-[520px]">

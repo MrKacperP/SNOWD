@@ -16,13 +16,13 @@ export const metadata: Metadata = {
   openGraph: {
     title: "SNOWD | Snow help, right on your block",
     description: "Book nearby snow help or earn clearing driveways in your neighborhood.",
-    images: ["/landing/snowd-neighborhood-hero.png"],
+    images: ["/landing/snowd-neighborhood-hero-v2.png"],
   },
   twitter: {
     card: "summary_large_image",
     title: "SNOWD | Snow help, right on your block",
     description: "Book nearby snow help or earn clearing driveways in your neighborhood.",
-    images: ["/landing/snowd-neighborhood-hero.png"],
+    images: ["/landing/snowd-neighborhood-hero-v2.png"],
   },
   icons: {
     icon: "/icon.png",

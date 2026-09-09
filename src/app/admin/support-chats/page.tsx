@@ -18,7 +18,7 @@ export default function AdminSupportPage() {
     return [...supportTickets].sort((a, b) => urgencyOrder[a.urgency] - urgencyOrder[b.urgency]);
   }, [supportTickets]);
 
-  const selected = sorted.find((t) => t.id === selectedId) || sorted[0] || null;
+  const selected = selectedId ? sorted.find(t => t.id === selectedId) || null : sorted[0] || null;
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");

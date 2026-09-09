@@ -7,6 +7,7 @@ test('Firestore enforces verified cash listings, chat access, and server-owned p
   const [host, port] = process.env.FIRESTORE_EMULATOR_HOST.split(':');
   const env = await initializeTestEnvironment({ projectId: 'demo-snowd-audit', firestore: { host, port: Number(port), rules: fs.readFileSync('firestore.rules', 'utf8') } });
   try {
+    await env.clearFirestore();
     await env.withSecurityRulesDisabled(async (context) => {
       const db = context.firestore();
       await setDoc(doc(db, 'users/client'), { role: 'client' });
@@ -22,8 +23,9 @@ test('Firestore enforces verified cash listings, chat access, and server-owned p
     booking.set(doc(client, 'jobs/batch-job'), { ...job, chatId: 'batch-chat' });
     booking.set(doc(client, 'chats/batch-chat'), { jobId: 'batch-job', participants: ['client', 'operator'] });
     booking.set(doc(client, 'messages/batch-message'), { chatId: 'batch-chat', senderId: 'client', content: 'Cash booking requested' });
-    await assertSucceeds(booking.commit());
-    await assertSucceeds(setDoc(doc(client, 'jobs/cash'), job));
+    await assertFails(booking.commit());
+    await assertFails(setDoc(doc(client, 'jobs/cash'), job));
+    await env.withSecurityRulesDisabled(async context => { await setDoc(doc(context.firestore(), 'jobs/cash'), job); });
     await assertFails(updateDoc(doc(client, 'jobs/cash'), { status: 'cancelled' }));
     await assertSucceeds(getDoc(doc(operator, 'jobs/cash')));
     await assertFails(setDoc(doc(client, 'jobs/forged-cash'), { ...job, cashConfirmedBy: 'operator' }));
@@ -51,9 +53,19 @@ test('Firestore enforces verified cash listings, chat access, and server-owned p
     await assertFails(setDoc(doc(client, 'jobs/card'), { ...job, paymentMethod: 'credit' }));
     await assertFails(setDoc(doc(client, 'jobs/unverified'), { ...job, operatorId: 'unverified' }));
     await assertFails(updateDoc(doc(operator, 'users/operator'), { stripeAccountStatus: 'connected', stripeConnectAccountId: 'acct_fake' }));
-    await assertSucceeds(setDoc(doc(client, 'chats/chat'), { participants: ['client', 'operator'] }));
-    await assertSucceeds(setDoc(doc(client, 'messages/message'), { chatId: 'chat', senderId: 'client', text: 'fixture', read: false }));
+    await assertFails(setDoc(doc(client, 'chats/chat'), { jobId: 'cash', participants: ['client', 'operator'] }));
+    await env.withSecurityRulesDisabled(async context => { await setDoc(doc(context.firestore(), 'chats/chat'), { jobId: 'cash', participants: ['client', 'operator'] }); });
+    await assertSucceeds(setDoc(doc(client, 'messages/message'), { chatId: 'chat', jobId: 'cash', senderId: 'client', text: 'fixture', read: false }));
     await assertSucceeds(updateDoc(doc(operator, 'messages/message'), { read: true }));
+    await assertFails(updateDoc(doc(client, 'chats/chat'), { jobId: 'other' }));
+    await assertFails(updateDoc(doc(client, 'messages/message'), { jobId: 'other' }));
+    await assertFails(setDoc(doc(client, 'messages/wrong-order'), { chatId: 'chat', jobId: 'other', senderId: 'client', content: 'wrong' }));
+    await assertFails(updateDoc(doc(operator, 'jobs/cash'), { scheduledDate: new Date(), awaitingResponseFrom: 'client' }));
+    await env.withSecurityRulesDisabled(async context => {
+      await setDoc(doc(context.firestore(), 'chats/legacy'), { jobId: 'cash', participants: ['client', 'operator'], legacyHistory: true });
+    });
+    await assertSucceeds(getDoc(doc(client, 'chats/legacy')));
+    await assertFails(setDoc(doc(client, 'messages/legacy-write'), { chatId: 'legacy', jobId: 'cash', senderId: 'client', content: 'new' }));
     await assertFails(updateDoc(doc(operator, 'messages/message'), { injected: true }));
     await assertFails(getDoc(doc(stranger, 'chats/chat')));
     await env.withSecurityRulesDisabled(async (context) => {

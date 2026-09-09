@@ -75,7 +75,7 @@ export default function OperatorDashboard() {
           <Link href="/dashboard/jobs" className="mt-3 flex min-h-12 items-center justify-between gap-3 rounded-xl bg-[var(--bg-secondary)] p-4">
             <span className="text-lg font-medium">{pending.length} new request{pending.length === 1 ? "" : "s"}</span><ArrowRight className="h-5 w-5 shrink-0" />
           </Link>
-          {nextJob ? <Link href={nextJob.chatId ? `/dashboard/messages/${nextJob.chatId}` : "/dashboard/log"} className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl py-2">
+          {nextJob ? <Link href={`/dashboard/jobs/${nextJob.id}`} className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl py-2">
             <div className="min-w-0 flex-1"><p className="text-lg font-semibold break-words">{nextJob.address || "Your next job"}</p><p className="mt-1 text-base text-[var(--text-secondary)]">{active.length} active job{active.length === 1 ? "" : "s"} · Open job details</p></div>
             <StatusBadge status={nextJob.status} />
           </Link> : <p className="mt-4 text-base text-[var(--text-secondary)]">No active jobs. Your next job will appear here.</p>}

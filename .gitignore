@@ -44,3 +44,6 @@ node_modules
 # Local verification evidence and emulator output
 /.codex-artifacts/
 firestore-debug.log
+
+# Isolated local work-order verification build
+.next-workorders/

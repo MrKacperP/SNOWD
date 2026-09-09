@@ -24,12 +24,13 @@ export async function POST(request: NextRequest) {
       if (job.status === "completed") return { error: "Completed jobs cannot be cancelled.", status: 409 };
       if (job.status !== "cancelled") {
         const now = FieldValue.serverTimestamp();
-        transaction.update(ref, { status: "cancelled", cancelledBy: uid, cancelledAt: now, updatedAt: now });
+        transaction.update(ref, { status: "cancelled", revision: (job.revision || 0) + 1, scheduleProposal: null, awaitingResponseFrom: null, cancelledBy: uid, cancelledAt: now, updatedAt: now });
+        transaction.set(db.doc(`jobs/${jobId}/events/cancelled`), { title: "Order cancelled", actorId: uid, createdAt: now });
         const recipient = uid === job.clientId ? job.operatorId : job.clientId;
         const message = `This job has been cancelled. ${job.paymentMethod === "cash" ? "Any cash already exchanged must be settled directly; the operator can record cash returned." : "Held card payments will be released. Captured payments require a refund through support."}`;
         transaction.set(db.doc(`notifications/${jobId}-cancelled`), { uid: recipient, type: "job", title: "Job cancelled", message, jobId, chatId: job.chatId || "", read: false, createdAt: now });
         if (job.chatId) {
-          transaction.set(db.doc(`messages/${jobId}-cancelled`), { chatId: job.chatId, senderId: uid, senderName: "Job update", type: "status-update", content: message, metadata: { newStatus: "cancelled" }, read: false, createdAt: now });
+          transaction.set(db.doc(`messages/${jobId}-cancelled`), { chatId: job.chatId, jobId, senderId: uid, senderName: "Job update", type: "status-update", content: message, metadata: { newStatus: "cancelled" }, read: false, createdAt: now });
           transaction.update(db.doc(`chats/${job.chatId}`), { lastMessage: message, lastMessageTime: now, [`unreadCount.${recipient}`]: FieldValue.increment(1) });
         }
       }
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
           await syncStripePayment(released);
         }
       } catch {
-        warning = "Job cancelled, but the card hold could not be released yet. Retry releasing the hold from this conversation or contact support.";
+        warning = "Job cancelled, but the card hold could not be released yet. Retry releasing the hold from this work order or contact support.";
       }
     }
     return NextResponse.json({ success: true, warning });

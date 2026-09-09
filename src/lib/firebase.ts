@@ -1,7 +1,7 @@
 // Firebase Configuration
 import { initializeApp, getApps, FirebaseApp } from "firebase/app";
-import { getAuth, Auth } from "firebase/auth";
-import { getFirestore, Firestore } from "firebase/firestore";
+import { getAuth, Auth, connectAuthEmulator } from "firebase/auth";
+import { getFirestore, Firestore, connectFirestoreEmulator } from "firebase/firestore";
 import { getStorage, FirebaseStorage } from "firebase/storage";
 import { getAnalytics, Analytics, isSupported } from "firebase/analytics";
 
@@ -66,6 +66,15 @@ if (typeof window !== 'undefined' && isFirebaseConfigured) {
   authInstance = getAuth(app);
   dbInstance = getFirestore(app);
   storageInstance = getStorage(app);
+  // Explicit local-only QA mode. Never connect a hosted application to emulators.
+  if (process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === "true" && ["localhost", "127.0.0.1"].includes(window.location.hostname)) {
+    const marker = window as Window & { snowdEmulatorsConnected?: boolean };
+    if (!marker.snowdEmulatorsConnected) {
+      connectAuthEmulator(authInstance, "http://127.0.0.1:9099", { disableWarnings: true });
+      connectFirestoreEmulator(dbInstance, "127.0.0.1", 8080);
+      marker.snowdEmulatorsConnected = true;
+    }
+  }
 }
 
 // Export instances (will be undefined during SSR/build, but defined on client)

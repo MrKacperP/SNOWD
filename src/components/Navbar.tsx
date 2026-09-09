@@ -29,7 +29,6 @@ Home,
 LogOut,
 Menu,
 MessageSquare,
-Search,
 Settings,
 User,
 X,
@@ -43,6 +42,7 @@ import { formatDistanceToNow } from "date-fns";
 type NotificationItem = {
   id: string;
   chatId?: string;
+  jobId?: string;
   operatorId?: string;
   type?: string;
   title?: string;
@@ -94,25 +94,25 @@ export default function Navbar() {
     if (simplifiedClient) {
       return [
         { href: "/dashboard", label: "Home", icon: Home },
-        { href: "/dashboard/find", label: "Book", icon: Search },
-        { href: "/dashboard/log", label: "Progress", icon: ClipboardList },
+        { href: "/dashboard/calendar", label: "Schedule", icon: CalendarDays },
+        { href: "/dashboard/jobs", label: "Work orders", icon: ClipboardList },
         { href: "/dashboard/messages", label: "Messages", icon: MessageSquare },
       ];
     }
     if (isClient) {
       return [
         { href: "/dashboard", label: "Home", icon: Home },
-        { href: "/dashboard/find", label: "Book help", icon: Search },
+        { href: "/dashboard/jobs", label: "Work orders", icon: ClipboardList },
         { href: "/dashboard/messages", label: "Messages", icon: MessageSquare },
-        { href: "/dashboard/calendar", label: "Calendar", icon: CalendarDays },
+        { href: "/dashboard/calendar", label: "Schedule", icon: CalendarDays },
         { href: "/dashboard/transactions", label: "Payments", icon: Briefcase },
       ];
     }
     return [
       { href: "/dashboard", label: "Home", icon: Home },
-      { href: "/dashboard/jobs", label: "Jobs", icon: Briefcase },
+      { href: "/dashboard/jobs", label: "Work orders", icon: Briefcase },
       { href: "/dashboard/messages", label: "Messages", icon: MessageSquare },
-      { href: "/dashboard/calendar", label: "Calendar", icon: CalendarDays },
+      { href: "/dashboard/calendar", label: "Schedule", icon: CalendarDays },
       { href: "/dashboard/transactions", label: "Payments", icon: Briefcase },
     ];
   }, [isClient, simplifiedClient]);
@@ -321,7 +321,7 @@ export default function Navbar() {
                   notifications.map((notification) => (
                     <button
                       key={notification.id}
-                      onClick={() => { markNotificationRead(notification.id); if (notification.type === "booking-invite" && notification.operatorId) { setNotifOpen(false); router.push(`/dashboard/find?operator=${encodeURIComponent(notification.operatorId)}`); } else if (notification.chatId) { setNotifOpen(false); router.push(`/dashboard/messages/${encodeURIComponent(notification.chatId)}`); } }}
+                      onClick={() => { markNotificationRead(notification.id); if (notification.type === "booking-invite" && notification.operatorId) { setNotifOpen(false); router.push(`/dashboard/find?operator=${encodeURIComponent(notification.operatorId)}`); } else if (notification.jobId && notification.type !== "message") { setNotifOpen(false); router.push(`/dashboard/jobs/${encodeURIComponent(notification.jobId)}`); } else if (notification.chatId) { setNotifOpen(false); router.push(`/dashboard/messages/${encodeURIComponent(notification.chatId)}`); } }}
                       aria-label={`${notification.read ? "Read" : "Unread"} notification: ${notificationTitle(notification)}`}
                       className={`w-full border-b border-[var(--border-soft)] border-l-4 px-4 py-3 text-left transition last:border-b-0 hover:bg-[var(--bg-secondary)] ${notification.read ? "border-l-transparent bg-white" : "border-l-[var(--accent)] bg-[var(--accent-soft)]"}`}
                     >
@@ -423,7 +423,7 @@ export default function Navbar() {
           <div className="max-h-[min(320px,calc(100dvh-160px))] overflow-y-auto">
             {notifications.length ? (
               notifications.map((notification) => (
-                <button key={notification.id} onClick={() => { markNotificationRead(notification.id); if (notification.type === "booking-invite" && notification.operatorId) { setNotifOpen(false); router.push(`/dashboard/find?operator=${encodeURIComponent(notification.operatorId)}`); } else if (notification.chatId) { setNotifOpen(false); router.push(`/dashboard/messages/${encodeURIComponent(notification.chatId)}`); } }} className="w-full border-b border-[var(--border-soft)] px-4 py-3 text-left last:border-b-0">
+                <button key={notification.id} onClick={() => { markNotificationRead(notification.id); if (notification.type === "booking-invite" && notification.operatorId) { setNotifOpen(false); router.push(`/dashboard/find?operator=${encodeURIComponent(notification.operatorId)}`); } else if (notification.jobId && notification.type !== "message") { setNotifOpen(false); router.push(`/dashboard/jobs/${encodeURIComponent(notification.jobId)}`); } else if (notification.chatId) { setNotifOpen(false); router.push(`/dashboard/messages/${encodeURIComponent(notification.chatId)}`); } }} className="w-full border-b border-[var(--border-soft)] px-4 py-3 text-left last:border-b-0">
                   <span className="flex items-center gap-3 text-sm font-semibold leading-5">
                     {!notification.read && <span aria-label="Unread" className="h-2 w-2 shrink-0 rounded-full bg-[var(--accent)]" />}
                     <span className="min-w-0 break-words">{notificationTitle(notification)}</span>

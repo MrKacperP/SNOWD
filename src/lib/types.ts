@@ -132,9 +132,29 @@ export interface OperatorProfile extends UserProfile {
   portfolioPhotos?: string[]; // photo URLs of past work
 }
 
+export interface ScheduleProposal {
+  id: string;
+  proposedBy: string;
+  recipientId: string;
+  scheduleMode: "asap" | "scheduled";
+  scheduledDate: Date | null;
+  scheduledTime: string;
+  scheduleTimezone: string;
+}
+
 // -- Jobs --
 export interface Job {
   id: string;
+  orderNumber?: string;
+  previousOrderId?: string;
+  bookingInitiator?: string;
+  awaitingResponseFrom?: string | null;
+  scheduleProposal?: ScheduleProposal | null;
+  scheduleMode?: "asap" | "scheduled";
+  scheduleTimezone?: string;
+  revision?: number;
+  declinedBy?: string;
+  legacyChatId?: string;
   clientId: string;
   operatorId: string;
   status: JobStatus;
@@ -147,7 +167,7 @@ export interface Job {
   clientLat?: number | null;
   clientLng?: number | null;
   specialInstructions?: string;
-  scheduledDate: Date;
+  scheduledDate: Date | null;
   scheduledTime: string;
   estimatedDuration: number; // minutes
   price: number;
@@ -205,6 +225,8 @@ export interface ChatMessage {
 
 export interface Chat {
   id: string;
+  legacyHistory?: boolean;
+  legacyJobIds?: string[];
   jobId: string;
   participants: string[];
   lastMessage?: string;

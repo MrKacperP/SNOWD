@@ -1,4 +1,5 @@
 "use client";
+import { orderRequest } from "@/components/work-orders/OrderActions";
 
 import Modal from "@/components/ui/Modal";
 import PageHeader from "@/components/ui/PageHeader";
@@ -17,13 +18,11 @@ isOperatorPublic,
 import { ClientProfile,OperatorProfile,ServiceType } from "@/lib/types";
 import { addDays,format } from "date-fns";
 import {
-writeBatch,
 collection,
 doc,
 getDoc,
 getDocs,
 query,
-Timestamp,
 updateDoc,
 where,
 } from "firebase/firestore";
@@ -38,7 +37,7 @@ Zap
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect,useState } from "react";
+import { useEffect,useState,useRef } from "react";
 
 const SERVICE_LABELS: Record<ServiceType, string> = {
   driveway: "Driveway",
@@ -202,6 +201,7 @@ export default function FindOperatorsPage() {
 
   // Book an operator — show scheduling modal first
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "credit">("cash");
+  const bookingAttempt = useRef<{ key: string; id: string } | null>(null);
   const [cashAcknowledged, setCashAcknowledged] = useState(false);
   const [bookingError, setBookingError] = useState("");
   const [openedInvitation, setOpenedInvitation] = useState(false);
@@ -267,66 +267,19 @@ export default function FindOperatorsPage() {
       const operatorRequiresCard =
         paymentMethod === "credit" && canAcceptPlatformPayments(operator);
 
-      const batch = writeBatch(db);
-      const jobRef = doc(collection(db, "jobs"));
-      const chatRef = doc(collection(db, "chats"));
-      batch.set(jobRef, {
-        chatId: chatRef.id,
-        clientId: user.uid,
+      const payload = {
         operatorId: operator.uid,
-        status: "pending",
-        serviceTypes: clientProfile?.propertyDetails?.serviceTypes || ["driveway"],
-        propertySize: clientProfile?.propertyDetails?.propertySize || "medium",
-        address: clientProfile?.address || "",
-        city: clientProfile?.city || "",
-        province: clientProfile?.province || "",
-        postalCode: clientProfile?.postalCode || "",
-        clientLat: clientProfile?.lat ?? null,
-        clientLng: clientProfile?.lng ?? null,
-        specialInstructions: clientProfile?.propertyDetails?.specialInstructions || "",
-        scheduledDate: scheduleType === "scheduled" ? Timestamp.fromDate(new Date(scheduledDate + "T" + scheduledTime)) : null,
-        scheduledTime: scheduleType === "scheduled" ? scheduledTime : "ASAP",
-        estimatedDuration: 45,
-        price:
-          operator.pricing?.driveway?.[
-            (clientProfile?.propertyDetails?.propertySize || "medium") as "small" | "medium" | "large"
-          ] || 40,
+        scheduleMode: scheduleType,
+        scheduledDate: scheduleType === "scheduled" ? new Date(scheduledDate + "T" + scheduledTime).toISOString() : null,
+        scheduleTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         paymentMethod: operatorRequiresCard ? "credit" : "cash",
         cashPaymentAcknowledged: !operatorRequiresCard && cashAcknowledged,
-        requiresCardPayment: operatorRequiresCard,
-        paymentStatus: "pending",
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
-      });
-
-      batch.set(chatRef, {
-        jobId: jobRef.id,
-        participants: [user.uid, operator.uid],
-        lastMessage: "Job request sent",
-        lastMessageTime: Timestamp.now(),
-        unreadCount: { [user.uid]: 0, [operator.uid]: 1 },
-        createdAt: Timestamp.now(),
-      });
-
-
-      const scheduleInfo = scheduleType === "scheduled"
-        ? ` Scheduled for ${format(new Date(scheduledDate), "MMM d")} at ${scheduledTime}.`
-        : "";
-      const paymentInfo = operatorRequiresCard
-        ? " Card payment is required for this operator."
-        : " Cash payment only. The client agreed to pay the operator directly after the work.";
-
-      batch.set(doc(collection(db, "messages")), {
-        chatId: chatRef.id,
-        senderId: user.uid,
-        senderName: "snowd.ca",
-        type: "system",
-        content: `${clientProfile?.displayName} has requested snow removal service.${scheduleInfo}${paymentInfo} Please discuss details and confirm the booking.`,
-        read: false,
-        createdAt: Timestamp.now(),
-      });
-
-      await batch.commit();
+        expectedPrice: operator.pricing?.driveway?.[(clientProfile?.propertyDetails?.propertySize || "medium") as "small" | "medium" | "large"] || 40,
+      };
+      const key = JSON.stringify(payload);
+      if (bookingAttempt.current?.key !== key) bookingAttempt.current = { key, id: crypto.randomUUID() };
+      const result = await orderRequest("/api/jobs/create", { ...payload, requestId: bookingAttempt.current.id });
+      const jobRef = { id: result.jobId };
 
       sendAdminNotif({
         type: "job_created",
@@ -340,7 +293,7 @@ export default function FindOperatorsPage() {
           city: clientProfile?.city || "",
         },
       });
-      router.push(`/dashboard/messages/${chatRef.id}`);
+      router.push(`/dashboard/jobs/${jobRef.id}`);
     } catch (error) {
       setBookingError("Could not create this booking. Please try again.");
       console.error("Error creating job:", error);

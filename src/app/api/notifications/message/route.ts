@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     const chat = (await db.doc(`chats/${chatId}`).get()).data();
     const participants = Array.isArray(chat?.participants) ? chat.participants : [];
     const recipient = participants.find((participant): participant is string => participant !== uid && typeof participant === "string");
-    if (!participants.includes(uid) || !recipient) {
+    if (!participants.includes(uid) || !recipient || chat?.legacyHistory) {
       return NextResponse.json({ error: "Conversation not found." }, { status: 403 });
     }
 
@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
       message: message.trim().slice(0, 240),
       preview: message.trim().slice(0, 240),
       chatId,
+      jobId: chat?.jobId || "",
       read: false,
       createdAt: FieldValue.serverTimestamp(),
     });

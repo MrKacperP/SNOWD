@@ -167,7 +167,7 @@ export default function ClientDashboard() {
           <div className="divide-y divide-[var(--border-color)]">
             {activeJobs.slice(0, 1).map((job) => (
               <div key={job.id} className="flex items-center gap-2 py-5 pr-16 sm:pr-0">
-                <Link href={job.chatId ? `/dashboard/messages/${job.chatId}` : "/dashboard/log"} className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-3 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4">
+                <Link href={`/dashboard/jobs/${job.id}`} className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-3 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4">
                   <div className="min-w-0">
                     <p className="flex items-center gap-2 font-medium"><User className="h-4 w-4 shrink-0" /><span className="truncate">{operatorNames[job.operatorId] || "Operator"}</span></p>
                     <p className="mt-1 text-sm capitalize text-[var(--text-secondary)]">{job.serviceTypes?.map((service) => service.replaceAll("-", " ")).join(", ")}</p>

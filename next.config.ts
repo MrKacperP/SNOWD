@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  distDir: process.env.SNOWD_BUILD_DIR || ".next",
   poweredByHeader: false,
   turbopack: {
     root: process.cwd(),

@@ -10,11 +10,10 @@ export function notificationHref(data: Record<string, unknown>): string {
   const path = String(meta.path || '');
   if ((path === '/admin/support-chats' || path === '/admin/chats') && (data.chatId || meta.chatId)) return `${path}?id=${encodeURIComponent(String(data.chatId || meta.chatId))}`;
   if (path === '/admin' || path.startsWith('/admin/')) return path;
-  const id = encodeURIComponent(String(meta.jobId || meta.chatId || data.chatId || data.uid || ''));
   const type = String(data.type || '');
   if (type === 'document_uploaded' || type.includes('account_') || type === 'verification') return data.uid ? `/admin/users/${encodeURIComponent(String(data.uid))}` : '/admin/verifications';
-  if (type.includes('job')) return `/admin/jobs${id ? `?id=${id}` : ''}`;
-  if (type === 'support') return `/admin/support-chats${id ? `?id=${id}` : ''}`;
+  if (type.includes('job')) { const id = meta.jobId || data.jobId; return id ? `/admin/jobs?id=${encodeURIComponent(String(id))}` : '/admin/jobs'; }
+  if (type === 'support') { const id = data.chatId || meta.chatId || (data.uid ? `support_${data.uid}` : ''); return id ? `/admin/support-chats?id=${encodeURIComponent(String(id))}` : '/admin/support-chats'; }
   if (type === 'payment' || type === 'transaction') return '/admin/transactions';
   if (type === 'claim') return '/admin/claims';
   if (data.uid) return `/admin/users/${encodeURIComponent(String(data.uid))}`;

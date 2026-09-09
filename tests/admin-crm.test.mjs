@@ -19,6 +19,9 @@ test('notifications resolve actual account, job and support records and reject e
   assert.equal(metrics.notificationHref({ type: 'document_uploaded', uid: 'account' }), '/admin/users/account');
   assert.equal(metrics.notificationHref({ type: 'job_status_change', meta: { jobId: 'job' } }), '/admin/jobs?id=job');
   assert.equal(metrics.notificationHref({ type: 'support', meta: { chatId: 'support_client' } }), '/admin/support-chats?id=support_client');
+  assert.equal(metrics.notificationHref({ type: 'job_created', uid: 'client' }), '/admin/jobs');
+  assert.equal(metrics.notificationHref({ type: 'support', uid: 'client' }), '/admin/support-chats?id=support_client');
+  assert.equal(metrics.notificationHref({ type: 'support', chatId: 'support_client', meta: { path: '/admin/support-chats' } }), '/admin/support-chats?id=support_client');
   assert.equal(metrics.notificationHref({ type: 'payment', meta: { path: 'https://evil.example' } }), '/admin/transactions');
 });
 

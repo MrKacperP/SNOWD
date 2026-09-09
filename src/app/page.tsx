@@ -3,96 +3,55 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Check, ChevronDown, MapPin, RotateCcw, Shovel, Snowflake, Camera, MessageCircle, Banknote, UserRound, ClipboardCheck } from "lucide-react";
+import { ArrowDown, ArrowRight, Check, ChevronDown, GraduationCap, Heart, MapPin, MessageCircle, Shovel, Snowflake } from "lucide-react";
 import styles from "./landing.module.css";
 
 const guides = {
   help: [
-    ["Post it.", "Add your address, a photo, and the areas you need shoveled."],
-    ["Meet your helper.", "A nearby helper accepts your job. Chat with them right in SNOWD."],
-    ["Take back your day.", "Review the finished photos, approve the work, and pay through the app."],
+    ["Tell us what needs clearing", "Create your account, add your address and post a job with a photo of your driveway or walkway."],
+    ["Connect with a nearby helper", "When a shoveler accepts your job, chat in SNOWD to share the details."],
+    ["Review the work. Enjoy your day.", "Check the finished photos, approve the completed job and pay through the app."],
   ],
   earn: [
-    ["Say hello.", "Tell us where you want to work and complete your shoveler setup."],
-    ["Pick your job.", "See available snow-clearing jobs and accept one that works for you."],
-    ["Shovel. Earn. Repeat.", "Upload photos of your work. Payment follows the customer’s approval."],
+    ["Set up your shoveler profile", "Create an account, choose operator and complete your setup to start finding work."],
+    ["Find a job that fits your day", "Browse nearby jobs, check the details and choose the work that fits around your classes."],
+    ["Clear a path. Earn a little extra.", "Upload photos of the finished work. Payment follows your neighbour’s approval."],
   ],
 };
 const questions = [
-  ["What is SNOWD?", "SNOWD connects people who need snow removed with local people who shovel it. Post a job, chat with your helper, and review the work in one place."],
-  ["Can I earn money shoveling?", "Yes. Create an account, complete the shoveler setup, and browse available jobs near you. You choose which jobs to accept."],
-  ["How much does it cost?", "Pricing depends on the job. Review the price in the app before booking snow removal."],
-  ["Is there help in my area?", "Enter your service area when you sign up. Available help depends on nearby shovelers and current demand."],
+  ["How do I find snow help near me?", "Create an account, choose homeowner and add your address. Post what you need cleared so nearby shovelers can find your job. Availability depends on local helpers and the weather."],
+  ["Is SNOWD for seniors?", "Yes. SNOWD is for seniors and any neighbour who would like a hand with snow. Seniors age 65 and over can access our senior discount after signing up. You can explain what needs clearing, chat with your helper and review photos of the finished work in one place."],
+  ["Can I shovel while I’m in school?", "SNOWD is built with high school and college students in mind. Students who upload a transcript or report card with strong grades can be verified for access to more nearby clients. Eligibility and payment setup requirements apply."],
+  ["How much does snow clearing cost?", "The price depends on the job and the areas that need clearing. Review the job price in the app before committing. There is no single price for every driveway."],
+  ["What happens after the snow is cleared?", "Your helper uploads completion photos for you to review. Approve the work when it is finished, with payment handled through the app. Use your job chat if anything needs discussing."],
 ];
 
 function Brand() {
-  return <Link href="/" aria-label="SNOWD home" className={styles.brand}><Image src="/logo.png" alt="" width={42} height={44} priority />snowd<span>.</span></Link>;
-}
-
-function SnowDemo() {
-  const [phase, setPhase] = useState<"snowy" | "clearing" | "cleared">("snowy");
-  const cleared = phase === "cleared";
-  const clearing = phase === "clearing";
-  return <div className={styles.demo}>
-    <div className={styles.demoTop}><span><span className={styles.dot} /> A little winter magic</span><span className={styles.demoLabel}>Interactive demo</span></div>
-    <div className={`${styles.scene} ${clearing ? styles.isClearing : ""} ${cleared ? styles.isCleared : ""}`}>
-      <svg viewBox="0 0 560 350" role="img" aria-label={cleared ? "A house with a freshly cleared driveway" : "A house with a snowy driveway"}>
-        <circle cx="454" cy="66" r="35" fill="#ffcc79" />
-        <path d="M0 255 Q110 220 230 251 T560 239 V350 H0Z" fill="#fff" />
-        <path d="M50 245V159M20 206L50 133L80 206Z" fill="#8fb8bb" stroke="#071624" strokeWidth="3" strokeLinejoin="round" />
-        <path d="M474 249V164M440 214L474 133L508 214Z" fill="#8fb8bb" stroke="#071624" strokeWidth="3" strokeLinejoin="round" />
-        <path d="M141 145L275 52L409 145" fill="#071624" stroke="#071624" strokeWidth="13" strokeLinejoin="round" />
-        <path d="M145 133L275 43L405 133" fill="none" stroke="white" strokeWidth="15" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M159 144H392V251H159Z" fill="#ff9854" stroke="#071624" strokeWidth="3" />
-        <path d="M249 164H369V251H249Z" fill="#f8faf7" stroke="#071624" strokeWidth="3" />
-        {[185, 205, 225].map(y => <path key={y} d={`M254 ${y}H364`} stroke="#c5d7db" strokeWidth="3" />)}
-        <path d="M179 176H223V251H179Z" fill="#071624" /><circle cx="213" cy="218" r="3" fill="#ff6b0a" />
-        <path d="M252 253H369L437 350H216Z" fill="#789199" stroke="#071624" strokeWidth="3" />
-        <defs><clipPath id="driveway-clip"><path d="M249 251H372L437 350H216Z" /></clipPath></defs>
-        <g clipPath="url(#driveway-clip)">
-          {[0, 1, 2].map(lane => <g key={lane} className={styles.snowLane} style={{ animationDelay: `${lane * .75}s` }}>
-            <path d={`M${210 + lane * 76} 247h77v110h-77Z`} fill="#fff" />
-            <path d={`M${228 + lane * 76} 282l18 -3m-12 43l20 -2`} stroke="#d8eefc" strokeWidth="4" strokeLinecap="round" />
-          </g>)}
-        </g>
-        {(clearing || cleared) && <g className={styles.snowBanks} fill="white" stroke="#d8eefc" strokeWidth="2"><path d="M211 348Q192 336 209 328Q196 310 217 309Q206 292 232 291L219 348Z" /><path d="M442 348Q463 335 444 325Q451 310 424 307L402 281Q425 278 426 293Q450 290 447 309Q472 324 463 343Z" /></g>}
-        {clearing && <g aria-hidden="true" className={styles.shovelRun} onAnimationEnd={event => { if (event.target === event.currentTarget) setPhase("cleared"); }}>
-          <g transform="translate(0 -4)"><path d="M0 0L12 -39" stroke="#071624" strokeWidth="5" strokeLinecap="round" /><path d="M6 -47H24L21 -36H9Z" fill="#ff9854" stroke="#071624" strokeWidth="3" /><path d="M-22 -2H22L18 12Q0 24 -18 12Z" fill="#ff6b0a" stroke="#071624" strokeWidth="3" />
-          {[-18, 0, 18].map((x, i) => <circle key={x} className={styles.snowSpray} cx={x} cy="23" r={4 + i} fill="white" style={{ animationDelay: `${i * .12}s` }} />)}</g>
-        </g>}
-        {cleared && <g className={styles.successMark}><circle cx="313" cy="295" r="22" fill="#d9f5dd" stroke="#071624" strokeWidth="2" /><path d="M302 295L310 303L325 286" fill="none" stroke="#22713b" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" /></g>}
-        {phase === "snowy" && [ [100,60], [196,37], [430,166], [70,107], [350,28], [515,92] ].map(([x,y]) => <g key={x} stroke="white" strokeWidth="3" strokeLinecap="round"><path d={`M${x-5} ${y}h10M${x} ${y-5}v10`} /></g>)}
-      </svg>
-      <span className={styles.sceneCaption}><MapPin size={15} /> {cleared ? "Ready for your day." : clearing ? "Making room for life…" : "One snowy driveway. Let’s fix that."}</span>
-    </div>
-    <div className={styles.demoBottom}>
-      <div aria-live="polite"><h2>{cleared ? "Clear driveway. Clear schedule." : clearing ? "A little help goes a long way." : "Your forecast: less shoveling."}</h2><p>{cleared ? "Imagine this part of winter handled." : clearing ? "Watch the shovel make three satisfying passes." : "Tap below and watch winter get out of the way."}</p></div>
-      <button className={styles.primary} disabled={clearing} onClick={() => setPhase(cleared ? "snowy" : "clearing")}>{cleared ? <RotateCcw size={20} /> : <Shovel size={20} />}{cleared ? "Let it snow again" : clearing ? "Clearing the way…" : "Clear the snow"}</button>
-      <p className={styles.demoNote}>Just for fun — this won’t book a real job.</p>
-    </div>
-  </div>;
+  return <Link href="/" aria-label="SNOWD home" className={styles.brand}><Image src="/logo.png" alt="" width={35} height={37} priority />snowd<span>.</span></Link>;
 }
 
 export default function HomePage() {
   const [audience, setAudience] = useState<"help" | "earn">("help");
   return <main className={styles.page}>
-    <nav className={styles.nav} aria-label="Main navigation"><Brand /><div className={styles.navLinks}><a href="#how">How it works</a><Link href="/login">Log in</Link><Link href="/signup" className={styles.primary}>Get started <ArrowRight size={18} /></Link></div></nav>
+    <a className={styles.skip} href="#get-started">Skip to getting started</a>
+    <div className={styles.announcement}><Snowflake size={15} aria-hidden="true" /> A little snow. A little help. A better neighbourhood.</div>
+    <nav className={styles.nav} aria-label="Main navigation"><Brand /><div className={styles.navLinks}><a href="#how">How it works</a><a href="#students">For students</a><a href="#neighbours">For neighbours</a></div><Link href="/login" className={styles.login}>Log in <ArrowRight size={17} /></Link></nav>
     <section className={styles.hero}>
-      <div className={styles.heroCopy}><p className={styles.eyebrow}><Snowflake size={20} /> Local people. Less shoveling.</p><h1>Love winter.<br /><span>Skip the<br />shoveling.</span></h1><p className={styles.intro}>Get your snow cleared by someone nearby. Or earn money clearing it.</p><div className={styles.heroActions}><Link href="/signup" className={styles.primary}>Find snow removal <ArrowRight size={20} /></Link><a href="#how" className={styles.secondary} onClick={() => setAudience("earn")}>I want to earn</a></div><p className={styles.heroNote}>Your driveway. Your walkway. One less thing to do.</p></div>
-      <SnowDemo />
+      <div className={styles.heroCopy}><p className={styles.eyebrow}><span /> GOOD NEIGHBOURS. GREAT SNOW DAYS.</p><h1>Snow brings us<br /><span>together.</span></h1><p className={styles.intro}>Students earn a little extra. Seniors get a helping hand. And the whole neighbourhood gets a clearer path.</p><div className={styles.heroActions}><a href="#neighbours" className={styles.primary}>I need snow help <ArrowRight size={19} /></a><a href="#students" className={styles.secondary}>I want to shovel <Shovel size={19} /></a></div><p className={styles.heroNote}><MapPin size={16} /> Neighbours helping neighbours, close to home.</p></div>
+      <div className={styles.heroArt}><Image src="/landing/snowd-neighborhood-hero-v2.png" alt="A student clears a snowy front path while an older neighbour smiles from her porch." fill priority sizes="(max-width: 760px) 100vw, 55vw" /><div className={styles.imageLabel}><Heart size={18} /> A clear path makes someone’s day.</div></div>
     </section>
-    <section id="how" className={styles.how}>
-      <div className={styles.sectionHeading}><div><p className={styles.eyebrow}>Okay, how does it work?</p><h2>{audience === "help" ? <>From snowed in<br />to sorted.</> : <>Turn a snow day<br />into a payday.</>}</h2><p className={styles.sectionIntro}>{audience === "help" ? "A few details from you. A helping hand nearby." : "Local jobs. Your choice. A little extra in your pocket."}</p></div><div className={styles.switch} aria-label="Choose what you want to do"><button aria-pressed={audience === "help"} onClick={() => setAudience("help")}>I need help</button><button aria-pressed={audience === "earn"} onClick={() => setAudience("earn")}>I want to earn</button></div></div>
-      <div className={styles.steps} aria-live="polite">{guides[audience].map(([title, description], i) => {
-        const Icon = (audience === "help" ? [Camera, MessageCircle, ClipboardCheck] : [UserRound, MapPin, Banknote])[i];
-        const benefits = audience === "help" ? ["You set the scene", "Keep it all in one chat", "You approve the finished work"] : ["Start with your neighborhood", "Choose what works for you", "Show your work. Get paid."];
-        const previews = audience === "help" ? ["Choose your driveway, walkway, or other snowy areas. Add a photo so your helper knows what to expect.", "Once someone accepts, use the job chat to share useful details, like where to find your walkway.", "Your helper uploads finished photos. Review them and approve the job when the work is done."] : ["Create your account and complete the shoveler setup before taking jobs.", "Browse available jobs near you. Review the details before deciding which job to accept.", "Upload finished photos for your customer to review. Payment follows their approval."];
-        return <article key={`${audience}-${i}`}><div className={styles.stepTop}><span className={styles.number}>0{i + 1}</span><span className={styles.stepIcon}><Icon size={32} strokeWidth={1.7} /></span></div><h3>{title}</h3><p>{description}</p><div className={styles.stepBenefit}><Check size={15} />{benefits[i]}</div><details className={styles.stepDetails}><summary>Show me more <ChevronDown size={16} /></summary><p>{previews[i]}</p></details></article>;
-      })}</div>
-      <Link href="/signup" className={styles.textLink}>{audience === "help" ? "Let’s find you some help" : "Let’s get you earning"} <ArrowRight size={20} /></Link>
+    <div className={styles.values}><span><GraduationCap /> Made for student schedules</span><span><Heart /> A helping hand for seniors</span><span><MapPin /> Work that stays local</span></div>
+    <section id="get-started" className={styles.audiences}>
+      <div className={styles.sectionHeading}><p className={styles.eyebrow}>TWO WAYS TO MAKE WINTER BETTER</p><h2>A little help goes both ways.</h2><p>Whichever side of the shovel you’re on, you belong here.</p></div>
+      <div className={styles.audienceGrid}>
+        <article id="neighbours" className={styles.neighbourCard}><div className={styles.cardTop}><span className={styles.pill}>FOR SENIORS & NEIGHBOURS</span><Heart size={28} /></div><h3>Your snow day.<br />Without the heavy lifting.</h3><p>A snowy walkway shouldn’t stand between you and your day. Find a local helping hand for your driveway, steps or path.</p><p className={styles.offer}><Heart size={18} /><strong>65+ senior discount</strong><span>Available after signup and age confirmation.</span></p><ul><li><Check /> Post the areas you need cleared</li><li><Check /> Talk directly with your helper</li><li><Check /> Review photos before approving the work</li></ul><Link href="/signup" className={styles.primary}>Find a helping hand <ArrowRight size={19} /></Link><span className={styles.setupNote}>Choose “homeowner” when you sign up.</span></article>
+        <article id="students" className={styles.studentCard}><div className={styles.cardTop}><span className={styles.pill}>FOR HIGH SCHOOL & COLLEGE STUDENTS</span><GraduationCap size={29} /></div><h3>Good for your block.<br />Great for your pocket.</h3><p>Put your energy to work close to home. Help a neighbour through winter and earn money around your school schedule.</p><p className={styles.offer}><GraduationCap size={18} /><strong>Strong grades, more clients</strong><span>Upload your transcript or report card to be considered for verified student access.</span></p><ul><li><Check /> Choose the jobs that work for you</li><li><Check /> Find opportunities in your neighbourhood</li><li><Check /> Make a difference you can actually see</li></ul><Link href="/signup" className={styles.darkButton}>Start shoveling <ArrowRight size={19} /></Link><span className={styles.setupNote}>Choose “operator” when you sign up, then upload your transcript in Settings. Eligibility requirements apply.</span></article>
+      </div>
     </section>
-    <section className={styles.faq}><div><p className={styles.eyebrow}>Good questions</p><h2>A little more<br />before you go.</h2></div><div className={styles.questions}>{questions.map(([question, answer]) => <details key={question}><summary>{question}<ChevronDown size={20} /></summary><p>{answer}</p></details>)}</div></section>
-    <section className={styles.finalCta}><div><p className={styles.eyebrow}><Check size={18} /> Less snow. More day.</p><h2>Leave the snow<br />to someone nearby.</h2></div><Link href="/signup" className={styles.primary}>Get started <ArrowRight size={20} /></Link></section>
-    <footer className={styles.footer}><Brand /><p>Connecting neighbors, one clear path at a time.</p><Link href="/login">Log in <ArrowRight size={16} /></Link></footer>
+    <section id="how" className={styles.how}><div className={styles.howHeading}><div><p className={styles.eyebrow}>LESS FUSS. MORE HELP.</p><h2>One snowfall.<br />Three simple steps.</h2></div><div className={styles.switch} aria-label="Choose your getting-started guide"><button aria-pressed={audience === "help"} onClick={() => setAudience("help")}>I need help</button><button aria-pressed={audience === "earn"} onClick={() => setAudience("earn")}>I want to earn</button></div></div><div className={styles.steps} aria-live="polite">{guides[audience].map(([title, description], i) => <article key={title}><div className={styles.stepNumber}>0{i + 1}<ArrowRight size={22} /></div><h3>{title}</h3><p>{description}</p></article>)}</div><Link href="/signup" className={styles.textLink}>{audience === "help" ? "Get started as a homeowner" : "Get started as a shoveler"}<ArrowRight size={18} /></Link></section>
+    <section className={styles.community}><div className={styles.communityMark}><Image src="/logo.png" alt="" width={100} height={106} /><span>THE SNOWD EFFECT</span></div><div><p className={styles.eyebrow}>MORE THAN A CLEARED DRIVEWAY</p><h2>A familiar face.<br />A little independence.<br /><span>A better kind of winter.</span></h2><p>For a student, it’s money earned close to home. For a senior, it’s one less thing to worry about. For a neighbourhood, it’s a reason to look out for each other.</p></div></section>
+    <section className={styles.faq}><div><p className={styles.eyebrow}><MessageCircle size={17} /> GOOD QUESTIONS</p><h2>Let’s clear<br />a few things up.</h2><a href="#get-started" className={styles.textLink}>Find your way to get started <ArrowDown size={18} /></a></div><div className={styles.questions}>{questions.map(([question, answer]) => <details key={question}><summary>{question}<ChevronDown size={20} /></summary><p>{answer}</p></details>)}</div></section>
+    <section className={styles.finalCta}><Snowflake className={styles.bigSnowflake} strokeWidth={1} aria-hidden="true" /><p className={styles.eyebrow}>YOUR NEXT GOOD DEED IS JUST DOWN THE STREET.</p><h2>Let’s make this winter<br />a little more neighbourly.</h2><div className={styles.heroActions}><a href="#neighbours" className={styles.primary}>Find snow help <ArrowRight size={19} /></a><a href="#students" className={styles.secondary}>Become a shoveler <Shovel size={19} /></a></div></section>
+    <footer className={styles.footer}><Brand /><p>Connecting neighbours, one clear path at a time.</p><Link href="/login">Log in <ArrowRight size={16} /></Link></footer>
   </main>;
 }
