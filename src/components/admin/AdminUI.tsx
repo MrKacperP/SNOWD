@@ -5,7 +5,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, X } from "lucide-react";
 
 const baseCard =
-  "min-w-0 rounded-[1.35rem] bg-white shadow-[var(--surface-shadow)]";
+  "admin-card min-w-0 rounded-2xl bg-white";
 
 export function AdminCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return <div className={`${baseCard} ${className}`}>{children}</div>;
@@ -14,11 +14,11 @@ export function AdminCard({ children, className = "" }: { children: React.ReactN
 export function StatusTag({ label, tone = "neutral" }: { label: string; tone?: "neutral" | "green" | "red" | "yellow" | "blue" | "purple" }) {
   const styles: Record<string, string> = {
     neutral: "bg-[var(--bg-secondary)] text-[var(--text-muted)]",
-    green: "bg-[#ECFDF3] text-[#16A34A]",
-    red: "bg-[#FEF2F2] text-[#DC2626]",
-    yellow: "bg-[#FFFBEB] text-[#D97706]",
-    blue: "bg-[var(--bg-secondary)] text-[var(--accent)]",
-    purple: "bg-[#F5F3FF] text-[#7C3AED]",
+    green: "bg-[#ECFDF3] text-[#28613c]",
+    red: "bg-[#FEF2F2] text-[#a33232]",
+    yellow: "bg-[#FFFBEB] text-[#87591c]",
+    blue: "bg-[#eaf2f8] text-[#376987]",
+    purple: "bg-[#F5F3FF] text-[#69528b]",
   };
 
   return <span className={`inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full ${styles[tone]}`}>{label}</span>;
@@ -47,9 +47,9 @@ export function EmptyState({ title, subtitle }: { title: string; subtitle: strin
   return (
     <div className="flex flex-col items-center justify-center py-14 text-center text-[var(--text-muted)]">
       <svg width="84" height="84" viewBox="0 0 84 84" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-        <rect x="6" y="12" width="72" height="60" rx="12" fill="#F3F4F6" stroke="#E5E7EB" />
-        <rect x="18" y="28" width="48" height="8" rx="4" fill="#E5E7EB" />
-        <rect x="18" y="42" width="36" height="8" rx="4" fill="#E5E7EB" />
+        <rect x="6" y="12" width="72" height="60" rx="12" fill="#edf3ef" stroke="#d5e1d9" />
+        <rect x="18" y="28" width="48" height="8" rx="4" fill="#cbded0" />
+        <rect x="18" y="42" width="36" height="8" rx="4" fill="#cbded0" />
       </svg>
       <p className="mt-4 text-sm font-semibold text-[var(--text-secondary)]">{title}</p>
       <p className="text-sm mt-1">{subtitle}</p>
@@ -170,4 +170,4 @@ export function SideDrawer({
 }
 
 export const tableCell = "px-3 py-2 text-sm text-[var(--text-secondary)]";
-export const tableHead = "px-3 py-2 text-xs uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--border)] text-left";
+export const tableHead = "px-3 py-2 text-xs font-medium text-[var(--text-muted)] border-b border-[var(--border)] text-left";

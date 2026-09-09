@@ -1,8 +1,8 @@
 .page {
-  --landing-ink: #262522;
-  --landing-muted: #65645e;
-  --landing-paper: #f5f4ef;
-  --landing-line: #e0dfd8;
+  --landing-ink: var(--ink);
+  --landing-muted: var(--text-muted);
+  --landing-paper: var(--ice);
+  --landing-line: var(--border-color);
   color: var(--landing-ink);
   background: #fff;
   font-size: 16px;
@@ -16,12 +16,12 @@
   -webkit-tap-highlight-color: transparent;
 }
 .page :is(a, button, summary):focus-visible {
-  outline: 2px solid #a84119;
+  outline: 2px solid var(--accent);
   outline-offset: 5px;
 }
 .page ::selection {
-  background: #f0d6b7;
-  color: #262522;
+  background: var(--sky);
+  color: var(--ink);
 }
 .skip {
   position: fixed;
@@ -54,7 +54,7 @@
   line-height: 1;
 }
 .brand span {
-  color: #bf4a24;
+  color: var(--accent-sun);
 }
 .navLinks {
   display: flex;
@@ -162,7 +162,7 @@
   transition: background 0.15s ease;
 }
 .primary:hover {
-  background: #44433c;
+  background: var(--accent-dark);
 }
 .earnLink {
   display: flex;
@@ -331,7 +331,7 @@
   border-bottom: 0;
 }
 .detailsList svg {
-  color: #805337;
+  color: #477467;
   flex-shrink: 0;
   margin-top: 4px;
 }
@@ -346,14 +346,14 @@
 }
 .students {
   max-width: 1144px;
-  background: #eeede5;
+  background: var(--sky);
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 70px;
   padding: 56px;
 }
 .studentCopy > p:first-child {
-  color: #57574e;
+  color: var(--text-secondary);
   font-size: 16px;
   line-height: 1.75;
 }
@@ -363,7 +363,7 @@
 .finePrint {
   margin-top: 19px;
   font-size: 11px;
-  color: #636259;
+  color: var(--text-muted);
   line-height: 1.7;
 }
 .faq {
@@ -668,18 +668,18 @@
 .hero .eyebrow { display: flex; align-items: center; gap: 8px; font-size: 10px; }
 .hero .intro { margin: 22px 0 0; max-width: 440px; font-size: 17px; }
 .heroActions { display: flex; align-items: center; flex-wrap: wrap; gap: 20px; margin-top: 28px; }
-.heroActions .primary, .finalCta .primary { background: #a84119; }
+.heroActions .primary, .finalCta .primary { background: var(--accent); }
 .heroActions .primary:hover, .finalCta .primary:hover { background: #833211; }
 .secondary { display: inline-flex; gap: 8px; align-items: center; font-size: 13px; min-height: 44px; }
 .secondary:hover { text-decoration: underline; text-underline-offset: 5px; }
 .signupNote { color: var(--landing-muted); font-size: 12px; margin-top: 11px; }
 .reassurance { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 26px; padding-top: 20px; border-top: 1px solid #dedbd1; }
 .reassurance span { display: inline-flex; gap: 7px; align-items: center; font-size: 12px; }
-.reassurance svg { color: #805337; }
+.reassurance svg { color: #477467; }
 .hero .earnLink { justify-content: flex-start; margin-top: 17px; }
 .services article { align-items: center; }
 .homeowners { align-items: center; }
-.finalCta { margin: 0 auto 64px; max-width: 1144px; text-align: center; background: #f5f4ef; border: 1px solid #e5e4dc; border-radius: 16px; padding: 44px 24px; }
+.finalCta { margin: 0 auto 64px; max-width: 1144px; text-align: center; background: var(--ice); border: 1px solid #e5e4dc; border-radius: 16px; padding: 44px 24px; }
 .finalCta h2 { margin: 14px auto; max-width: 620px; }
 .finalCta > p:not(.eyebrow) { color: var(--landing-muted); font-size: 15px; }
 .finalCta .primary { margin-top: 23px; }
@@ -725,15 +725,15 @@
 .previewNote strong, .previewNote span { display: block; font-size: 12px; }
 .previewNote strong { font-weight: 500; }
 .previewNote span { color: var(--landing-muted); margin-top: 3px; }
-.previewFooter { display: flex; justify-content: space-between; gap: 10px; padding: 15px 24px; background: #f8f8f6; border-top: 1px solid var(--landing-line); font-size: 10px; color: var(--landing-muted); }
+.previewFooter { display: flex; justify-content: space-between; gap: 10px; padding: 15px 24px; background: var(--ice); border-top: 1px solid var(--landing-line); font-size: 10px; color: var(--landing-muted); }
 .sampleChat, .sampleReply { padding: 12px 14px; font-size: 13px; border-radius: 6px; margin-top: 16px; }
-.sampleChat { margin-left: 28px; background: #efefeb; }
+.sampleChat { margin-left: 28px; background: var(--sky); }
 .sampleReply { margin-right: 28px; border: 1px solid var(--landing-line); }
 .sampleChat span, .sampleReply span { display: block; font-size: 10px; color: var(--landing-muted); margin-bottom: 5px; }
 .chatNote { font-size: 11px; color: var(--landing-muted); margin-top: 18px; }
-.serviceIcon { color: #53534b; flex-shrink: 0; display: flex; align-items: center; min-height: 44px; }
+.serviceIcon { color: #477467; flex-shrink: 0; display: flex; align-items: center; min-height: 44px; }
 .heroActions .primary, .finalCta .primary { background: var(--landing-ink); }
-.heroActions .primary:hover, .finalCta .primary:hover { background: #44433c; }
+.heroActions .primary:hover, .finalCta .primary:hover { background: var(--accent-dark); }
 .finalCta { border-radius: 0; border: 0; border-top: 1px solid var(--landing-line); background: white; }
 @media (max-width: 640px) {
  .previewBody { padding: 22px 18px; min-height: 355px; }
@@ -742,3 +742,20 @@
  .orderDetails > div { grid-template-columns: 92px 1fr; }
  .hero h1 { font-size: clamp(36px, 9vw, 52px); }
 }
+
+/* Shared SNOWD colours, with quiet winter accents. */
+.brand { display: inline-flex; align-items: center; gap: 10px; }
+.brand .wordmark { color: var(--landing-ink); }
+.brandLogo { width: 40px; height: 44px; object-fit: contain; }
+.previewBrand { display: inline-flex; align-items: center; gap: 8px; }
+.snowflakeBadge { display: grid; place-items: center; width: 58px; height: 58px; flex-shrink: 0; border-radius: 20px; background: #dfece5; color: #477467; }
+.hero h1 { color: var(--ink); }
+.hero .eyebrow { gap: 14px; color: #477467; }
+.primary, .heroActions .primary, .finalCta .primary { background: var(--accent-sun); color: var(--ink); border-radius: 12px; font-weight: 600; }
+.primary:hover, .heroActions .primary:hover, .finalCta .primary:hover { background: #ed7600; }
+.productPreview { border-color: var(--border-color); border-radius: 20px; box-shadow: var(--surface-shadow-strong); }
+.previewHeader { background: var(--sky); }
+.serviceIcon { width: 48px; height: 48px; justify-content: center; border-radius: 16px; background: #e8f1eb; }
+.stepNumber { background: var(--sky); border-color: transparent; color: var(--ink); }
+.students { border-radius: 20px; }
+.finalCta { border: 1px solid var(--border-color); border-radius: 20px; background: var(--ice); }

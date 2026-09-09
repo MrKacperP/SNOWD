@@ -2,6 +2,8 @@
 import Link from "next/link";
 import { Job } from "@/lib/types";
 import { orderLabel, orderNumber, scheduleText } from "@/lib/workOrders";
+import { useAuth } from "@/context/AuthContext";
+import styles from "./work-orders.module.css";
 import OrderActions from "./OrderActions";
 export default function OrderCard({
   job,
@@ -16,71 +18,84 @@ export default function OrderCard({
   conflict?: boolean;
   onUpdated?: (message: string) => void;
 }) {
+  const { user } = useAuth();
+  const operator = user?.uid === job.operatorId;
   return (
-    <article className="surface-card rounded-3xl border border-[var(--border-color)] p-5 sm:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-[var(--text-muted)]">
-            Order #{orderNumber(job)}
-          </p>
-          <h2 className="mt-1 break-words text-xl font-bold">{name}</h2>
+    <article className={styles.card}>
+      <div className={styles.body}>
+        <div className={styles.cardHeader}>
+          <div className="min-w-0">
+            <p className={styles.reference}>Work order #{orderNumber(job)}</p>
+            <h2 className={styles.title}>{name}</h2>
+            <p className={styles.secondary}>
+              {operator ? "Customer" : "Service provider"}
+            </p>
+          </div>
+          <span className={styles.badge} data-status={job.status}>
+            {orderLabel(job)}
+          </span>
         </div>
-        <span className="rounded-full bg-[var(--bg-secondary)] px-3 py-2 text-sm font-semibold">
-          {orderLabel(job)}
-        </span>
-      </div>
-      <p className="mt-3 font-medium">
-        {job.status === "pending" ? "Requested: " : ""}
-        {scheduleText(job)}
-      </p>
-      <p className="mt-2 break-words text-[var(--text-secondary)]">
-        {job.address}
-      </p>
-      <p className="mt-1 capitalize">
-        {job.serviceTypes?.map((s) => s.replaceAll("-", " ")).join(" · ") ||
-          "Snow removal"}
-      </p>
-      <p className="mt-2 text-sm">
-        ${Number(job.price || 0).toFixed(2)} CAD ·{" "}
-        {job.paymentMethod === "cash" ? "Cash" : "Card"} ·{" "}
-        {job.paymentStatus === "held"
-          ? "Authorized"
-          : job.paymentStatus === "paid"
-            ? "Paid"
-            : job.paymentStatus === "refunded"
-              ? "Refunded / released"
-              : "Payment pending"}
-      </p>
-      {conflict && (
-        <p
-          role="status"
-          className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-950"
-        >
-          This requested time overlaps a confirmed work order. Propose a
-          different time before accepting.
-        </p>
-      )}
-      <OrderActions job={job} onUpdated={onUpdated} />
-      <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 border-t border-[var(--border-color)] pt-3 text-sm font-semibold">
-        {!detail && (
-          <Link
-            className="inline-flex min-h-11 items-center underline"
-            href={`/dashboard/jobs/${job.id}`}
+        <dl className={styles.facts}>
+          <div>
+            <dt>{job.status === "pending" ? "Requested visit" : "Visit"}</dt>
+            <dd>{scheduleText(job)}</dd>
+          </div>
+          <div>
+            <dt>Location & service</dt>
+            <dd>
+              <strong>{job.address || "Address to be confirmed"}</strong>
+              <p className={`${styles.secondary} capitalize`}>
+                {job.serviceTypes
+                  ?.map((s) => s.replaceAll("-", " "))
+                  .join(" · ") || "Snow removal"}
+              </p>
+            </dd>
+          </div>
+          <div>
+            <dt>Payment</dt>
+            <dd>
+              <strong>${Number(job.price || 0).toFixed(2)} CAD</strong>
+              <p className={styles.secondary}>
+                {job.paymentMethod === "cash" ? "Cash" : "Card"} ·{" "}
+                {job.paymentStatus === "held"
+                  ? "Authorized"
+                  : job.paymentStatus === "paid"
+                    ? "Paid"
+                    : job.paymentStatus === "refunded"
+                      ? "Refunded / released"
+                      : "Pending"}
+              </p>
+            </dd>
+          </div>
+        </dl>
+        {conflict && (
+          <p
+            role="status"
+            className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-950"
           >
+            This requested time overlaps a confirmed work order. Propose a
+            different time before accepting.
+          </p>
+        )}
+        <OrderActions job={job} onUpdated={onUpdated} />
+      </div>
+      <div className={styles.footer}>
+        {!detail && (
+          <Link className={styles.button} href={`/dashboard/jobs/${job.id}`}>
             View work order
           </Link>
         )}
         {job.chatId && (
           <Link
-            className="inline-flex min-h-12 items-center rounded-xl bg-blue-700 px-4 py-3 text-white hover:bg-blue-800"
+            className={styles.button}
             href={`/dashboard/messages/${job.chatId}`}
           >
-            Open messages →
+            Message contact
           </Link>
         )}
         {job.previousOrderId && (
           <Link
-            className="inline-flex min-h-11 items-center underline"
+            className={styles.button}
             href={`/dashboard/jobs/${job.previousOrderId}`}
           >
             Previous order

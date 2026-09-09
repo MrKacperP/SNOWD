@@ -19,7 +19,7 @@ interface ModalProps {
 
 const variantStyles = {
   default: {
-    iconBg: "bg-[var(--accent-sun-soft)]",
+    iconBg: "bg-[var(--accent-soft)]",
     iconColor: "text-[var(--accent)]",
     accentGlow: "rgba(36, 110, 185, 0.15)",
   },
@@ -34,8 +34,8 @@ const variantStyles = {
     accentGlow: "rgba(16, 185, 129, 0.15)",
   },
   info: {
-    iconBg: "bg-blue-50 dark:bg-blue-500/10",
-    iconColor: "text-blue-500",
+    iconBg: "bg-[var(--accent-soft)]",
+    iconColor: "text-[var(--accent)]",
     accentGlow: "rgba(59, 130, 246, 0.15)",
   },
 };
@@ -110,7 +110,7 @@ export default function Modal({
           }}
         >
           {/* Backdrop */}
-          <div className="pointer-events-none absolute inset-0 bg-black/40 backdrop-blur-sm" />
+          <div className="pointer-events-none absolute inset-0 bg-[var(--ink)]/35 backdrop-blur-sm" />
 
           {/* Modal */}
           <motion.div
@@ -122,24 +122,13 @@ export default function Modal({
             aria-label={title ? undefined : "Dialog"}
             aria-describedby={subtitle ? subtitleId : undefined}
             tabIndex={-1}
-            className={`app-modal-panel relative max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto w-full ${sizeStyles[size]} bg-[var(--bg-card-solid)] rounded-t-3xl sm:rounded-3xl shadow-[var(--surface-shadow)] border border-[var(--border-color)]`}
-            initial={{ scale: 0.9, opacity: 0, y: 50 }}
+            className={`app-modal-panel relative max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto w-full ${sizeStyles[size]} bg-[var(--bg-card-solid)] rounded-t-3xl sm:rounded-3xl shadow-[var(--surface-shadow-strong)] border border-[var(--border-color)]`}
+            initial={{ scale: 0.98, opacity: 0, y: 12 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: 50 }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            exit={{ scale: 0.98, opacity: 0, y: 12 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Top accent line */}
-            <div
-              className={`absolute top-0 left-0 right-0 h-1 ${
-                variant === "danger"
-                  ? "bg-red-500"
-                  : variant === "success"
-                  ? "bg-emerald-500"
-                  : "bg-[var(--accent-sun)]"
-              }`}
-            />
-
             {/* Close button */}
             {showClose && (
               <button
@@ -162,7 +151,7 @@ export default function Modal({
 
               {/* Title */}
               {title && (
-                <h2 id={titleId} className="text-xl font-black text-[var(--text-primary)] text-center px-10 break-words">
+                <h2 id={titleId} className="text-xl font-semibold text-[var(--text-primary)] text-center px-10 break-words">
                   {title}
                 </h2>
               )}

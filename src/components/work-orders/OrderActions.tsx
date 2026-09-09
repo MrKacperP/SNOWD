@@ -1,5 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { Job } from "@/lib/types";
 import { stripeConnectFetch } from "@/lib/stripeConnectClient";
@@ -28,8 +29,10 @@ export async function orderRequest(
   return data;
 }
 const button =
-  "min-h-12 rounded-xl border border-[var(--border-color)] bg-blue-700 text-white hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 px-4 py-3 text-sm font-semibold disabled:opacity-50";
-const dangerButton = `${button} !border-red-700 !bg-red-700 !text-white hover:!bg-red-800`;
+  "min-h-11 rounded-lg border border-[var(--border-color)] bg-[var(--bg-card-solid)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 px-4 py-3 text-sm font-semibold disabled:opacity-50";
+const attentionButton = `${button} enabled:!border-blue-700 enabled:!bg-blue-700 enabled:!text-white enabled:hover:!bg-blue-800`;
+const dangerButton = `${button} border-red-200 text-red-700 hover:!border-red-300 hover:!bg-red-50`;
+const confirmDangerButton = `${button} !border-red-700 !bg-red-700 !text-white hover:!bg-red-800`;
 export default function OrderActions({
   job,
   onUpdated,
@@ -38,6 +41,7 @@ export default function OrderActions({
   onUpdated?: (message: string) => void;
 }) {
   const { user } = useAuth();
+  const router = useRouter();
   const uid = user?.uid || "",
     operator = uid === job.operatorId,
     closed = ["completed", "cancelled"].includes(job.status);
@@ -45,7 +49,15 @@ export default function OrderActions({
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
   const [dialog, setDialog] = useState<
-    "complete-cash" | "" | "cancel" | "decline" | "time" | "photo" | "cash" | "refund" | "approve"
+    | "complete-cash"
+    | ""
+    | "cancel"
+    | "decline"
+    | "time"
+    | "photo"
+    | "cash"
+    | "refund"
+    | "approve"
   >("");
   const [time, setTime] = useState(""),
     [asap, setAsap] = useState(false),
@@ -81,9 +93,11 @@ export default function OrderActions({
       await fn();
       pendingRequest.current = null;
       setDialog("");
-      onUpdated?.(
-        `Order #${orderNumber(job)} updated.`,
-      );
+      const target = `/dashboard/jobs/${job.id}`;
+      if (typeof window !== "undefined" && window.location.pathname !== target) {
+        router.push(target);
+      }
+      onUpdated?.(`Order #${orderNumber(job)} updated.`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Please try again.");
     } finally {
@@ -114,14 +128,26 @@ export default function OrderActions({
         await orderRequest("/api/stripe/capture-payment", {
           paymentIntentId: job.stripePaymentIntentId,
         });
-      if (cashReceived) await orderRequest("/api/jobs/confirm-cash", { jobId: job.id });
+      if (cashReceived)
+        await orderRequest("/api/jobs/confirm-cash", { jobId: job.id });
       await perform("complete");
     });
+  const actionNeeded = orderActionNeeded(job, uid);
   return (
     <div className="mt-4 space-y-3">
-      {orderActionNeeded(job, uid) && <p className="rounded-xl border border-blue-200 bg-blue-50 p-3 font-bold text-blue-900">Action needed · {orderActionNeeded(job, uid)}</p>}
+      {actionNeeded && (
+        <p className="text-sm font-semibold text-blue-800">
+          Next step: {actionNeeded}
+        </p>
+      )}
+      {!actionNeeded && job.status === "pending" && !job.scheduleProposal && (
+        <p className="text-sm text-[var(--text-secondary)]">
+          Waiting for {operator ? "the customer" : "the service provider"} to
+          respond. You’ll see the update here.
+        </p>
+      )}
       {job.scheduleProposal && (
-        <div className="rounded-xl bg-amber-50 p-3 text-sm text-amber-950">
+        <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] p-3 text-sm">
           <strong>
             {job.scheduleProposal.recipientId === uid
               ? "Your approval needed"
@@ -140,7 +166,7 @@ export default function OrderActions({
         {!closed && job.scheduleProposal?.recipientId === uid && (
           <>
             <button
-              className={button}
+              className={actionNeeded ? attentionButton : button}
               disabled={busy}
               onClick={() => approve("approve-time")}
             >
@@ -166,7 +192,7 @@ export default function OrderActions({
           (job.awaitingResponseFrom || job.operatorId) === uid && (
             <>
               <button
-                className={button}
+                className={actionNeeded ? attentionButton : button}
                 disabled={busy}
                 onClick={() => approve("accept")}
               >
@@ -198,7 +224,7 @@ export default function OrderActions({
           job.paymentMethod !== "cash" &&
           !["held", "paid"].includes(job.paymentStatus) && (
             <button
-              className={button}
+              className={actionNeeded ? attentionButton : button}
               disabled={busy}
               onClick={pay}
             >
@@ -248,7 +274,12 @@ export default function OrderActions({
               className={button}
               disabled={busy}
               onClick={() =>
-                job.completionPhotoUrl ? (job.paymentMethod === "cash" && job.paymentStatus === "pending" ? setDialog("complete-cash") : complete()) : setDialog("photo")
+                job.completionPhotoUrl
+                  ? job.paymentMethod === "cash" &&
+                    job.paymentStatus === "pending"
+                    ? setDialog("complete-cash")
+                    : complete()
+                  : setDialog("photo")
               }
             >
               Complete work
@@ -260,7 +291,7 @@ export default function OrderActions({
           ["in-progress", "completed"].includes(job.status) &&
           job.paymentStatus === "pending" && (
             <button
-              className={button}
+              className={actionNeeded ? attentionButton : button}
               disabled={busy}
               onClick={() => setDialog("cash")}
             >
@@ -355,10 +386,28 @@ export default function OrderActions({
       >
         {dialog === "complete-cash" && (
           <div className="space-y-4">
-            <p>Have you received ${job.price.toFixed(2)} CAD in cash for this job?</p>
-            <button className={button} disabled={busy} onClick={() => complete(true)}>Yes · record payment & complete work</button>
-            <button className="min-h-12 rounded-xl border px-4 py-3 font-semibold" disabled={busy} onClick={() => complete()}>Not yet · complete work, keep payment pending</button>
-            <p className="text-sm">Unpaid cash jobs stay in Needs attention so you can confirm payment later.</p>
+            <p>
+              Have you received ${job.price.toFixed(2)} CAD in cash for this
+              job?
+            </p>
+            <button
+              className={button}
+              disabled={busy}
+              onClick={() => complete(true)}
+            >
+              Yes · record payment & complete work
+            </button>
+            <button
+              className="min-h-11 rounded-lg border px-4 py-3 font-semibold"
+              disabled={busy}
+              onClick={() => complete()}
+            >
+              Not yet · complete work, keep payment pending
+            </button>
+            <p className="text-sm">
+              Unpaid cash jobs stay in Needs attention so you can confirm
+              payment later.
+            </p>
           </div>
         )}
         {dialog === "time" && (
@@ -430,8 +479,17 @@ export default function OrderActions({
               Upload proof of the completed work. Card payment is released when
               you complete the order.
             </p>
-            <PhotoPicker photo={photo} onChange={setPhoto} disabled={busy} onBusy={setPreparingPhoto} />
-            <PhonePhotoTransfer jobId={job.id} onPhoto={setPhoto} disabled={busy || preparingPhoto} />
+            <PhotoPicker
+              photo={photo}
+              onChange={setPhoto}
+              disabled={busy}
+              onBusy={setPreparingPhoto}
+            />
+            <PhonePhotoTransfer
+              jobId={job.id}
+              onPhoto={setPhoto}
+              disabled={busy || preparingPhoto}
+            />
             <button
               className={button}
               disabled={busy || preparingPhoto || !photo}
@@ -483,7 +541,13 @@ export default function OrderActions({
                   : `Confirm only after returning $${job.price.toFixed(2)} directly to the customer.`}
             </p>
             <button
-              className={dialog === "cancel" || dialog === "decline" || dialog === "refund" ? dangerButton : button}
+              className={
+                dialog === "cancel" ||
+                dialog === "decline" ||
+                dialog === "refund"
+                  ? confirmDangerButton
+                  : button
+              }
               disabled={busy}
               onClick={() =>
                 run(async () => {

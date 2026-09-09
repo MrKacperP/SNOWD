@@ -18,12 +18,12 @@ test("photo validation rejects non-images and oversized payloads", () => {
 test("photo preparation retries compression and releases the object URL", async () => {
   let attempts = 0, released = false;
   const canvas = { getContext: () => ({ fillRect() {}, drawImage() {} }), toDataURL: () => ++attempts === 1 ? jpeg + "A".repeat(700000) : jpeg };
-  const module = load("src/lib/completionPhoto.ts", {
+  const loadedModule = load("src/lib/completionPhoto.ts", {
     URL: { createObjectURL: () => "blob:test", revokeObjectURL: () => { released = true; } },
     Image: class { naturalWidth = 4000; naturalHeight = 3000; set src(value) { queueMicrotask(() => this.onload()); } },
     document: { createElement: () => canvas },
   });
-  assert.equal(await module.prepareCompletionPhoto({ size: 10000, type: "image/jpeg" }), jpeg);
+  assert.equal(await loadedModule.prepareCompletionPhoto({ size: 10000, type: "image/jpeg" }), jpeg);
   assert.equal(attempts, 2);
   assert.equal(released, true);
   assert.ok(canvas.width <= 1600);

@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
+  Snowflake,
   ArrowRight,
   ArrowUpRight,
   Check,
@@ -74,7 +76,8 @@ const questions = [
 function Brand() {
   return (
     <Link href="/" aria-label="SNOWD home" className={styles.brand}>
-      snowd<span>.</span>
+      <Image src="/logo.png" alt="" width={44} height={48} className={styles.brandLogo} />
+      <span className={styles.wordmark}>snowd<span>.</span></span>
     </Link>
   );
 }
@@ -106,9 +109,9 @@ export default function HomePage() {
         <section className={styles.hero} aria-labelledby="hero-title">
           <div className={styles.heroInner}>
             <div className={styles.heroCopy}>
-              <p className={styles.eyebrow}>LOCAL SNOW REMOVAL</p>
+              <p className={styles.eyebrow}><span className={styles.snowflakeBadge}><Snowflake size={28} strokeWidth={1.5} aria-hidden="true" /></span> LOCAL SNOW REMOVAL</p>
               <h1 id="hero-title">Snow to clear?<br />Find a local shoveler.</h1>
-              <p className={styles.intro}>Post what needs clearing, arrange the details with your shoveler, and review the finished work. All in one place.</p>
+              <p className={styles.intro}>Get your driveway, walkway, or steps cleared by a nearby shoveler. Post a job, chat, and pay in one place.</p>
               <div className={styles.heroActions}>
                 <Link href="/signup" className={styles.primary}>Get snow help <ArrowRight size={18} aria-hidden="true" /></Link>
                 <a href="#how" className={styles.secondary}>See how it works <ChevronDown size={16} aria-hidden="true" /></a>
@@ -121,7 +124,7 @@ export default function HomePage() {
               <p className={styles.earnLink}>Have a shovel? <a href="#students">Earn close to home <ArrowUpRight size={15} aria-hidden="true" /></a></p>
             </div>
             <figure className={styles.productPreview}>
-              <figcaption className={styles.previewHeader}><span>snowd.</span><span>Example job · Preview</span></figcaption>
+              <figcaption className={styles.previewHeader}><span className={styles.previewBrand}><Image src="/logo.png" alt="" width={26} height={28} /> snowd.</span><span>Example job · Preview</span></figcaption>
               <div className={styles.previewTabs} role="group" aria-label="Explore an example job">
                 <button type="button" aria-pressed={preview === "job"} onClick={() => setPreview("job")}>Work order</button>
                 <button type="button" aria-pressed={preview === "chat"} onClick={() => setPreview("chat")}>Messages</button>

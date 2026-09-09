@@ -38,7 +38,7 @@ export default function DeleteConfirmPopup({
         >
           {/* Backdrop */}
           <motion.div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-[var(--ink)]/35 backdrop-blur-sm"
             onClick={onCancel}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -47,18 +47,17 @@ export default function DeleteConfirmPopup({
 
           {/* Modal */}
           <motion.div
-            className="relative max-h-[calc(100dvh-2rem)] overflow-y-auto w-full max-w-sm bg-[var(--bg-card-solid)] rounded-3xl shadow-[var(--surface-shadow)] border-[3px] border-[var(--border-color)]"
-            initial={{ opacity: 0, scale: 0.85, y: 30 }}
+            className="relative max-h-[calc(100dvh-2rem)] overflow-y-auto w-full max-w-sm bg-[var(--bg-card-solid)] rounded-3xl shadow-[var(--surface-shadow-strong)] border border-[var(--border-color)]"
+            initial={{ opacity: 0, scale: 0.98, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            transition={{ type: "spring", duration: 0.5, bounce: 0.2 }}
+            exit={{ opacity: 0, scale: 0.98, y: 12 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
           >
-            {/* Red gradient accent */}
-            <div className="h-1.5 bg-red-500" />
 
             {/* Close button */}
             <button
               onClick={onCancel}
+              aria-label="Close dialog"
               className="absolute top-4 right-4 p-1.5 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition z-10"
             >
               <X className="w-4 h-4" />
@@ -67,7 +66,7 @@ export default function DeleteConfirmPopup({
             <div className="p-7 pt-8">
               {/* Animated trash icon */}
               <motion.div
-                className="w-20 h-20 bg-red-50 dark:bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-[var(--surface-shadow)] shadow-red-100/50 dark:shadow-red-500/10"
+                className="w-14 h-14 bg-red-50 dark:bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-[var(--surface-shadow-strong)] shadow-red-100/50 dark:shadow-red-500/10"
                 initial={{ scale: 0, rotate: -20 }}
                 animate={{ scale: 1, rotate: 0 }}
                 transition={{ type: "spring", delay: 0.1, bounce: 0.4 }}
@@ -76,12 +75,12 @@ export default function DeleteConfirmPopup({
                   animate={{ y: [0, -4, 0] }}
                   transition={{ duration: 0.6, delay: 0.5, ease: "easeInOut" }}
                 >
-                  <Trash2 className="w-9 h-9 text-red-500" />
+                  <Trash2 className="w-6 h-6 text-red-500" />
                 </motion.div>
               </motion.div>
 
               {/* Title */}
-              <h2 className="text-xl font-bold text-[var(--text-primary)] text-center">
+              <h2 className="text-xl font-semibold text-[var(--text-primary)] text-center">
                 {title}
               </h2>
 
@@ -129,7 +128,7 @@ export default function DeleteConfirmPopup({
                 <motion.button
                   onClick={onConfirm}
                   disabled={loading}
-                  className="flex-1 py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold text-sm transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-2 shadow-[var(--surface-shadow)] shadow-red-500/25 active:scale-[0.98]"
+                  className="flex-1 py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold text-sm transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-2 shadow-[var(--surface-shadow-strong)] shadow-red-500/25 active:scale-[0.98]"
                   whileTap={{ scale: 0.98 }}
                 >
                   {loading ? (

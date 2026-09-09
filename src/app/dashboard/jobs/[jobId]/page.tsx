@@ -15,6 +15,7 @@ import { Job, OperatorProfile } from "@/lib/types";
 import { useAuth } from "@/context/AuthContext";
 import { dateMillis } from "@/lib/workOrders";
 import OrderCard from "@/components/work-orders/OrderCard";
+import styles from "@/components/work-orders/work-orders.module.css";
 export default function WorkOrderPage() {
   const { jobId } = useParams<{ jobId: string }>();
   const { user } = useAuth();
@@ -86,22 +87,27 @@ export default function WorkOrderPage() {
     );
   }, [jobId, user]);
   return (
-    <div className="mx-auto max-w-3xl space-y-5 py-3">
+    <div className={styles.detailPage}>
       <Link
-        className="inline-flex min-h-11 items-center font-semibold underline"
+        className={styles.backLink}
         href="/dashboard/jobs"
       >
-        ← Work orders
+        ← Back to work orders
       </Link>
-      <h1 className="text-3xl font-bold">Work order</h1>
       {error ? (
         <p role="alert">{error}</p>
       ) : !job ? (
         <p role="status">Loading work order…</p>
       ) : (
         <>
+          <header className={styles.detailIntro}>
+            <h1>Work order</h1>
+            <p>
+              {name} · Order #{job.orderNumber || job.id}
+            </p>
+          </header>
           <OrderCard job={job} name={name} detail />
-          <section className="surface-card rounded-3xl p-6">
+          <section className={styles.detailSection}>
             <h2 className="text-xl font-bold">Service details</h2>
             <p className="mt-3">
               {job.specialInstructions || "No special instructions."}
@@ -125,20 +131,17 @@ export default function WorkOrderPage() {
                   className="underline"
                   href={`/dashboard/messages/${job.legacyChatId}`}
                 >
-                  Earlier shared conversation · legacy history
+                  Earlier conversation
                 </Link>
               </p>
             )}
           </section>
-          <section className="surface-card rounded-3xl p-6">
-            <h2 className="text-xl font-bold">Order activity</h2>
+          <section className={styles.detailSection}>
+            <h2 className="text-xl font-bold">Activity</h2>
             {eventError && <p role="alert">{eventError}</p>}
-            <ol className="mt-4 space-y-4">
+            <ol className={styles.timeline}>
               {events.map((event) => (
-                <li
-                  key={event.id}
-                  className="border-l-2 border-[var(--border-color)] pl-4"
-                >
+                <li key={event.id} className={styles.timelineItem}>
                   <p className="font-semibold">{event.title}</p>
                   <p className="mt-1 text-sm text-[var(--text-muted)]">
                     {dateMillis(event.createdAt)

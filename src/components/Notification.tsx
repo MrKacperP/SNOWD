@@ -1,5 +1,7 @@
-import React from 'react';
+"use client";
+
 import { motion } from 'framer-motion';
+import { CheckCircle2, CircleAlert, Info, X } from 'lucide-react';
 
 interface NotificationProps {
   message: string;
@@ -7,39 +9,26 @@ interface NotificationProps {
   onClose: () => void;
 }
 
-const notificationVariants = {
-  hidden: { opacity: 0, y: -50, scale: 0.8 },
-  visible: { opacity: 1, y: 0, scale: 1 },
-  exit: { opacity: 0, y: 50, scale: 0.8 },
+const appearances = {
+  success: { icon: CheckCircle2, color: 'text-[var(--success)]' },
+  error: { icon: CircleAlert, color: 'text-[var(--danger)]' },
+  info: { icon: Info, color: 'text-[var(--accent)]' },
 };
-
-const iconVariants = {
-  success: '✅',
-  error: '❌',
-  info: 'ℹ️',
-};
-
-const colorVariants = {
-    success: 'bg-green-500',
-    error: 'bg-red-500',
-    info: 'bg-[var(--ink)]',
-}
 
 export default function Notification({ message, type, onClose }: NotificationProps) {
+  const { icon: Icon, color } = appearances[type];
   return (
     <motion.div
-      variants={notificationVariants}
-      initial="hidden"
-      animate="visible"
-      exit="exit"
-      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-      className={`fixed top-5 right-5 p-4 rounded-lg text-white shadow-[var(--surface-shadow)] ${colorVariants[type]}`}
+      role={type === 'error' ? 'alert' : 'status'}
+      initial={{ opacity: 0, y: -12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -12 }}
+      transition={{ duration: 0.18 }}
+      className="fixed top-5 right-4 z-[10000] flex w-[calc(100%-2rem)] max-w-sm items-start gap-3 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card-solid)] p-4 text-[var(--text-primary)] shadow-[var(--surface-shadow-strong)]"
     >
-      <div className="flex items-center">
-        <span className="mr-2">{iconVariants[type]}</span>
-        <p>{message}</p>
-        <button onClick={onClose} className="ml-4 font-bold">X</button>
-      </div>
+      <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${color}`} aria-hidden="true" />
+      <p className="flex-1 text-sm leading-relaxed">{message}</p>
+      <button type="button" onClick={onClose} aria-label="Dismiss notification" className="-m-2 ml-0 rounded-lg p-3 text-[var(--text-muted)] hover:bg-[var(--bg-secondary)]"><X className="h-4 w-4" /></button>
     </motion.div>
   );
 }

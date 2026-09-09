@@ -6,6 +6,8 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Bell,
+  BarChart3,
+  ArrowUpRight,
   Briefcase,
   ChevronLeft,
   ChevronRight,
@@ -120,30 +122,32 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   const navSections = [
-    {
-      title: "Workspace",
-      items: [
-        { href: "/admin", label: "Home", icon: Home },
-        { href: "/admin/notifications", label: "Notifications", icon: Bell, badge: unreadNotifications },
-        { href: "/admin/users", label: "Accounts", icon: Users },
-        { href: "/admin/jobs", label: "Jobs", icon: Briefcase },
-        { href: "/admin/verifications", label: "Reviews", icon: ShieldCheck, badge: pendingVerificationCount },
-        { href: "/admin/chats", label: "Messages", icon: MessageSquare },
-        { href: "/admin/support-chats", label: "Support", icon: Headphones, badge: openSupportCount },
-        { href: "/admin/transactions", label: "Payments", icon: DollarSign },
-        { href: "/admin/reports", label: "Reports", icon: FileWarning },
-        { href: "/admin/analytics", label: "Analytics", icon: DollarSign },
-        { href: "/admin/claims", label: "Claims", icon: FileWarning },
-        { href: "/admin/activity", label: "Audit history", icon: ShieldCheck },
-        { href: "/admin/employees", label: "Team", icon: Users },
-        { href: "/admin/calls", label: "Calls", icon: Headphones },
-        { href: "/admin/settings", label: "Settings", icon: Settings },
-      ],
-    },
+    { title: "Daily work", items: [
+      { href: "/admin", label: "Overview", icon: Home },
+      { href: "/admin/jobs", label: "Jobs", icon: Briefcase },
+      { href: "/admin/verifications", label: "Reviews", icon: ShieldCheck, badge: pendingVerificationCount },
+      { href: "/admin/chats", label: "Messages", icon: MessageSquare },
+      { href: "/admin/support-chats", label: "Support", icon: Headphones, badge: openSupportCount },
+      { href: "/admin/notifications", label: "Notifications", icon: Bell, badge: unreadNotifications },
+    ] },
+    { title: "People & payments", items: [
+      { href: "/admin/users", label: "Accounts", icon: Users },
+      { href: "/admin/transactions", label: "Payments", icon: DollarSign },
+      { href: "/admin/claims", label: "Claims", icon: FileWarning },
+      { href: "/admin/calls", label: "Calls", icon: Headphones },
+    ] },
+    { title: "Manage", items: [
+      { href: "/admin/reports", label: "Reports", icon: FileWarning },
+      { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+      { href: "/admin/activity", label: "Audit history", icon: ShieldCheck },
+      { href: "/admin/employees", label: "Team", icon: Users },
+      { href: "/admin/settings", label: "Settings", icon: Settings },
+    ] },
   ];
 
   return (
     <div className="admin-shell min-h-dvh bg-[var(--bg-primary)] text-[var(--ink)]">
+      <a href="#admin-content" className="skip-link">Skip to main content</a>
       {/* Mobile nav overlay */}
       {mobileNavOpen && (
         <div className="lg:hidden fixed inset-0 z-50">
@@ -153,13 +157,13 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
               <div className="px-4 py-4 border-b border-[var(--border)] flex items-center justify-between">
                 <Link href="/admin" className="flex items-center gap-2" onClick={() => setMobileNavOpen(false)}>
                   <Image src="/logo.png" alt="Snowd" width={24} height={24} />
-                  <span className="font-semibold text-lg">Snowd</span>
+                  <span className="font-headline text-xl font-semibold">snowd<span className="text-[var(--accent-sun)]">.</span><small className="block mt-1 text-xs font-normal opacity-70">Admin workspace</small></span>
                 </Link>
                 <button onClick={() => setMobileNavOpen(false)} className="p-1.5 rounded-md hover:bg-[var(--bg-secondary)]" aria-label="Close menu">
                   <X className="w-4 h-4 text-[var(--text-muted)]" />
                 </button>
               </div>
-              <nav className="px-3 py-3 pb-[max(12px,env(safe-area-inset-bottom))] min-h-0 flex-1 overflow-y-auto">
+              <nav aria-label="Admin navigation" className="px-3 py-3 pb-[max(12px,env(safe-area-inset-bottom))] min-h-0 flex-1 overflow-y-auto">
                 {navSections.map((section) => (
                   <div key={section.title} className="mb-4">
                     <p className="px-2 mb-1.5 text-[11px] uppercase tracking-wide text-[var(--text-muted)] font-semibold">{section.title}</p>
@@ -173,14 +177,15 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                             href={item.href}
                             onClick={() => setMobileNavOpen(false)}
                             data-active={active}
+                            aria-current={active ? "page" : undefined}
                             className={`admin-nav-link group relative flex items-center gap-2.5 px-2.5 py-2 rounded-2xl text-sm transition ${
                               active ? "bg-[var(--bg-secondary)] text-[var(--accent)]" : "text-[var(--text-muted)] hover:bg-[var(--bg-secondary)]"
                             }`}
                           >
-                            {active && <span className="absolute left-0 top-1 bottom-1 w-[3px] bg-[var(--accent)] rounded-r" />}
+
                             <Icon className="w-4 h-4" />
                             <span className="font-medium">{item.label}</span>
-                            {item.badge !== undefined && item.badge > 0 && (
+                            {"badge" in item && item.badge !== undefined && item.badge > 0 && (
                               <span className="ml-auto min-w-5 h-5 rounded-full bg-[var(--accent)] text-white text-[11px] font-semibold px-1.5 flex items-center justify-center">{item.badge}</span>
                             )}
                           </Link>
@@ -195,24 +200,21 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      <div className="min-h-dvh grid lg:grid-cols-[220px_minmax(0,1fr)]">
+      <div className="min-h-dvh grid lg:grid-cols-[248px_minmax(0,1fr)]">
         <aside className="admin-sidebar hidden lg:flex sticky top-0 h-dvh">
           <div className="h-full w-full flex flex-col">
             <div className="admin-sidebar-brand px-4 py-4">
-              <Link href="/admin" className="flex items-center gap-2">
+              <Link href="/admin" className="admin-brand flex items-center gap-3">
                 <Image src="/logo.png" alt="Snowd" width={24} height={24} />
-                <span className="font-semibold text-lg">Snowd</span>
+                <span className="font-headline text-xl font-semibold">snowd<span className="text-[var(--accent-sun)]">.</span><small className="block mt-1 text-xs font-normal opacity-70">Admin workspace</small></span>
               </Link>
             </div>
 
-            <div className="mx-3 mt-3 rounded-[1.35rem] border-[3px] border-[#061321] bg-white p-3 shadow-[3px_3px_0_#061321]">
-              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[var(--text-muted)]">Status</p>
-              <p className="mt-3 text-sm font-bold text-[var(--ink)]">SNOWD Admin</p>
-              <p className="mt-0.5 text-xs text-[var(--text-muted)]">Operations workspace</p>
-              <div className="mt-3 rounded-2xl bg-[#eaf1ee] px-3 py-2 text-xs font-semibold text-[#43574b]">Live platform data</div>
-            </div>
+            <Link href="/dashboard" className="admin-app-link mx-4 mt-1 flex items-center justify-between gap-2 rounded-xl px-3 py-3 text-sm">
+              Open the app <ArrowUpRight size={16} aria-hidden="true" />
+            </Link>
 
-            <nav className="px-3 py-3 pb-[max(12px,env(safe-area-inset-bottom))] min-h-0 flex-1 overflow-y-auto">
+            <nav aria-label="Admin navigation" className="px-3 py-3 pb-[max(12px,env(safe-area-inset-bottom))] min-h-0 flex-1 overflow-y-auto">
               {navSections.map((section) => (
                 <div key={section.title} className="mb-4">
                   <p className="px-2 mb-1.5 text-[11px] uppercase tracking-wide text-[var(--text-muted)] font-semibold">{section.title}</p>
@@ -225,14 +227,15 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                           key={item.href}
                           href={item.href}
                           data-active={active}
+                            aria-current={active ? "page" : undefined}
                           className={`admin-nav-link group relative flex items-center gap-2.5 px-2.5 py-2 rounded-2xl text-sm transition ${
                             active ? "bg-[var(--bg-secondary)] text-[var(--accent)]" : "text-[var(--text-muted)] hover:bg-[var(--bg-secondary)]"
                           }`}
                         >
-                          {active && <span className="absolute left-0 top-1 bottom-1 w-[3px] bg-[var(--accent)] rounded-r" />}
+
                           <Icon className="w-4 h-4" />
                           <span className="font-medium">{item.label}</span>
-                          {item.badge !== undefined && item.badge > 0 && (
+                          {"badge" in item && item.badge !== undefined && item.badge > 0 && (
                             <span className="ml-auto min-w-5 h-5 rounded-full bg-[var(--accent)] text-white text-[11px] font-semibold px-1.5 flex items-center justify-center">{item.badge}</span>
                           )}
                         </Link>
@@ -258,7 +261,8 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                     router.push("/login");
                   }}
                   className="p-1.5 rounded-md hover:bg-[var(--bg-secondary)]"
-                  title="Logout"
+                  title="Sign out"
+                  aria-label="Sign out"
                 >
                   <LogOut className="w-4 h-4 text-[var(--text-muted)]" />
                 </button>
@@ -275,6 +279,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                   onClick={() => setMobileNavOpen(true)}
                   className="lg:hidden w-9 h-9 rounded-lg border-[3px] border-[var(--border)] bg-white hover:bg-[var(--bg-primary)] inline-flex items-center justify-center"
                   aria-label="Open menu"
+                  aria-expanded={mobileNavOpen}
                 >
                   <Menu className="w-4 h-4 text-[var(--text-secondary)]" />
                 </button>
@@ -298,6 +303,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                       onClick={() => setShowNotifDropdown((v) => !v)}
                       className="admin-notification-button w-10 h-10 rounded-2xl border-[3px] flex items-center justify-center relative"
                       aria-label="Notifications"
+                      aria-expanded={showNotifDropdown}
                     >
                       <Bell className="w-4 h-4 text-[var(--text-secondary)]" />
                       {unreadNotifications > 0 && <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[#EF4444]" />}
@@ -333,7 +339,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                 </div>
               </header>
 
-              <main className="p-3 sm:p-5 lg:p-7 overflow-x-hidden">
+              <main id="admin-content" tabIndex={-1} className="p-4 sm:p-6 lg:p-8 min-w-0">
                 <div className="admin-content mx-auto w-full">{loading && <p role="status" className="mb-4">Loading platform records…</p>}{dataErrors.map(error => <p role="alert" key={error} className="mb-3 p-3 border border-red-200 rounded-xl text-red-700">{error}</p>)}{actionError && <p role="alert" className="text-red-700 mb-3">{actionError}</p>}<Suspense fallback={<p>Loading workspace…</p>}>{children}</Suspense></div>
               </main>
             </div>
