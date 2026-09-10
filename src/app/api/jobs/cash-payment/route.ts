@@ -40,13 +40,12 @@ export async function POST(request: NextRequest) {
         title = job.paymentStatus === "paid" ? "Job complete" : "Cash payment due";
         message = job.paymentStatus === "paid" ? "Your work order is complete and cash payment has been received." : `Your work order is complete. Please pay $${job.price} CAD directly to the operator. Payment stays pending until the operator confirms cash received.`;
       } else {
-        if (job.status === "completed") return { error: "Cash refunds can only be recorded before work is completed.", status: 409 };
         if (job.paymentStatus === "refunded") return { alreadyApplied: true };
         if (job.paymentStatus !== "paid") return { error: "There is no confirmed cash payment to refund.", status: 409 };
         transaction.update(ref, { paymentStatus: "refunded", cashRefundedAt: now, cashRefundedBy: uid, updatedAt: now });
         transaction.set(db.doc(`transactions/${jobId}-cash`), { jobId, clientId: job.clientId, operatorId: job.operatorId, chatId: job.chatId || "", amount: Math.round(job.price * 100), paymentMethod: "cash", status: "refunded", refundedAt: now, refundedBy: uid, updatedAt: now }, { merge: true });
         title = "Cash refund recorded";
-        message = `The operator confirmed that $${job.price} CAD was returned to you in cash. No electronic refund was issued. ${job.status === "cancelled" ? "Your job remains cancelled." : "Your unfinished job remains open; cancel it if the work is no longer needed."}`;
+        message = `The operator confirmed that $${job.price} CAD was returned to you in cash. No electronic refund was issued. ${job.status === "cancelled" ? "Your job remains cancelled." : job.status === "completed" ? "Your work remains completed." : "Your unfinished job remains open; cancel it if the work is no longer needed."}`;
       }
       const recipient = action === "defer" ? job.operatorId : job.clientId;
       transaction.set(db.doc(`notifications/${jobId}-cash-${action}`), { uid: recipient, type: "payment", title, message, jobId, chatId: job.chatId || "", read: false, createdAt: now });

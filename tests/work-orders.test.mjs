@@ -100,3 +100,17 @@ test("request action badges follow the intended recipient", () => {
   assert.equal(exports.orderActionNeeded(proposal, "client"), "Review proposed time");
   assert.equal(exports.orderActionNeeded(proposal, "operator"), "");
 });
+
+test("waiting requests are distinct from actions assigned to the viewer", () => {
+  assert.equal(exports.orderSection(job, "operator"), "attention");
+  assert.equal(exports.orderSection(job, "client"), "waiting");
+  const proposal = { ...job, scheduleProposal: { recipientId: "client" } };
+  assert.equal(exports.orderSection(proposal, "operator"), "waiting");
+  assert.equal(exports.orderSection(proposal, "client"), "attention");
+  const accepted = { ...proposal, status: "accepted" };
+  assert.equal(exports.orderSection(accepted, "operator"), "upcoming");
+  assert.equal(exports.orderSection(accepted, "client"), "attention");
+  const card = { ...job, status: "accepted", paymentMethod: "credit" };
+  assert.equal(exports.orderSection(card, "client"), "attention");
+  assert.equal(exports.orderSection(card, "operator"), "upcoming");
+});

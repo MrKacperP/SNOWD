@@ -19,9 +19,9 @@ export default function Card({
   const baseStyles = 'rounded-2xl border border-[var(--border)] transition-all duration-150';
   
   const variants = {
-    default: 'bg-white shadow-[var(--surface-shadow)]',
+    default: 'bg-[var(--bg-card-solid)] shadow-[var(--surface-shadow)]',
     frost: 'bg-[var(--bg-secondary)] shadow-[var(--surface-shadow)]',
-    glacier: 'bg-white shadow-[var(--surface-shadow)]',
+    glacier: 'bg-[var(--bg-card-solid)] shadow-[var(--surface-shadow)]',
   };
   
   const paddings = {

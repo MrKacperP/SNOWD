@@ -293,3 +293,15 @@
     display: flex;
   }
 }
+
+.searchLabel { display: block; margin-bottom: 20px; font-size: 14px; font-weight: 600; }
+.searchInput { display: block; width: 100%; min-height: 48px; margin-top: 8px; padding: 12px 14px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-card-solid); color: var(--text-primary); }
+.searchInput:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+.progress { display: flex; gap: 8px; margin-top: 24px; padding-block: 16px; border-block: 1px solid var(--border-color); }
+.progress li { flex: 1; color: var(--text-muted); font-size: 12px; }
+.progress li span { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; margin-bottom: 6px; border: 1px solid var(--border-color); border-radius: 50%; }
+.progress li[data-reached="true"] { color: var(--text-primary); }
+.progress li[data-reached="true"] span { background: #1d4ed8; color: white; border-color: #1d4ed8; }
+.progress li[aria-current="step"] { font-weight: 700; }
+.footer { background: var(--bg-secondary); }
+.badge[data-status="accepted"] { color: #1e40af; background: #eff6ff; border-color: #bfdbfe; }

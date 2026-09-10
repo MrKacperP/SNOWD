@@ -7,6 +7,7 @@ import {
   isAsap,
   orderSection,
   hasScheduleConflict,
+  orderNumber,
 } from "@/lib/workOrders";
 import JobFilters, { JOB_FILTERS } from "./JobFilters";
 import OrderCard from "./OrderCard";
@@ -22,6 +23,7 @@ export default function WorkOrdersPage({
   const [tab, setTab] = useState(history ? "history" : "attention"),
     [date, setDate] = useState("");
   const [notice, setNotice] = useState("");
+  const [search, setSearch] = useState("");
   const localDate = (value: unknown) => {
     const d = new Date(dateMillis(value));
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -32,24 +34,19 @@ export default function WorkOrdersPage({
       : (dateMillis(a.scheduledDate) || dateMillis(a.createdAt)) -
         (dateMillis(b.scheduledDate) || dateMillis(b.createdAt)),
   );
+  const matching = sorted.filter((job) =>
+    [orderNumber(job), job.address, names[isOperator ? job.clientId : job.operatorId], job.serviceTypes?.join(" ")]
+      .filter(Boolean).join(" ").toLowerCase().includes(search.trim().toLowerCase()),
+  );
   const cards = (items: typeof jobs, empty = "No jobs in this view.") =>
     items.length ? (
-      items.map((job) => (
-        <OrderCard
-          key={job.id}
-          job={job}
-          onUpdated={setNotice}
-          conflict={
-            isOperator &&
-            job.status === "pending" &&
-            hasScheduleConflict(job, jobs)
-          }
-          name={
-            names[isOperator ? job.clientId : job.operatorId] ||
-            (isOperator ? "Customer" : "Company")
-          }
-        />
-      ))
+      [...new Set(items.map(job => isOperator ? job.clientId : job.operatorId))].map(personId => {
+        const personOrders = items.filter(job => (isOperator ? job.clientId : job.operatorId) === personId);
+        return <section key={personId} className="space-y-3 rounded-2xl border border-[var(--border-color)] p-3 sm:p-4">
+          <header className="flex items-center justify-between gap-3"><h2 className="font-semibold">{names[personId] || (isOperator ? "Customer" : "Company")}</h2><span className="text-sm text-[var(--text-muted)]">{personOrders.length} order{personOrders.length === 1 ? "" : "s"}</span></header>
+          {personOrders.map(job => <OrderCard key={job.id} job={job} onUpdated={setNotice} conflict={isOperator && job.status === "pending" && hasScheduleConflict(job, jobs)} name={names[personId] || (isOperator ? "Customer" : "Company")} />)}
+        </section>;
+      })
     ) : (
       <p className={styles.empty}>{empty}</p>
     );
@@ -164,6 +161,12 @@ export default function WorkOrdersPage({
         </>
       ) : (
         <>
+          <label className={styles.searchLabel}>
+            Find a work order
+            <input type="search" className={styles.searchInput} value={search}
+              placeholder="Search order number, name, address or service"
+              onChange={(event) => setSearch(event.target.value)} />
+          </label>
           <JobFilters
             value={tab}
             onChange={setTab}
@@ -174,10 +177,21 @@ export default function WorkOrdersPage({
               ]),
             )}
           />
+          <p className={styles.scheduleHint}>
+            {tab === "attention" ? "Requests, time changes and payments that need your action."
+              : tab === "waiting" ? "The other participant needs to respond before these visits are confirmed."
+              : tab === "upcoming" ? "Confirmed visits. Open an order to review its schedule and payment."
+              : tab === "progress" ? "Visits where the provider is on the way or working."
+              : "Completed and cancelled orders. Unpaid cash work remains in Needs attention for the provider."}
+          </p>
           <div className="space-y-4">
             {cards(
-              sorted.filter((j) => orderSection(j, uid) === tab),
-              tab === "attention"
+              matching.filter((j) => orderSection(j, uid) === tab),
+              search.trim()
+                ? "No matching orders in this view. Try another search or filter."
+                : tab === "waiting"
+                  ? "No requests waiting for a response from the other participant."
+                : tab === "attention"
                 ? "You’re all caught up. No requests or payments need attention."
                 : tab === "upcoming"
                   ? "No upcoming jobs. Confirmed bookings will appear here."

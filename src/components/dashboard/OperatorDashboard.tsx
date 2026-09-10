@@ -1,5 +1,6 @@
 "use client";
 
+import AvailabilityToggle from "./AvailabilityToggle";
 import { HomeActions } from "./HomeActions";
 import StatusBadge from "@/components/StatusBadge";
 import { useAuth } from "@/context/AuthContext";
@@ -18,7 +19,7 @@ export default function OperatorDashboard() {
   const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [availabilityError, setAvailabilityError] = useState("");
-  const available = operator?.isAvailable ?? true;
+  const available = operator?.isAvailable !== false && operator?.isOnline !== false;
 
   useEffect(() => {
     if (!profile?.uid) return;
@@ -34,7 +35,7 @@ export default function OperatorDashboard() {
     setSaving(true);
     setAvailabilityError("");
     try {
-      await updateDoc(doc(db, "users", profile.uid), { isAvailable: !available });
+      await updateDoc(doc(db, "users", profile.uid), { isAvailable: !available, isOnline: !available });
       await refreshProfile();
     } catch {
       setAvailabilityError("Could not update availability. Please try again.");
@@ -59,9 +60,7 @@ export default function OperatorDashboard() {
             <p className="mt-2 text-2xl font-semibold">{available ? "Accepting requests" : "Requests paused"}</p>
             <p className="mt-2 text-base text-[#43574b]">{available ? "Clients can request your help." : "Turn on availability when you’re ready."}</p>
           </div>
-          <button type="button" role="switch" aria-checked={available} aria-label="Available for job requests" disabled={saving} onClick={toggleAvailability} className="min-h-12 rounded-full bg-[#17251e] px-6 py-3 text-base font-semibold text-white disabled:opacity-50">
-            {saving ? "Saving…" : available ? "Pause requests" : "Accept requests"}
-          </button>
+          <AvailabilityToggle online={available} saving={saving} error={availabilityError} onToggle={toggleAvailability} />
         </div>
         {!operator?.idVerified && <Link href="/dashboard/settings?tab=verification" className="mt-4 inline-block font-semibold underline">Verify your ID to receive jobs</Link>}
         {availabilityError && <p role="alert" className="mt-3 text-red-700">{availabilityError}</p>}

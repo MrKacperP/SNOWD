@@ -156,13 +156,13 @@ export default function Modal({
                 </h2>
               )}
               {subtitle && (
-                <p id={subtitleId} className="text-sm text-[var(--text-secondary)] text-center mt-1.5 break-words">
+                <p id={subtitleId} className="text-sm text-[var(--text-secondary)] text-center mt-2 leading-relaxed break-words">
                   {subtitle}
                 </p>
               )}
 
               {/* Content */}
-              <div className="mt-5">{children}</div>
+              <div className={title || subtitle || icon ? "mt-6" : ""}>{children}</div>
             </div>
           </motion.div>
         </motion.div>

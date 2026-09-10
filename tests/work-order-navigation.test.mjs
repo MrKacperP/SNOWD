@@ -139,7 +139,7 @@ test("opening card checkout does not navigate or report a completed update", asy
       (n) =>
         n.type === "button" &&
         Array.isArray(n.props.children) &&
-        n.props.children[0].includes("Pay by card"),
+        n.props.children[0].includes("Authorize card"),
     )
     .props.onClick();
   assert.deepEqual(ui.routes, []);

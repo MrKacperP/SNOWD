@@ -59,6 +59,8 @@ export default function RepeatBookingPage() {
     setBusy(true);
     setError("");
     try {
+      if (!asap && (!time || !Number.isFinite(new Date(time).getTime()) || new Date(time).getTime() <= Date.now()))
+        throw new Error("Choose a future date and time for your visit.");
       const body = {
         previousOrderId: previous.id,
         operatorId: operator.uid,
@@ -101,16 +103,18 @@ export default function RepeatBookingPage() {
       </p>
       {previous && operator && (
         <section className="surface-card space-y-4 rounded-3xl p-6">
+          <p className="text-sm font-semibold text-[var(--text-secondary)]">1. Review service and price</p>
           <h2 className="text-xl font-bold">
             {operator.businessName || operator.displayName}
           </h2>
           {isOperator && <p>For {client?.displayName}</p>}
           <p>{client?.address}</p>
-          <p className="capitalize">{previous.serviceTypes.join(" · ")}</p>
+          <p className="capitalize">{previous.serviceTypes?.map((service) => service.replaceAll("-", " ")).join(" · ") || "Snow removal"}</p>
           <p>{previous.specialInstructions}</p>
           <p className="text-lg font-bold">
             Current price: ${price.toFixed(2)} CAD
           </p>
+          <h2 className="border-t pt-4 font-semibold">2. Choose when</h2>
           <label className="flex gap-3">
             <input
               type="checkbox"
@@ -131,8 +135,9 @@ export default function RepeatBookingPage() {
             </label>
           )}
           <p className="text-sm">
-            Time zone: {Intl.DateTimeFormat().resolvedOptions().timeZone}
+            Choose a future time. Time zone: {Intl.DateTimeFormat().resolvedOptions().timeZone}
           </p>
+          <h2 className="border-t pt-4 font-semibold">3. Confirm payment terms</h2>
           <label className="block">
             Payment method
             <select
@@ -162,6 +167,7 @@ export default function RepeatBookingPage() {
               cash after work.
             </label>
           )}
+          {!isOperator && <p className="text-sm">The provider must accept your request before the visit is confirmed. For card bookings, authorize payment after acceptance; payment is captured when work is completed.</p>}
           {isOperator && (
             <p>
               The customer must approve the service, price, time, and payment
@@ -172,7 +178,7 @@ export default function RepeatBookingPage() {
             className="min-h-12 rounded-xl bg-[var(--ink)] px-5 py-3 font-semibold text-white disabled:opacity-50"
             disabled={
               busy ||
-              (!asap && !time) ||
+              (!asap && (!time || !Number.isFinite(new Date(time).getTime()) || new Date(time).getTime() <= Date.now())) ||
               (!isOperator && method === "cash" && !cash)
             }
             onClick={submit}

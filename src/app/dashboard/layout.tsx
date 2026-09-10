@@ -26,11 +26,17 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!inConversation || !window.visualViewport) return;
     const viewport = window.visualViewport;
-    const updateHeight = () => document.documentElement.style.setProperty("--conversation-height", `${viewport.height}px`);
+    const updateHeight = () => {
+      document.documentElement.style.setProperty("--conversation-height", `${viewport.height}px`);
+      document.documentElement.style.setProperty("--conversation-top", `${viewport.offsetTop}px`);
+    };
     updateHeight();
     viewport.addEventListener("resize", updateHeight);
+    viewport.addEventListener("scroll", updateHeight);
     return () => {
       viewport.removeEventListener("resize", updateHeight);
+      viewport.removeEventListener("scroll", updateHeight);
+      document.documentElement.style.removeProperty("--conversation-top");
       document.documentElement.style.removeProperty("--conversation-height");
     };
   }, [inConversation]);
@@ -85,7 +91,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
   return (
     <WeatherProvider>
-      <div className="dashboard-shell min-h-screen bg-[var(--bg-primary)] transition-colors">
+      <div className={`dashboard-shell ${inConversation ? "conversation-shell" : "min-h-screen"} bg-[var(--bg-primary)] transition-colors`}>
         <a href="#dashboard-content" className="skip-link">Skip to main content</a>
         <div className={inConversation ? "hidden lg:contents" : "contents"}><Navbar key={pathname} /></div>
         <main id="dashboard-content" tabIndex={-1} className={inConversation ? "conversation-main flex h-dvh min-w-0 flex-col lg:ml-[248px]" : "min-h-screen min-w-0 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-20 lg:ml-[248px] lg:pb-10 lg:pt-8"}>

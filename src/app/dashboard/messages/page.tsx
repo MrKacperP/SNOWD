@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useUserChats } from "@/hooks/useUserChats";
 import { useWorkOrders } from "@/hooks/useWorkOrders";
 import {
+  isAsap,
   orderActionNeeded,
   dateMillis,
   orderLabel,
@@ -97,20 +98,21 @@ export default function MessagesPage() {
                   <span className="text-sm font-bold">{count} unread</span>
                 )}
               </div>
-              <p className="mt-1 text-sm">
+              <p className="mt-2 text-sm font-semibold">
                 {chat.legacyHistory
                   ? "Read-only legacy history"
                   : job
-                    ? `${orderLabel(job)} · ${scheduleText(job)}`
+                    ? `${orderLabel(job)}`
                     : "Open conversation"}
               </p>
+              {job && !chat.legacyHistory && <p className="visit-timing mt-2" data-asap={isAsap(job)}>{isAsap(job) ? "ASAP · As soon as possible" : `Scheduled · ${scheduleText(job)}`}</p>}
               {job && !chat.legacyHistory && (
-                <p className="mt-1 text-sm">{job.address}</p>
+                <p className="mt-2 text-sm font-semibold">{job.address}</p>
               )}
               <p className="mt-2 truncate text-sm text-[var(--text-muted)]">
                 {chat.lastMessage || "No messages yet"}
               </p>
-              <span className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-blue-700 px-4 font-semibold text-white">Open messages →</span>
+              <span className="mt-2 inline-flex min-h-9 items-center text-sm font-medium text-[var(--text-secondary)]">Open messages →</span>
             </Link>
           );
         };

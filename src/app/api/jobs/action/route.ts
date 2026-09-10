@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
           403,
         );
       const receipt = db.doc(`jobs/${job.id}/actions/${body.requestId}`);
-      if ((await tx.get(receipt)).exists) return { success: true };
+      if ((await tx.get(receipt)).exists) return { success: true, revision: job.revision || 0 };
       if ((job.revision || 0) !== body.revision)
         throw new OrderError(
           "This order changed. Review the latest information and try again.",
@@ -279,7 +279,11 @@ export async function POST(request: NextRequest) {
           )
             throw new OrderError("Choose an image smaller than 500 KB.", 400);
           update.completionPhotoUrl = body.completionPhotoUrl;
-          title = "Completion photo submitted";
+          if (job.paymentMethod === "cash" || job.paymentStatus === "paid") {
+            Object.assign(update, { status: "completed", completionTime: now });
+            title = job.paymentMethod === "cash" && job.paymentStatus !== "paid"
+              ? "Work completed · cash payment due" : "Work completed";
+          } else title = "Completion photo submitted";
           break;
         }
         case "complete": {
@@ -309,7 +313,7 @@ export async function POST(request: NextRequest) {
       tx.update(ref, update);
       tx.set(receipt, { action: body.action, createdAt: now });
       orderEvent(tx, job, uid, body.requestId, title);
-      return { success: true };
+      return { success: true, revision: update.revision };
     });
     return NextResponse.json(result);
   } catch (error) {

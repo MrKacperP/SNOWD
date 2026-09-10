@@ -1,91 +1,75 @@
-"use client";
-
-import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import {
-  Snowflake,
-  ArrowRight,
-  ArrowUpRight,
-  Check,
-  ChevronDown,
-  Shovel,
-  CarFront,
-  Footprints,
-  House,
-  Camera,
-  MessageCircle,
-  MapPin,
-} from "lucide-react";
+import { ArrowRight, ChevronDown, Shovel, Snowflake, Check, ArrowUpRight, House, CalendarDays, Coffee } from "lucide-react";
 import styles from "./landing.module.css";
+import LandingPhone from "@/components/LandingPhone";
 
-const guides = {
-  help: [
-    [
-      "Post your snow-clearing job",
-      "Add your address, choose the areas that need clearing, and include photos so a nearby shoveler knows what to expect.",
-    ],
-    [
-      "Talk with your shoveler",
-      "Once someone accepts your job, use the job chat to discuss access, timing, and any details about your property.",
-    ],
-    [
-      "Review the finished work",
-      "Your shoveler uploads completion photos. Review the work and approve the job, with payment handled in the app.",
-    ],
-  ],
-  earn: [
-    [
-      "Create your operator profile",
-      "Sign up, choose operator, and complete the required account and payment setup.",
-    ],
-    [
-      "Choose nearby jobs",
-      "Browse available work and check the job details before accepting. Choose jobs that fit your schedule.",
-    ],
-    [
-      "Clear the snow and get paid",
-      "Keep in touch through the job chat and upload completion photos. Payment follows the homeowner’s approval.",
-    ],
-  ],
-};
-
-const questions = [
-  [
-    "How much does snow removal cost?",
-    "Pricing depends on the job and the areas that need clearing. Review the job price in the app before committing.",
-  ],
-  [
-    "Can I find a shoveler in my area?",
-    "Create an account and add your address to post a job for nearby shovelers. Availability depends on local helpers, demand, and the weather.",
-  ],
-  [
-    "Do you offer a senior discount?",
-    "Yes. Neighbours age 65 and over can access the senior discount after signing up and confirming their age.",
-  ],
-  [
-    "Can students earn money on SNOWD?",
-    "Yes. Students can sign up as operators and choose nearby jobs around their schedules. Upload a transcript or report card in Settings to be considered for student verification and access to more clients. Eligibility and payment setup requirements apply.",
-  ],
-  [
-    "What happens when the job is finished?",
-    "Your shoveler uploads photos of the completed work. Review the photos and approve the job when it is finished. If something needs discussing, use the job chat before approving.",
-  ],
+const steps = [
+  ["Find your helping hand.", "Sign up, add your address, and meet the shovelers near you."],
+  ["Make a little plan.", "Pick your shoveler, check the price, and request a time. They’ll confirm the visit."],
+  ["Go enjoy your snow day.", "We’ll keep you in the loop with updates and completion photos. You keep the warm socks on."],
 ];
 
+function StepPreview({ step }: { step: number }) {
+  return (
+    <div className={`${styles.stepPreview} ${styles[`preview${step}`]}`} aria-hidden="true">
+      {step === 0 ? (
+        <>
+          <div className={styles.mapRoad} />
+          <House className={styles.mapHouseOne} size={30} strokeWidth={1.5} />
+          <House className={styles.mapHouseTwo} size={25} strokeWidth={1.5} />
+          <div className={styles.homePin}><House size={23} /><span>You’re here</span></div>
+          <div className={styles.helperPin}><Shovel size={21} /></div>
+          <div className={styles.nearbyLabel}><span /> A helping hand, nearby</div>
+        </>
+      ) : step === 1 ? (
+        <div className={styles.visitPreview}>
+          <div className={styles.visitHeading}><CalendarDays size={20} /><span>Your snow day plan</span></div>
+          <div className={styles.visitRow}><span>The spot</span><strong>Driveway & walkway</strong></div>
+          <div className={styles.visitRow}><span>The timing</span><strong>You choose</strong></div>
+          <div className={styles.requestPreview}>Request your visit <ArrowUpRight size={16} /></div>
+        </div>
+      ) : (
+        <>
+          <div className={styles.coffeeCircle}><Coffee size={58} strokeWidth={1.3} /><Snowflake size={24} className={styles.littleSnowflake} /></div>
+          <div className={styles.donePreview}><span><Check size={18} /></span><div>Snow cleared.<small>Time for something better.</small></div></div>
+        </>
+      )}
+    </div>
+  );
+}
+const questions = [
+  [
+    "How much does it cost?",
+    "Prices depend on the shoveler and the services you choose. You’ll see the price before you send a booking request.",
+  ],
+  [
+    "Can I get help today?",
+    "You can request help as soon as possible or choose a future date. Availability depends on nearby shovelers and the weather. Your booking is confirmed when the shoveler accepts.",
+  ],
+  [
+    "How do I pay?",
+    "Available payment options are shown when you book. For card bookings, payment is authorized before work starts. For cash bookings, you pay the shoveler directly after the work.",
+  ],
+];
 function Brand() {
   return (
     <Link href="/" aria-label="SNOWD home" className={styles.brand}>
-      <Image src="/logo.png" alt="" width={44} height={48} className={styles.brandLogo} />
-      <span className={styles.wordmark}>snowd<span>.</span></span>
+      <Image src="/logo.png" alt="" width={34} height={38} />
+      <span>
+        snowd<span className={styles.dot}>.</span>
+      </span>
     </Link>
   );
 }
-
+function FindHelp() {
+  return (
+    <Link href="/signup" className={styles.primary}>
+      Find a shoveler <ArrowRight size={18} aria-hidden="true" />
+    </Link>
+  );
+}
 export default function HomePage() {
-  const [preview, setPreview] = useState<"job" | "chat">("job");
-  const [audience, setAudience] = useState<"help" | "earn">("help");
-
   return (
     <div className={styles.page}>
       <a className={styles.skip} href="#main">
@@ -95,246 +79,93 @@ export default function HomePage() {
         <nav className={styles.nav} aria-label="Main navigation">
           <Brand />
           <div className={styles.navLinks}>
-            <a href="#how">How it works</a>
-            <a href="#homeowners">For homeowners</a>
-            <a href="#students">Earn money</a>
+            <a href="#how" className={styles.howLink}>
+              How it works
+            </a>
+            <a href="#earn">Become a shoveler</a>
+            <Link href="/login" className={styles.login}>
+              Log in
+            </Link>
           </div>
-          <Link href="/login" className={styles.login}>
-            Log in <ArrowUpRight size={16} aria-hidden="true" />
-          </Link>
         </nav>
       </header>
-
       <main id="main">
         <section className={styles.hero} aria-labelledby="hero-title">
-          <div className={styles.heroInner}>
-            <div className={styles.heroCopy}>
-              <p className={styles.eyebrow}><span className={styles.snowflakeBadge}><Snowflake size={28} strokeWidth={1.5} aria-hidden="true" /></span> LOCAL SNOW REMOVAL</p>
-              <h1 id="hero-title">Snow to clear?<br />Find a local shoveler.</h1>
-              <p className={styles.intro}>Get your driveway, walkway, or steps cleared by a nearby shoveler. Post a job, chat, and pay in one place.</p>
-              <div className={styles.heroActions}>
-                <Link href="/signup" className={styles.primary}>Get snow help <ArrowRight size={18} aria-hidden="true" /></Link>
-                <a href="#how" className={styles.secondary}>See how it works <ChevronDown size={16} aria-hidden="true" /></a>
-              </div>
-              <p className={styles.signupNote}>Create an account, then post your first job.</p>
-              <div className={styles.reassurance}>
-                <span><MessageCircle size={16} aria-hidden="true" /> Direct job chat</span>
-                <span><Camera size={16} aria-hidden="true" /> Completion photos</span>
-              </div>
-              <p className={styles.earnLink}>Have a shovel? <a href="#students">Earn close to home <ArrowUpRight size={15} aria-hidden="true" /></a></p>
-            </div>
-            <figure className={styles.productPreview}>
-              <figcaption className={styles.previewHeader}><span className={styles.previewBrand}><Image src="/logo.png" alt="" width={26} height={28} /> snowd.</span><span>Example job · Preview</span></figcaption>
-              <div className={styles.previewTabs} role="group" aria-label="Explore an example job">
-                <button type="button" aria-pressed={preview === "job"} onClick={() => setPreview("job")}>Work order</button>
-                <button type="button" aria-pressed={preview === "chat"} onClick={() => setPreview("chat")}>Messages</button>
-              </div>
-              <div className={styles.previewBody} aria-live="polite">
-                {preview === "job" ? <>
-                  <div className={styles.orderHeading}><Shovel size={23} aria-hidden="true" /><span>Snow removal</span></div>
-                  <h2>Driveway & front steps</h2>
-                  <p className={styles.exampleAddress}><MapPin size={15} aria-hidden="true" /> Your property address</p>
-                  <dl className={styles.orderDetails}>
-                    <div><dt>Areas to clear</dt><dd>Driveway, steps</dd></div>
-                    <div><dt>Access notes</dt><dd>Please leave a path to the side gate.</dd></div>
-                  </dl>
-                  <div className={styles.previewNote}><Camera size={19} aria-hidden="true" /><p><strong>Check the work before approving</strong><span>Your shoveler shares completion photos.</span></p></div>
-                </> : <>
-                  <div className={styles.orderHeading}><MessageCircle size={23} aria-hidden="true" /><span>Job conversation</span></div>
-                  <h2>Keep the details together.</h2>
-                  <div className={styles.sampleChat}><span>You · Example message</span><p>Please leave a path to the side gate.</p></div>
-                  <div className={styles.sampleReply}><span>Shoveler · Example reply</span><p>Got it. I’ll include the path when I clear the driveway.</p></div>
-                  <p className={styles.chatNote}>Discuss timing and access directly in your job chat.</p>
-                </>}
-              </div>
-              <div className={styles.previewFooter}><span>1. Post a job</span><span>2. Stay in touch</span><span>3. Review</span></div>
-            </figure>
+          <div className={styles.heroCopy}>
+            <p className={styles.eyebrow}><Snowflake size={15} aria-hidden="true" /> YOUR NEIGHBOURHOOD. LESS SNOW.</p>
+            <h1 id="hero-title">
+              Snow day.
+              <br />
+              <span>Handled.</span>
+            </h1>
+            <p className={styles.intro}>
+              A clear driveway. A little more time. Find someone local to take snow clearing off your hands.
+            </p>
+            <div className={styles.heroActions}><FindHelp /><a href="#how" className={styles.secondary}>See how it works <ArrowUpRight size={17} aria-hidden="true" /></a></div>
+            <p className={styles.signupNote}>
+              Create an account to see help near you.
+            </p>
           </div>
+          <LandingPhone />
         </section>
-
-        <section
-          className={styles.services}
-          aria-label="Snow-clearing services"
-        >
-          <article>
-            <span className={styles.serviceIcon}><CarFront size={25} aria-hidden="true" /></span>
-            <div>
-              <h2>Driveways</h2>
-              <p>Clear the way in and out.</p>
-            </div>
-          </article>
-          <article>
-            <span className={styles.serviceIcon}><Footprints size={25} aria-hidden="true" /></span>
-            <div>
-              <h2>Walkways</h2>
-              <p>Make the path to your door easier.</p>
-            </div>
-          </article>
-          <article>
-            <span className={styles.serviceIcon}><House size={25} aria-hidden="true" /></span>
-            <div>
-              <h2>Steps & entrances</h2>
-              <p>Help with the spots a plow can’t reach.</p>
-            </div>
-          </article>
-        </section>
-
+        <div className={styles.serviceStrip}><span>A fresh start, right outside.</span><p><Check size={16} aria-hidden="true" /> Driveways</p><p><Check size={16} aria-hidden="true" /> Walkways</p><p><Check size={16} aria-hidden="true" /> Steps & entrances</p></div>
         <section id="how" className={styles.how} aria-labelledby="how-title">
-          <div className={styles.sectionHead}>
-            <div>
-              <p className={styles.eyebrow}>HOW IT WORKS</p>
-              <h2 id="how-title">
-                Snow clearing{" "}
-                <br />
-                in three steps.
-              </h2>
-            </div>
-            <div
-              className={styles.guideSwitch}
-              role="group"
-              aria-label="Choose your getting-started guide"
-            >
-              <button
-                type="button"
-                aria-pressed={audience === "help"}
-                onClick={() => setAudience("help")}
-              >
-                I need snow help
-              </button>
-              <button
-                type="button"
-                aria-pressed={audience === "earn"}
-                onClick={() => setAudience("earn")}
-              >
-                I want to earn
-              </button>
-            </div>
+          <div className={styles.sectionHeading}>
+            <p className={styles.eyebrow}>HOW IT WORKS</p>
+            <h2 id="how-title">You make the cocoa.<br /><span>We’ll help with the snow.</span></h2><p className={styles.howIntro}>A little local help. Three simple steps. A whole lot of winter back.</p>
           </div>
-          <div className={styles.steps} aria-live="polite">
-            {guides[audience].map(([title, description], index) => (
-              <article key={title}>
-                <span className={styles.stepNumber}>{index + 1}</span>
-                <h3>{title}</h3>
-                <p>{description}</p>
-              </article>
+          <ol className={styles.steps}>
+            {steps.map(([title, description], index) => (
+              <li key={title}>
+                <StepPreview step={index} />
+                <div className={styles.stepCopy}>
+                  <span className={styles.stepNumber}>STEP 0{index + 1}</span>
+                  <h3>{title}</h3>
+                  <p>{description}</p>
+                </div>
+              </li>
             ))}
-          </div>
+          </ol>
+          <div className={styles.howAction}><Link href="/signup" className={styles.primary}>Get my snow day back <ArrowRight size={18} aria-hidden="true" /></Link><span>Find a shoveler close to home.</span></div>
         </section>
-
-        <section
-          id="homeowners"
-          className={styles.homeowners}
-          aria-labelledby="homeowners-title"
-        >
-          <div className={styles.homeownerCopy}>
-            <p className={styles.eyebrow}>FOR HOMEOWNERS & SENIORS</p>
-            <h2 id="homeowners-title">
-              Know what’s happening
-              <br />
-              with your job.
-            </h2>
-            <p>
-              Your job details, conversation, and completion photos stay together, so you can follow the work from request to approval.
-            </p>
-            <Link href="/signup" className={styles.textLink}>
-              Post your first job <ArrowUpRight size={18} aria-hidden="true" />
-            </Link>
-          </div>
-          <div className={styles.detailsList}>
-
-            <article>
-              <Check size={19} aria-hidden="true" />
-              <div>
-                <h3>Keep the details in one place</h3>
-                <p>Talk directly with your shoveler through the job chat.</p>
-              </div>
-            </article>
-            <article>
-              <Check size={19} aria-hidden="true" />
-              <div>
-                <h3>Review before you approve</h3>
-                <p>
-                  Check completion photos before approving the finished job.
-                </p>
-              </div>
-            </article>
-            <article>
-              <Check size={19} aria-hidden="true" />
-              <div>
-                <h3>A discount for neighbours 65+</h3>
-                <p>Available after signup and age confirmation.</p>
-              </div>
-            </article>
-          </div>
-        </section>
-
-        <section
-          id="students"
-          className={styles.students}
-          aria-labelledby="students-title"
-        >
-          <div>
-            <p className={styles.eyebrow}>EARN WITH SNOWD</p>
-            <h2 id="students-title">
-              Local jobs that fit
-              <br />
-              your schedule.
-            </h2>
-          </div>
-          <div className={styles.studentCopy}>
-            <p>
-              Find snow-clearing jobs close to home. Choose the work that fits
-              around classes and other commitments, and earn by helping your
-              neighbours.
-            </p>
-            <Link href="/signup" className={styles.primary}>
-              Become a shoveler <ArrowRight size={18} aria-hidden="true" />
-            </Link>
-            <p className={styles.finePrint}>
-              Choose “operator” during setup. Students can upload a transcript
-              or report card in Settings to be considered for verified student
-              access. Eligibility requirements apply.
-            </p>
-          </div>
-        </section>
-
         <section id="faq" className={styles.faq} aria-labelledby="faq-title">
-          <div>
-            <p className={styles.eyebrow}>BEFORE YOU GET STARTED</p>
-            <h2 id="faq-title">Common questions.</h2>
-          </div>
+          <div><p className={styles.eyebrow}>GOOD QUESTIONS</p><h2 id="faq-title">Let’s clear<br />a few things up.</h2></div>
           <div className={styles.questions}>
             {questions.map(([question, answer]) => (
               <details key={question}>
                 <summary>
                   {question}
-                  <ChevronDown size={19} aria-hidden="true" />
+                  <ChevronDown size={18} aria-hidden="true" />
                 </summary>
                 <p>{answer}</p>
               </details>
             ))}
           </div>
         </section>
-        <section className={styles.finalCta} aria-labelledby="ready-title">
-          <p className={styles.eyebrow}>GET STARTED</p>
-          <h2 id="ready-title">Need help with the next snowfall?</h2>
-          <p>Start with an account. Post a job when you need a hand.</p>
-          <Link href="/signup" className={styles.primary}>Get started <ArrowRight size={18} aria-hidden="true" /></Link>
-          <span className={styles.availability}>Shoveler availability varies by location and weather.</span>
+        <section className={styles.ready} aria-labelledby="ready-title">
+          <div>
+            <h2 id="ready-title">Your next snow day looks better already.</h2>
+            <p>Find a shoveler for your next snowfall.</p>
+          </div>
+          <FindHelp />
         </section>
-      </main>
-
-      <footer className={styles.footer}>
-        <div>
-          <Brand />
-          <p>Snow removal, close to home.</p>
-        </div>
-        <nav aria-label="Footer navigation">
-          <a href="#how">How it works</a>
-          <a href="#faq">FAQs</a>
-          <Link href="/signup">
-            Get started <ArrowUpRight size={15} aria-hidden="true" />
+        <aside id="earn" className={styles.earn} aria-labelledby="earn-title">
+          <Shovel size={24} strokeWidth={1.5} aria-hidden="true" />
+          <div>
+            <p className={styles.eyebrow}>FOR THE DOERS</p><h2 id="earn-title">Your shovel. Your neighbourhood. Your opportunity.</h2>
+            <p>Offer snow clearing in your area and earn close to home.</p>
+          </div>
+          <Link href="/signup" className={styles.earnAction}>
+            Become a shoveler <ArrowRight size={16} aria-hidden="true" />
           </Link>
+        </aside>
+      </main>
+      <footer className={styles.footer}>
+        <Brand />
+        <p>Snow removal, close to home.</p>
+        <nav aria-label="Footer navigation">
+          <a href="#faq">Questions</a>
+          <Link href="/login">Log in</Link>
         </nav>
       </footer>
     </div>

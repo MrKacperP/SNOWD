@@ -36,3 +36,21 @@ Released to `https://www.snowd.ca` as Vercel deployment `dpl_5sVp44RF2f5dUhbeZf7
 Production migration verified 47 orders, 50 conversations (including preserved history), two legacy shared histories, zero broken order/chat associations, and zero shared active chat IDs. Existing messages, receipts, and claims were preserved. Unrelated pre-existing admin workspace changes were excluded from the deployed source snapshot.
 
 Validation passed: 53 tests including Firebase security rules; real authenticated emulator workflow integration (including concurrent starts and migration reruns); Stripe test-mode authorization, capture, cancellation, and webhooks; TypeScript and production builds locally and on Vercel. Lint has zero errors; existing warnings remain in legacy components. Browser checks covered operator acceptance/start/photo/completion from the order list, customer mobile company-grouped inbox and order navigation, and the production login/authentication boundary. Existing open browser sessions should reload after cutover.
+
+## Workflow clarity update
+
+The list separates actions assigned to the current user (Needs attention) from unconfirmed requests awaiting the other participant (Awaiting response). Confirmed visits stay Upcoming, including when the provider is waiting for card authorization; the customer sees authorization in Needs attention. Pending cash collection remains actionable for the provider after completion.
+
+Users can search the selected view by order reference, participant, address or service. Detail cards show progress from request through completion. Provider actions emphasize the next step and require photo proof before completion. Card wording distinguishes authorization from capture. Repeat booking presents service/price review, scheduling and payment terms as three steps; scheduling forms reject past dates. Dialogs include an explicit return action.
+
+Validation: 63 tests passed, two emulator-dependent security-rule tests skipped; TypeScript and production build passed; lint reported no errors and 16 existing warnings. Browser verification reached the authentication boundary; authenticated visual and end-to-end checks remain unverified for this update.
+
+## Cash and messaging follow-up
+
+Completion-photo uploads now finish in-progress work automatically. Cash and already-paid card orders close in the photo transaction. For authorized cards, the client saves proof, captures the payment, then completes using the revision returned by the photo action. Capture failures leave proof available and the order open for retry. Customer chat attachments do not complete the provider's work.
+
+Confirming cash on unfinished work immediately prompts the provider to finish the order. Cash returned and cash received again are separate payment updates; neither reopens completed or cancelled work. Refund recording remains available after completion. Older conversations show the current open order for the same participants instead of offering a duplicate booking.
+
+Work-order views group by participant, highlight ASAP versus scheduled visits, and display explicit status. Messaging uses centered action cards, contextual reply suggestions above the composer, and a plus menu for photos. Desktop account and notification menus float beside the sidebar. The home and navigation availability controls read the same effective state and write both availability fields together.
+
+Validation: 71 tests passed; two emulator-dependent tests skipped. TypeScript passed. Targeted lint had no errors and five existing chat warnings. Authenticated local browser checks verified the floating menus, ASAP styling, conversation composer and old-chat open-order links. Payment mutations were tested with mocks rather than performed on live records.

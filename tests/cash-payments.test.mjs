@@ -94,13 +94,13 @@ test('cash completion preserves confirmed payment, needs proof, and only allows 
     assert.equal(f.writes.length, 0);
   }
 });
-test('cash refund records cash returned before completion and never marks the work complete', async () => {
+test('cash refund records cash returned and never changes work status', async () => {
   const f = cashActionFixture({ paymentStatus: 'paid' });
   assert.equal((await f.run('refund')).status, 200);
   assert.equal(f.writes[0].data.paymentStatus, 'refunded');
   assert.equal(f.writes[0].data.status, undefined);
   assert.equal(f.writes.find(w => w.path.startsWith('transactions/')).data.status, 'refunded');
-  for (const [changes, uid] of [[{ paymentStatus: 'pending' }, 'operator'], [{ paymentStatus: 'paid', status: 'completed' }, 'operator'], [{ paymentStatus: 'paid' }, 'client']]) {
+  for (const [changes, uid] of [[{ paymentStatus: 'pending' }, 'operator'], [{ paymentStatus: 'paid' }, 'client']]) {
     const denied = cashActionFixture(changes, uid);
     assert.ok((await denied.run('refund')).status >= 400);
     assert.equal(denied.writes.length, 0);
@@ -171,4 +171,18 @@ test('card cancellation releases holds, retries safely and reports captured paym
   const captured = cancelFixture({ method: 'credit', payment: 'succeeded' });
   assert.match((await captured.run()).body.warning, /already captured/);
   assert.equal(captured.releases(), 0);
+});
+
+
+test('completed cash refunds preserve completed work and can be collected again', async () => {
+  const returned = cashActionFixture({ status: 'completed', paymentStatus: 'paid' });
+  assert.equal((await returned.run('refund')).status, 200);
+  assert.equal(returned.writes[0].data.status, undefined);
+  assert.match(returned.writes.find(w => w.path.startsWith('messages/')).data.content, /remains completed/);
+  for (const status of ['in-progress', 'completed', 'cancelled']) {
+    const received = fixture({ job: { status, paymentStatus: 'refunded' }, receipt: true });
+    assert.equal((await received.confirm()).status, 200);
+    assert.equal(received.writes[0].data.paymentStatus, 'paid');
+    assert.equal(received.writes[0].data.status, undefined);
+  }
 });

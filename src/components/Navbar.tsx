@@ -81,10 +81,16 @@ export default function Navbar() {
   useDialogFocus(drawerOpen, drawerRef);
   const notifRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    if (!notifOpen || !window.matchMedia("(max-width: 1023px)").matches) return;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = overflow; };
+  }, [notifOpen]);
+  useEffect(() => {
     if (!window.matchMedia("(min-width: 1024px)").matches) return;
     const target = profileMenuOpen ? menuRef.current : notifOpen ? notifRef.current : null;
     if (!target) return;
-    const frame = requestAnimationFrame(() => target.scrollIntoView({ block: "end", behavior: "instant" }));
+    const frame = requestAnimationFrame(() => target.closest("aside")?.scrollTo({ top: target.offsetTop + target.offsetHeight - (target.closest("aside")?.clientHeight ?? 0), behavior: "instant" }));
     return () => cancelAnimationFrame(frame);
   }, [profileMenuOpen, notifOpen]);
 
@@ -93,7 +99,7 @@ export default function Navbar() {
     isClient &&
     (((profile as unknown as Record<string, unknown>)?.simplifiedMode as boolean) ||
       Number((profile as unknown as Record<string, unknown>)?.age || 0) >= 55);
-  const isOnline = (profile as unknown as Record<string, unknown>)?.isOnline !== false;
+  const isOnline = (profile as unknown as Record<string, unknown>)?.isOnline !== false && (profile?.role !== "operator" || (profile as unknown as Record<string, unknown>)?.isAvailable !== false);
 
   const navItems = useMemo(() => {
     if (simplifiedClient) {
@@ -206,7 +212,7 @@ export default function Navbar() {
     setStatusSaving(true);
     setStatusError("");
     try {
-      await updateDoc(doc(db, "users", profile.uid), { isOnline: !isOnline });
+      await updateDoc(doc(db, "users", profile.uid), { isOnline: !isOnline, ...(profile.role === "operator" ? { isAvailable: !isOnline } : {}) });
     } catch (error) {
       console.error("Error toggling status:", error);
       setStatusError("Could not update your status. Please try again.");
@@ -238,7 +244,7 @@ export default function Navbar() {
 
   const handleSignOut = async () => {
     if (profile?.uid) {
-      updateDoc(doc(db, "users", profile.uid), { isOnline: false }).catch(() => {});
+      updateDoc(doc(db, "users", profile.uid), { isOnline: false, ...(profile.role === "operator" ? { isAvailable: false } : {}) }).catch(() => {});
     }
     try {
       await signOut();
@@ -314,7 +320,7 @@ export default function Navbar() {
                   </button>
                 ) : null}
               </div>
-              <div className="max-h-[min(320px,calc(100dvh-160px))] overflow-y-auto">
+              <div className="max-h-[min(320px,calc(100dvh-160px))] overflow-y-auto overscroll-contain">
                 {notifications.length ? (
                   notifications.map((notification) => (
                     <button
@@ -393,7 +399,7 @@ export default function Navbar() {
           </Link>
           <div className="flex items-center gap-1">
             <SupportChatButton inline />
-            <button ref={mobileNotifButtonRef} aria-label="Notifications" aria-expanded={notifOpen} onClick={() => setNotifOpen((value) => !value)} className="relative rounded-full border-[3px] border-[var(--border-color)] bg-white p-2">
+            <button ref={mobileNotifButtonRef} aria-label="Notifications" aria-expanded={notifOpen} onClick={() => { setDrawerOpen(false); setNotifOpen((value) => !value); }} className="relative rounded-full border-[3px] border-[var(--border-color)] bg-white p-2">
               <Bell className="h-4 w-4" />
               {unreadNotifications > 0 ? <span className="absolute -right-1 -top-1 unread-badge">{unreadNotifications > 9 ? "9+" : unreadNotifications}</span> : null}
             </button>
@@ -412,7 +418,7 @@ export default function Navbar() {
               </button>
             ) : null}
           </div>
-          <div className="max-h-[min(320px,calc(100dvh-160px))] overflow-y-auto">
+          <div className="max-h-[min(320px,calc(100dvh-160px))] overflow-y-auto overscroll-contain">
             {notifications.length ? (
               notifications.map((notification) => (
                 <button key={notification.id} onClick={() => { markNotificationRead(notification.id); if (notification.type === "booking-invite" && notification.operatorId) { setNotifOpen(false); router.push(`/dashboard/find?operator=${encodeURIComponent(notification.operatorId)}`); } else if (notification.jobId && notification.type !== "message") { setNotifOpen(false); router.push(`/dashboard/jobs/${encodeURIComponent(notification.jobId)}`); } else if (notification.chatId) { setNotifOpen(false); router.push(`/dashboard/messages/${encodeURIComponent(notification.chatId)}`); } }} className="w-full border-b border-[var(--border-soft)] px-4 py-3 text-left last:border-b-0">
@@ -433,7 +439,7 @@ export default function Navbar() {
 
       {drawerOpen ? (
         <div className="fixed inset-0 z-40 bg-black/35 lg:hidden" onClick={() => setDrawerOpen(false)}>
-          <div id="mobile-account-menu" ref={drawerRef} role="dialog" aria-modal="true" aria-label="Account menu" tabIndex={-1} className="absolute bottom-0 left-0 right-0 overflow-y-auto max-h-[85dvh] w-full rounded-t-3xl bg-white px-5 pt-5 pb-[max(20px,env(safe-area-inset-bottom))] shadow-[var(--surface-shadow)]" onClick={(event) => event.stopPropagation()}>
+          <div id="mobile-account-menu" ref={drawerRef} role="dialog" aria-modal="true" aria-label="Account menu" tabIndex={-1} className="absolute bottom-0 left-0 right-0 overflow-y-auto overscroll-contain max-h-[85dvh] w-full rounded-t-3xl bg-white px-5 pt-5 pb-[max(20px,env(safe-area-inset-bottom))] shadow-[var(--surface-shadow)]" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <UserAvatar

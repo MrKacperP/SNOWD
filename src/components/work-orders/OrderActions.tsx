@@ -1,4 +1,5 @@
 "use client";
+import { completeWithPhoto } from "@/lib/completeWithPhoto";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -36,8 +37,12 @@ const confirmDangerButton = `${button} !border-red-700 !bg-red-700 !text-white h
 export default function OrderActions({
   job,
   onUpdated,
+  activeOrder,
+  bookingUnavailable = false,
 }: {
   job: Job;
+  activeOrder?: Job;
+  bookingUnavailable?: boolean;
   onUpdated?: (message: string) => void;
 }) {
   const { user } = useAuth();
@@ -49,6 +54,7 @@ export default function OrderActions({
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
   const [dialog, setDialog] = useState<
+    | "finish-after-cash"
     | "complete-cash"
     | ""
     | "cancel"
@@ -88,7 +94,7 @@ export default function OrderActions({
     const target = `/dashboard/jobs/${job.id}`;
     if (window.location.pathname !== target) router.push(target);
   };
-  const run = async (fn: () => Promise<unknown>, navigate = true) => {
+  const run = async (fn: () => Promise<unknown>, navigate = true, nextDialog: typeof dialog = "") => {
     if (busy) return;
     setBusy(true);
     setError("");
@@ -96,7 +102,7 @@ export default function OrderActions({
     try {
       await fn();
       pendingRequest.current = null;
-      setDialog("");
+      setDialog(nextDialog);
       if (navigate) {
         openWorkOrder();
         onUpdated?.(`Order #${orderNumber(job)} updated.`);
@@ -231,12 +237,12 @@ export default function OrderActions({
               disabled={busy}
               onClick={pay}
             >
-              Pay by card · ${job.price.toFixed(2)}
+              Authorize card · ${job.price.toFixed(2)}
             </button>
           )}
         {operator && !job.scheduleProposal && job.status === "accepted" && (
           <button
-            className={button}
+            className={attentionButton}
             disabled={
               busy ||
               (job.paymentMethod !== "cash" &&
@@ -251,7 +257,7 @@ export default function OrderActions({
           !job.scheduleProposal &&
           ["accepted", "en-route"].includes(job.status) && (
             <button
-              className={button}
+              className={job.status === "en-route" ? attentionButton : button}
               disabled={
                 busy ||
                 (job.paymentMethod !== "cash" &&
@@ -265,17 +271,17 @@ export default function OrderActions({
         {operator && job.status === "in-progress" && (
           <>
             <button
-              className={button}
+              className={!job.completionPhotoUrl ? attentionButton : button}
               disabled={busy}
               onClick={() => setDialog("photo")}
             >
               {job.completionPhotoUrl
                 ? "Update photo proof"
-                : "Add completion photo"}
+                : "Add photo & complete work"}
             </button>
-            <button
-              className={button}
-              disabled={busy}
+            {job.completionPhotoUrl && <button
+              className={attentionButton}
+              disabled={busy || !job.completionPhotoUrl}
               onClick={() =>
                 job.completionPhotoUrl
                   ? job.paymentMethod === "cash" &&
@@ -286,25 +292,24 @@ export default function OrderActions({
               }
             >
               Complete work
-            </button>
+            </button>}
           </>
         )}
         {operator &&
           job.paymentMethod === "cash" &&
-          ["in-progress", "completed"].includes(job.status) &&
-          job.paymentStatus === "pending" && (
+          (["in-progress", "completed"].includes(job.status) || (job.status === "cancelled" && job.paymentStatus === "refunded")) &&
+          ["pending", "refunded"].includes(job.paymentStatus) && (
             <button
               className={actionNeeded ? attentionButton : button}
               disabled={busy}
               onClick={() => setDialog("cash")}
             >
-              Confirm cash received
+              {job.paymentStatus === "refunded" ? "Record cash received again" : "Confirm cash received"}
             </button>
           )}
         {operator &&
           job.paymentMethod === "cash" &&
-          job.paymentStatus === "paid" &&
-          job.status !== "completed" && (
+          job.paymentStatus === "paid" && (
             <button
               className={button}
               disabled={busy}
@@ -322,7 +327,8 @@ export default function OrderActions({
             Cancel order
           </button>
         )}
-        {closed && (
+        {closed && activeOrder && <Link className={button} href={`/dashboard/jobs/${activeOrder.id}`}>View current open work order</Link>}
+        {closed && !activeOrder && !bookingUnavailable && (
           <Link
             className={button}
             href={`/dashboard/jobs/new?previousOrder=${encodeURIComponent(job.id)}`}
@@ -357,6 +363,20 @@ export default function OrderActions({
             Waiting for the customer’s card authorization before work can start.
           </p>
         )}
+      {job.status === "in-progress" && (
+        <p className="text-sm text-[var(--text-secondary)]">
+          {operator
+            ? job.completionPhotoUrl ? "Photo saved. Finish completing this order below." : "Upload a completion photo to finish this work order automatically."
+            : "Your provider is working. Completion proof will be available in this order when uploaded."}
+        </p>
+      )}
+      {!operator && job.status === "accepted" && (
+        <p className="text-sm text-[var(--text-secondary)]">
+          {job.paymentMethod !== "cash" && !["held", "paid"].includes(job.paymentStatus)
+            ? "Authorize your card before the provider starts. The payment is captured when work is completed."
+            : "Your visit is confirmed. The provider will update this order when they are on the way."}
+        </p>
+      )}
       {busy && <p role="status">Updating work order…</p>}
       {error && (
         <p role="alert" className="text-sm text-red-700">
@@ -375,6 +395,7 @@ export default function OrderActions({
         }}
         title={
           {
+            "finish-after-cash": "Cash received · finish your work order",
             "complete-cash": "Did you receive the cash payment?",
             cancel: "Cancel this order?",
             decline: "Decline this request?",
@@ -387,6 +408,10 @@ export default function OrderActions({
           }[dialog]
         }
       >
+        {dialog === "finish-after-cash" && <div className="space-y-4">
+          <p>Payment is recorded. Complete the work order now so it no longer stays in progress.</p>
+          <button className={attentionButton} disabled={busy} onClick={() => job.completionPhotoUrl ? complete() : setDialog("photo")}>{job.completionPhotoUrl ? "Complete work" : "Add photo & complete work"}</button>
+        </div>}
         {dialog === "complete-cash" && (
           <div className="space-y-4">
             <p>
@@ -447,14 +472,14 @@ export default function OrderActions({
                 </label>
               )}
             <p className="text-sm">
-              Time zone: {Intl.DateTimeFormat().resolvedOptions().timeZone}. The
+              Time zone: {Intl.DateTimeFormat().resolvedOptions().timeZone}. Choose a future time. The
               other participant must approve.
             </p>
             <button
               className={button}
               disabled={
                 busy ||
-                (!asap && !time) ||
+                (!asap && (!time || !Number.isFinite(new Date(time).getTime()) || new Date(time).getTime() <= Date.now())) ||
                 (!operator &&
                   job.paymentMethod === "cash" &&
                   !job.cashPaymentAcknowledged &&
@@ -479,8 +504,8 @@ export default function OrderActions({
         {dialog === "photo" && (
           <div className="space-y-4">
             <p>
-              Upload proof of the completed work. Card payment is released when
-              you complete the order.
+              Uploading completion proof automatically completes this work order.
+              For card orders, the authorized payment is captured at completion.
             </p>
             <PhotoPicker
               photo={photo}
@@ -497,10 +522,10 @@ export default function OrderActions({
               className={button}
               disabled={busy || preparingPhoto || !photo}
               onClick={() =>
-                run(() => perform("photo", { completionPhotoUrl: photo }))
+                run(() => completeWithPhoto(job, photo))
               }
             >
-              {busy ? "Saving photo proof…" : "Save photo proof"}
+              {busy ? "Completing work…" : "Upload photo & complete work"}
             </button>
           </div>
         )}
@@ -569,7 +594,7 @@ export default function OrderActions({
                     );
                     if (data.warning) setNotice(data.warning);
                   }
-                })
+                }, dialog !== "cash", dialog === "cash" && job.status === "in-progress" ? "finish-after-cash" : "")
               }
             >
               Confirm{" "}
@@ -583,6 +608,8 @@ export default function OrderActions({
             </button>
           </div>
         )}
+        <button type="button" className={`${button} mt-4`} disabled={busy}
+          onClick={() => setDialog("")}>Back to order</button>
         {error && (
           <p role="alert" className="mt-3 text-red-700">
             {error}

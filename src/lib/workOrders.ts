@@ -53,14 +53,7 @@ export function orderSection(job: Job, uid: string) {
   if (orderActionNeeded(job, uid)) return "attention";
   if (["completed", "cancelled"].includes(job.status)) return "history";
   if (["en-route", "in-progress"].includes(job.status)) return "progress";
-  if (
-    job.status === "pending" ||
-    job.scheduleProposal?.recipientId === uid ||
-    (job.clientId === uid &&
-      job.paymentMethod !== "cash" &&
-      !["held", "paid"].includes(job.paymentStatus))
-  )
-    return "attention";
+  if (job.status === "pending") return "waiting";
   return "upcoming";
 }
 export function scheduleText(

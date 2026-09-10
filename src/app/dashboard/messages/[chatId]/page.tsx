@@ -2,8 +2,12 @@
 
 import { stripeConnectFetch } from "@/lib/stripeConnectClient";
 
+import { useWorkOrders } from "@/hooks/useWorkOrders";
+import { completeWithPhoto } from "@/lib/completeWithPhoto";
+import { prepareCompletionPhoto } from "@/lib/completionPhoto";
 import OrderActions from "@/components/work-orders/OrderActions";
 import CancellationPopup from "@/components/CancellationPopup";
+import ProgressTracker from "@/components/ProgressTracker";
 import StatusBadge from "@/components/StatusBadge";
 import StripeCheckout from "@/components/StripeCheckout";
 import SupportChatButton from "@/components/SupportChatButton";
@@ -45,18 +49,18 @@ ExternalLink,
 Flag,
 MessageSquare,
 Mic,
-Paperclip,
+Plus,
 Send,
 Square,
 Star,
 X,
 } from "lucide-react";
-import Image from "next/image";
+import LoadingScreen from "@/components/LoadingScreen";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import React,{ useCallback,useEffect,useRef,useState } from "react";
 import "./chat.css";
-import { orderLabel, orderNumber, scheduleText } from "@/lib/workOrders";
+import { isAsap, orderLabel, orderNumber, scheduleText } from "@/lib/workOrders";
 
 type QuickCommConfirmation = {
   title: string;
@@ -91,14 +95,20 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [job, setJob] = useState<Job | null>(null);
+  const { jobs: allOrders, loading: ordersLoading, error: ordersError } = useWorkOrders();
+  const [photoError, setPhotoError] = useState("");
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [attachmentsOpen, setAttachmentsOpen] = useState(false);
   const [otherUser, setOtherUser] = useState<UserProfile | null>(null);
+  const activeOrder = allOrders.find(order => order.id !== job?.id && !["completed", "cancelled"].includes(order.status) && (job ? order.clientId === job.clientId && order.operatorId === job.operatorId : order.clientId === otherUser?.uid || order.operatorId === otherUser?.uid));
   const [showMobileTasksSheet, setShowMobileTasksSheet] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [cashError, setCashError] = useState("");
   const [cashActionBusy, setCashActionBusy] = useState(false);
   const [showCashPayment, setShowCashPayment] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const historyRef = useRef<HTMLDivElement>(null);
+  const followLatestRef = useRef(true);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     const textarea = composerRef.current;
@@ -219,6 +229,18 @@ export default function ChatPage() {
     };
   }, []);
 
+  const receiveCameraPhoto = React.useEffectEvent(async (imageDataUrl: string) => {
+    try {
+      if (job && profile?.role === "operator" && job.status === "in-progress") await completeWithPhoto(job, imageDataUrl);
+      await sendMessage("Sent a photo", "image", { imageUrl: imageDataUrl });
+      return true;
+    } catch (error) {
+      setPhotoError(error instanceof Error ? error.message : "Could not complete the photo upload. Open the work order to retry.");
+      setShowCameraQrModal(false);
+      return false;
+    }
+  });
+
   useEffect(() => {
     if (!showCameraQrModal || !guestUploadSessionId) return;
 
@@ -237,7 +259,7 @@ export default function ChatPage() {
 
         const data = (await response.json()) as { imageDataUrl?: string; pending?: boolean };
         if (data.imageDataUrl) {
-          await sendMessage("Sent a photo", "image", { imageUrl: data.imageDataUrl });
+          if (!await receiveCameraPhoto(data.imageDataUrl)) return;
           setShowCameraQrModal(false);
           alert("Photo uploaded successfully.");
           return;
@@ -388,9 +410,10 @@ export default function ChatPage() {
     setRightPanelView("updates");
   }, [chatId]);
 
-  // Auto scroll to bottom
+  // Scroll only the history, and preserve the position when reading older messages.
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const history = historyRef.current;
+    if (history && followLatestRef.current) history.scrollTop = history.scrollHeight;
   }, [messages, loading]);
 
   // Mark messages as read — runs when new messages arrive while chat is open.
@@ -582,16 +605,18 @@ export default function ChatPage() {
   const handleChatPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (photoUploading) return;
+    setPhotoUploading(true); setPhotoError("");
     try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64 = reader.result as string;
-        await sendMessage("Sent a photo", "image", { imageUrl: base64 });
-      };
-      reader.readAsDataURL(file);
+      const base64 = await prepareCompletionPhoto(file);
+      if (job && isOperator && job.status === "in-progress") {
+        await completeWithPhoto(job, base64);
+      }
+      await sendMessage("Sent a photo", "image", { imageUrl: base64 });
     } catch (error) {
-      console.error("Chat photo upload error:", error);
+      setPhotoError(error instanceof Error ? error.message : "Could not upload photo. Please retry.");
     } finally {
+      setPhotoUploading(false);
       e.target.value = "";
     }
   };
@@ -676,13 +701,13 @@ export default function ChatPage() {
   // Submit a review
   const submitReview = async () => {
     if (!job || !user?.uid || !otherUser?.uid || reviewRating === 0) return;
-    
+
     // Validation: if rating is lower than 3 stars, description is required
     if (reviewRating < 3 && !reviewComment.trim()) {
       alert("Please add a description for ratings below 3 stars.");
       return;
     }
-    
+
     setSubmittingReview(true);
 
     try {
@@ -872,12 +897,17 @@ export default function ChatPage() {
   };
 
   const quickReplies = React.useMemo(() => {
-    if (isOperator) {
-      return ["On my way now", "I just arrived", "I will send a photo when finished"];
-    }
-
-    return ["Thanks for the update", "Please let me know when you arrive", "I will keep an eye out"];
-  }, [isOperator]);
+    if (job?.status === "cancelled") return ["Thanks for letting me know", "Could we arrange another visit?"];
+    if (job?.status === "completed") return job.paymentMethod === "cash" && job.paymentStatus !== "paid"
+      ? ["When can we settle the cash payment?", "Thanks for your help"]
+      : ["Thank you!", "Everything looks good"];
+    if (job?.status === "in-progress") return isOperator
+      ? ["I’m finishing up", "I’ll upload a completion photo"] : ["Thanks for the update", "Let me know when you’re finished"];
+    if (job?.status === "en-route") return isOperator ? ["I just arrived", "I’m a few minutes away"] : ["I’ll keep an eye out", "Please message when you arrive"];
+    const lastMessage = messages.at(-1)?.content.toLowerCase() || "";
+    if (/time|arriv|when/.test(lastMessage)) return ["What time works for you?", "That time works for me"];
+    return isOperator ? ["On my way soon", "What time works for you?"] : ["Thanks for the update", "When can you arrive?"];
+  }, [isOperator, job?.status, job?.paymentMethod, job?.paymentStatus, messages]);
 
   const latestOwnMessageId = React.useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i -= 1) {
@@ -1072,7 +1102,7 @@ export default function ChatPage() {
           className={`max-w-[82%] px-4 py-3 rounded-[1.2rem] shadow-[var(--surface-shadow)] sm:max-w-[72%] ${
             isOwn
               ? "bg-[var(--ink)] text-white rounded-br-sm border border-[var(--ink)]"
-              : "bg-white text-[var(--text-primary)] rounded-bl-sm border-[3px] border-[var(--border-color)]"
+              : "bg-white text-[var(--text-primary)] rounded-bl-sm border border-[var(--border-color)]"
           }`}
         >
           <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{msg.content}</p>
@@ -1090,14 +1120,7 @@ export default function ChatPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-96 text-[var(--text-muted)] gap-3">
-        <div className="animate-spin-slow">
-          <Image src="/logo.png" alt="Loading" width={40} height={40} style={{ width: "auto", height: "auto" }} />
-        </div>
-        <p>Loading conversation...</p>
-      </div>
-    );
+    return <LoadingScreen embedded label="Loading conversation…" />;
   }
 
 
@@ -1134,13 +1157,26 @@ export default function ChatPage() {
           </button>
         </div>
 
-        {legacyHistory ? <div className="shrink-0 border-b bg-amber-50 p-4 text-sm text-amber-950"><strong>Earlier shared conversation · read-only history</strong><p>This conversation contains earlier work. Each work order now has a separate conversation.</p><div className="mt-2 flex flex-wrap gap-3">{legacyJobIds.map(id => <Link className="underline" key={id} href={`/dashboard/jobs/${id}`}>View order {id}</Link>)}</div></div> : job && <div className="shrink-0 border-b border-[var(--border-soft)] bg-[var(--bg-secondary)] p-4 text-sm"><Link className="block font-bold underline" href={`/dashboard/jobs/${job.id}`}>Order #{orderNumber(job)} · {orderLabel(job)} · Open work order</Link><p className="mt-1">{scheduleText(job)}</p><p className="mt-1">{job.address}</p><Link href="#current-order-actions" className="mt-2 inline-flex min-h-11 items-center rounded-xl bg-blue-700 px-4 font-semibold text-white">View request & job actions ↓</Link>{["completed", "cancelled"].includes(job.status) && <p className="mt-2">This conversation is for the {job.status} order. <Link className="font-semibold underline" href={`/dashboard/jobs/new?previousOrder=${job.id}`}>{isOperator ? "Propose another booking" : "Request again"}</Link></p>}</div>}
+        {legacyHistory ? <div className="shrink-0 border-b bg-amber-50 p-4 text-sm text-amber-950"><strong>Earlier shared conversation · read-only history</strong><p>This conversation contains earlier work. Each work order now has a separate conversation.</p><div className="mt-2 flex flex-wrap gap-3">{legacyJobIds.map(id => <Link className="underline" key={id} href={`/dashboard/jobs/${id}`}>View order {id}</Link>)}</div></div> : job && <section className="conversation-order-summary shrink-0">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <Link className="text-sm font-semibold hover:underline" href={`/dashboard/jobs/${job.id}`}>{orderLabel(job)}</Link><p className="mt-1 text-xs text-[var(--text-muted)]">Work order #{orderNumber(job)}</p>
+              <p className="visit-timing mt-2" data-asap={isAsap(job)}>{isAsap(job) ? "ASAP · As soon as possible" : `Scheduled · ${scheduleText(job)}`}</p>
+              <p className="mt-0.5 truncate text-xs text-[var(--text-muted)]" title={job.address}>{job.address}</p>
+            </div>
+            <Link href="#current-order-actions" className="conversation-order-action">View Requests and Job Actions</Link>
+          </div>
+          <ProgressTracker status={job.status} compact />
+          {["completed", "cancelled"].includes(job.status) && <p className="mt-2 text-xs text-[var(--text-secondary)]">This order is {job.status}. {activeOrder ? <Link className="font-semibold underline" href={`/dashboard/jobs/${activeOrder.id}`}>You have an open work order · View current order</Link> : !ordersLoading && !ordersError && <Link className="font-semibold underline" href={`/dashboard/jobs/new?previousOrder=${job.id}`}>{isOperator ? "Propose another booking" : "Request again"}</Link>}</p>}
+        </section>}
 
+
+        {legacyHistory && activeOrder && <Link className="conversation-order-summary text-sm font-semibold" href={`/dashboard/jobs/${activeOrder.id}`}>You have an open work order · View current order</Link>}
         {/* Messages */}
-        <div role="log" aria-label="Conversation" className="chat-history min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain bg-[var(--bg-primary)] p-3 sm:p-5">
+        <div ref={historyRef} onScroll={(event) => { const history = event.currentTarget; followLatestRef.current = history.scrollHeight - history.scrollTop - history.clientHeight < 80; }} role="log" aria-label="Conversation" className="chat-history min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain bg-[var(--bg-primary)] p-3 sm:p-5">
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center py-12 text-[var(--text-muted)]">
-              <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border-[3px] border-[var(--border-soft)] bg-white shadow-[var(--surface-shadow)]">
+              <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--border-soft)] bg-white shadow-[var(--surface-shadow)]">
                 <MessageSquare className="h-7 w-7 text-[var(--ink)]" />
               </div>
               <p className="text-sm font-semibold text-gray-800">Start the conversation</p>
@@ -1156,7 +1192,7 @@ export default function ChatPage() {
               <React.Fragment key={message.id}>
                 {showDayBreak && (
                   <div className="sticky top-2 z-10 my-3 flex justify-center">
-                    <span className="rounded-full border-[3px] border-[var(--border-soft)] bg-white px-3 py-1 text-[11px] font-semibold text-[var(--text-muted)] shadow-[var(--surface-shadow)] backdrop-blur">
+                    <span className="rounded-full border border-[var(--border-soft)] bg-white px-3 py-1 text-[11px] font-semibold text-[var(--text-muted)] shadow-[var(--surface-shadow)] backdrop-blur">
                       {currentDay}
                     </span>
                   </div>
@@ -1166,11 +1202,11 @@ export default function ChatPage() {
             );
           })}
           {job && !legacyHistory && <section id="current-order-actions" className="conversation-widget conversation-action-widget my-4 scroll-mt-4">
-            <h2 className="text-sm font-semibold">Current work order · {orderLabel(job)}</h2>
-            <p className="mt-0.5 text-xs text-[var(--text-muted)]">{scheduleText(job)}</p>
-            <OrderActions key={job.id} job={job} />
+            <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-sm font-semibold">Next steps</h2><StatusBadge status={job.status} /></div>
+            <p className="visit-timing mt-2" data-asap={isAsap(job)}>{isAsap(job) ? "ASAP · As soon as possible" : `Scheduled · ${scheduleText(job)}`}</p>
+            <OrderActions key={job.id} job={job} activeOrder={activeOrder} bookingUnavailable={ordersLoading || !!ordersError} />
           </section>}
-          <div ref={messagesEndRef} />
+
         </div>
 
         {/* Message Input */}
@@ -1199,16 +1235,19 @@ export default function ChatPage() {
             className="hidden"
           />
 
-          <details className="chat-tools mb-2">
-            <summary className="cursor-pointer rounded-lg px-2 py-2 text-sm font-medium">Photos & quick replies</summary>
-            <div className="flex flex-wrap gap-2 py-2">
-              <button type="button" onClick={() => chatAttachInputRef.current?.click()} className="rounded-xl border px-3 py-2 text-sm"><Paperclip className="mr-1 inline h-4 w-4" />Attach photo</button>
-              <button type="button" onClick={handleOpenCameraUpload} disabled={creatingGuestUploadLink} className="rounded-xl border px-3 py-2 text-sm disabled:opacity-50"><Camera className="mr-1 inline h-4 w-4" />{creatingGuestUploadLink ? "Opening camera…" : "Take photo"}</button>
-              {quickReplies.map(reply => <button key={reply} type="button" onClick={(event) => { setNewMessage(reply); event.currentTarget.closest("details")?.removeAttribute("open"); composerRef.current?.focus(); }} className="rounded-xl border px-3 py-2 text-sm">{reply}</button>)}
-            </div>
-          </details>
+          <div className="quick-replies" aria-label="Suggested replies">
+            {quickReplies.map(reply => <button key={reply} type="button" onClick={() => { setNewMessage(reply); composerRef.current?.focus(); }}>{reply}</button>)}
+          </div>
+          {photoError && <p role="alert" className="text-sm text-red-700">{photoError}</p>}
+          {photoUploading && <p role="status" className="text-sm">Uploading photo and updating work order…</p>}
+          {attachmentsOpen && <div id="chat-attachments" className="attachment-menu">
+            {isOperator && job?.status === "in-progress" && <p className="text-xs">Uploading a photo completes this work order.</p>}
+            <button type="button" disabled={photoUploading} onClick={() => { chatAttachInputRef.current?.click(); setAttachmentsOpen(false); }}>Choose photo</button>
+            <button type="button" disabled={creatingGuestUploadLink || photoUploading} onClick={() => { void handleOpenCameraUpload(); setAttachmentsOpen(false); }}><Camera className="inline h-4 w-4" /> Take photo</button>
+          </div>}
           {isRecordingVoice && <p role="status" className="mb-2 text-sm font-semibold text-red-600">Recording… Tap stop to send your voice message.</p>}
           <form onSubmit={handleSubmit} className="flex items-end gap-1 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card-solid)] p-1.5">
+            <button type="button" className="min-h-11 min-w-11 rounded-xl hover:bg-gray-100" aria-label="Add photo or attachment" aria-expanded={attachmentsOpen} aria-controls="chat-attachments" onClick={() => setAttachmentsOpen(value => !value)}><Plus className="mx-auto h-5 w-5" /></button>
             <textarea
               ref={composerRef}
               value={newMessage}
@@ -1256,7 +1295,7 @@ export default function ChatPage() {
 
       <Modal isOpen={showMobileTasksSheet && !showCashPayment && !showCancelPopup && !quickCommConfirmation && !showMapModal && !showCheckout && !showPaymentGateModal && !showReportModal && !showCameraQrModal} onClose={() => setShowMobileTasksSheet(false)} title="Conversation details" size="lg">
         <div className="chat-details">
-            <div className="mb-4 flex items-center gap-2 rounded-xl border-[3px] border-[var(--border-soft)] bg-[var(--bg-secondary)] p-1">
+            <div className="mb-4 flex items-center gap-2 rounded-xl border border-[var(--border-soft)] bg-[var(--bg-secondary)] p-1">
               <button
                 type="button"
                 onClick={() => { setRightPanelView("updates"); setShowMobileTasksSheet(true); }}
@@ -1310,7 +1349,8 @@ export default function ChatPage() {
             </div>
             {reviewRating > 0 && (
               <div className="space-y-2">
-                <textarea
+                <button type="button" className="min-h-11 min-w-11 rounded-xl hover:bg-gray-100" aria-label="Add photo or attachment" aria-expanded={attachmentsOpen} aria-controls="chat-attachments" onClick={() => setAttachmentsOpen(value => !value)}><Plus className="mx-auto h-5 w-5" /></button>
+            <textarea
                   value={reviewComment}
                   aria-label="Review comment"
                   onChange={(e) => setReviewComment(e.target.value)}
@@ -1360,18 +1400,18 @@ export default function ChatPage() {
                   </div>
                 </div>
                 <div className="space-y-2 text-sm">
-                  <div className="rounded-xl border-[3px] border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2.5">
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2.5">
                     <p className="text-[11px] uppercase tracking-wide text-[var(--text-muted)]">Location</p>
                     <p className="text-[var(--ink)]">{otherUser.city}, {otherUser.province}</p>
                   </div>
                   {distance !== null && (
-                    <div className="rounded-xl border-[3px] border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2.5">
+                    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2.5">
                       <p className="text-[11px] uppercase tracking-wide text-[var(--text-muted)]">Distance</p>
                       <p className="text-[var(--ink)]">{distance.toFixed(1)} km away</p>
                     </div>
                   )}
                   {otherUser.phone && (
-                    <div className="rounded-xl border-[3px] border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2.5">
+                    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2.5">
                       <p className="text-[11px] uppercase tracking-wide text-[var(--text-muted)]">Phone</p>
                       <p className="text-[var(--ink)]">{otherUser.phone}</p>
                     </div>
@@ -1452,7 +1492,8 @@ export default function ChatPage() {
             </div>
             <div>
               <label className="text-xs text-gray-500 font-medium">Description</label>
-              <textarea
+              <button type="button" className="min-h-11 min-w-11 rounded-xl hover:bg-gray-100" aria-label="Add photo or attachment" aria-expanded={attachmentsOpen} aria-controls="chat-attachments" onClick={() => setAttachmentsOpen(value => !value)}><Plus className="mx-auto h-5 w-5" /></button>
+            <textarea
                 value={reportDescription}
                 onChange={e => setReportDescription(e.target.value)}
                 className="w-full px-3 py-2 border rounded-lg text-sm mt-1"
@@ -1576,7 +1617,7 @@ export default function ChatPage() {
               </button>
             </div>
             <p className="text-xs text-[var(--text-muted)] mt-1.5">Scan on your phone, take one photo, and keep this window open until the upload appears in chat.</p>
-            <div className="mt-4 rounded-xl border-[3px] border-[var(--border)] bg-[#F8FAFD] p-3 flex items-center justify-center">
+            <div className="mt-4 rounded-xl border border-[var(--border)] bg-[#F8FAFD] p-3 flex items-center justify-center">
               {primaryGuestUploadUrl ? (
                 <img
                   src={`https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(primaryGuestUploadUrl)}`}
@@ -1614,7 +1655,7 @@ export default function ChatPage() {
                           alert("Could not copy link.");
                         }
                       }}
-                      className="px-2.5 py-2 rounded-lg border-[3px] border-[var(--border)] text-xs text-[var(--accent)] hover:bg-[#F3F8FF]"
+                      className="px-2.5 py-2 rounded-lg border border-[var(--border)] text-xs text-[var(--accent)] hover:bg-[#F3F8FF]"
                     >
                       Copy
                     </button>
@@ -1652,7 +1693,7 @@ export default function ChatPage() {
                   }
                 }}
                 disabled={!primaryGuestUploadUrl}
-                className="px-3 py-2.5 rounded-xl border-[3px] border-[var(--border)] text-[var(--accent)] text-sm font-semibold hover:bg-[#F3F8FF]"
+                className="px-3 py-2.5 rounded-xl border border-[var(--border)] text-[var(--accent)] text-sm font-semibold hover:bg-[#F3F8FF]"
               >
                 Copy
               </button>

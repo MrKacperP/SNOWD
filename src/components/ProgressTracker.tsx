@@ -2,14 +2,12 @@
 
 import { JobStatus } from "@/lib/types";
 import {
-Camera,
 CheckCircle,
 CheckCircle2,
 Circle,
 PlayCircle,
 Truck,
 } from "lucide-react";
-import React from "react";
 
 interface ProgressTrackerProps {
   status: JobStatus;
@@ -23,7 +21,6 @@ const STEPS = [
   { key: "accepted", label: "Accepted", icon: CheckCircle, description: "Operator confirmed" },
   { key: "en-route", label: "En Route", icon: Truck, description: "On the way" },
   { key: "in-progress", label: "In Progress", icon: PlayCircle, description: "Working now" },
-  { key: "photo-proof", label: "Photo Proof", icon: Camera, description: "Completion photo" },
   { key: "completed", label: "Completed", icon: CheckCircle2, description: "Job complete" },
 ];
 
@@ -32,8 +29,7 @@ const STATUS_ORDER: Record<string, number> = {
   accepted: 1,
   "en-route": 2,
   "in-progress": 3,
-  "photo-proof": 4,
-  completed: 5,
+  completed: 4,
   cancelled: -1,
 };
 
@@ -57,43 +53,26 @@ export default function ProgressTracker({
 
   if (compact) {
     return (
-      <div className="flex items-center gap-1 overflow-x-auto pb-1">
-        {STEPS.map((step, i) => {
-          const isComplete = i < currentIndex;
-          const isCurrent = i === currentIndex;
-          const Icon = step.icon;
-
-          return (
-            <React.Fragment key={step.key}>
-              <div
-                className={`flex items-center gap-1 shrink-0 px-2 py-1 rounded-full text-xs font-medium transition-all ${
-                  isComplete
-                    ? "bg-[#eaf7ef] text-[var(--accent-mint)]"
-                    : isCurrent
-                    ? "bg-[var(--accent-soft)] text-[var(--text-primary)] ring-2 ring-[var(--accent-glow)]"
-                    : "bg-[var(--bg-secondary)] text-[var(--text-muted)]"
-                }`}
-              >
-                <Icon className="w-3 h-3" />
-                <span className="hidden sm:inline">{step.label}</span>
-              </div>
-              {i < STEPS.length - 1 && (
-                <div
-                  className={`w-4 h-0.5 shrink-0 ${
-                    i < currentIndex ? "bg-[var(--accent-mint)]" : "bg-[var(--border-color)]"
-                  }`}
-                />
-              )}
-            </React.Fragment>
-          );
-        })}
+      <div className="job-progress-compact" aria-label="Job progress">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs">
+          <p className="font-semibold text-[var(--text-primary)]">{STEPS[currentIndex].label}<span className="ml-2 font-normal text-[var(--text-muted)]">Step {currentIndex + 1} of {STEPS.length}</span></p>
+          <p className="text-[var(--text-secondary)]">{STEPS[currentIndex].description}</p>
+        </div>
+        <ol className="mt-2 flex gap-1.5" aria-label="Job stages">
+          {STEPS.map((step, i) => (
+            <li key={step.key} className="flex-1" aria-current={i === currentIndex ? "step" : undefined}>
+              <div title={step.label} className={`h-1.5 rounded-full ${i <= currentIndex ? "bg-[var(--accent)]" : "bg-[var(--border-color)]"}`} />
+              <span className="sr-only">{step.label}: {i < currentIndex ? "done" : i === currentIndex ? "current" : "upcoming"}</span>
+            </li>
+          ))}
+        </ol>
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border-[3px] border-[var(--border-color)] bg-[var(--bg-card-solid)] p-4">
-      <div className="flex items-center justify-between mb-3">
+    <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card-solid)] p-4">
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
         <h3 className="font-semibold text-sm text-[var(--text-primary)]">Job Progress</h3>
         {paymentStatus && (
           <span
@@ -136,7 +115,7 @@ export default function ProgressTracker({
             const Icon = step.icon;
 
             return (
-              <div key={step.key} className="flex items-start gap-3">
+              <div key={step.key} aria-current={isCurrent ? "step" : undefined} className="flex items-start gap-3">
                 <div
                   className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 z-10 transition-all ${
                     isComplete
@@ -158,7 +137,7 @@ export default function ProgressTracker({
                         : "text-[var(--text-muted)]"
                     }`}
                   >
-                    {step.label}
+                    {step.label}{isCurrent && <span className="ml-2 rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] text-[var(--text-primary)]">Current</span>}
                   </p>
                   <p
                     className={`text-xs ${

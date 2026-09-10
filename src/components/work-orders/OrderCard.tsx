@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { Job } from "@/lib/types";
-import { orderLabel, orderNumber, scheduleText } from "@/lib/workOrders";
+import { isAsap, orderLabel, orderNumber, scheduleText } from "@/lib/workOrders";
 import { useAuth } from "@/context/AuthContext";
 import styles from "./work-orders.module.css";
 import OrderActions from "./OrderActions";
@@ -35,10 +35,20 @@ export default function OrderCard({
             {orderLabel(job)}
           </span>
         </div>
+        {detail && job.status !== "cancelled" && (
+          <ol className={styles.progress} aria-label="Work order progress">
+            {["Requested", "Confirmed", "On the way", "Working", "Completed"].map((label, index) => {
+              const current = ["pending", "accepted", "en-route", "in-progress", "completed"].indexOf(job.status);
+              return <li key={label} data-reached={index <= current} aria-current={index === current ? "step" : undefined}>
+                <span aria-hidden="true">{index + 1}</span>{label}
+              </li>;
+            })}
+          </ol>
+        )}
         <dl className={styles.facts}>
           <div>
             <dt>{job.status === "pending" ? "Requested visit" : "Visit"}</dt>
-            <dd>{scheduleText(job)}</dd>
+            <dd><span className="visit-timing" data-asap={isAsap(job)}>{isAsap(job) ? "ASAP · As soon as possible" : `Scheduled · ${scheduleText(job)}`}</span>{isAsap(job) && <p className={styles.secondary}>Arrival time to be confirmed</p>}</dd>
           </div>
           <div>
             <dt>Location & service</dt>
@@ -90,7 +100,7 @@ export default function OrderCard({
             className={styles.button}
             href={`/dashboard/messages/${job.chatId}`}
           >
-            Message contact
+            Message {operator ? "customer" : "provider"}
           </Link>
         )}
         {job.previousOrderId && (
