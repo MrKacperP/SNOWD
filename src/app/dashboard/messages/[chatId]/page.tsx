@@ -99,6 +99,8 @@ export default function ChatPage() {
   const [photoError, setPhotoError] = useState("");
   const [photoUploading, setPhotoUploading] = useState(false);
   const [attachmentsOpen, setAttachmentsOpen] = useState(false);
+  const [repliesOpen, setRepliesOpen] = useState(false);
+  const [orderPanelOpen, setOrderPanelOpen] = useState(false);
   const [otherUser, setOtherUser] = useState<UserProfile | null>(null);
   const activeOrder = allOrders.find(order => order.id !== job?.id && !["completed", "cancelled"].includes(order.status) && (job ? order.clientId === job.clientId && order.operatorId === job.operatorId : order.clientId === otherUser?.uid || order.operatorId === otherUser?.uid));
   const [showMobileTasksSheet, setShowMobileTasksSheet] = useState(false);
@@ -413,8 +415,8 @@ export default function ChatPage() {
   // Scroll only the history, and preserve the position when reading older messages.
   useEffect(() => {
     const history = historyRef.current;
-    if (history && followLatestRef.current) history.scrollTop = history.scrollHeight;
-  }, [messages, loading]);
+    if (history && !orderPanelOpen && followLatestRef.current) history.scrollTop = history.scrollHeight;
+  }, [messages, loading, orderPanelOpen]);
 
   // Mark messages as read — runs when new messages arrive while chat is open.
   // Uses a ref to avoid clearing the other user's freshly-incremented counter.
@@ -931,7 +933,7 @@ export default function ChatPage() {
         <article className="conversation-widget">
           <p className="conversation-widget-title">Work order update <span>· {formatTimestamp(msg.createdAt)}</span></p>
           <p className="mt-1 text-sm text-[var(--text-primary)]">{msg.content}</p>
-          <Link className="conversation-widget-link" href="#current-order-actions">View current actions ↓</Link>
+          <button type="button" className="conversation-widget-link" onClick={() => setOrderPanelOpen(true)}>View job actions</button>
         </article>
       </div>;
     }
@@ -944,7 +946,7 @@ export default function ChatPage() {
           className={`mb-4 flex ${isOwn ? "justify-end" : "justify-start"} chat-bubble`}
         >
           {!isOwn && otherUser && (
-            <Link href={`/dashboard/u/${msg.senderId}`} className="shrink-0 mr-2 self-end">
+            <Link href={`/dashboard/u/${msg.senderId}?returnTo=${encodeURIComponent(`/dashboard/messages/${chatId}`)}`} className="shrink-0 mr-2 self-end">
               <div className="w-7 h-7 bg-[var(--accent)] rounded-full flex items-center justify-center text-white font-semibold text-xs hover:ring-2 hover:ring-[var(--accent)]/30 transition">
                 {otherUser.displayName?.charAt(0)?.toUpperCase() || "?"}
               </div>
@@ -1089,7 +1091,7 @@ export default function ChatPage() {
     return (
       <div key={msg.id} className={`mb-2 flex items-end gap-2 ${isOwn ? "justify-end" : "justify-start"} chat-bubble`}>
         {!isOwn && otherUser && (
-          <Link href={`/dashboard/u/${msg.senderId}`} className="hidden shrink-0 sm:block">
+          <Link href={`/dashboard/u/${msg.senderId}?returnTo=${encodeURIComponent(`/dashboard/messages/${chatId}`)}`} className="hidden shrink-0 sm:block">
             <UserAvatar
               photoURL={(otherUser as unknown as Record<string, string>)?.avatar}
               role={otherUser.role}
@@ -1132,7 +1134,7 @@ export default function ChatPage() {
         <div className="flex shrink-0 items-center gap-3 border-b border-[var(--border-soft)] bg-white/95 px-3 py-3 backdrop-blur sm:px-4">
           <Link
             href="/dashboard/messages"
-            className="rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]"
             aria-label="Back to messages"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -1158,22 +1160,29 @@ export default function ChatPage() {
         </div>
 
         {legacyHistory ? <div className="shrink-0 border-b bg-amber-50 p-4 text-sm text-amber-950"><strong>Earlier shared conversation · read-only history</strong><p>This conversation contains earlier work. Each work order now has a separate conversation.</p><div className="mt-2 flex flex-wrap gap-3">{legacyJobIds.map(id => <Link className="underline" key={id} href={`/dashboard/jobs/${id}`}>View order {id}</Link>)}</div></div> : job && <section className="conversation-order-summary shrink-0">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <Link className="text-sm font-semibold hover:underline" href={`/dashboard/jobs/${job.id}`}>{orderLabel(job)}</Link><p className="mt-1 text-xs text-[var(--text-muted)]">Work order #{orderNumber(job)}</p>
-              <p className="visit-timing mt-2" data-asap={isAsap(job)}>{isAsap(job) ? "ASAP · As soon as possible" : `Scheduled · ${scheduleText(job)}`}</p>
-              <p className="mt-0.5 truncate text-xs text-[var(--text-muted)]" title={job.address}>{job.address}</p>
-            </div>
-            <Link href="#current-order-actions" className="conversation-order-action">View Requests and Job Actions</Link>
-          </div>
-          <ProgressTracker status={job.status} compact />
-          {["completed", "cancelled"].includes(job.status) && <p className="mt-2 text-xs text-[var(--text-secondary)]">This order is {job.status}. {activeOrder ? <Link className="font-semibold underline" href={`/dashboard/jobs/${activeOrder.id}`}>You have an open work order · View current order</Link> : !ordersLoading && !ordersError && <Link className="font-semibold underline" href={`/dashboard/jobs/new?previousOrder=${job.id}`}>{isOperator ? "Propose another booking" : "Request again"}</Link>}</p>}
+          <button type="button" className="flex w-full min-w-0 items-center justify-between gap-3 text-left" onClick={() => setOrderPanelOpen(value => !value)} aria-expanded={orderPanelOpen} aria-controls="order-details-panel">
+            <span className="min-w-0"><span className="block truncate text-sm font-semibold">{orderLabel(job)}</span><span className="block text-xs text-[var(--text-muted)]">Order #{orderNumber(job)} · {job.status.replaceAll("-", " ")}</span></span>
+            <span className="conversation-order-action">Details & actions</span>
+          </button>
         </section>}
 
 
         {legacyHistory && activeOrder && <Link className="conversation-order-summary text-sm font-semibold" href={`/dashboard/jobs/${activeOrder.id}`}>You have an open work order · View current order</Link>}
+        {job && !legacyHistory && <section id="order-details-panel" hidden={!orderPanelOpen} className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4">
+          <button type="button" className="mb-3 inline-flex min-h-11 items-center gap-2 font-semibold" onClick={() => setOrderPanelOpen(false)}><ArrowLeft className="h-5 w-5" />Back to conversation</button>
+          <h2 className="font-semibold">{orderLabel(job)} · #{orderNumber(job)}</h2>
+          <p className="mt-2 text-sm">{job.address}</p>
+          <ProgressTracker status={job.status} compact />
+          {job && !legacyHistory && <section id="current-order-actions" className="conversation-widget conversation-action-widget my-4 scroll-mt-4">
+            <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-sm font-semibold">Next steps</h2><StatusBadge status={job.status} /></div>
+            <p className="visit-timing mt-2" data-asap={isAsap(job)}>{isAsap(job) ? "ASAP · As soon as possible" : `Scheduled · ${scheduleText(job)}`}</p>
+            <OrderActions key={job.id} job={job} activeOrder={activeOrder} bookingUnavailable={ordersLoading || !!ordersError} />
+          </section>}
+          <Link className="inline-flex min-h-11 items-center underline" href={`/dashboard/jobs/${job.id}?returnTo=${encodeURIComponent(`/dashboard/messages/${chatId}`)}`}>Open work order</Link>
+          {["completed", "cancelled"].includes(job.status) && <p className="mt-2 text-sm">This order is {job.status}. {activeOrder ? <Link className="underline" href={`/dashboard/jobs/${activeOrder.id}`}>View current order</Link> : !ordersLoading && !ordersError && <Link className="underline" href={`/dashboard/jobs/new?previousOrder=${job.id}`}>{isOperator ? "Propose another booking" : "Request again"}</Link>}</p>}
+        </section>}
         {/* Messages */}
-        <div ref={historyRef} onScroll={(event) => { const history = event.currentTarget; followLatestRef.current = history.scrollHeight - history.scrollTop - history.clientHeight < 80; }} role="log" aria-label="Conversation" className="chat-history min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain bg-[var(--bg-primary)] p-3 sm:p-5">
+        <div hidden={orderPanelOpen} ref={historyRef} onScroll={(event) => { const history = event.currentTarget; followLatestRef.current = history.scrollHeight - history.scrollTop - history.clientHeight < 80; }} role="log" aria-label="Conversation" className="chat-history min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain bg-[var(--bg-primary)] p-3 sm:p-5">
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center py-12 text-[var(--text-muted)]">
               <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--border-soft)] bg-white shadow-[var(--surface-shadow)]">
@@ -1201,16 +1210,12 @@ export default function ChatPage() {
               </React.Fragment>
             );
           })}
-          {job && !legacyHistory && <section id="current-order-actions" className="conversation-widget conversation-action-widget my-4 scroll-mt-4">
-            <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-sm font-semibold">Next steps</h2><StatusBadge status={job.status} /></div>
-            <p className="visit-timing mt-2" data-asap={isAsap(job)}>{isAsap(job) ? "ASAP · As soon as possible" : `Scheduled · ${scheduleText(job)}`}</p>
-            <OrderActions key={job.id} job={job} activeOrder={activeOrder} bookingUnavailable={ordersLoading || !!ordersError} />
-          </section>}
+
 
         </div>
 
         {/* Message Input */}
-        <div hidden={legacyHistory} className="sticky bottom-0 z-20 shrink-0 border-t border-[var(--border-soft)] bg-white/95 px-2.5 pb-[max(10px,env(safe-area-inset-bottom))] pt-2.5 shadow-[var(--surface-shadow)] backdrop-blur sm:px-4">
+        <div hidden={legacyHistory || orderPanelOpen} className="sticky bottom-0 z-20 shrink-0 border-t border-[var(--border-soft)] bg-white/95 px-2.5 pb-[max(10px,env(safe-area-inset-bottom))] pt-2.5 shadow-[var(--surface-shadow)] backdrop-blur sm:px-4">
           <input
             ref={fileInputRef}
             type="file"
@@ -1235,12 +1240,13 @@ export default function ChatPage() {
             className="hidden"
           />
 
-          <div className="quick-replies" aria-label="Suggested replies">
-            {quickReplies.map(reply => <button key={reply} type="button" onClick={() => { setNewMessage(reply); composerRef.current?.focus(); }}>{reply}</button>)}
-          </div>
+          {repliesOpen && <div className="quick-replies" aria-label="Suggested replies">
+            {quickReplies.map(reply => <button key={reply} type="button" onClick={() => { setNewMessage(reply); setRepliesOpen(false); composerRef.current?.focus(); }}>{reply}</button>)}
+          </div>}
           {photoError && <p role="alert" className="text-sm text-red-700">{photoError}</p>}
           {photoUploading && <p role="status" className="text-sm">Uploading photo and updating work order…</p>}
           {attachmentsOpen && <div id="chat-attachments" className="attachment-menu">
+            <button type="button" onClick={() => { setRepliesOpen(value => !value); setAttachmentsOpen(false); }}>Suggested replies</button>
             {isOperator && job?.status === "in-progress" && <p className="text-xs">Uploading a photo completes this work order.</p>}
             <button type="button" disabled={photoUploading} onClick={() => { chatAttachInputRef.current?.click(); setAttachmentsOpen(false); }}>Choose photo</button>
             <button type="button" disabled={creatingGuestUploadLink || photoUploading} onClick={() => { void handleOpenCameraUpload(); setAttachmentsOpen(false); }}><Camera className="inline h-4 w-4" /> Take photo</button>
@@ -1317,7 +1323,9 @@ export default function ChatPage() {
             </div>
 
             {rightPanelView === "updates" && job && <div>
-              <Link className="inline-flex min-h-12 items-center rounded-xl bg-[var(--ink)] px-4 py-3 font-semibold text-white" href={`/dashboard/jobs/${job.id}`}>Open work order</Link>
+              <p className="text-sm">{job.address}</p>
+              <ProgressTracker status={job.status} compact />
+              <Link className="inline-flex min-h-12 items-center rounded-xl bg-[var(--ink)] px-4 py-3 font-semibold text-white" href={`/dashboard/jobs/${job.id}?returnTo=${encodeURIComponent(`/dashboard/messages/${chatId}`)}`}>Open work order</Link>
                         {/* Review Prompt — Auto-shows when job is completed */}
         {job?.status === "completed" && !reviewSubmitted && (
           <div className="bg-yellow-50 border-x border-[var(--border)] px-4 py-4 border-t border-yellow-200">
@@ -1418,7 +1426,7 @@ export default function ChatPage() {
                   )}
                 </div>
                 <Link
-                  href={`/dashboard/u/${otherUser.uid}`}
+                  href={`/dashboard/u/${otherUser.uid}?returnTo=${encodeURIComponent(`/dashboard/messages/${chatId}`)}`}
                   className="w-full inline-flex items-center justify-center gap-2 px-3 py-2.5 bg-[var(--accent)] text-white rounded-xl text-xs font-semibold hover:bg-[var(--accent-dark)] transition"
                 >
                   Open Full Profile <ExternalLink className="w-3.5 h-3.5" />

@@ -1,4 +1,5 @@
 "use client";
+import BackButton from "@/components/BackButton";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import {
@@ -89,9 +90,7 @@ export default function WorkOrderPage() {
   }, [jobId, user]);
   return (
     <div className={styles.detailPage}>
-      <Link className={styles.backLink} href="/dashboard/jobs">
-        ← Back to work orders
-      </Link>
+      <BackButton href="/dashboard/jobs" label="Back" />
       {error ? (
         <p role="alert">{error}</p>
       ) : !job ? (

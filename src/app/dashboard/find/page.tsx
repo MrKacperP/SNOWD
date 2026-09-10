@@ -448,7 +448,7 @@ export default function FindOperatorsPage() {
               <details className="operator-details border-t border-[var(--border-color)]"><summary className="cursor-pointer px-5 py-4 text-sm font-semibold">About & options</summary><div className="space-y-4 px-5 pb-5">
                 <p className="text-sm leading-6 text-[var(--text-secondary)]">{op.bio || "View the operator’s profile for more information."}</p>
                 <p className="text-sm text-[var(--text-secondary)]">{op.equipment?.join(", ")}</p>
-                <Link href={`/dashboard/u/${op.uid}`} className="inline-block font-semibold underline">View full profile</Link>
+                <Link href={`/dashboard/u/${op.uid}?returnTo=${encodeURIComponent(`/dashboard/find`)}`} className="inline-block font-semibold underline">View full profile</Link>
                 <div className="flex flex-wrap gap-2"><button onClick={() => toggleFavorite(op.uid)} className="rounded-xl border px-3 py-2 text-sm">{favorites.includes(op.uid) ? "Unsave operator" : "Save operator"}</button><button onClick={() => setAsFavorite(op.uid)} className="rounded-xl border px-3 py-2 text-sm">{favoriteOperatorId === op.uid ? "Remove favourite" : "Make favourite"}</button></div>
               </div></details>
             </article>;

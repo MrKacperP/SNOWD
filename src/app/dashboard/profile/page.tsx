@@ -1,5 +1,7 @@
 "use client";
 
+import BackButton from "@/components/BackButton";
+
 import ServiceRadiusMap from "@/components/ServiceRadiusMap";
 import StarRating from "@/components/StarRating";
 import { useAuth } from "@/context/AuthContext";
@@ -13,7 +15,7 @@ ServiceType
 import { doc,updateDoc } from "firebase/firestore";
 import {
 AlertCircle,
-ArrowLeft,
+
 Banknote,
 Camera,
 CheckCircle,
@@ -31,7 +33,7 @@ User,
 Wrench,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+
 import { useState } from "react";
 
 const SERVICE_LABELS: Record<ServiceType, string> = {
@@ -45,7 +47,7 @@ const SERVICE_LABELS: Record<ServiceType, string> = {
 
 export default function ProfilePage() {
   const { profile, refreshProfile } = useAuth();
-  const router = useRouter();
+
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -142,9 +144,7 @@ export default function ProfilePage() {
     <div className="mx-auto max-w-4xl space-y-5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button onClick={() => router.back()} className="rounded-full bg-white p-2 transition hover:bg-[var(--bg-secondary)]">
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
-          </button>
+          <BackButton href="/dashboard" label="Back" />
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <User className="w-6 h-6 text-[var(--text-primary)]" />
             Profile

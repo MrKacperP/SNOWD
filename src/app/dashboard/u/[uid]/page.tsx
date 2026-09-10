@@ -1,5 +1,7 @@
 "use client";
 
+import BackButton from "@/components/BackButton";
+
 import { canAcceptPlatformPayments } from "@/lib/operatorDiscovery";
 
 import React, { useState, useEffect } from "react";
@@ -20,7 +22,7 @@ import Image from "next/image";
 import Link from "next/link";
 import UserAvatar from "@/components/UserAvatar";
 import {
-  ArrowLeft,
+
   MapPin,
   Star,
   Wrench,
@@ -161,9 +163,7 @@ export default function PublicProfilePage() {
       <div className="flex flex-col items-center justify-center h-96 text-[var(--text-muted)]">
         <Snowflake className="w-12 h-12 mb-3 opacity-30" />
         <p className="text-lg font-semibold">User not found</p>
-        <button onClick={() => router.back()} className="mt-4 text-[var(--accent)] text-sm font-medium hover:underline">
-          Go back
-        </button>
+        <BackButton href="/dashboard" label="Back" />
       </div>
     );
   }
@@ -175,13 +175,7 @@ export default function PublicProfilePage() {
   if (!isOwnProfile && !isViewerAdmin && (profileData.role === "operator" && !isIdVerified)) {
     return (
       <div className="max-w-md mx-auto mt-16 flex flex-col items-center gap-4 text-center">
-        <button
-          onClick={() => router.back()}
-          className="self-start flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--ink)] mb-2 text-sm font-medium transition"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back
-        </button>
+        <BackButton href="/dashboard" label="Back" />
         <div className="w-20 h-20 rounded-full bg-amber-100 flex items-center justify-center">
           <Snowflake className="w-10 h-10 text-amber-500" />
         </div>
@@ -206,13 +200,7 @@ export default function PublicProfilePage() {
     <div className="mx-auto max-w-4xl">
       {isOperator && <p className="mb-4 rounded-xl bg-blue-50 p-4 text-sm font-semibold">{canAcceptPlatformPayments(operatorProfile) ? "Cash or card payments available" : "Cash jobs only. Pay the operator in cash after the job."}</p>}
       {/* Back button */}
-      <button
-        onClick={() => router.back()}
-        className="flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--ink)] mb-4 text-sm font-medium transition"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Back
-      </button>
+      <BackButton href="/dashboard" label="Back" />
 
       {/* Profile Header - Instagram-like */}
       <div className="surface-card overflow-hidden">

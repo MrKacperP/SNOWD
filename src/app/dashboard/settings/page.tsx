@@ -54,6 +54,7 @@ export default function SettingsPage() {
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [activeTab, setActiveTab] = useState<"general" | "appearance" | "payment" | "notifications" | "verification" | "branding">("general");
   const [onboardingAccountId, setOnboardingAccountId] = useState<string | null>(null);
@@ -376,6 +377,7 @@ export default function SettingsPage() {
   }, [profile, isOperator, stripeCheckVersion, refreshProfile]);
 
   const handleSave = async () => {
+    setSaveError("");
     if (!profile?.uid) return;
     setSaved(false);
     setSaving(true);
@@ -420,6 +422,7 @@ export default function SettingsPage() {
       });
     } catch (error) {
       console.error("Save error:", error);
+      setSaveError("Could not save your changes. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -692,19 +695,28 @@ export default function SettingsPage() {
             </div>
 
             {/* Map Preview  */}
-            {isOperator && address && city && (
+            {isOperator && (
               <div className="mt-4">
-                <label className="text-sm font-medium text-[var(--text-muted)] mb-2 block">
+                <label htmlFor="service-radius" className="text-sm font-medium text-[var(--text-muted)] mb-2 block">
                   Service Radius: {serviceRadius} km
                 </label>
                 <input
                   type="range"
+                  id="service-radius"
+                  aria-valuetext={`${serviceRadius} kilometres`}
                   min={1}
                   max={50}
                   value={serviceRadius}
                   onChange={(e) => setServiceRadius(parseInt(e.target.value))}
-                  className="w-full accent-[var(--accent)] mb-3"
+                  className="w-full h-12 touch-pan-y accent-[var(--accent)] mb-3"
                 />
+                <div className="mb-4 flex items-center gap-3">
+                  <button type="button" aria-label="Decrease service radius" disabled={serviceRadius <= 1} onClick={() => setServiceRadius(value => Math.max(1, value - 1))} className="min-h-12 min-w-12 rounded-xl border disabled:opacity-40">−</button>
+                  <span className="flex-1 text-center" aria-live="polite">{serviceRadius} km</span>
+                  <button type="button" aria-label="Increase service radius" disabled={serviceRadius >= 50} onClick={() => setServiceRadius(value => Math.min(50, value + 1))} className="min-h-12 min-w-12 rounded-xl border disabled:opacity-40">+</button>
+                </div>
+                <p className="mb-3 text-sm text-[var(--text-muted)]">Choose 1–50 km, then tap Save Changes below.</p>
+                {address && city ? <details><summary className="flex min-h-12 cursor-pointer items-center font-medium">Show coverage map</summary>
                 <div className="rounded-xl overflow-hidden border-[3px] border-[var(--border)]">
                   <ServiceRadiusMap
                     address={address}
@@ -713,7 +725,7 @@ export default function SettingsPage() {
                     postalCode={postalCode}
                     radiusKm={serviceRadius}
                   />
-                </div>
+                </div></details> : <p className="text-sm text-[var(--text-muted)]">Add your street address and city to preview coverage.</p>}
               </div>
             )}
 
@@ -741,6 +753,7 @@ export default function SettingsPage() {
             )}
           </div>
 
+          {saveError && <p role="alert" className="text-sm text-red-700">{saveError}</p>}
           {/* Save */}
           <button
             onClick={handleSave}
