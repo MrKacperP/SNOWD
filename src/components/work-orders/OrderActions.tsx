@@ -84,7 +84,11 @@ export default function OrderActions({
       requestId: pendingRequest.current.id,
     });
   };
-  const run = async (fn: () => Promise<unknown>) => {
+  const openWorkOrder = () => {
+    const target = `/dashboard/jobs/${job.id}`;
+    if (window.location.pathname !== target) router.push(target);
+  };
+  const run = async (fn: () => Promise<unknown>, navigate = true) => {
     if (busy) return;
     setBusy(true);
     setError("");
@@ -93,11 +97,10 @@ export default function OrderActions({
       await fn();
       pendingRequest.current = null;
       setDialog("");
-      const target = `/dashboard/jobs/${job.id}`;
-      if (typeof window !== "undefined" && window.location.pathname !== target) {
-        router.push(target);
+      if (navigate) {
+        openWorkOrder();
+        onUpdated?.(`Order #${orderNumber(job)} updated.`);
       }
-      onUpdated?.(`Order #${orderNumber(job)} updated.`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Please try again.");
     } finally {
@@ -121,7 +124,7 @@ export default function OrderActions({
         jobId: job.id,
       });
       setSecret(data.clientSecret);
-    });
+    }, false);
   const complete = (cashReceived = false) =>
     run(async () => {
       if (job.paymentMethod !== "cash")
@@ -596,6 +599,8 @@ export default function OrderActions({
               paymentIntentId,
             });
             setSecret("");
+            openWorkOrder();
+            onUpdated?.(`Order #${orderNumber(job)} payment updated.`);
           }}
         />
       )}

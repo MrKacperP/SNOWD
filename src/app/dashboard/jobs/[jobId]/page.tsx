@@ -26,6 +26,7 @@ export default function WorkOrderPage() {
     { id: string; title: string; createdAt: unknown }[]
   >([]);
   const [eventError, setEventError] = useState("");
+  const [notice, setNotice] = useState("");
   useEffect(() => {
     if (!user) return;
     return onSnapshot(
@@ -88,10 +89,7 @@ export default function WorkOrderPage() {
   }, [jobId, user]);
   return (
     <div className={styles.detailPage}>
-      <Link
-        className={styles.backLink}
-        href="/dashboard/jobs"
-      >
+      <Link className={styles.backLink} href="/dashboard/jobs">
         ← Back to work orders
       </Link>
       {error ? (
@@ -106,7 +104,12 @@ export default function WorkOrderPage() {
               {name} · Order #{job.orderNumber || job.id}
             </p>
           </header>
-          <OrderCard job={job} name={name} detail />
+          {notice && (
+            <p role="status" className="text-sm text-[var(--text-secondary)]">
+              {notice}
+            </p>
+          )}
+          <OrderCard job={job} name={name} detail onUpdated={setNotice} />
           <section className={styles.detailSection}>
             <h2 className="text-xl font-bold">Service details</h2>
             <p className="mt-3">

@@ -19,7 +19,7 @@ export default function JobFilters({
   onChange: (value: string) => void;
 }) {
   return (
-    <div>
+    <div className="mb-5">
       <label className="block font-medium sm:hidden">
         Show jobs
         <select
