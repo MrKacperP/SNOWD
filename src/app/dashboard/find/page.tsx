@@ -1,4 +1,5 @@
 "use client";
+import { quoteMarketplace } from "@/lib/marketplacePricing";
 import { orderRequest } from "@/components/work-orders/OrderActions";
 
 import Modal from "@/components/ui/Modal";
@@ -283,7 +284,7 @@ export default function FindOperatorsPage() {
         scheduleTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         paymentMethod: operatorRequiresCard ? "credit" : "cash",
         cashPaymentAcknowledged: !operatorRequiresCard && cashAcknowledged,
-        expectedPrice: schedulingOperator?.pricing?.driveway?.[(clientProfile?.propertyDetails?.propertySize || "medium") as "small" | "medium" | "large"] || 40,
+        expectedPrice: quoteMarketplace(schedulingOperator?.pricing?.driveway?.[(clientProfile?.propertyDetails?.propertySize || "medium") as "small" | "medium" | "large"] || 40, paymentMethod).price,
       };
       const key = JSON.stringify(payload);
       if (bookingAttempt.current?.key !== key) bookingAttempt.current = { key, id: crypto.randomUUID() };
@@ -432,7 +433,7 @@ export default function FindOperatorsPage() {
             return <article key={op.uid} className="overflow-hidden rounded-3xl bg-white border border-[var(--border-color)]">
               <div className="p-5 space-y-4">
                 <div className="flex items-center gap-3"><UserAvatar photoURL={op.avatar} logoURL={op.logoUrl} role="operator" displayName={op.businessName || op.displayName} size={48} /><div className="min-w-0"><h2 className="text-xl font-semibold break-words">{op.businessName || op.displayName}{favorites.includes(op.uid) && <span className="ml-2 text-amber-600" aria-label="Favorite operator">★</span>}</h2><p className="mt-1 text-sm text-[var(--text-secondary)]">{op.rating ? `${op.rating.toFixed(1)} ★` : "New operator"}{distance !== null ? ` · ${distance.toFixed(1)} km away` : ` · ${op.city}`}</p></div></div>
-                <p className="text-sm capitalize">{clientProfile?.propertyDetails?.propertySize || "medium"} driveway · company rate for this size</p><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-2xl font-semibold">${price}<span className="ml-1 text-sm font-normal text-[var(--text-muted)]">CAD</span></p><span className="rounded-full bg-[#eaf1ee] px-3 py-1.5 text-sm font-medium">{cashOnly ? "Cash only" : "Cash or card"}</span></div>
+                <p className="text-sm capitalize">{clientProfile?.propertyDetails?.propertySize || "medium"} driveway · company rate for this size</p><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-2xl font-semibold">${price.toFixed(2)}<span className="ml-1 text-sm font-normal text-[var(--text-muted)]">CAD cash</span>{!cashOnly && <span className="mt-1 block text-base font-normal">${quoteMarketplace(price, "credit").price.toFixed(2)} CAD card</span>}</p><span className="rounded-full bg-[#eaf1ee] px-3 py-1.5 text-sm font-medium">{cashOnly ? "Cash only" : "Cash or card"}</span></div>
                 <button onClick={() => bookOperator(op)} disabled={booking} className="btn-primary w-full px-4 py-3">Request help</button>
               </div>
               <details className="operator-details border-t border-[var(--border-color)]"><summary className="cursor-pointer px-5 py-4 text-sm font-semibold">About & options</summary><div className="space-y-4 px-5 pb-5">
@@ -455,7 +456,7 @@ export default function FindOperatorsPage() {
           <div className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
             <p className="font-semibold">{clientProfile?.address}, {clientProfile?.city}</p>
             <p className="mt-1 text-sm capitalize">{clientProfile?.propertyDetails?.serviceTypes?.map(service => service.replaceAll("-", " ")).join(" · ") || "Driveway"} · {clientProfile?.propertyDetails?.propertySize || "medium"} driveway · {clientProfile?.propertyDetails?.propertySize ? "size saved in your profile" : "default size — update your property in Settings if different"}</p>
-            <p className="mt-3 text-xl font-bold">${(schedulingOperator.pricing?.driveway?.[(clientProfile?.propertyDetails?.propertySize || "medium") as "small" | "medium" | "large"] || 40).toFixed(2)} CAD <span className="text-sm font-normal">per visit</span></p>
+            <p className="mt-3 text-xl font-bold">${quoteMarketplace(schedulingOperator.pricing?.driveway?.[(clientProfile?.propertyDetails?.propertySize || "medium") as "small" | "medium" | "large"] || 40, paymentMethod).price.toFixed(2)} CAD <span className="text-sm font-normal">per visit</span></p>
             <Link href="/dashboard/settings" className="mt-2 inline-flex min-h-11 items-center text-sm underline">Change property details</Link>
           </div>
           <p className="text-sm text-[var(--text-secondary)]">This is a request. Your visit is confirmed when the shoveler accepts. For ASAP help, agree on an arrival time in messages.</p>

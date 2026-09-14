@@ -908,6 +908,7 @@ export default function SettingsPage() {
                 Payout Information
               </h3>
 
+              <p className="mb-4 text-sm text-[var(--text-secondary)]">You connect your own business to the SNOWD marketplace using your own legal identity and bank details. For new card bookings, your service rate is your payout; the customer sees a total that includes SNOWD’s 30% share of that total. SNOWD pays Stripe processing fees from its share. Cash bookings have no platform fee. Card payment is captured after completion with photo proof, subject to authorization expiry; bank payout timing depends on Stripe.</p>
               {onboardingAccountId && <StripeOnboarding key={onboardingAccountId} accountId={onboardingAccountId} onExit={() => { setOnboardingAccountId(null); setStripeCheckVersion((value) => value + 1); }} />}
               {stripeConfigError && (
                 <div className="mb-4 flex items-start gap-2 p-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-800">

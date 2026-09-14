@@ -35,9 +35,9 @@ test('service radius includes nearby customers and excludes distant ones', () =>
   assert.equal(discovery.isClientWithinOperatorRadius({ lat: 45, lng: -79.38 }, operator), false);
 });
 
-function paymentRoute({ ready = true, uid = 'client', verified = true } = {}) {
+function paymentRoute({ ready = true, uid = 'client', verified = true, jobOverrides = {} } = {}) {
   const calls = [];
-  const job = { price: 100, clientId: 'client', operatorId: 'operator', status: 'accepted', paymentStatus: 'pending' };
+  const job = { price: 100, clientId: 'client', operatorId: 'operator', status: 'accepted', paymentStatus: 'pending', ...jobOverrides };
   const operator = { idVerified: verified, stripeConnectAccountId: 'acct_operator' };
   const stripe = {
     accounts: { retrieve: async () => ({ metadata: { operatorId: 'operator' }, charges_enabled: ready, payouts_enabled: ready, details_submitted: ready }) },
@@ -175,4 +175,57 @@ test('radius calculation handles zero coordinates, invalid coordinates and the e
   assert.equal(discovery.getDistanceKm({ lat: 91, lng: 0 }, operator), null);
   assert.equal(discovery.getDistanceKm({ lat: 0, lng: -181 }, operator), null);
   assert.equal(discovery.isClientWithinOperatorRadius({}, operator), false);
+});
+
+const pricing = load('src/lib/marketplacePricing.ts');
+test('30% marketplace share preserves operator rate to the cent', () => {
+  for (const rate of [0.01, 1, 39.99, 70, 100, 123.45]) {
+    const quote = pricing.quoteMarketplace(rate, 'credit');
+    assert.equal(quote.operatorAmount, Math.round(rate * 100));
+    assert.equal(Math.round(quote.price * 100) - quote.platformFeeAmount, quote.operatorAmount);
+    assert.ok(Math.abs(quote.platformFeeAmount - quote.price * 100 * 0.3) <= 1);
+    assert.equal(pricing.jobDisplayPrice({...quote, paymentMethod:'credit'}, true), rate);
+    assert.equal(pricing.jobDisplayPrice({...quote, paymentMethod:'credit'}, false), quote.price);
+  }
+  assert.equal(pricing.quoteMarketplace(70, 'credit').price, 100);
+  assert.equal(pricing.quoteMarketplace(70, 'cash').price, 70);
+  assert.equal(pricing.quoteMarketplace(70, 'cash').platformFeeAmount, 0);
+});
+test('new card bookings charge the saved total and allocate exactly the quoted payout', async () => {
+  const {route, calls} = paymentRoute({jobOverrides: {...pricing.quoteMarketplace(70, 'credit'), paymentMethod: 'credit'}});
+  assert.equal((await route.POST({json: async () => ({jobId:'job',amount:1})})).status, 200);
+  assert.equal(calls[0].params.amount, 10000);
+  assert.equal(calls[0].params.application_fee_amount, 3000);
+  assert.deepEqual(Array.from(calls[0].params.payment_method_types), ['card']);
+});
+test('cash jobs and inconsistent allocations cannot create Stripe charges', async () => {
+  for (const jobOverrides of [{paymentMethod:'cash'}, {pricingVersion:2,operatorAmount:7000,platformFeeAmount:1}]) {
+    const {route,calls} = paymentRoute({jobOverrides});
+    assert.equal((await route.POST({json:async()=>({jobId:'job'})})).status,409);
+    assert.equal(calls.length,0);
+  }
+});
+
+test('booking server rejects stale client totals and saves the server-calculated split', async () => {
+  const writes = [];
+  const operator = {uid:'operator',role:'operator',pricing:{driveway:{medium:70}}};
+  const customer = {uid:'client',role:'client',propertyDetails:{propertySize:'medium'}};
+  const db = {
+    doc: path => ({path}), collection: path => ({doc:()=>({id:path==='jobs'?'new-job':'new-chat',path})}),
+    runTransaction: fn => fn({get:async ref=>({exists:false,data:()=>ref.path==='users/client'?customer:ref.path==='users/operator'?operator:undefined}),set:(ref,data)=>writes.push({ref,data})}),
+  };
+  const {POST} = load('src/app/api/jobs/create/route.ts', {
+    'next/server':{NextResponse:{json:body=>({body,status:200})}},
+    'firebase-admin/firestore':{FieldValue:{serverTimestamp:()=> 'now'}},
+    '@/lib/firebaseAdmin':{getAdminDb:()=>db},
+    '@/lib/marketplacePricing':pricing,
+    '@/lib/operatorDiscovery':{isOperatorPublic:()=>true,isClientWithinOperatorRadius:()=>true,canAcceptPlatformPayments:()=>true},
+    '@/lib/workOrderServer':{orderUser:async()=> 'client',validId:x=>!!x,parseSchedule:()=>({}),OrderError:Error,orderFailure:e=>({status:409,error:e.message}),orderEvent:()=>{}},
+  });
+  const body={requestId:'req',operatorId:'operator',paymentMethod:'credit',expectedPrice:70};
+  assert.equal((await POST({json:async()=>body})).status,409);
+  assert.equal(writes.length,0);
+  assert.equal((await POST({json:async()=>({...body,expectedPrice:100,platformFeeAmount:0})})).status,200);
+  const saved=writes.find(x=>x.ref.path==='jobs').data;
+  assert.equal(saved.price,100); assert.equal(saved.operatorAmount,7000); assert.equal(saved.platformFeeAmount,3000);
 });

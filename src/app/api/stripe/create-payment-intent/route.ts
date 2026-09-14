@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
     const job = (await jobRef.get()).data();
     if (!job || job.clientId !== user.uid) return NextResponse.json({ error: "Only this job's customer can pay" }, { status: 403 });
     if (job.status !== "accepted" || job.paymentStatus === "paid" || job.paymentStatus === "held") return NextResponse.json({ error: "This job does not need a new payment" }, { status: 409 });
+    if (job.paymentMethod === "cash") return NextResponse.json({ error: "Cash jobs cannot be charged by card" }, { status: 409 });
     const { clientId, operatorId } = job;
     const amount = job.price;
     if (typeof operatorId !== "string" || !operatorId || operatorId.includes("/")) return NextResponse.json({ error: "Invalid operator" }, { status: 400 });
@@ -60,6 +61,7 @@ export async function POST(req: NextRequest) {
     const params: Stripe.PaymentIntentCreateParams = {
       amount: amountInCents,
       currency: "cad",
+      payment_method_types: ["card"],
       capture_method: "manual", // Hold funds, capture later on job completion
       metadata: {
         jobId,
@@ -72,8 +74,12 @@ export async function POST(req: NextRequest) {
 
     // If operator has a Stripe Connect account, set up transfer
     if (operatorStripeAccountId) {
-      // Platform takes 15% fee, operator gets 85%
-      const platformFee = Math.round(amountInCents * 0.15);
+      // New bookings preserve the operator quote; legacy bookings retain their terms.
+      const platformFee = job.pricingVersion === 2 ? job.platformFeeAmount : Math.round(amountInCents * 0.15);
+      if (!Number.isSafeInteger(platformFee) || platformFee < 0 || platformFee >= amountInCents ||
+          (job.pricingVersion === 2 && (job.operatorAmount !== amountInCents - platformFee || Math.abs(platformFee - amountInCents * 0.3) > 1))) {
+        return NextResponse.json({ error: "Invalid saved payment allocation" }, { status: 409 });
+      }
       params.application_fee_amount = platformFee;
       params.transfer_data = {
         destination: operatorStripeAccountId,
@@ -85,7 +91,8 @@ export async function POST(req: NextRequest) {
     if (job.stripePaymentIntentId) {
       const previous = await stripe.paymentIntents.retrieve(job.stripePaymentIntentId);
       if (previous.status !== "canceled") {
-        if (previous.amount !== amountInCents || previous.metadata.operatorId !== operatorId) {
+        if (previous.amount !== amountInCents || previous.metadata.operatorId !== operatorId || previous.metadata.clientId !== clientId ||
+            (job.pricingVersion === 2 && previous.application_fee_amount !== params.application_fee_amount)) {
           return NextResponse.json({ error: "The job changed after checkout started. Cancel the previous payment first." }, { status: 409 });
         }
         return NextResponse.json({ clientSecret: previous.client_secret, paymentIntentId: previous.id });

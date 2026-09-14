@@ -1,4 +1,5 @@
 "use client";
+import { quoteMarketplace } from "@/lib/marketplacePricing";
 import CompanyIdentity from "@/components/CompanyIdentity";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -55,6 +56,7 @@ export default function RepeatBookingPage() {
     operator?.pricing?.driveway?.[
       (previous?.propertySize || client?.propertyDetails?.propertySize || "medium") as "small" | "medium" | "large"
     ] || 40;
+  const shownPrice = isOperator ? price : quoteMarketplace(price, method).price;
   const submit = async () => {
     if (!previous || !operator || busy) return;
     setBusy(true);
@@ -71,7 +73,7 @@ export default function RepeatBookingPage() {
         scheduleMode: asap ? "asap" : "scheduled",
         scheduledDate: asap ? null : new Date(time).toISOString(),
         scheduleTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        expectedPrice: price,
+        expectedPrice: shownPrice,
       };
       const key = JSON.stringify(body);
       if (attempt.current?.key !== key)
@@ -114,7 +116,7 @@ export default function RepeatBookingPage() {
           <p>{previous.specialInstructions}</p>
           <p className="capitalize">{previous.propertySize || client?.propertyDetails?.propertySize || "medium"} driveway · company rate for this size</p>
           <p className="text-lg font-bold">
-            Current price: ${price.toFixed(2)} CAD
+            Current price: ${shownPrice.toFixed(2)} CAD
           </p>
           <h2 className="border-t pt-4 font-semibold">2. Choose when</h2>
           <label className="flex gap-3">

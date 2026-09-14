@@ -173,7 +173,10 @@ export interface Job {
   scheduledDate: Date | null;
   scheduledTime: string;
   estimatedDuration: number; // minutes
-  price: number;
+  price: number; // Client total in CAD
+  operatorAmount?: number; // Agreed payout in cents
+  platformFeeAmount?: number;
+  pricingVersion?: number;
   paymentMethod: PaymentMethod;
   paymentStatus: "pending" | "held" | "paid" | "refunded";
   stripePaymentIntentId?: string;
@@ -257,6 +260,7 @@ export interface Transaction {
   clientId: string;
   operatorId: string;
   amount: number;
+  operatorAmount?: number;
   tipAmount?: number;
   cashReceived?: number;
   paymentMethod?: PaymentMethod;

@@ -1,6 +1,6 @@
 # Operator payments
 
-ID-verified, available operators can appear publicly and receive cash jobs without completing Stripe. Connected operators can accept platform payments; the existing commission remains 15%. Stripe readiness and Connect account ownership are server-controlled.
+ID-verified, available operators can appear publicly and receive cash jobs without completing Stripe. Connected operators can accept platform payments; new card bookings include a 30% marketplace share of the client total. Operator rates are net payout quotes; the client total is the operator quote divided by 0.70, rounded to cents. Cash has no markup. Existing bookings retain their original allocation. Stripe readiness and Connect account ownership are server-controlled.
 
 ## Configuration
 
@@ -49,3 +49,9 @@ Clients see verified, available operators whose service radius covers the client
 Every new booking offers cash; connected operators also offer card. Cash needs the client’s explicit acknowledgement, stays pending until the assigned operator confirms receipt, and can be completed with photo proof before cash is collected. Cash does not create a Stripe charge, payout or automatic platform commission. Existing card commission behavior is unchanged.
 
 Either participant can cancel pending, accepted, en-route or in-progress work. Completed work cannot be cancelled. Cancellation preserves cash receipts; the operator may record a direct cash refund after cancellation. Captured card payments need support to arrange a refund. Deploy the updated Firestore rules with these routes so cancellation and its notifications remain server-owned.
+
+## Marketplace pricing and live rollout
+
+New server-created bookings persist client `price` in CAD, `operatorAmount` and `platformFeeAmount` in cents, and `pricingVersion: 2`. The Stripe application fee is the saved client total minus the operator payout. SNOWD bears Stripe processing fees. The settings payment page discloses the 30% share; work orders and receipts show the participant’s corresponding amount. Legacy bookings retain their 15% allocation and original client price.
+
+Live deployment still requires the platform’s live Connect activation, live publishable/secret keys, and signed live webhook destinations. Test connected accounts cannot be reused with live keys. Canadian Express onboarding collects each operator’s own legal business type and banking details. Authorization expiry and bank settlement delays still apply.

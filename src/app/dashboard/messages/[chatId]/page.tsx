@@ -1,4 +1,5 @@
 "use client";
+import { jobDisplayPrice } from "@/lib/marketplacePricing";
 
 import { stripeConnectFetch } from "@/lib/stripeConnectClient";
 
@@ -605,7 +606,7 @@ export default function ChatPage() {
         throw new Error(result.error || "Your payment is still processing. Please check again shortly.");
       }
       await sendMessage(
-        `Payment of $${job.price} CAD has been securely held by snowd.ca. Funds will be released when the job is completed and verified.`,
+        `Card payment has been authorized. Payment will be captured when the job is completed with photo proof.`,
         "payment",
         { amount: job.price, paymentIntentId }
       );
@@ -1458,7 +1459,7 @@ export default function ChatPage() {
       </Modal>
 
       <Modal isOpen={showCashPayment && !showCancelPopup} onClose={() => { if (!cashActionBusy) setShowCashPayment(false); }} title="Cash payment" size="sm">
-        <p className="text-2xl font-semibold">${job?.price} CAD</p>
+        <p className="text-2xl font-semibold">${job ? jobDisplayPrice(job, isOperator).toFixed(2) : "0.00"} CAD</p>
         <p className="mt-3 text-sm leading-6">{job?.status === "completed" ? "The work is complete. Pay the operator directly in cash. Payment remains pending until they confirm receipt." : "Pay the operator directly after the work. Confirming below records payment as pending; no money is charged or held."}</p>
         {cashError && <p role="alert" className="mt-3 text-sm text-red-700">{cashError}</p>}
         {job && !["completed", "cancelled"].includes(job.status) && job.paymentStatus !== "paid" && <button disabled={cashActionBusy} onClick={() => cashPaymentAction("defer")} className="btn-primary mt-5 w-full px-4 py-3">{cashActionBusy ? "Saving…" : "Confirm · pay cash after work"}</button>}
@@ -1473,7 +1474,7 @@ export default function ChatPage() {
         onConfirm={confirmCancelJob}
         loading={cancelling}
         title="Cancel this job?"
-        message={`This will cancel the ${job?.serviceTypes?.map(s => s.replace("-", " ")).join(", ") || "snow removal"} job at ${job?.address || "this address"}. ${job?.paymentMethod === "cash" ? "No card will be charged. Any cash already exchanged must be settled directly with the operator." : `Any held payment of $${job?.price || 0} will be released.`}`}
+        message={`This will cancel the ${job?.serviceTypes?.map(s => s.replace("-", " ")).join(", ") || "snow removal"} job at ${job?.address || "this address"}. ${job?.paymentMethod === "cash" ? "No card will be charged. Any cash already exchanged must be settled directly with the operator." : `Any held card payment will be released.`}`}
       />
 
       <Modal isOpen={!!quickCommConfirmation} onClose={() => setQuickCommConfirmation(null)} title={quickCommConfirmation?.title} size="sm">
@@ -1551,18 +1552,18 @@ export default function ChatPage() {
               </div>
             </div>
             <p className="text-sm text-gray-600 leading-relaxed">
-              The client needs to pay <span className="font-bold text-gray-900">${job.price} CAD</span> before you can proceed. Send them a payment request so funds are held securely.
+              The client needs to authorize payment before you can proceed. Send them a payment request so funds are held securely.
             </p>
             <div className="space-y-2 pt-1">
               <button
                 onClick={() => {
                   requestQuickCommConfirmation({
                     title: "Send payment request?",
-                    message: `This will ask the client to pay $${job.price} CAD before the job starts.`,
+                    message: `This will ask the client to authorize the agreed payment before the job starts.`,
                     confirmLabel: "Send Request",
                     onConfirm: async () => {
                       await sendMessage(
-                        `${profile?.displayName} is requesting payment of $${job.price} CAD before starting the job. Please pay to confirm — funds are held securely by snowd.ca until completion.`,
+                        `${profile?.displayName} is requesting card authorization before starting the job. Open the work order to review your agreed price and payment status.`,
                         "payment-request",
                         { amount: job.price }
                       );

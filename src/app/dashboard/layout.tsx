@@ -118,7 +118,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
             <div className="container-app mb-4">
               <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
                 <p className="font-semibold">{profile.idVerified ? "ID verified · Available for cash jobs" : "Verify your ID to go live for cash jobs"}</p>
-                <p className="mt-1">Until Stripe setup is complete, customers can pay you in cash only. Set up Stripe to accept secure platform payments and bank payouts. Snowd receives a 15% commission on platform payments.</p>
+                <p className="mt-1">Until Stripe setup is complete, customers can pay you in cash only. Set up Stripe to accept secure platform payments and bank payouts.</p>
                 <Link href="/dashboard/settings?tab=payment" className="mt-3 inline-block font-semibold underline">Set up Stripe payments</Link>
               </div>
             </div>

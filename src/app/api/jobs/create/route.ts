@@ -1,3 +1,4 @@
+import { quoteMarketplace } from "@/lib/marketplacePricing";
 import { NextRequest, NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { getAdminDb } from "@/lib/firebaseAdmin";
@@ -95,12 +96,14 @@ export async function POST(request: NextRequest) {
         previous?.propertySize ||
         client.propertyDetails?.propertySize ||
         "medium";
-      const price =
+      const operatorPrice =
         operator.pricing?.driveway?.[size as "small" | "medium" | "large"] ||
         40;
-      if (!Number.isFinite(price) || price <= 0)
+      if (!Number.isFinite(operatorPrice) || operatorPrice <= 0)
         throw new OrderError("The company must set a valid service price.");
-      if (body.expectedPrice !== undefined && body.expectedPrice !== price)
+      const quote = quoteMarketplace(operatorPrice, body.paymentMethod);
+      const price = quote.price;
+      if (body.expectedPrice === undefined || body.expectedPrice !== (fromOperator ? operatorPrice : price))
         throw new OrderError(
           "The service price changed. Refresh and review the current price before submitting.",
         );
@@ -135,7 +138,7 @@ export async function POST(request: NextRequest) {
           "",
         ...schedule,
         estimatedDuration: previous?.estimatedDuration || 45,
-        price,
+        ...quote,
         paymentMethod: body.paymentMethod,
         requiresCardPayment: body.paymentMethod === "credit",
         cashPaymentAcknowledged: !fromOperator && body.paymentMethod === "cash",

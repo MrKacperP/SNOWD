@@ -1,4 +1,5 @@
 "use client";
+import { jobDisplayPrice } from "@/lib/marketplacePricing";
 import CompanyIdentity from "@/components/CompanyIdentity";
 import { useState } from "react";
 import Link from "next/link";
@@ -72,7 +73,7 @@ export default function WorkOrdersPage({
                     </span>
                     <span className={styles.orderRowStatus}>
                       <span className={styles.badge} data-status={job.status}>{orderLabel(job)}</span>
-                      <span className={styles.secondary}>${Number(job.price || 0).toFixed(2)} CAD</span>
+                      <span className={styles.secondary}>${jobDisplayPrice(job, isOperator).toFixed(2)} CAD</span>
                       <span className={styles.secondary}>View order →</span>
                     </span>
                   </Link>

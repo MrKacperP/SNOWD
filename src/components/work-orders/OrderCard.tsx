@@ -1,4 +1,5 @@
 "use client";
+import { jobDisplayPrice } from "@/lib/marketplacePricing";
 import CompanyIdentity from "@/components/CompanyIdentity";
 import Link from "next/link";
 import { Job, OperatorProfile } from "@/lib/types";
@@ -69,7 +70,7 @@ export default function OrderCard({
           <div>
             <dt>Payment</dt>
             <dd>
-              <strong>${Number(job.price || 0).toFixed(2)} CAD</strong>
+              <strong>${jobDisplayPrice(job, operator).toFixed(2)} CAD</strong>
               <p className={styles.secondary}>
                 {job.paymentMethod === "cash" ? "Cash" : "Card"} ·{" "}
                 {job.paymentStatus === "held"

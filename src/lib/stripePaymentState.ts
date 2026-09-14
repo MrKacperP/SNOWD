@@ -34,7 +34,7 @@ export async function syncStripePayment(payment: Stripe.PaymentIntent) {
     if (status !== "pending") {
       transaction.set(db.doc(`transactions/${payment.id}`), {
         jobId, chatId: job.chatId || "", clientId: job.clientId, operatorId: job.operatorId,
-        amount: payment.amount, paymentMethod: "credit", status,
+        amount: payment.amount, operatorAmount: payment.amount - (payment.application_fee_amount ?? Math.round(payment.amount * 0.15)), paymentMethod: "credit", status,
         stripePaymentIntentId: payment.id,
         description: `Snow removal at ${job.address || "customer address"}`,
         serviceTypes: job.serviceTypes || [], address: job.address || "",

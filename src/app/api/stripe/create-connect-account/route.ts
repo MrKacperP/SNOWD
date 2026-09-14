@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Create a Stripe Connect Express account for the operator (production-ready)
+    // Stripe onboarding collects the operator’s own legal entity and banking details.
     const account = await stripe.accounts.create({
       type: "express",
       country: "CA",
@@ -36,7 +36,6 @@ export async function POST(req: NextRequest) {
         card_payments: { requested: true },
         transfers: { requested: true },
       },
-      business_type: "individual",
       settings: {
         payouts: {
           schedule: {

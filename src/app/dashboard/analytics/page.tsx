@@ -1,4 +1,5 @@
 "use client";
+import { jobDisplayPrice } from "@/lib/marketplacePricing";
 import PageHeader from "@/components/ui/PageHeader";
 
 import { useAuth } from "@/context/AuthContext";
@@ -94,7 +95,7 @@ export default function AnalyticsPage() {
     const accepted = rangeJobs.filter((j) => ["accepted", "en-route", "in-progress"].includes(j.status));
     const totalRequests = rangeJobs.length;
     const acceptRate = totalRequests > 0 ? Math.round(((completed.length + accepted.length) / totalRequests) * 100) : 0;
-    const totalEarnings = completed.reduce((sum, j) => sum + (j.price || 0), 0);
+    const totalEarnings = completed.reduce((sum, j) => sum + jobDisplayPrice(j, true), 0);
     const avgJobValue = completed.length > 0 ? Math.round(totalEarnings / completed.length) : 0;
 
     // Mock engagement stats (real implementation would track views/clicks via Firestore)
@@ -131,7 +132,7 @@ export default function AnalyticsPage() {
       });
       data.push({
         date: format(day, daysBack <= 7 ? "EEE" : "MMM d"),
-        earnings: dayJobs.reduce((sum, j) => sum + (j.price || 0), 0),
+        earnings: dayJobs.reduce((sum, j) => sum + jobDisplayPrice(j, true), 0),
         jobs: dayJobs.length,
       });
     }
@@ -427,7 +428,7 @@ function HotspotGrid({ jobs }: { jobs: Job[] }) {
       const area = j.city || "Unknown";
       if (!counts[area]) counts[area] = { count: 0, earnings: 0 };
       counts[area].count++;
-      if (j.status === "completed") counts[area].earnings += j.price || 0;
+      if (j.status === "completed") counts[area].earnings += jobDisplayPrice(j, true);
     });
     return Object.entries(counts)
       .sort((a, b) => b[1].count - a[1].count)
