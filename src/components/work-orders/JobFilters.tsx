@@ -21,33 +21,19 @@ export default function JobFilters({
   onChange: (value: string) => void;
 }) {
   return (
-    <div className="mb-5">
-      <label className="block font-medium sm:hidden">
-        Show jobs
-        <select
-          className="mt-2 min-h-13 w-full rounded-xl border bg-white px-4 text-base"
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-        >
-          {JOB_FILTERS.map(([key, label]) => (
-            <option key={key} value={key}>
-              {label} ({counts[key] || 0})
-            </option>
-          ))}
-        </select>
-      </label>
-      <nav aria-label="Job filters" className={styles.filters}>
+    <label className={styles.filters}>
+      <span>Show</span>
+      <select
+        aria-label="Filter work orders"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      >
         {JOB_FILTERS.map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            aria-pressed={value === key}
-            onClick={() => onChange(key)}
-          >
-            {label} <span className={styles.count}>{counts[key] || 0}</span>
-          </button>
+          <option key={key} value={key}>
+            {label} ({counts[key] || 0})
+          </option>
         ))}
-      </nav>
-    </div>
+      </select>
+    </label>
   );
 }

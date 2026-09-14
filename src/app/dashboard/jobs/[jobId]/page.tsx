@@ -1,4 +1,5 @@
 "use client";
+import CompanyIdentity from "@/components/CompanyIdentity";
 import BackButton from "@/components/BackButton";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
@@ -26,6 +27,7 @@ export default function WorkOrderPage() {
   const [events, setEvents] = useState<
     { id: string; title: string; createdAt: unknown }[]
   >([]);
+  const [person, setPerson] = useState<OperatorProfile>();
   const [eventError, setEventError] = useState("");
   const [notice, setNotice] = useState("");
   useEffect(() => {
@@ -57,8 +59,10 @@ export default function WorkOrderPage() {
     )
       .then((snap) => {
         const p = snap.data() as OperatorProfile;
-        if (active)
+        if (active) {
+          setPerson({ ...p, uid: snap.id });
           setName(p?.businessName || p?.displayName || "Company / customer");
+        }
       })
       .catch(() => {});
     return () => {
@@ -100,7 +104,7 @@ export default function WorkOrderPage() {
           <header className={styles.detailIntro}>
             <h1>Work order</h1>
             <p>
-              {name} · Order #{job.orderNumber || job.id}
+              <CompanyIdentity person={person} name={name} /> · Order #{job.orderNumber || job.id}
             </p>
           </header>
           {notice && (
@@ -108,7 +112,7 @@ export default function WorkOrderPage() {
               {notice}
             </p>
           )}
-          <OrderCard job={job} name={name} detail onUpdated={setNotice} />
+          <OrderCard job={job} name={name} person={person} detail onUpdated={setNotice} />
           <section className={styles.detailSection}>
             <h2 className="text-xl font-bold">Service details</h2>
             <p className="mt-3">

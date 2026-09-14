@@ -10,7 +10,7 @@ import {
   signInWithEmailAndPassword,
   deleteUser,
 } from "firebase/auth";
-import { arrayUnion, deleteDoc, doc, getDoc, onSnapshot, setDoc, serverTimestamp } from "firebase/firestore";
+import { arrayUnion, deleteDoc, doc, getDoc, onSnapshot, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db, isFirebaseConfigured } from "@/lib/firebase";
 import { UserProfile, ClientProfile, OperatorProfile } from "@/lib/types";
 import { sendAdminNotif } from "@/lib/adminNotifications";
@@ -72,6 +72,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const initialSnap = await getDoc(docRef);
           if (initialSnap.exists()) {
             setProfile(initialSnap.data() as UserProfile);
+            if (initialSnap.data().isOnline !== true) {
+              void updateDoc(docRef, { isOnline: true }).catch(error => console.error("Could not update presence", error));
+            }
           } else {
             setProfile(null);
           }

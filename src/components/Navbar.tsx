@@ -1,4 +1,7 @@
 "use client";
+import { notificationWasViewed } from "@/lib/notificationReadState";
+import CompanyIdentity from "@/components/CompanyIdentity";
+import { OperatorProfile } from "@/lib/types";
 import AvailabilityToggle from "@/components/dashboard/AvailabilityToggle";
 import MobileNavigation from "@/components/dashboard/MobileNavigation";
 import SupportChatButton from "@/components/SupportChatButton";
@@ -13,9 +16,7 @@ import { db } from "@/lib/firebase";
 import {
 collection,
 doc,
-limit,
 onSnapshot,
-orderBy,
 query,
 updateDoc,
 where,
@@ -173,8 +174,7 @@ export default function Navbar() {
     const notifQuery = query(
       collection(db, "notifications"),
       where("uid", "==", profile.uid),
-      orderBy("createdAt", "desc"),
-      limit(20)
+
     );
     return onSnapshot(
       notifQuery,
@@ -183,7 +183,7 @@ export default function Navbar() {
           id: snap.id,
           ...(snap.data() as Omit<NotificationItem, "id">),
         }));
-        setNotifications(items);
+        setNotifications(items.filter(item => !item.read).sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
         setNotificationError("");
       },
       (error) => {
@@ -194,6 +194,20 @@ export default function Navbar() {
       }
     );
   }, [profile?.uid]);
+
+  useEffect(() => {
+    const acknowledgeVisible = async () => {
+      if (document.visibilityState !== "visible") return;
+      const viewed = notifications.filter(item => notificationWasViewed(item, pathname)).slice(0, 450);
+      if (!viewed.length) return;
+      const batch = writeBatch(db);
+      viewed.forEach(item => batch.update(doc(db, "notifications", item.id), { read: true }));
+      try { await batch.commit(); } catch { setNotificationError("Could not clear read updates. Please reload to retry."); }
+    };
+    void acknowledgeVisible();
+    document.addEventListener("visibilitychange", acknowledgeVisible);
+    return () => document.removeEventListener("visibilitychange", acknowledgeVisible);
+  }, [notifications, pathname]);
 
   const unreadNotifications = notifications.filter((notification) => !notification.read).length;
 
@@ -272,13 +286,13 @@ export default function Navbar() {
         </Link>
 
         <div className="mt-4 surface-panel p-4">
-          <div className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--text-muted)]">Status</div>
-          <div className="mt-3 flex items-center justify-between">
-            <div>
-              <div className="text-sm font-bold text-[var(--text-primary)]">{profile?.displayName || "Your profile"}</div>
+          <div className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">Account</div>
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <div className="min-w-0 break-words">
+              <div className="text-sm font-bold text-[var(--text-primary)]"><CompanyIdentity person={profile as OperatorProfile} name={(profile as OperatorProfile)?.businessName || profile?.displayName || "Your profile"} /></div>
               <div className="mt-1 text-xs capitalize text-[var(--text-muted)]">{profile?.role || "user"}</div>
             </div>
-            <div className={`status-dot ${isOnline ? "online" : "offline"}`} />
+            {profile?.role !== "operator" && <div className={`status-dot ${isOnline ? "online" : "offline"}`} />}
           </div>
           {profile?.role === "operator" && <div className="mt-3"><AvailabilityToggle online={isOnline} saving={statusSaving} error={statusError} onToggle={toggleOnlineStatus} /></div>}
           {weather ? (
@@ -361,7 +375,7 @@ export default function Navbar() {
           >
             <div className="relative">
               <UserAvatar
-                photoURL={(profile as unknown as Record<string, string>)?.avatar}
+                logoURL={(profile as unknown as Record<string, string>)?.logoUrl} photoURL={(profile as unknown as Record<string, string>)?.avatar}
                 role={profile?.role}
                 displayName={profile?.displayName}
                 size={38}
@@ -454,7 +468,7 @@ export default function Navbar() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <UserAvatar
-                  photoURL={(profile as unknown as Record<string, string>)?.avatar}
+                  logoURL={(profile as unknown as Record<string, string>)?.logoUrl} photoURL={(profile as unknown as Record<string, string>)?.avatar}
                   role={profile?.role}
                   displayName={profile?.displayName}
                   size={42}

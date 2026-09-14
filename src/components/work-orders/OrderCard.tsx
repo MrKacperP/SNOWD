@@ -1,6 +1,7 @@
 "use client";
+import CompanyIdentity from "@/components/CompanyIdentity";
 import Link from "next/link";
-import { Job } from "@/lib/types";
+import { Job, OperatorProfile } from "@/lib/types";
 import { isAsap, orderLabel, orderNumber, scheduleText } from "@/lib/workOrders";
 import { useAuth } from "@/context/AuthContext";
 import styles from "./work-orders.module.css";
@@ -8,12 +9,14 @@ import OrderActions from "./OrderActions";
 export default function OrderCard({
   job,
   name,
+  person,
   detail = false,
   conflict = false,
   onUpdated,
 }: {
   job: Job;
   name: string;
+  person?: OperatorProfile;
   detail?: boolean;
   conflict?: boolean;
   onUpdated?: (message: string) => void;
@@ -26,7 +29,7 @@ export default function OrderCard({
         <div className={styles.cardHeader}>
           <div className="min-w-0">
             <p className={styles.reference}>Work order #{orderNumber(job)}</p>
-            <h2 className={styles.title}>{name}</h2>
+            <h2 className={styles.title}><CompanyIdentity person={person} name={name} /></h2>
             <p className={styles.secondary}>
               {operator ? "Customer" : "Service provider"}
             </p>
@@ -54,6 +57,8 @@ export default function OrderCard({
             <dt>Location & service</dt>
             <dd>
               <strong>{job.address || "Address to be confirmed"}</strong>
+              {job.address && <a className="ml-3 inline-flex min-h-11 items-center underline" href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(job.address)}&travelmode=driving&dir_action=navigate`} target="_blank" rel="noreferrer">Google Maps directions ↗</a>}
+              <p className="capitalize">{job.propertySize || "medium"} driveway</p>
               <p className={`${styles.secondary} capitalize`}>
                 {job.serviceTypes
                   ?.map((s) => s.replaceAll("-", " "))

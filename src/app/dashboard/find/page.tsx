@@ -6,6 +6,7 @@ import PageHeader from "@/components/ui/PageHeader";
 
 import { canAcceptPlatformPayments } from "@/lib/operatorDiscovery";
 
+import CompanyIdentity from "@/components/CompanyIdentity";
 import UserAvatar from "@/components/UserAvatar";
 import { useAuth } from "@/context/AuthContext";
 import { sendAdminNotif } from "@/lib/adminNotifications";
@@ -64,7 +65,8 @@ export default function FindOperatorsPage() {
   const [sortBy, setSortBy] = useState<"rating" | "price" | "distance">("rating");
   const [booking, setBooking] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
-  const [favoriteOperatorId, setFavoriteOperatorId] = useState<string | null>(null);
+  const [favoriteBusy, setFavoriteBusy] = useState(false);
+  const [favoriteError, setFavoriteError] = useState("");
   // Scheduling modal state
   const [schedulingOperator, setSchedulingOperator] = useState<OperatorProfile | null>(null);
   const [scheduleType, setScheduleType] = useState<"asap" | "scheduled">("asap");
@@ -98,8 +100,7 @@ export default function FindOperatorsPage() {
           const userDoc = await getDoc(doc(db, "users", user.uid));
           if (userDoc.exists()) {
             const userData = userDoc.data() as ClientProfile;
-            setFavorites(userData.savedOperators || []);
-            setFavoriteOperatorId(userData.favoriteOperatorId || null);
+            setFavorites([...new Set([...(userData.savedOperators || []), ...(userData.favoriteOperatorId ? [userData.favoriteOperatorId] : [])])]);
           }
         }
       } catch (error) {
@@ -160,29 +161,23 @@ export default function FindOperatorsPage() {
     if (sortBy === "rating") {
       results.sort((a, b) => {
         // Favorite operator always first
-        if (favoriteOperatorId) {
-          if (a.uid === favoriteOperatorId) return -1;
-          if (b.uid === favoriteOperatorId) return 1;
-        }
+        const pinned = Number(favorites.includes(b.uid)) - Number(favorites.includes(a.uid));
+        if (pinned) return pinned;
         return b.rating - a.rating;
       });
     } else if (sortBy === "price") {
       results.sort(
         (a, b) => {
           // Favorite operator always first
-          if (favoriteOperatorId) {
-            if (a.uid === favoriteOperatorId) return -1;
-            if (b.uid === favoriteOperatorId) return 1;
-          }
-          return (a.pricing?.driveway?.medium || 0) - (b.pricing?.driveway?.medium || 0);
+          const pinned = Number(favorites.includes(b.uid)) - Number(favorites.includes(a.uid));
+        if (pinned) return pinned;
+          return (a.pricing?.driveway?.[(clientProfile.propertyDetails?.propertySize || "medium") as "small" | "medium" | "large"] || 40) - (b.pricing?.driveway?.[(clientProfile.propertyDetails?.propertySize || "medium") as "small" | "medium" | "large"] || 40);
         }
       );
     } else if (sortBy === "distance") {
       results.sort((a, b) => {
-        if (favoriteOperatorId) {
-          if (a.uid === favoriteOperatorId) return -1;
-          if (b.uid === favoriteOperatorId) return 1;
-        }
+        const pinned = Number(favorites.includes(b.uid)) - Number(favorites.includes(a.uid));
+        if (pinned) return pinned;
 
         const aDistance = getDistanceKm(clientProfile, a);
         const bDistance = getDistanceKm(clientProfile, b);
@@ -202,7 +197,7 @@ export default function FindOperatorsPage() {
     filterVerified,
     filterEquipment,
     sortBy,
-    favoriteOperatorId,
+    favorites,
   ]);
 
   // Book an operator — show scheduling modal first
@@ -316,44 +311,23 @@ export default function FindOperatorsPage() {
     }
   };
 
-  // Toggle favorite operator
   const toggleFavorite = async (operatorId: string) => {
-    if (!user?.uid) return;
+    if (!user?.uid || favoriteBusy) return;
+    setFavoriteBusy(true);
+    setFavoriteError("");
     try {
       const userRef = doc(db, "users", user.uid);
       const currentFavorites = favorites.includes(operatorId)
-        ? favorites.filter((id) => id !== operatorId)
-        : [...favorites, operatorId];
-      
-      await updateDoc(userRef, {
-        savedOperators: currentFavorites,
-      });
-      
+        ? favorites.filter(id => id !== operatorId) : [...favorites, operatorId];
+      await updateDoc(userRef, { savedOperators: currentFavorites, favoriteOperatorId: null });
       setFavorites(currentFavorites);
-    } catch (error) {
-      console.error("Error toggling favorite:", error);
-    }
-  };
-
-  // Set favorite operator (primary)
-  const setAsFavorite = async (operatorId: string) => {
-    if (!user?.uid) return;
-    try {
-      const userRef = doc(db, "users", user.uid);
-      const newFavoriteId = favoriteOperatorId === operatorId ? null : operatorId;
-      
-      await updateDoc(userRef, {
-        favoriteOperatorId: newFavoriteId,
-      });
-      
-      setFavoriteOperatorId(newFavoriteId);
-    } catch (error) {
-      console.error("Error setting favorite:", error);
-    }
+    } catch { setFavoriteError("Could not save your favorite. Please try again."); }
+    finally { setFavoriteBusy(false); }
   };
 
   return (
     <div className="mx-auto max-w-[1040px] space-y-5">
+      {favoriteError && <p role="alert">{favoriteError}</p>}
       <PageHeader title="Find a shoveler" description={`Choose snow help in ${clientProfile?.city || "your neighbourhood"}.`} />
       <div className="rounded-2xl bg-[#eaf1ee] px-5 py-4 text-sm text-[#43574b]"><MapPin className="mr-2 inline h-4 w-4" />{clientProfile?.address || "Add your service address"} <Link href="/dashboard/settings" className="ml-2 font-semibold underline">Change</Link></div>
 
@@ -457,15 +431,15 @@ export default function FindOperatorsPage() {
             const distance = getDistanceKm(clientProfile, op);
             return <article key={op.uid} className="overflow-hidden rounded-3xl bg-white border border-[var(--border-color)]">
               <div className="p-5 space-y-4">
-                <div className="flex items-center gap-3"><UserAvatar photoURL={op.avatar} logoURL={op.logoUrl} role="operator" displayName={op.businessName || op.displayName} size={48} /><div className="min-w-0"><h2 className="text-xl font-semibold break-words">{op.businessName || op.displayName}</h2><p className="mt-1 text-sm text-[var(--text-secondary)]">{op.rating ? `${op.rating.toFixed(1)} ★` : "New operator"}{distance !== null ? ` · ${distance.toFixed(1)} km away` : ` · ${op.city}`}</p></div></div>
-                <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-2xl font-semibold">${price}<span className="ml-1 text-sm font-normal text-[var(--text-muted)]">CAD</span></p><span className="rounded-full bg-[#eaf1ee] px-3 py-1.5 text-sm font-medium">{cashOnly ? "Cash only" : "Cash or card"}</span></div>
+                <div className="flex items-center gap-3"><UserAvatar photoURL={op.avatar} logoURL={op.logoUrl} role="operator" displayName={op.businessName || op.displayName} size={48} /><div className="min-w-0"><h2 className="text-xl font-semibold break-words">{op.businessName || op.displayName}{favorites.includes(op.uid) && <span className="ml-2 text-amber-600" aria-label="Favorite operator">★</span>}</h2><p className="mt-1 text-sm text-[var(--text-secondary)]">{op.rating ? `${op.rating.toFixed(1)} ★` : "New operator"}{distance !== null ? ` · ${distance.toFixed(1)} km away` : ` · ${op.city}`}</p></div></div>
+                <p className="text-sm capitalize">{clientProfile?.propertyDetails?.propertySize || "medium"} driveway · company rate for this size</p><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-2xl font-semibold">${price}<span className="ml-1 text-sm font-normal text-[var(--text-muted)]">CAD</span></p><span className="rounded-full bg-[#eaf1ee] px-3 py-1.5 text-sm font-medium">{cashOnly ? "Cash only" : "Cash or card"}</span></div>
                 <button onClick={() => bookOperator(op)} disabled={booking} className="btn-primary w-full px-4 py-3">Request help</button>
               </div>
               <details className="operator-details border-t border-[var(--border-color)]"><summary className="cursor-pointer px-5 py-4 text-sm font-semibold">About & options</summary><div className="space-y-4 px-5 pb-5">
                 <p className="text-sm leading-6 text-[var(--text-secondary)]">{op.bio || "View the operator’s profile for more information."}</p>
                 <p className="text-sm text-[var(--text-secondary)]">{op.equipment?.join(", ")}</p>
                 <Link href={`/dashboard/u/${op.uid}?returnTo=${encodeURIComponent(`/dashboard/find`)}`} className="inline-block font-semibold underline">View full profile</Link>
-                <div className="flex flex-wrap gap-2"><button onClick={() => toggleFavorite(op.uid)} className="rounded-xl border px-3 py-2 text-sm">{favorites.includes(op.uid) ? "Unsave operator" : "Save operator"}</button><button onClick={() => setAsFavorite(op.uid)} className="rounded-xl border px-3 py-2 text-sm">{favoriteOperatorId === op.uid ? "Remove favourite" : "Make favourite"}</button></div>
+                <button onClick={() => toggleFavorite(op.uid)} disabled={favoriteBusy} aria-pressed={favorites.includes(op.uid)} aria-label={favorites.includes(op.uid) ? "Unpin favorite operator" : "Pin favorite operator"} className="min-h-11 min-w-11 rounded-xl border px-3 py-2 text-2xl text-amber-600">{favorites.includes(op.uid) ? "★" : "☆"}</button>
               </div></details>
             </article>;
           })}
@@ -475,11 +449,12 @@ export default function FindOperatorsPage() {
       {loadError && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4"><p>{loadError}</p><button type="button" className="mt-2 min-h-11 underline" onClick={() => setRetry(value => value + 1)}>Try again</button></div>}
       {bookingError && !schedulingOperator && <p role="alert" className="text-red-700">{bookingError}</p>}
       {/* Scheduling Modal */}
-      <Modal isOpen={!!schedulingOperator} onClose={() => { if (!booking) setSchedulingOperator(null); }} title="Review your request" subtitle={schedulingOperator?.businessName || schedulingOperator?.displayName}>
+      <Modal isOpen={!!schedulingOperator} onClose={() => { if (!booking) setSchedulingOperator(null); }} title="Review your request" >
         {schedulingOperator && <div className="space-y-4">
+          <CompanyIdentity person={schedulingOperator} name={schedulingOperator.businessName || schedulingOperator.displayName} />
           <div className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
             <p className="font-semibold">{clientProfile?.address}, {clientProfile?.city}</p>
-            <p className="mt-1 text-sm capitalize">{clientProfile?.propertyDetails?.serviceTypes?.map(service => service.replaceAll("-", " ")).join(" · ") || "Driveway"} · {clientProfile?.propertyDetails?.propertySize || "medium"} property</p>
+            <p className="mt-1 text-sm capitalize">{clientProfile?.propertyDetails?.serviceTypes?.map(service => service.replaceAll("-", " ")).join(" · ") || "Driveway"} · {clientProfile?.propertyDetails?.propertySize || "medium"} driveway · {clientProfile?.propertyDetails?.propertySize ? "size saved in your profile" : "default size — update your property in Settings if different"}</p>
             <p className="mt-3 text-xl font-bold">${(schedulingOperator.pricing?.driveway?.[(clientProfile?.propertyDetails?.propertySize || "medium") as "small" | "medium" | "large"] || 40).toFixed(2)} CAD <span className="text-sm font-normal">per visit</span></p>
             <Link href="/dashboard/settings" className="mt-2 inline-flex min-h-11 items-center text-sm underline">Change property details</Link>
           </div>

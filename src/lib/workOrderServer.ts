@@ -67,6 +67,7 @@ export function orderEvent(
   uid: string,
   eventId: string,
   title: string,
+  completionPhotoUrl?: string,
 ) {
   const db = getAdminDb(),
     now = FieldValue.serverTimestamp();
@@ -93,7 +94,8 @@ export function orderEvent(
       jobId: job.id,
       senderId: uid,
       senderName: "Work order update",
-      type: "system",
+      type: completionPhotoUrl ? "completion-photo" : "system",
+      ...(completionPhotoUrl ? { metadata: { completionPhotoUrl } } : {}),
       content: message,
       createdAt: now,
       read: false,

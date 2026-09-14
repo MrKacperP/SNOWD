@@ -312,7 +312,7 @@ export async function POST(request: NextRequest) {
       tx.set(lock, { updatedAt: now });
       tx.update(ref, update);
       tx.set(receipt, { action: body.action, createdAt: now });
-      orderEvent(tx, job, uid, body.requestId, title);
+      orderEvent(tx, job, uid, body.requestId, title, body.action === "photo" ? update.completionPhotoUrl as string : undefined);
       return { success: true, revision: update.revision };
     });
     return NextResponse.json(result);

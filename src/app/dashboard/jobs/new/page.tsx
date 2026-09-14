@@ -1,4 +1,5 @@
 "use client";
+import CompanyIdentity from "@/components/CompanyIdentity";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
@@ -52,7 +53,7 @@ export default function RepeatBookingPage() {
   const isOperator = profile?.role === "operator";
   const price =
     operator?.pricing?.driveway?.[
-      (previous?.propertySize || "medium") as "small" | "medium" | "large"
+      (previous?.propertySize || client?.propertyDetails?.propertySize || "medium") as "small" | "medium" | "large"
     ] || 40;
   const submit = async () => {
     if (!previous || !operator || busy) return;
@@ -105,12 +106,13 @@ export default function RepeatBookingPage() {
         <section className="surface-card space-y-4 rounded-3xl p-6">
           <p className="text-sm font-semibold text-[var(--text-secondary)]">1. Review service and price</p>
           <h2 className="text-xl font-bold">
-            {operator.businessName || operator.displayName}
+            <CompanyIdentity person={operator} name={operator.businessName || operator.displayName} />
           </h2>
           {isOperator && <p>For {client?.displayName}</p>}
           <p>{client?.address}</p>
           <p className="capitalize">{previous.serviceTypes?.map((service) => service.replaceAll("-", " ")).join(" · ") || "Snow removal"}</p>
           <p>{previous.specialInstructions}</p>
+          <p className="capitalize">{previous.propertySize || client?.propertyDetails?.propertySize || "medium"} driveway · company rate for this size</p>
           <p className="text-lg font-bold">
             Current price: ${price.toFixed(2)} CAD
           </p>

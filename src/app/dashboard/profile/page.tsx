@@ -1,4 +1,5 @@
 "use client";
+import UserAvatar from "@/components/UserAvatar";
 
 import BackButton from "@/components/BackButton";
 
@@ -224,9 +225,7 @@ export default function ProfilePage() {
       <div className="surface-card overflow-hidden">
         <div className="bg-[var(--ink)] px-6 py-8">
           <div className="flex items-center gap-4">
-            <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-white/12 text-3xl font-bold text-white">
-              {profile.displayName?.charAt(0)?.toUpperCase() || "U"}
-            </div>
+            <UserAvatar role={profile.role} photoURL={profile.avatar} logoURL={operatorProfile.logoUrl} displayName={operatorProfile.businessName || profile.displayName} size={80} rounded="2xl" />
             <div className="text-white">
               {editing ? (
                 <input

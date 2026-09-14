@@ -34,7 +34,6 @@ import {
   Camera,
   ChevronRight,
   Map,
-  Heart,
 } from "lucide-react";
 
 const SERVICE_LABELS: Record<ServiceType, string> = {
@@ -107,7 +106,7 @@ export default function PublicProfilePage() {
           const myDoc = await getDoc(doc(db, "users", myProfile.uid));
           if (myDoc.exists()) {
             const myData = myDoc.data() as ClientProfile;
-            setIsFavorite(myData.savedOperators?.includes(uid) || false);
+            setIsFavorite(myData.savedOperators?.includes(uid) || myData.favoriteOperatorId === uid);
           }
         }
 
@@ -322,16 +321,16 @@ export default function PublicProfilePage() {
                         const myDoc = await getDoc(myDocRef);
                         if (myDoc.exists()) {
                           const myData = myDoc.data() as ClientProfile;
-                          const savedOps = myData.savedOperators || [];
+                          const savedOps = [...new Set([...(myData.savedOperators || []), ...(myData.favoriteOperatorId ? [myData.favoriteOperatorId] : [])])];
                           const { updateDoc: ud } = await import("firebase/firestore");
                           if (isFavorite) {
                             await ud(myDocRef, {
-                              savedOperators: savedOps.filter(id => id !== uid)
+                              savedOperators: savedOps.filter(id => id !== uid), favoriteOperatorId: null
                             });
                             setIsFavorite(false);
                           } else {
                             await ud(myDocRef, {
-                              savedOperators: [...savedOps, uid]
+                              savedOperators: [...new Set([...savedOps, uid])], favoriteOperatorId: null
                             });
                             setIsFavorite(true);
                           }
@@ -342,6 +341,8 @@ export default function PublicProfilePage() {
                         setTogglingFavorite(false);
                       }
                     }}
+                    aria-label={isFavorite ? "Unpin favorite operator" : "Pin favorite operator"}
+                    aria-pressed={isFavorite}
                     disabled={togglingFavorite}
                     className={`rounded-xl border px-4 py-2.5 text-sm font-semibold transition ${
                       isFavorite
@@ -349,7 +350,7 @@ export default function PublicProfilePage() {
                         : "border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
                     } disabled:opacity-50`}
                   >
-                    <Heart className={`w-4 h-4 ${isFavorite ? "fill-red-600" : ""}`} />
+                    <span className="text-xl text-amber-600">{isFavorite ? "★" : "☆"}</span>
                   </button>
                 </>
               )}

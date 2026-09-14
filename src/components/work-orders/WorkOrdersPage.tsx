@@ -1,4 +1,5 @@
 "use client";
+import CompanyIdentity from "@/components/CompanyIdentity";
 import { useState } from "react";
 import Link from "next/link";
 import { useWorkOrders } from "@/hooks/useWorkOrders";
@@ -8,6 +9,9 @@ import {
   orderSection,
   hasScheduleConflict,
   orderNumber,
+  orderLabel,
+  orderActionNeeded,
+  scheduleText,
 } from "@/lib/workOrders";
 import JobFilters, { JOB_FILTERS } from "./JobFilters";
 import OrderCard from "./OrderCard";
@@ -19,7 +23,7 @@ export default function WorkOrdersPage({
   history?: boolean;
   schedule?: boolean;
 }) {
-  const { jobs, names, uid, isOperator, loading, error } = useWorkOrders();
+  const { jobs, names, people, uid, isOperator, loading, error } = useWorkOrders();
   const [tab, setTab] = useState(history ? "history" : "all"),
     [date, setDate] = useState("");
   const [notice, setNotice] = useState("");
@@ -47,9 +51,39 @@ export default function WorkOrdersPage({
     items.length ? (
       [...new Set(items.map(job => isOperator ? job.clientId : job.operatorId))].map(personId => {
         const personOrders = items.filter(job => (isOperator ? job.clientId : job.operatorId) === personId);
+        if (!schedule) return (
+          <details key={personId} className={styles.companyGroup}>
+            <summary className={styles.companySummary}>
+              <span className={styles.companyInfo}>
+                <CompanyIdentity person={people[personId]} name={names[personId] || (isOperator ? "Customer" : "Company")} />
+                <span className={styles.companyMeta}>{personOrders.length} work order{personOrders.length === 1 ? "" : "s"} · View orders</span>
+              </span>
+              <span className={styles.companyChevron} aria-hidden="true">›</span>
+            </summary>
+            <ul className={styles.companyList}>
+              {personOrders.map(job => (
+                <li key={job.id}>
+                  <Link className={styles.orderRow} href={`/dashboard/jobs/${job.id}`}>
+                    <span className={styles.orderRowMain}>
+                      <strong>Work order #{orderNumber(job)}</strong>
+                      <span className={styles.secondary}>{job.address || "Address to be confirmed"}</span>
+                      <span className={styles.secondary}>{scheduleText(job)}</span>
+                      {orderActionNeeded(job, uid) && <span className={styles.rowAction}>{orderActionNeeded(job, uid)}</span>}
+                    </span>
+                    <span className={styles.orderRowStatus}>
+                      <span className={styles.badge} data-status={job.status}>{orderLabel(job)}</span>
+                      <span className={styles.secondary}>${Number(job.price || 0).toFixed(2)} CAD</span>
+                      <span className={styles.secondary}>View order →</span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </details>
+        );
         return <section key={personId} className="space-y-3 rounded-2xl border border-[var(--border-color)] p-3 sm:p-4">
-          <header className="flex items-center justify-between gap-3"><h2 className="font-semibold">{names[personId] || (isOperator ? "Customer" : "Company")}</h2><span className="text-sm text-[var(--text-muted)]">{personOrders.length} order{personOrders.length === 1 ? "" : "s"}</span></header>
-          {personOrders.map(job => <OrderCard key={job.id} job={job} onUpdated={setNotice} conflict={isOperator && job.status === "pending" && hasScheduleConflict(job, jobs)} name={names[personId] || (isOperator ? "Customer" : "Company")} />)}
+          <header className="flex items-center justify-between gap-3"><h2 className="font-semibold"><CompanyIdentity person={people[personId]} name={names[personId] || (isOperator ? "Customer" : "Company")} /></h2><span className="text-sm text-[var(--text-muted)]">{personOrders.length} order{personOrders.length === 1 ? "" : "s"}</span></header>
+          {personOrders.map(job => <OrderCard key={job.id} job={job} person={people[personId]} onUpdated={setNotice} conflict={isOperator && job.status === "pending" && hasScheduleConflict(job, jobs)} name={names[personId] || (isOperator ? "Customer" : "Company")} />)}
         </section>;
       })
     ) : (
@@ -65,7 +99,7 @@ export default function WorkOrdersPage({
           <p className="mt-2 text-[var(--text-secondary)]">
             {schedule
               ? "See booked visits, ASAP jobs, and requests awaiting confirmation."
-              : "Track requests, upcoming visits, and completed work."}
+              : isOperator ? "Choose a customer to view their work orders." : "Choose a company to view all your work orders with them."}
           </p>
         </div>
         {!isOperator && (

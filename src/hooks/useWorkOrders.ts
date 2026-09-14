@@ -15,6 +15,7 @@ export function useWorkOrders() {
   const { user, profile } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]),
     [names, setNames] = useState<Record<string, string>>({});
+  const [people, setPeople] = useState<Record<string, OperatorProfile>>({});
   const [loading, setLoading] = useState(true),
     [error, setError] = useState("");
   useEffect(() => {
@@ -59,13 +60,17 @@ export function useWorkOrders() {
           return [
             id,
             data?.businessName || data?.displayName || "Company / customer",
+            { ...data, uid: id } as OperatorProfile,
           ] as const;
         } catch {
           return [id, "Company / customer"] as const;
         }
       }),
     ).then((entries) => {
-      if (active) setNames(Object.fromEntries(entries));
+      if (active) {
+        setNames(Object.fromEntries(entries.map(([id, name]) => [id, name])));
+        setPeople(Object.fromEntries(entries.filter(entry => entry[2]).map(entry => [entry[0], entry[2]!])));
+      }
     });
     return () => {
       active = false;
@@ -74,6 +79,7 @@ export function useWorkOrders() {
   return {
     jobs,
     names,
+    people,
     loading,
     error,
     uid: user?.uid || "",

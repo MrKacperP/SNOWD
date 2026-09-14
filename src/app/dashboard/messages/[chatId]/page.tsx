@@ -1108,7 +1108,7 @@ export default function ChatPage() {
         {!isOwn && otherUser && (
           <Link href={`/dashboard/u/${msg.senderId}?returnTo=${encodeURIComponent(`/dashboard/messages/${chatId}`)}`} className="hidden shrink-0 sm:block">
             <UserAvatar
-              photoURL={(otherUser as unknown as Record<string, string>)?.avatar}
+              logoURL={(otherUser as OperatorProfile | null)?.logoUrl} photoURL={(otherUser as unknown as Record<string, string>)?.avatar}
               role={otherUser.role}
               displayName={otherUser.displayName}
               size={28}
@@ -1156,7 +1156,7 @@ export default function ChatPage() {
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <button type="button" onClick={() => { setRightPanelView("profile"); setShowMobileTasksSheet(true); }} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={`View ${otherUser?.displayName || "user"} profile details`}>
-            <span className="hidden sm:block"><UserAvatar photoURL={(otherUser as unknown as Record<string, string> | null)?.avatar} role={otherUser?.role} displayName={otherUser?.displayName} size={44} /></span>
+            <span><UserAvatar logoURL={(otherUser as OperatorProfile | null)?.logoUrl} photoURL={(otherUser as unknown as Record<string, string> | null)?.avatar} role={otherUser?.role} displayName={otherUser?.displayName} size={44} /></span>
             <span className="min-w-0"><span className="block truncate font-semibold">{(otherUser as OperatorProfile)?.businessName || otherUser?.displayName || "User"}</span><span className="block truncate text-xs text-[var(--text-muted)]">{[otherUser?.city, otherUser?.province].filter(Boolean).join(", ") || "View profile"}</span></span>
           </button>
           <SupportChatButton inline />
@@ -1176,10 +1176,10 @@ export default function ChatPage() {
         </div>
 
         {legacyHistory ? <div className="shrink-0 border-b bg-amber-50 p-4 text-sm text-amber-950"><strong>Earlier shared conversation · read-only history</strong><p>This conversation contains earlier work. Each work order now has a separate conversation.</p><div className="mt-2 flex flex-wrap gap-3">{legacyJobIds.map(id => <Link className="underline" key={id} href={`/dashboard/jobs/${id}`}>View order {id}</Link>)}</div></div> : job && <section className="conversation-order-summary shrink-0">
-          <button type="button" className="flex w-full min-w-0 items-center justify-between gap-3 text-left" onClick={() => setOrderPanelOpen(value => !value)} aria-expanded={orderPanelOpen} aria-controls="order-details-panel">
+          <Link className="flex w-full min-w-0 items-center justify-between gap-3 text-left" href={`/dashboard/jobs/${job.id}`}>
             <span className="min-w-0"><span className="block truncate text-sm font-semibold">{orderLabel(job)}</span><span className="block text-xs text-[var(--text-muted)]">Order #{orderNumber(job)} · {job.status.replaceAll("-", " ")}</span></span>
-            <span className="conversation-order-action">Details & actions</span>
-          </button>
+            <span className="conversation-order-action">View work order →</span>
+          </Link>
         </section>}
 
 
@@ -1414,13 +1414,13 @@ export default function ChatPage() {
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
                   <UserAvatar
-                    photoURL={(otherUser as unknown as Record<string, string>)?.avatar}
+                    logoURL={(otherUser as OperatorProfile | null)?.logoUrl} photoURL={(otherUser as unknown as Record<string, string>)?.avatar}
                     role={otherUser.role}
                     displayName={otherUser.displayName}
                     size={48}
                   />
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-[var(--ink)] truncate">{otherUser.displayName}</p>
+                    <p className="text-sm font-semibold text-[var(--ink)] truncate">{(otherUser as OperatorProfile).businessName || otherUser.displayName}</p>
                     <p className="text-xs text-[var(--text-muted)] capitalize">{otherUser.role}</p>
                   </div>
                 </div>

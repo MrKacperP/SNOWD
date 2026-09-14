@@ -1,4 +1,6 @@
 "use client";
+import styles from "@/components/work-orders/work-orders.module.css";
+import CompanyIdentity from "@/components/CompanyIdentity";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
@@ -15,7 +17,7 @@ import {
 export default function MessagesPage() {
   const { profile, user } = useAuth();
   const { chats, loading, error } = useUserChats(user?.uid, profile?.role);
-  const { jobs, names, error: jobsError } = useWorkOrders();
+  const { jobs, names, people, error: jobsError } = useWorkOrders();
   const [search, setSearch] = useState("");
   const groups = useMemo(() => {
     const jobMap = new Map(jobs.map((job) => [job.id, job]));
@@ -41,7 +43,7 @@ export default function MessagesPage() {
     <div className="mx-auto max-w-4xl space-y-5 py-3">
       <h1 className="text-3xl font-bold">Messages</h1>
       <p className="text-[var(--text-secondary)]">
-        One conversation per work order. Bookings and progress are managed in{" "}
+        Choose a company or customer, then open a conversation. Manage bookings in{" "}
         <Link className="font-semibold underline" href="/dashboard/jobs">
           Work orders
         </Link>
@@ -67,14 +69,7 @@ export default function MessagesPage() {
         {search.trim() ? <button className="mt-3 min-h-11 underline" onClick={() => setSearch("")}>Clear search</button> : <Link className="mt-3 inline-flex min-h-11 items-center underline" href={profile?.role === "operator" ? "/dashboard/jobs" : "/dashboard/find"}>{profile?.role === "operator" ? "View your jobs" : "Find a shoveler"}</Link>}
       </div>}
       {groups.map(({ other, conversations, jobMap }) => {
-        const history = conversations.filter(
-          (chat) =>
-            chat.legacyHistory ||
-            (["completed", "cancelled"].includes(
-              jobMap.get(chat.jobId)?.status || "",
-            ) && !(jobMap.get(chat.jobId) && orderActionNeeded(jobMap.get(chat.jobId)!, user?.uid || ""))),
-        );
-        const active = conversations.filter((chat) => !history.includes(chat));
+        const addresses = [...new Set(conversations.map(chat => jobMap.get(chat.jobId)?.address?.trim()).filter(Boolean))];
         const unread = (items: typeof chats) =>
           items.reduce(
             (sum, chat) => sum + (chat.unreadCount?.[user?.uid || ""] || 0),
@@ -87,7 +82,8 @@ export default function MessagesPage() {
             <Link
               key={chat.id}
               href={`/dashboard/messages/${chat.id}`}
-              className={`block rounded-xl border p-4 ${count ? "border-[var(--accent)] bg-[var(--accent-soft)]" : "border-[var(--border-color)]"}`}
+              className={styles.conversationRow}
+              data-unread={count > 0}
             >
               <div className="flex flex-wrap justify-between gap-2">
                 <strong>
@@ -110,10 +106,10 @@ export default function MessagesPage() {
                     : "Open conversation"}
               </p>
               {job && !chat.legacyHistory && <p className="visit-timing mt-2" data-asap={isAsap(job)}>{isAsap(job) ? "ASAP · As soon as possible" : `Scheduled · ${scheduleText(job)}`}</p>}
-              {job && !chat.legacyHistory && (
+              {job && !chat.legacyHistory && addresses.length > 1 && (
                 <p className="mt-2 text-sm font-semibold">{job.address}</p>
               )}
-              <p className="mt-2 truncate text-sm text-[var(--text-muted)]">
+              <p className={styles.messagePreview}>
                 {chat.lastMessage || "No messages yet"}
               </p>
               {dateMillis(chat.lastMessageTime) > 0 && <p className="mt-2 text-xs text-[var(--text-muted)]"><time dateTime={new Date(dateMillis(chat.lastMessageTime)).toISOString()}>{new Date(dateMillis(chat.lastMessageTime)).toLocaleString("en-CA", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</time></p>}
@@ -122,24 +118,22 @@ export default function MessagesPage() {
           );
         };
         return (
-          <section
-            key={other}
-            className="surface-card space-y-4 rounded-3xl p-5"
-          >
-            <h2 className="text-xl font-bold">
-              {names[other] || "Company / customer"}
-            </h2>
-            {active.map(row)}
-            {history.length > 0 && (
-              <details>
-                <summary className="min-h-11 cursor-pointer py-3 font-semibold">
-                  Previous orders ({history.length})
-                  {unread(history) > 0 ? ` · ${unread(history)} unread` : ""}
-                </summary>
-                <div className="space-y-3">{history.map(row)}</div>
-              </details>
-            )}
-          </section>
+          <details key={other} className={styles.companyGroup}>
+            <summary className={styles.companySummary}>
+              <span className={styles.companyInfo}>
+                <CompanyIdentity person={people[other]} name={names[other] || "Company / customer"} />
+                <span className={styles.companyMeta}>
+                  {conversations.length} conversation{conversations.length === 1 ? "" : "s"} · View messages
+                </span>
+              </span>
+              {unread(conversations) > 0 && <span className={styles.unreadBadge}>{unread(conversations)} unread</span>}
+              <span className={styles.companyChevron} aria-hidden="true">›</span>
+            </summary>
+            {addresses.length === 1 && <p className={styles.groupAddress}>{addresses[0]}</p>}
+            <ul className={styles.companyList}>
+              {conversations.map(chat => <li key={chat.id}>{row(chat)}</li>)}
+            </ul>
+          </details>
         );
       })}
     </div>
