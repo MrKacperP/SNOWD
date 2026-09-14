@@ -258,8 +258,7 @@ export default function SupportChatButton({ inline = false }: { inline?: boolean
                 <div className="min-w-0">
                   <p className="font-bold text-gray-900 text-sm">snowd.ca Support</p>
                   <div className="flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full" />
-                    <p className="text-gray-500 text-xs">Online · Replies in minutes</p>
+                    <p className="text-gray-500 text-xs">Send a message to our team</p>
                   </div>
                 </div>
               </div>
@@ -397,7 +396,7 @@ export default function SupportChatButton({ inline = false }: { inline?: boolean
                         onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
                         placeholder="Type your message..."
                         className="min-w-0 flex-1 px-3.5 py-2.5 bg-gray-50 border border-[var(--border-color)] rounded-xl text-base text-gray-900 placeholder:text-gray-400 outline-none focus:border-[var(--accent)]/40 focus:bg-white transition" />
-                      <button onClick={handleSend} disabled={!newMessage.trim() || sending}
+                      <button aria-label={sending ? "Sending support message" : "Send support message"} onClick={handleSend} disabled={!newMessage.trim() || sending}
                         className="p-2.5 bg-[var(--accent)] hover:bg-[var(--accent-dark)] text-white rounded-xl transition disabled:opacity-40 shrink-0">
                         <Send className="w-4 h-4" />
                       </button>

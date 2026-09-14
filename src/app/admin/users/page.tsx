@@ -82,13 +82,13 @@ export default function AdminUsersPage() {
             placeholder="Search users"
             className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-[var(--bg-primary)] text-sm min-w-[220px]"
           />
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-white text-sm">
+          <select aria-label="Filter accounts by status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-white text-sm">
             <option>All</option>
             <option>Active</option>
             <option>Suspended</option>
             <option>Pending</option>
           </select>
-          <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-white text-sm">
+          <select aria-label="Filter accounts by role" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-white text-sm">
             <option>All</option>
             <option>Client</option>
             <option>Operator</option>
@@ -135,11 +135,12 @@ export default function AdminUsersPage() {
                   <td className={tableCell}>{u.joinDate}</td>
                   <td className={tableCell}>
                     <div className="flex items-center gap-1">
-                      <button onClick={() => setSelectedUserId(u.id)} className="w-8 h-8 rounded-lg border-[3px] border-[var(--border)] inline-flex items-center justify-center"><Eye className="w-4 h-4" /></button>
-                      <Link aria-label={`Edit ${u.name}`} href={`/admin/users/${u.id}`} className="w-8 h-8 rounded-lg border border-[var(--border)] inline-flex items-center justify-center"><Pencil className="w-4 h-4" /></Link>
+                      <button aria-label={`View ${u.name}`} onClick={() => setSelectedUserId(u.id)} className="min-w-11 min-h-11 rounded-lg border-[3px] border-[var(--border)] inline-flex items-center justify-center"><Eye className="w-4 h-4" /></button>
+                      <Link aria-label={`Edit ${u.name}`} href={`/admin/users/${u.id}`} className="min-w-11 min-h-11 rounded-lg border border-[var(--border)] inline-flex items-center justify-center"><Pencil className="w-4 h-4" /></Link>
                       <button
+                        aria-label={`${u.status === "Suspended" ? "Restore" : "Suspend"} ${u.name}`}
                         onClick={() => setSuspendTarget(u.id)}
-                        className="w-8 h-8 rounded-lg border-[3px] border-[var(--border)] inline-flex items-center justify-center"
+                        className="min-w-11 min-h-11 rounded-lg border-[3px] border-[var(--border)] inline-flex items-center justify-center"
                       >
                         {u.status === "Suspended" ? <ShieldCheck className="w-4 h-4 text-[#16A34A]" /> : <ShieldAlert className="w-4 h-4 text-[#DC2626]" />}
                       </button>

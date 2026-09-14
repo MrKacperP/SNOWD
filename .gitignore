@@ -47,3 +47,9 @@ firestore-debug.log
 
 # Isolated local work-order verification build
 .next-workorders/
+
+# Isolated usability review builds
+.next-ux-review/
+.next-ux-build/
+
+firebase-debug.log

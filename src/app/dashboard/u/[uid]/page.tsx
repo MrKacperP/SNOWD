@@ -187,7 +187,9 @@ export default function PublicProfilePage() {
     );
   }
 
-  const isOnline = (profileData as unknown as Record<string, unknown>)?.isOnline !== false;
+  const isOnline = profileData.role === "operator"
+    ? (profileData as OperatorProfile).isAvailable !== false
+    : profileData.isOnline !== false;
   const memberSince = profileData.createdAt
     ? new Date(
         typeof profileData.createdAt === "object" && "seconds" in (profileData.createdAt as unknown as Record<string, unknown>)
@@ -213,6 +215,7 @@ export default function PublicProfilePage() {
             <div className="relative">
               <UserAvatar
                 photoURL={(profileData as unknown as Record<string, string>)?.avatar}
+                logoURL={isOperator ? operatorProfile.logoUrl : undefined}
                 role={profileData.role}
                 displayName={profileData.displayName}
                 size={96}
@@ -235,6 +238,18 @@ export default function PublicProfilePage() {
             </div>
           </div>
 
+          {isOperator && (operatorProfile.logoUrl || operatorProfile.tagline || operatorProfile.brandDescription) && (
+            <section aria-label="Business profile" className="mb-6 rounded-xl border border-[var(--border)] p-4">
+              <div className="flex items-center gap-4">
+                {operatorProfile.logoUrl && <img src={operatorProfile.logoUrl} alt={`${operatorProfile.businessName || profileData.displayName} logo`} className="h-20 w-20 rounded-xl object-contain" />}
+                <div>
+                  {operatorProfile.businessName && <h2 className="text-lg font-semibold">{operatorProfile.businessName}</h2>}
+                  {operatorProfile.tagline && <p className="whitespace-pre-wrap">{operatorProfile.tagline}</p>}
+                </div>
+              </div>
+              {operatorProfile.brandDescription && <p className="mt-4 whitespace-pre-wrap">{operatorProfile.brandDescription}</p>}
+            </section>
+          )}
           {/* Stats Row */}
           <div className="mb-5 flex flex-wrap items-center gap-5">
             {isOperator && (
@@ -279,7 +294,7 @@ export default function PublicProfilePage() {
             )}
             {isOnline && (
               <span className="px-3 py-1 bg-green-50 text-green-600 rounded-full text-xs font-semibold">
-                Online
+                {isOperator ? "Available for jobs" : "Online"}
               </span>
             )}
           </div>

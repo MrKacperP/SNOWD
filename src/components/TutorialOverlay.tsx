@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, Compass, X } from "lucide-react";
 import { useWeather } from "@/context/WeatherContext";
@@ -43,6 +44,8 @@ export default function TutorialOverlay() {
   const isStaff = profile?.role === "admin" || profile?.role === "employee";
 
   const [visible, setVisible] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(visible && !isStaff && !locationPromptOpen, dialogRef);
   const [step, setStep] = useState(0);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
 
@@ -103,17 +106,14 @@ export default function TutorialOverlay() {
   }, [isClient]);
 
   const dismiss = useCallback(() => {
-    localStorage.setItem(TUTORIAL_KEY, "shown");
+    try { localStorage.setItem(TUTORIAL_KEY, "shown"); } catch { /* Optional preference. */ }
     setVisible(false);
   }, []);
 
   useEffect(() => {
-    const shown = localStorage.getItem(TUTORIAL_KEY);
-    if (!shown) {
-      const t = setTimeout(() => setVisible(true), 700);
-      return () => clearTimeout(t);
-    }
-    return undefined;
+    const start = () => { setStep(0); setVisible(true); };
+    window.addEventListener("snowd:start-tour", start);
+    return () => window.removeEventListener("snowd:start-tour", start);
   }, []);
 
   const updateTarget = useCallback(() => {
@@ -229,6 +229,12 @@ export default function TutorialOverlay() {
     <AnimatePresence>
       {visible && (
         <motion.div
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Quick app tour"
+          tabIndex={-1}
+          onKeyDown={event => { if (event.key === "Escape") dismiss(); }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -272,7 +278,7 @@ export default function TutorialOverlay() {
                 </div>
                 <button
                   onClick={dismiss}
-                  className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition"
+                  className="min-h-11 min-w-11 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition"
                   aria-label="Skip tutorial"
                 >
                   <X className="w-4 h-4" />
@@ -283,7 +289,7 @@ export default function TutorialOverlay() {
                 <button
                   onClick={prev}
                   disabled={step === 0}
-                  className="w-10 h-10 rounded-xl border-[3px] border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] transition flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="min-w-11 min-h-11 rounded-xl border-[3px] border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] transition flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
                   aria-label="Previous step"
                 >
                   <ChevronLeft className="w-4 h-4" />
@@ -291,7 +297,7 @@ export default function TutorialOverlay() {
 
                 <button
                   onClick={next}
-                  className="flex-1 h-10 rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-dark)] text-white font-semibold text-sm transition inline-flex items-center justify-center gap-1.5"
+                  className="flex-1 min-h-11 rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-dark)] text-white font-semibold text-sm transition inline-flex items-center justify-center gap-1.5"
                 >
                   {step === steps.length - 1 ? "Finish" : "Next"}
                   {step !== steps.length - 1 && <ChevronRight className="w-4 h-4" />}
@@ -301,7 +307,7 @@ export default function TutorialOverlay() {
               {step < steps.length - 1 && (
                 <button
                   onClick={dismiss}
-                  className="w-full mt-2 text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition"
+                  className="min-h-11 w-full mt-2 text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition"
                 >
                   Skip tour
                 </button>

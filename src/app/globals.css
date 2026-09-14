@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import "tailwindcss" source("../");
 
 /* ThemeProvider explicitly selects light mode; OS dark mode must not restyle controls. */
 @custom-variant dark (&:where(.dark, .dark *));

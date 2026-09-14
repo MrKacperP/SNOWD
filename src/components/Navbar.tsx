@@ -72,6 +72,7 @@ export default function Navbar() {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [pendingJobCount, setPendingJobCount] = useState(0);
+  const [notificationError, setNotificationError] = useState("");
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
   const menuRef = useRef<HTMLDivElement>(null);
@@ -99,7 +100,9 @@ export default function Navbar() {
     isClient &&
     (((profile as unknown as Record<string, unknown>)?.simplifiedMode as boolean) ||
       Number((profile as unknown as Record<string, unknown>)?.age || 0) >= 55);
-  const isOnline = (profile as unknown as Record<string, unknown>)?.isOnline !== false && (profile?.role !== "operator" || (profile as unknown as Record<string, unknown>)?.isAvailable !== false);
+  const isOnline = profile?.role === "operator"
+    ? (profile as unknown as Record<string, unknown>)?.isAvailable !== false
+    : (profile as unknown as Record<string, unknown>)?.isOnline !== false;
 
   const navItems = useMemo(() => {
     if (simplifiedClient) {
@@ -181,8 +184,10 @@ export default function Navbar() {
           ...(snap.data() as Omit<NotificationItem, "id">),
         }));
         setNotifications(items);
+        setNotificationError("");
       },
       (error) => {
+        setNotificationError("Could not load updates. Reload the page to try again.");
         if (error.code !== "failed-precondition") {
           console.error("Notifications listener error:", error);
         }
@@ -212,7 +217,7 @@ export default function Navbar() {
     setStatusSaving(true);
     setStatusError("");
     try {
-      await updateDoc(doc(db, "users", profile.uid), { isOnline: !isOnline, ...(profile.role === "operator" ? { isAvailable: !isOnline } : {}) });
+      await updateDoc(doc(db, "users", profile.uid), { isAvailable: !isOnline });
     } catch (error) {
       console.error("Error toggling status:", error);
       setStatusError("Could not update your status. Please try again.");
@@ -227,6 +232,7 @@ export default function Navbar() {
       await updateDoc(doc(db, "notifications", id), { read: true });
     } catch (error) {
       console.error("Failed to mark notification read:", error);
+      setNotificationError("Could not mark this update as read. Please try again.");
     }
   };
 
@@ -237,15 +243,14 @@ export default function Navbar() {
       const batch = writeBatch(db);
       unread.forEach((notification) => batch.update(doc(db, "notifications", notification.id), { read: true }));
       await batch.commit();
+      setNotificationError("");
     } catch (error) {
       console.error("Failed to mark all notifications read:", error);
+      setNotificationError("Could not mark updates as read. Please try again.");
     }
   };
 
   const handleSignOut = async () => {
-    if (profile?.uid) {
-      updateDoc(doc(db, "users", profile.uid), { isOnline: false, ...(profile.role === "operator" ? { isAvailable: false } : {}) }).catch(() => {});
-    }
     try {
       await signOut();
     } catch (error) {
@@ -275,7 +280,7 @@ export default function Navbar() {
             </div>
             <div className={`status-dot ${isOnline ? "online" : "offline"}`} />
           </div>
-          <div className="mt-3"><AvailabilityToggle online={isOnline} saving={statusSaving} error={statusError} onToggle={toggleOnlineStatus} /></div>
+          {profile?.role === "operator" && <div className="mt-3"><AvailabilityToggle online={isOnline} saving={statusSaving} error={statusError} onToggle={toggleOnlineStatus} /></div>}
           {weather ? (
             <div className="mt-4 rounded-[1.2rem] bg-[var(--bg-secondary)] px-3 py-3">
               <div className="text-xs text-[var(--text-muted)]">Local weather</div>
@@ -314,13 +319,14 @@ export default function Navbar() {
               <div className="flex items-center justify-between border-b-[3px] border-[var(--border-color)] px-4 py-3">
                 <div className="text-sm font-bold">Notifications</div>
                 {unreadNotifications > 0 ? (
-                  <button onClick={markAllNotificationsRead} className="inline-flex items-center gap-1 text-xs font-bold text-[var(--text-muted)]">
+                  <button onClick={markAllNotificationsRead} className="inline-flex min-h-11 items-center gap-1 text-xs font-bold text-[var(--text-muted)]">
                     <CheckCheck className="h-3.5 w-3.5" />
                     Mark all read
                   </button>
                 ) : null}
               </div>
               <div className="max-h-[min(320px,calc(100dvh-160px))] overflow-y-auto overscroll-contain">
+                {notificationError && notifications.length > 0 && <p role="alert" className="p-4 text-sm text-red-700">{notificationError}</p>}
                 {notifications.length ? (
                   notifications.map((notification) => (
                     <button
@@ -340,7 +346,7 @@ export default function Navbar() {
                     </button>
                   ))
                 ) : (
-                  <div className="px-4 py-8 text-center text-sm text-[var(--text-muted)]">No notifications yet.</div>
+                  <div className="px-4 py-8 text-center text-sm text-[var(--text-muted)]">{notificationError || "No notifications yet. Job and payment updates will appear here."}</div>
                 )}
               </div>
             </div>
@@ -413,23 +419,28 @@ export default function Navbar() {
           <div className="flex items-center justify-between border-b-[3px] border-[var(--border-color)] px-4 py-3">
             <div className="text-sm font-bold">Notifications</div>
             {unreadNotifications > 0 ? (
-              <button onClick={markAllNotificationsRead} className="text-xs font-bold text-[var(--text-muted)]">
+              <button onClick={markAllNotificationsRead} className="min-h-11 text-xs font-bold text-[var(--text-muted)]">
                 Mark all read
               </button>
             ) : null}
           </div>
           <div className="max-h-[min(320px,calc(100dvh-160px))] overflow-y-auto overscroll-contain">
-            {notifications.length ? (
+            {notificationError && notifications.length > 0 && <p role="alert" className="p-4 text-sm text-red-700">{notificationError}</p>}
+                {notifications.length ? (
               notifications.map((notification) => (
                 <button key={notification.id} onClick={() => { markNotificationRead(notification.id); if (notification.type === "booking-invite" && notification.operatorId) { setNotifOpen(false); router.push(`/dashboard/find?operator=${encodeURIComponent(notification.operatorId)}`); } else if (notification.jobId && notification.type !== "message") { setNotifOpen(false); router.push(`/dashboard/jobs/${encodeURIComponent(notification.jobId)}`); } else if (notification.chatId) { setNotifOpen(false); router.push(`/dashboard/messages/${encodeURIComponent(notification.chatId)}`); } }} className="w-full border-b border-[var(--border-soft)] px-4 py-3 text-left last:border-b-0">
                   <span className="flex items-center gap-3 text-sm font-semibold leading-5">
                     {!notification.read && <span aria-label="Unread" className="h-2 w-2 shrink-0 rounded-full bg-[var(--accent)]" />}
-                    <span className="min-w-0 break-words">{notificationTitle(notification)}</span>
+                    <span className="min-w-0 break-words">
+                      <span className="block">{notificationTitle(notification)}</span>
+                      {(notification.preview || notification.message) && <span className="mt-1 block text-xs font-normal leading-5 text-[var(--text-secondary)]">{notification.preview || notification.message}</span>}
+                      <span className="mt-1 block text-xs font-normal text-[var(--text-muted)]">{formatNotificationTime(notification.createdAt)}</span>
+                    </span>
                   </span>
                 </button>
               ))
             ) : (
-              <div className="px-4 py-8 text-center text-sm text-[var(--text-muted)]">No notifications yet.</div>
+              <div className="px-4 py-8 text-center text-sm text-[var(--text-muted)]">{notificationError || "No notifications yet. Job and payment updates will appear here."}</div>
             )}
           </div>
         </div>
@@ -461,7 +472,7 @@ export default function Navbar() {
             <div className="mt-5 grid divide-y divide-[var(--border-color)] border-t border-[var(--border-color)]">
               <Link href="/dashboard/calendar" onClick={() => setDrawerOpen(false)} className="flex min-h-13 items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)]"><CalendarDays className="h-5 w-5" /><span>Schedule</span></Link>
               <Link href="/dashboard/transactions" onClick={() => setDrawerOpen(false)} className="flex min-h-13 items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)]"><Briefcase className="h-5 w-5" /><span>Payments</span></Link>
-              <AvailabilityToggle online={isOnline} saving={statusSaving} error={statusError} onToggle={toggleOnlineStatus} />
+              {profile?.role === "operator" && <AvailabilityToggle online={isOnline} saving={statusSaving} error={statusError} onToggle={toggleOnlineStatus} />}
               <Link href={`/dashboard/u/${profile?.uid}`} onClick={() => setDrawerOpen(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)]">
                 <User className="h-4 w-4" />
                 <span className="text-sm font-bold">View profile</span>

@@ -91,7 +91,7 @@ export interface JobItem {
   price?: number;
   paymentStatus?: string;
   rawStatus?: string;
-  status: "Open" | "In Progress" | "Completed" | "Flagged" | "Cancelled";
+  status: "Open" | "Scheduled" | "On the way" | "In Progress" | "Completed" | "Flagged" | "Cancelled";
   datePosted: string;
   description: string;
   assignedUsers: string[];

@@ -19,7 +19,7 @@ export default function OperatorDashboard() {
   const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [availabilityError, setAvailabilityError] = useState("");
-  const available = operator?.isAvailable !== false && operator?.isOnline !== false;
+  const available = operator?.isAvailable !== false;
 
   useEffect(() => {
     if (!profile?.uid) return;
@@ -35,7 +35,7 @@ export default function OperatorDashboard() {
     setSaving(true);
     setAvailabilityError("");
     try {
-      await updateDoc(doc(db, "users", profile.uid), { isAvailable: !available, isOnline: !available });
+      await updateDoc(doc(db, "users", profile.uid), { isAvailable: !available });
       await refreshProfile();
     } catch {
       setAvailabilityError("Could not update availability. Please try again.");

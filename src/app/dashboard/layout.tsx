@@ -2,6 +2,7 @@
 
 import { canAcceptPlatformPayments } from "@/lib/operatorDiscovery";
 
+import Notification from "@/components/Notification";
 import LoadingScreen from "@/components/LoadingScreen";
 import Navbar from "@/components/Navbar";
 import SupportChatButton from "@/components/SupportChatButton";
@@ -40,6 +41,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
       document.documentElement.style.removeProperty("--conversation-height");
     };
   }, [inConversation]);
+  const [uploadError, setUploadError] = useState("");
   const [uploadingId, setUploadingId] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -76,7 +78,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
       await refreshProfile();
     } catch (error) {
       console.error("Error uploading ID:", error);
-      alert("Failed to upload ID. Please try again.");
+      setUploadError("Failed to upload ID. Please try again.");
     } finally {
       setUploadingId(false);
     }
@@ -91,6 +93,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
   return (
     <WeatherProvider>
+      {uploadError && <Notification message={uploadError} type="error" onClose={() => setUploadError("")} />}
       <div className={`dashboard-shell ${inConversation ? "conversation-shell" : "min-h-screen"} bg-[var(--bg-primary)] transition-colors`}>
         <a href="#dashboard-content" className="skip-link">Skip to main content</a>
         <div className={inConversation ? "hidden lg:contents" : "contents"}><Navbar key={pathname} /></div>

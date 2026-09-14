@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import fs from 'node:fs';
 import { initializeTestEnvironment, assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
@@ -57,6 +58,21 @@ test('Firestore enforces verified cash listings, chat access, and server-owned p
     await env.withSecurityRulesDisabled(async context => { await setDoc(doc(context.firestore(), 'chats/chat'), { jobId: 'cash', participants: ['client', 'operator'] }); });
     await assertSucceeds(setDoc(doc(client, 'messages/message'), { chatId: 'chat', jobId: 'cash', senderId: 'client', text: 'fixture', read: false }));
     await assertSucceeds(updateDoc(doc(operator, 'messages/message'), { read: true }));
+    // The inbox and message must commit together, including under rule rejection.
+    const send = writeBatch(client);
+    send.set(doc(client, 'messages/atomic-message'), { chatId: 'chat', jobId: 'cash', senderId: 'client', content: 'Arrival details', read: false });
+    send.update(doc(client, 'chats/chat'), { lastMessage: 'Arrival details', 'unreadCount.operator': 1 });
+    await assertSucceeds(send.commit());
+    assert.equal((await getDoc(doc(operator, 'messages/atomic-message'))).data().content, 'Arrival details');
+    assert.equal((await getDoc(doc(operator, 'chats/chat'))).data().unreadCount.operator, 1);
+    const rejected = writeBatch(client);
+    rejected.set(doc(client, 'messages/rejected-atomic'), { chatId: 'chat', jobId: 'cash', senderId: 'client', content: 'Do not store', read: false });
+    rejected.update(doc(client, 'chats/chat'), { jobId: 'forbidden-change', lastMessage: 'Do not store' });
+    await assertFails(rejected.commit());
+    await env.withSecurityRulesDisabled(async context => {
+      assert.equal((await getDoc(doc(context.firestore(), 'messages/rejected-atomic'))).exists(), false);
+    });
+    assert.equal((await getDoc(doc(client, 'chats/chat'))).data().lastMessage, 'Arrival details');
     await assertFails(updateDoc(doc(client, 'chats/chat'), { jobId: 'other' }));
     await assertFails(updateDoc(doc(client, 'messages/message'), { jobId: 'other' }));
     await assertFails(setDoc(doc(client, 'messages/wrong-order'), { chatId: 'chat', jobId: 'other', senderId: 'client', content: 'wrong' }));

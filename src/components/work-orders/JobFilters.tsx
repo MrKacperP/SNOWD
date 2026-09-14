@@ -3,6 +3,7 @@
 import styles from "./work-orders.module.css";
 
 export const JOB_FILTERS = [
+  ["all", "All jobs"],
   ["attention", "Needs attention"],
   ["waiting", "Awaiting response"],
   ["upcoming", "Upcoming"],

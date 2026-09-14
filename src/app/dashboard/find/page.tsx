@@ -74,9 +74,14 @@ export default function FindOperatorsPage() {
     typeof clientProfile?.lat === "number" && Number.isFinite(clientProfile.lat) &&
     typeof clientProfile?.lng === "number" && Number.isFinite(clientProfile.lng);
 
+  const [loadError, setLoadError] = useState("");
+  const [retry, setRetry] = useState(0);
+
   // Fetch operators with same baseline criteria used by calendar booking.
   useEffect(() => {
     const fetchOperators = async () => {
+      setLoading(true);
+      setLoadError("");
       try {
         const q = query(
           collection(db, "users"),
@@ -99,12 +104,13 @@ export default function FindOperatorsPage() {
         }
       } catch (error) {
         console.error("Error fetching operators:", error);
+        setLoadError("We couldn’t load nearby shovelers. Check your connection and try again.");
       } finally {
         setLoading(false);
       }
     };
     fetchOperators();
-  }, [user?.uid, clientProfile]);
+  }, [user?.uid, clientProfile, retry]);
 
   // Filter and sort
   useEffect(() => {
@@ -126,7 +132,7 @@ export default function FindOperatorsPage() {
           op.displayName.toLowerCase().includes(term) ||
           op.businessName?.toLowerCase().includes(term) ||
           op.city.toLowerCase().includes(term) ||
-          op.bio.toLowerCase().includes(term)
+          (op.bio || "").toLowerCase().includes(term)
       );
     }
 
@@ -204,6 +210,7 @@ export default function FindOperatorsPage() {
   const bookingAttempt = useRef<{ key: string; id: string } | null>(null);
   const [cashAcknowledged, setCashAcknowledged] = useState(false);
   const [bookingError, setBookingError] = useState("");
+
   const [openedInvitation, setOpenedInvitation] = useState(false);
   useEffect(() => {
     if (loading || openedInvitation || !profile) return;
@@ -237,6 +244,13 @@ export default function FindOperatorsPage() {
       const operator = { ...operatorSnapshot.data(), uid: schedulingOperator.uid } as OperatorProfile;
       if (!operatorSnapshot.exists() || !isOperatorPublic(operator) || !isClientWithinOperatorRadius(clientProfile, operator)) {
         setBookingError("This operator is no longer available in your service area.");
+        return;
+      }
+      const size = (clientProfile?.propertyDetails?.propertySize || "medium") as "small" | "medium" | "large";
+      if ((operator.pricing?.driveway?.[size] || 40) !== (schedulingOperator.pricing?.driveway?.[size] || 40)) {
+        setSchedulingOperator(operator);
+        setCashAcknowledged(false);
+        setBookingError("The price has changed. Review the updated total before sending your request.");
         return;
       }
       const cardRequired = paymentMethod === "credit" && canAcceptPlatformPayments(operator);
@@ -274,7 +288,7 @@ export default function FindOperatorsPage() {
         scheduleTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         paymentMethod: operatorRequiresCard ? "credit" : "cash",
         cashPaymentAcknowledged: !operatorRequiresCard && cashAcknowledged,
-        expectedPrice: operator.pricing?.driveway?.[(clientProfile?.propertyDetails?.propertySize || "medium") as "small" | "medium" | "large"] || 40,
+        expectedPrice: schedulingOperator?.pricing?.driveway?.[(clientProfile?.propertyDetails?.propertySize || "medium") as "small" | "medium" | "large"] || 40,
       };
       const key = JSON.stringify(payload);
       if (bookingAttempt.current?.key !== key) bookingAttempt.current = { key, id: crypto.randomUUID() };
@@ -295,7 +309,7 @@ export default function FindOperatorsPage() {
       });
       router.push(`/dashboard/jobs/${jobRef.id}`);
     } catch (error) {
-      setBookingError("Could not create this booking. Please try again.");
+      setBookingError(error instanceof Error ? error.message : "Could not create this booking. Please try again.");
       console.error("Error creating job:", error);
     } finally {
       setBooking(false);
@@ -423,7 +437,7 @@ export default function FindOperatorsPage() {
           <Snowflake className="mx-auto mb-3 h-8 w-8 animate-spin" />
           Loading operators...
         </div>
-      ) : filteredOperators.length === 0 ? (
+      ) : loadError ? null : filteredOperators.length === 0 ? (
         <div className="surface-panel px-6 py-14 text-center">
           <Snowflake className="mx-auto mb-4 h-12 w-12 text-[var(--text-muted)]/40" />
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">No operators found</h3>
@@ -432,6 +446,8 @@ export default function FindOperatorsPage() {
               ? "Try adjusting your search or filters, or check back later."
               : "Add your exact address in settings to unlock nearby operator matching."}
           </p>
+          <button type="button" className="mt-3 min-h-11 underline" onClick={() => { setSearchTerm(""); setFilterService("all"); setFilterEquipment("all"); setFilterStudents(false); setFilterVerified(false); }}>Clear search and filters</button>
+          {!clientHasCoordinates && <Link className="ml-4 inline-flex min-h-11 items-center underline" href="/dashboard/settings">Update address</Link>}
         </div>
       ) : (
         <section className="grid gap-4 sm:grid-cols-2" aria-label="Nearby operators">
@@ -441,7 +457,7 @@ export default function FindOperatorsPage() {
             const distance = getDistanceKm(clientProfile, op);
             return <article key={op.uid} className="overflow-hidden rounded-3xl bg-white border border-[var(--border-color)]">
               <div className="p-5 space-y-4">
-                <div className="flex items-center gap-3"><UserAvatar photoURL={(op as unknown as Record<string,string>).avatar} role="operator" displayName={op.displayName} size={48} /><div className="min-w-0"><h2 className="text-xl font-semibold break-words">{op.businessName || op.displayName}</h2><p className="mt-1 text-sm text-[var(--text-secondary)]">{op.rating ? `${op.rating.toFixed(1)} ★` : "New operator"}{distance !== null ? ` · ${distance.toFixed(1)} km away` : ` · ${op.city}`}</p></div></div>
+                <div className="flex items-center gap-3"><UserAvatar photoURL={op.avatar} logoURL={op.logoUrl} role="operator" displayName={op.businessName || op.displayName} size={48} /><div className="min-w-0"><h2 className="text-xl font-semibold break-words">{op.businessName || op.displayName}</h2><p className="mt-1 text-sm text-[var(--text-secondary)]">{op.rating ? `${op.rating.toFixed(1)} ★` : "New operator"}{distance !== null ? ` · ${distance.toFixed(1)} km away` : ` · ${op.city}`}</p></div></div>
                 <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-2xl font-semibold">${price}<span className="ml-1 text-sm font-normal text-[var(--text-muted)]">CAD</span></p><span className="rounded-full bg-[#eaf1ee] px-3 py-1.5 text-sm font-medium">{cashOnly ? "Cash only" : "Cash or card"}</span></div>
                 <button onClick={() => bookOperator(op)} disabled={booking} className="btn-primary w-full px-4 py-3">Request help</button>
               </div>
@@ -456,14 +472,23 @@ export default function FindOperatorsPage() {
         </section>
       )}
 
+      {loadError && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4"><p>{loadError}</p><button type="button" className="mt-2 min-h-11 underline" onClick={() => setRetry(value => value + 1)}>Try again</button></div>}
       {bookingError && !schedulingOperator && <p role="alert" className="text-red-700">{bookingError}</p>}
       {/* Scheduling Modal */}
-      <Modal isOpen={!!schedulingOperator} onClose={() => setSchedulingOperator(null)} title="When do you need help?" subtitle={schedulingOperator?.businessName || schedulingOperator?.displayName}>
+      <Modal isOpen={!!schedulingOperator} onClose={() => { if (!booking) setSchedulingOperator(null); }} title="Review your request" subtitle={schedulingOperator?.businessName || schedulingOperator?.displayName}>
         {schedulingOperator && <div className="space-y-4">
+          <div className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
+            <p className="font-semibold">{clientProfile?.address}, {clientProfile?.city}</p>
+            <p className="mt-1 text-sm capitalize">{clientProfile?.propertyDetails?.serviceTypes?.map(service => service.replaceAll("-", " ")).join(" · ") || "Driveway"} · {clientProfile?.propertyDetails?.propertySize || "medium"} property</p>
+            <p className="mt-3 text-xl font-bold">${(schedulingOperator.pricing?.driveway?.[(clientProfile?.propertyDetails?.propertySize || "medium") as "small" | "medium" | "large"] || 40).toFixed(2)} CAD <span className="text-sm font-normal">per visit</span></p>
+            <Link href="/dashboard/settings" className="mt-2 inline-flex min-h-11 items-center text-sm underline">Change property details</Link>
+          </div>
+          <p className="text-sm text-[var(--text-secondary)]">This is a request. Your visit is confirmed when the shoveler accepts. For ASAP help, agree on an arrival time in messages.</p>
 
               {/* ASAP or Scheduled toggle */}
               <div className="grid grid-cols-2 gap-2">
                 <button
+                  aria-pressed={scheduleType === "asap"}
                   onClick={() => setScheduleType("asap")}
                   className={`flex flex-col items-center gap-1.5 p-4 rounded-xl border-2 transition ${
                     scheduleType === "asap"
@@ -478,6 +503,7 @@ export default function FindOperatorsPage() {
                   <span className="text-[10px] text-[var(--text-muted)]">As soon as possible</span>
                 </button>
                 <button
+                  aria-pressed={scheduleType === "scheduled"}
                   onClick={() => setScheduleType("scheduled")}
                   className={`flex flex-col items-center gap-1.5 p-4 rounded-xl border-2 transition ${
                     scheduleType === "scheduled"
@@ -520,7 +546,7 @@ export default function FindOperatorsPage() {
 
               <div className="rounded-2xl bg-[#eaf1ee] p-4 text-sm">
                 {canAcceptPlatformPayments(schedulingOperator) && <label className="mb-3 block font-semibold">Payment method<select aria-label="Payment method" value={paymentMethod} onChange={event => { setPaymentMethod(event.target.value as "cash" | "credit"); setCashAcknowledged(false); }} className="mt-2 block w-full rounded-xl border bg-white p-3"><option value="cash">Cash after the job</option><option value="credit">Card</option></select></label>}
-                {paymentMethod === "credit" ? <p>Pay securely by card after your request is accepted.</p> : <><p className="font-semibold">Cash only</p><p className="mt-1">Pay the operator directly after the job is done. No card or Stripe account is needed.</p><label className="mt-3 flex items-start gap-3"><input type="checkbox" checked={cashAcknowledged} onChange={event => setCashAcknowledged(event.target.checked)} className="mt-1 h-5 w-5 shrink-0" /><span>I agree to pay the operator in cash after the job is done.</span></label></>}
+                {paymentMethod === "credit" ? <p>Authorize a card hold after your request is accepted. Your card is charged when the work is completed with photo proof.</p> : <><p className="font-semibold">Cash after the job</p><p className="mt-1">Pay the operator directly after the job is done. No card or Stripe account is needed.</p><label className="mt-3 flex items-start gap-3"><input type="checkbox" checked={cashAcknowledged} onChange={event => setCashAcknowledged(event.target.checked)} className="mt-1 h-5 w-5 shrink-0" /><span>I agree to pay the operator in cash after the job is done.</span></label></>}
               </div>
               {bookingError && <p role="alert" className="text-sm text-red-700">{bookingError}</p>}
               <button
@@ -529,11 +555,12 @@ export default function FindOperatorsPage() {
                 className="btn-primary w-full px-4 py-3.5"
               >
                 <MessageSquare className="w-4 h-4" />
-                {booking ? "Booking..." : scheduleType === "asap" ? "Request Now" : "Schedule & Chat"}
+                {booking ? "Sending request…" : "Send booking request"}
               </button>
               <button
                 onClick={() => setSchedulingOperator(null)}
-                className="w-full py-1 text-sm text-[var(--text-muted)] transition hover:text-[var(--text-primary)]"
+                disabled={booking}
+                className="min-h-11 w-full py-3 text-sm text-[var(--text-muted)] transition hover:text-[var(--text-primary)]"
               >
                 Cancel
               </button>

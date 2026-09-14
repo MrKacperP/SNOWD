@@ -4,6 +4,7 @@ import React, { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
+import { googleSignInError } from "@/lib/authErrors";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { sendPasswordResetEmail, setPersistence, browserLocalPersistence, browserSessionPersistence } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
@@ -92,12 +93,13 @@ function LoginPageInner() {
     setError("");
     setLoading(true);
     try {
-      await setPersistence(auth, remember ? browserLocalPersistence : browserSessionPersistence);
-      const googleUser = await signInWithGoogle();
+      // Start the popup in the click gesture. Firebase queues the sign-in behind
+      // persistence internally; awaiting storage here can make Safari block it.
+      const persistence = setPersistence(auth, remember ? browserLocalPersistence : browserSessionPersistence);
+      const [, googleUser] = await Promise.all([persistence, signInWithGoogle()]);
       await checkProfileAndRedirect(googleUser.uid);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to sign in with Google";
-      if (!msg.includes("popup-closed")) setError("Google sign-in failed. Please try again.");
+      setError(googleSignInError(err));
     } finally {
       setLoading(false);
     }

@@ -11,6 +11,7 @@ import ProgressTracker from "@/components/ProgressTracker";
 import StatusBadge from "@/components/StatusBadge";
 import StripeCheckout from "@/components/StripeCheckout";
 import SupportChatButton from "@/components/SupportChatButton";
+import Notification from "@/components/Notification";
 import Modal from "@/components/ui/Modal";
 import UserAvatar from "@/components/UserAvatar";
 import { useAuth } from "@/context/AuthContext";
@@ -26,6 +27,7 @@ UserProfile,
 import { format } from "date-fns";
 import {
 addDoc,
+writeBatch,
 collection,
 doc,
 getDoc,
@@ -93,6 +95,9 @@ export default function ChatPage() {
   const chatId = params.chatId as string;
   const { user, profile } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [feedback, setFeedback] = useState("");
+  const [messageError, setMessageError] = useState("");
+  const messageLock = useRef(false);
   const [newMessage, setNewMessage] = useState("");
   const [job, setJob] = useState<Job | null>(null);
   const { jobs: allOrders, loading: ordersLoading, error: ordersError } = useWorkOrders();
@@ -263,7 +268,7 @@ export default function ChatPage() {
         if (data.imageDataUrl) {
           if (!await receiveCameraPhoto(data.imageDataUrl)) return;
           setShowCameraQrModal(false);
-          alert("Photo uploaded successfully.");
+          setFeedback("Photo uploaded successfully.");
           return;
         }
       } catch {
@@ -470,8 +475,11 @@ export default function ChatPage() {
       metadata?: ChatMessage["metadata"]
     ) => {
       if (!content.trim() && type === "text") return;
+      if (messageLock.current) return;
       if (!user?.uid || !chatId || legacyHistory || !job) return;
 
+      messageLock.current = true;
+      setMessageError("");
       const trackSendingState = type === "text";
       if (trackSendingState) setSendingMessage(true);
 
@@ -488,7 +496,7 @@ export default function ChatPage() {
         };
         if (metadata !== undefined) messageData.metadata = metadata;
 
-        await addDoc(collection(db, "messages"), messageData);
+        const messageRef = doc(collection(db, "messages"));
 
         const chatDocRef = doc(db, "chats", chatId);
         const chatSnap = await getDoc(chatDocRef);
@@ -497,6 +505,21 @@ export default function ChatPage() {
           (p: string) => p !== user.uid
         );
 
+        const updateData: Record<string, unknown> = {
+          lastMessage:
+            type === "text" ? content : `[${type.replace("-", " ")}]`,
+          lastMessageTime: Timestamp.now(),
+        };
+
+        if (otherUid) {
+          updateData[`unreadCount.${otherUid}`] = increment(1);
+        }
+
+        const batch = writeBatch(db);
+        batch.set(messageRef, messageData);
+        batch.update(chatDocRef, updateData);
+        await batch.commit();
+        if (type === "text") setNewMessage(current => current === content ? "" : current);
         if (type === "text") {
           void sendAdminNotif({
             type: "system",
@@ -511,21 +534,13 @@ export default function ChatPage() {
           });
         }
 
-        const updateData: Record<string, unknown> = {
-          lastMessage:
-            type === "text" ? content : `[${type.replace("-", " ")}]`,
-          lastMessageTime: Timestamp.now(),
-        };
 
-        if (otherUid) {
-          updateData[`unreadCount.${otherUid}`] = increment(1);
-        }
-
-        await updateDoc(chatDocRef, updateData);
-        if (type === "text") setNewMessage("");
       } catch (error) {
         console.error("Error sending message:", error);
+        setMessageError(type === "text" ? "Message not sent. Check your connection and try again. Your text is still here." : type === "voice" ? "Voice message not sent. Check your connection and record it again." : "Attachment not sent. Check your connection and choose the file again.");
+        if (type === "image") throw error;
       } finally {
+        messageLock.current = false;
         if (trackSendingState) setSendingMessage(false);
       }
     },
@@ -535,7 +550,7 @@ export default function ChatPage() {
   const cancelJob = async () => {
     if (!job?.id) return;
     if (["completed", "cancelled"].includes(job.status)) {
-      alert("This job is already closed.");
+      setFeedback("This job is already closed.");
       return;
     }
     setShowCancelPopup(true);
@@ -548,12 +563,12 @@ export default function ChatPage() {
       const response = await stripeConnectFetch("/api/jobs/cancel", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jobId: job.id }) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Could not cancel this job.");
-      if (result.warning) alert(result.warning);
+      if (result.warning) setFeedback(result.warning);
       setShowMobileTasksSheet(false);
       setShowCancelPopup(false);
     } catch (error) {
       console.error("Error cancelling job:", error);
-      alert(error instanceof Error ? error.message : "Failed to cancel job. Please try again.");
+      setFeedback(error instanceof Error ? error.message : "Failed to cancel job. Please try again.");
     } finally {
       setCancelling(false);
     }
@@ -632,7 +647,7 @@ export default function ChatPage() {
   const startVoiceRecorder = async () => {
     try {
       if (typeof window === "undefined" || !("MediaRecorder" in window)) {
-        alert("Voice recording is not supported on this device.");
+        setFeedback("Voice recording is not supported on this device.");
         return;
       }
 
@@ -676,7 +691,7 @@ export default function ChatPage() {
       setIsRecordingVoice(true);
     } catch (error) {
       console.error("Voice recorder start error:", error);
-      alert("Microphone access was denied or unavailable.");
+      setFeedback("Microphone access was denied or unavailable.");
     }
   };
 
@@ -706,7 +721,7 @@ export default function ChatPage() {
 
     // Validation: if rating is lower than 3 stars, description is required
     if (reviewRating < 3 && !reviewComment.trim()) {
-      alert("Please add a description for ratings below 3 stars.");
+      setFeedback("Please add a description for ratings below 3 stars.");
       return;
     }
 
@@ -799,7 +814,7 @@ export default function ChatPage() {
         return `${origin}${path}`;
       } catch (error) {
         const message = error instanceof Error ? error.message : "Failed to create temporary upload link";
-        alert(message);
+        setFeedback(message);
         return "";
       } finally {
         setCreatingGuestUploadLink(false);
@@ -1128,6 +1143,7 @@ export default function ChatPage() {
 
   return (
     <div className="chat-workspace flex w-full min-h-0 gap-0">
+      {feedback && <Notification message={feedback} type="info" onClose={() => setFeedback("")} />}
       {/* Chat Column */}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-y border-r border-[var(--border-color)] bg-[var(--bg-card-solid)] xl:border-l">
         {/* Chat Header */}
@@ -1214,6 +1230,7 @@ export default function ChatPage() {
 
         </div>
 
+        {messageError && <p role="alert" className="shrink-0 bg-red-50 px-4 py-3 text-sm text-red-800">{messageError}</p>}
         {/* Message Input */}
         <div hidden={legacyHistory || orderPanelOpen} className="sticky bottom-0 z-20 shrink-0 border-t border-[var(--border-soft)] bg-white/95 px-2.5 pb-[max(10px,env(safe-area-inset-bottom))] pt-2.5 shadow-[var(--surface-shadow)] backdrop-blur sm:px-4">
           <input
@@ -1658,9 +1675,9 @@ export default function ChatPage() {
                       onClick={async () => {
                         try {
                           await navigator.clipboard.writeText(url);
-                          alert(`Link ${index + 1} copied.`);
+                          setFeedback(`Link ${index + 1} copied.`);
                         } catch {
-                          alert("Could not copy link.");
+                          setFeedback("Could not copy link.");
                         }
                       }}
                       className="px-2.5 py-2 rounded-lg border border-[var(--border)] text-xs text-[var(--accent)] hover:bg-[#F3F8FF]"
@@ -1695,9 +1712,9 @@ export default function ChatPage() {
                 onClick={async () => {
                   try {
                     await navigator.clipboard.writeText(primaryGuestUploadUrl);
-                    alert("Mobile upload link copied.");
+                    setFeedback("Mobile upload link copied.");
                   } catch {
-                    alert("Could not copy link. Use Open Link instead.");
+                    setFeedback("Could not copy link. Use Open Link instead.");
                   }
                 }}
                 disabled={!primaryGuestUploadUrl}

@@ -5,6 +5,7 @@ import Image from "next/image";
 
 interface UserAvatarProps {
   photoURL?: string;
+  logoURL?: string;
   role?: string;
   displayName?: string;
   /** Pixel dimension for width and height */
@@ -22,6 +23,7 @@ interface UserAvatarProps {
  */
 export default function UserAvatar({
   photoURL,
+  logoURL,
   role,
   displayName,
   size = 36,
@@ -31,15 +33,16 @@ export default function UserAvatar({
   const roundedClass =
     rounded === "full" ? "rounded-full" : rounded === "2xl" ? "rounded-2xl" : "rounded-xl";
 
-  if (photoURL) {
+  const imageURL = role === "operator" ? logoURL || photoURL : photoURL;
+  if (imageURL) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={photoURL}
-        alt={displayName || "User"}
+        src={imageURL}
+        alt={role === "operator" && logoURL ? `${displayName || "Business"} logo` : displayName || "User"}
         width={size}
         height={size}
-        className={`object-cover ${roundedClass} ${className}`}
+        className={`${role === "operator" && logoURL ? "object-contain bg-white" : "object-cover"} ${roundedClass} ${className}`}
         style={{ width: size, height: size, minWidth: size }}
       />
     );

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import {
   Elements,
   PaymentElement,
@@ -8,34 +8,37 @@ import {
   useElements,
 } from "@stripe/react-stripe-js";
 import { stripePromise } from "@/lib/stripe";
-import { Shield, Lock, X } from "lucide-react";
+import { Shield, Lock } from "lucide-react";
 import Image from "next/image";
-import { useDialogFocus } from "@/hooks/useDialogFocus";
+import Modal from "@/components/ui/Modal";
 
 interface CheckoutFormProps {
   onSuccess: (paymentIntentId: string) => void | Promise<void>;
   onCancel: () => void;
   amount: number;
+  processing: boolean;
+  onProcessingChange: (value: boolean) => void;
 }
 
-function CheckoutFormInner({ onSuccess, onCancel, amount }: CheckoutFormProps) {
+function CheckoutFormInner({ onSuccess, onCancel, amount, processing, onProcessingChange }: CheckoutFormProps) {
   const stripe = useStripe();
   const elements = useElements();
-  const [processing, setProcessing] = useState(false);
+  const submitting = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!stripe || !elements) return;
+    if (!stripe || !elements || submitting.current) return;
+    submitting.current = true;
 
-    setProcessing(true);
+    onProcessingChange(true);
     setError(null);
 
     try {
       const { error: submitError } = await elements.submit();
       if (submitError) {
         setError(submitError.message || "Payment failed");
-        setProcessing(false);
+        onProcessingChange(false);
         return;
       }
 
@@ -54,12 +57,15 @@ function CheckoutFormInner({ onSuccess, onCancel, amount }: CheckoutFormProps) {
         await onSuccess(paymentIntent.id);
       } else if (paymentIntent && paymentIntent.status === "succeeded") {
         await onSuccess(paymentIntent.id);
+      } else {
+        setError(paymentIntent?.status === "processing" ? "Your bank is still processing this authorization. Return to the order to check its payment status before trying again." : "The authorization is not complete. Check your payment details and try again.");
       }
     } catch (err) {
-      setError("An unexpected error occurred");
+      setError("We couldn’t confirm the payment status. Return to your order and check before trying again.");
       console.error(err);
     } finally {
-      setProcessing(false);
+      submitting.current = false;
+      onProcessingChange(false);
     }
   };
 
@@ -72,7 +78,7 @@ function CheckoutFormInner({ onSuccess, onCancel, amount }: CheckoutFormProps) {
       />
 
       {error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+        <div role="alert" className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
           {error}
         </div>
       )}
@@ -80,9 +86,7 @@ function CheckoutFormInner({ onSuccess, onCancel, amount }: CheckoutFormProps) {
       <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 rounded-lg p-3">
         <Shield className="w-4 h-4 text-green-600 shrink-0" />
         <span>
-          Your payment of <strong>${amount.toFixed(2)} CAD</strong> will be held
-          securely by snowd.ca until the job is completed and verified with a
-          photo.
+          A hold of <strong>${amount.toFixed(2)} CAD</strong> will be placed on your card. You are charged when the work is completed with photo proof.
         </span>
       </div>
 
@@ -90,13 +94,14 @@ function CheckoutFormInner({ onSuccess, onCancel, amount }: CheckoutFormProps) {
         <button
           type="button"
           onClick={onCancel}
+          disabled={processing}
           className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-gray-600 font-medium hover:bg-gray-50 transition"
         >
           Cancel
         </button>
         <button
           type="submit"
-          disabled={!stripe || processing}
+          disabled={!stripe || !elements || processing}
           className="flex-1 px-4 py-3 bg-[var(--accent)] text-white rounded-xl font-semibold hover:bg-[var(--accent-dark)] transition disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {processing ? (
@@ -113,7 +118,7 @@ function CheckoutFormInner({ onSuccess, onCancel, amount }: CheckoutFormProps) {
           ) : (
             <>
               <Lock className="w-4 h-4" />
-              Pay ${amount.toFixed(2)} CAD
+              Authorize ${amount.toFixed(2)} CAD
             </>
           )}
         </button>
@@ -135,39 +140,10 @@ export default function StripeCheckout({
   onSuccess,
   onCancel,
 }: StripeCheckoutProps) {
-  const dialogRef = useRef<HTMLDivElement>(null);
-  useDialogFocus(true, dialogRef);
-  useEffect(() => {
-    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") onCancel(); };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [onCancel]);
-
+  const [processing, setProcessing] = useState(false);
+  const cancel = () => { if (!processing) onCancel(); };
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Secure payment" tabIndex={-1} className="max-h-[calc(100dvh-2rem)] overflow-y-auto bg-white border-[3px] border-[var(--ink)] rounded-2xl shadow-[var(--surface-shadow)] max-w-md w-full">
-        {/* Header */}
-        <div className="bg-[var(--accent)] p-5 text-white relative">
-          <button
-            onClick={onCancel}
-            aria-label="Close payment"
-            className="absolute top-3 right-3 p-1 rounded-lg hover:bg-white/20 transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-              <Image src="/logo.png" alt="snowd.ca" width={28} height={28} />
-            </div>
-            <div>
-              <h2 className="font-bold text-lg">snowd.ca Secure Payment</h2>
-              <p className="text-white/90 text-sm">Funds held until job completion</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Payment Form */}
-        <div className="p-5">
+    <Modal isOpen onClose={cancel} showClose={!processing} title="Authorize your payment" subtitle="A temporary card hold. Charged after completion with photo proof.">
           <Elements
             stripe={stripePromise}
             options={{
@@ -187,12 +163,12 @@ export default function StripeCheckout({
           >
             <CheckoutFormInner
               onSuccess={onSuccess}
-              onCancel={onCancel}
+              onCancel={cancel}
+              processing={processing}
+              onProcessingChange={setProcessing}
               amount={amount}
             />
           </Elements>
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

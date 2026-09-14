@@ -1,5 +1,7 @@
 "use client";
 
+import { useAuth } from "@/context/AuthContext";
+
 import React, { useState, useEffect, createContext, useContext } from "react";
 
 interface WeatherData {
@@ -82,6 +84,8 @@ function mapWeatherCode(code: number): { condition: string; icon: string } {
 }
 
 export function WeatherProvider({ children }: { children: React.ReactNode }) {
+  const { profile } = useAuth();
+  const latitude = profile?.lat, longitude = profile?.lng;
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showLocationPopup, setShowLocationPopup] = useState(false);
@@ -107,6 +111,10 @@ export function WeatherProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
+    if (typeof latitude === "number" && typeof longitude === "number" && Number.isFinite(latitude) && Number.isFinite(longitude)) {
+      fetchWeather(latitude, longitude).then(data => { setWeather(data); setLoading(false); });
+      return;
+    }
     if (!navigator.geolocation) {
       setLoading(false);
       return;
@@ -145,7 +153,7 @@ export function WeatherProvider({ children }: { children: React.ReactNode }) {
     }
     });
     return () => cancelAnimationFrame(frame);
-  }, []);
+  }, [latitude, longitude]);
 
 
   const handleAllowLocation = () => {

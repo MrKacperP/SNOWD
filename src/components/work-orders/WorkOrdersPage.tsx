@@ -20,7 +20,7 @@ export default function WorkOrdersPage({
   schedule?: boolean;
 }) {
   const { jobs, names, uid, isOperator, loading, error } = useWorkOrders();
-  const [tab, setTab] = useState(history ? "history" : "attention"),
+  const [tab, setTab] = useState(history ? "history" : "all"),
     [date, setDate] = useState("");
   const [notice, setNotice] = useState("");
   const [search, setSearch] = useState("");
@@ -28,12 +28,17 @@ export default function WorkOrdersPage({
     const d = new Date(dateMillis(value));
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   };
-  const sorted = [...jobs].sort((a, b) =>
-    tab === "history"
+  const sorted = [...jobs].sort((a, b) => {
+    if (tab === "all" && !schedule) {
+      const rank: Record<string, number> = { attention: 0, progress: 1, waiting: 2, upcoming: 3, history: 4 };
+      const difference = rank[orderSection(a, uid)] - rank[orderSection(b, uid)];
+      if (difference) return difference;
+      if (orderSection(a, uid) === "history") return dateMillis(b.createdAt) - dateMillis(a.createdAt);
+    }
+    return tab === "history"
       ? dateMillis(b.createdAt) - dateMillis(a.createdAt)
-      : (dateMillis(a.scheduledDate) || dateMillis(a.createdAt)) -
-        (dateMillis(b.scheduledDate) || dateMillis(b.createdAt)),
-  );
+      : (dateMillis(a.scheduledDate) || dateMillis(a.createdAt)) - (dateMillis(b.scheduledDate) || dateMillis(b.createdAt));
+  });
   const matching = sorted.filter((job) =>
     [orderNumber(job), job.address, names[isOperator ? job.clientId : job.operatorId], job.serviceTypes?.join(" ")]
       .filter(Boolean).join(" ").toLowerCase().includes(search.trim().toLowerCase()),
@@ -165,20 +170,21 @@ export default function WorkOrdersPage({
             Find a work order
             <input type="search" className={styles.searchInput} value={search}
               placeholder="Search order number, name, address or service"
-              onChange={(event) => setSearch(event.target.value)} />
+              onChange={(event) => { setSearch(event.target.value); if (event.target.value) setTab("all"); }} />
           </label>
+          {search && <button type="button" className={styles.button} onClick={() => setSearch("")}>Clear search</button>}
           <JobFilters
             value={tab}
             onChange={setTab}
             counts={Object.fromEntries(
               JOB_FILTERS.map(([key]) => [
                 key,
-                jobs.filter((job) => orderSection(job, uid) === key).length,
+                matching.filter((job) => key === "all" || orderSection(job, uid) === key).length,
               ]),
             )}
           />
           <p className={styles.scheduleHint}>
-            {tab === "attention" ? "Requests, time changes and payments that need your action."
+            {tab === "all" ? "All your requests and visits. Choose a filter to focus on what you need." : tab === "attention" ? "Requests, time changes and payments that need your action."
               : tab === "waiting" ? "The other participant needs to respond before these visits are confirmed."
               : tab === "upcoming" ? "Confirmed visits. Open an order to review its schedule and payment."
               : tab === "progress" ? "Visits where the provider is on the way or working."
@@ -186,9 +192,11 @@ export default function WorkOrdersPage({
           </p>
           <div className="space-y-4">
             {cards(
-              matching.filter((j) => orderSection(j, uid) === tab),
+              matching.filter((j) => tab === "all" || orderSection(j, uid) === tab),
               search.trim()
                 ? "No matching orders in this view. Try another search or filter."
+                : tab === "all"
+                  ? "No jobs yet. Your booking requests and visits will appear here."
                 : tab === "waiting"
                   ? "No requests waiting for a response from the other participant."
                 : tab === "attention"

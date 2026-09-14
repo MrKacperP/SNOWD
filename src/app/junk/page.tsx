@@ -31,29 +31,14 @@ export default function JunkLandingPage() {
               <PhoneCall className="w-6 h-6" /> {PHONE_NUMBER}
             </a>
 
-            <div className="w-full grid lg:grid-cols-2 gap-8">
-              <div className="relative w-full aspect-[4/5] rounded-[28px] border-[3px] border-[var(--ink)] overflow-hidden shadow-[var(--surface-shadow)]">
-                <Image
-                  src="/cover.png"
-                  alt="Junk removal flyer"
-                  fill
-                  sizes="(max-width: 1024px) 100vw, 560px"
-                  className="object-cover"
-                />
-              </div>
-              <div className="relative w-full aspect-[4/5] rounded-[28px] border-[3px] border-[var(--ink)] overflow-hidden shadow-[var(--surface-shadow)]">
-                <Image
-                  src="/main.png"
-                  alt="Sprinter and trailer capacity"
-                  fill
-                  sizes="(max-width: 1024px) 100vw, 560px"
-                  className="object-cover"
-                />
-                <div className="absolute inset-x-6 bottom-6 rounded-2xl bg-[var(--ink)] border-[3px] border-[var(--ink)] px-5 py-3 text-center text-xl sm:text-2xl font-extrabold text-[var(--accent-sun)]">
-                  350 CU FT • SPRINTER + TRAILER
-                </div>
-              </div>
+            <div className="grid w-full gap-5 sm:grid-cols-3">
+              {[
+                ["Tell us what’s going", "Call or text with the items you want removed and your pickup location."],
+                ["Get your quote", "Confirm the price and pickup details with our team before booking."],
+                ["Make room", "Choose a pickup time with the team and get ready for a clearer space."],
+              ].map(([title, description], index) => <div key={title} className="rounded-3xl border border-[var(--border-color)] bg-white p-6"><p className="text-sm font-bold text-[var(--text-muted)]">Step {index + 1}</p><h2 className="mt-3 text-xl font-bold">{title}</h2><p className="mt-2 text-[var(--text-secondary)]">{description}</p></div>)}
             </div>
+            <a href={`sms:${PHONE_NUMBER.replace(/[^0-9+]/g, "")}`} className="inline-flex min-h-12 items-center rounded-xl border border-[var(--ink)] px-6 py-3 font-semibold">Text us for a quote</a>
           </div>
         </div>
       </section>

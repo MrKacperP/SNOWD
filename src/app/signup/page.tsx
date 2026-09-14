@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
+import { googleSignInError } from "@/lib/authErrors";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import AuthPageShell from "@/components/AuthPageShell";
@@ -50,9 +51,7 @@ export default function SignUpPage() {
       const googleUser = await signInWithGoogle();
       await checkExistingProfile(googleUser.uid);
     } catch (err: unknown) {
-      const msg =
-        err instanceof Error ? err.message : "Failed to sign up with Google";
-      if (!msg.includes("popup-closed")) setError(msg);
+      setError(googleSignInError(err));
     } finally {
       setLoading(false);
     }

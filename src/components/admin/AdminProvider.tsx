@@ -278,7 +278,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         const status: JobItem["status"] =
           data.adminFlagged === true ? "Flagged" : statusRaw === "cancelled" ? "Cancelled" : statusRaw === "completed"
             ? "Completed"
-            : statusRaw === "in-progress" || statusRaw === "en-route" || statusRaw === "accepted"
+            : statusRaw === "accepted" ? "Scheduled" : statusRaw === "en-route" ? "On the way" : statusRaw === "in-progress"
               ? "In Progress"
               : data.adminFlagged === true
                 ? "Flagged"
@@ -464,12 +464,6 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
           };
         });
         setActivityEvents(mapped);
-      },
-      (error) => {
-        const code = (error as { code?: string }).code || "";
-        if (code !== "permission-denied") {
-          console.warn("[AdminProvider] adminActivity listener unavailable", error);
-        }
         finish("AdminActivity");
       }, failure("AdminActivity")
     );

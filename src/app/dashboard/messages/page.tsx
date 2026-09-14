@@ -28,7 +28,7 @@ export default function MessagesPage() {
       const job = jobMap.get(chat.jobId);
       const haystack =
         `${names[other] || ""} ${job ? orderNumber(job) : ""} ${job?.address || ""} ${chat.lastMessage || ""}`.toLowerCase();
-      if (search && !haystack.includes(search.toLowerCase())) continue;
+      if (search.trim() && !haystack.includes(search.trim().toLowerCase())) continue;
       grouped.set(other, [...(grouped.get(other) || []), chat]);
     }
     return [...grouped].map(([other, conversations]) => ({
@@ -61,7 +61,11 @@ export default function MessagesPage() {
         </p>
       )}
       {loading && <p role="status">Loading conversations…</p>}
-      {!loading && !groups.length && <p>No conversations found.</p>}
+      {!loading && !error && !groups.length && <div className="rounded-2xl border p-5">
+        <h2 className="font-semibold">{search.trim() ? "No matching conversations" : "Your conversations will appear here"}</h2>
+        <p className="mt-2 text-sm text-[var(--text-secondary)]">{search.trim() ? "Try a name, address or order number." : "Each booking has its own chat, so messages and updates stay with the right visit."}</p>
+        {search.trim() ? <button className="mt-3 min-h-11 underline" onClick={() => setSearch("")}>Clear search</button> : <Link className="mt-3 inline-flex min-h-11 items-center underline" href={profile?.role === "operator" ? "/dashboard/jobs" : "/dashboard/find"}>{profile?.role === "operator" ? "View your jobs" : "Find a shoveler"}</Link>}
+      </div>}
       {groups.map(({ other, conversations, jobMap }) => {
         const history = conversations.filter(
           (chat) =>
@@ -112,6 +116,7 @@ export default function MessagesPage() {
               <p className="mt-2 truncate text-sm text-[var(--text-muted)]">
                 {chat.lastMessage || "No messages yet"}
               </p>
+              {dateMillis(chat.lastMessageTime) > 0 && <p className="mt-2 text-xs text-[var(--text-muted)]"><time dateTime={new Date(dateMillis(chat.lastMessageTime)).toISOString()}>{new Date(dateMillis(chat.lastMessageTime)).toLocaleString("en-CA", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</time></p>}
               <span className="mt-2 inline-flex min-h-9 items-center text-sm font-medium text-[var(--text-secondary)]">Open messages →</span>
             </Link>
           );

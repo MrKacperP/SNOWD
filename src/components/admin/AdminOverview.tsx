@@ -19,7 +19,7 @@ export default function AdminOverview({ data }: { data: OverviewData }) {
 
   const statCards = [
     { label: "Accounts", value: String(users.length), icon: Users, tone: "sage", href: "/admin/users" },
-    { label: "Active jobs", value: String(jobs.filter((j) => j.status === "Open" || j.status === "In Progress").length), icon: BriefcaseBusiness, tone: "blue", href: "/admin/jobs" },
+    { label: "Active jobs", value: String(jobs.filter((j) => ["Open", "Scheduled", "On the way", "In Progress"].includes(j.status)).length), icon: BriefcaseBusiness, tone: "blue", href: "/admin/jobs" },
     { label: "Awaiting review", value: String(pendingVerificationCount), icon: ShieldCheck, tone: "amber", href: "/admin/verifications" },
     { label: "Collected this month (CAD)", value: `$${revenueThisMonth.toFixed(2)}`, icon: CreditCard, tone: "sage", href: "/admin/transactions" },
   ];

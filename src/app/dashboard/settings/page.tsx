@@ -1,5 +1,9 @@
 "use client";
 
+import { isOperatorPublic } from "@/lib/operatorDiscovery";
+import Link from "next/link";
+import DeleteConfirmPopup from "@/components/DeleteConfirmPopup";
+import Notification from "@/components/Notification";
 import PageHeader from "@/components/ui/PageHeader";
 
 import StripeOnboarding from "@/components/StripeOnboarding";
@@ -44,7 +48,7 @@ Upload,
 User
 } from "lucide-react";
 import { useRouter,useSearchParams } from "next/navigation";
-import React,{ useEffect,useState } from "react";
+import React,{ useEffect,useState,useRef } from "react";
 import styles from "./settings.module.css";
 
 export default function SettingsPage() {
@@ -52,6 +56,8 @@ export default function SettingsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  const [feedback, setFeedback] = useState("");
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -121,6 +127,34 @@ export default function SettingsPage() {
   const [uploadingPortfolio, setUploadingPortfolio] = useState(false);
   const [logoUrl, setLogoUrl] = useState((profile as OperatorProfile & { logoUrl?: string })?.logoUrl || "");
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState(profile?.avatar || "");
+  const brandingOwner = useRef<string | null>(null);
+  useEffect(() => {
+    if (!profile || brandingOwner.current === profile.uid) return;
+    brandingOwner.current = profile.uid;
+    const op = profile as OperatorProfile;
+    setLogoUrl(op.logoUrl || "");
+    setAvatarUrl(op.avatar || "");
+    setBrandingTagline(op.tagline || "");
+    setBrandingDescription(op.brandDescription || "");
+    setPortfolioPhotos(op.portfolioPhotos || []);
+  }, [profile]);
+  const brandingDirty = isOperator && (avatarUrl !== (profile?.avatar || "") || logoUrl !== (operatorProfile?.logoUrl || "") || brandingTagline !== (operatorProfile?.tagline || "") || brandingDescription !== (operatorProfile?.brandDescription || "") || JSON.stringify(portfolioPhotos) !== JSON.stringify(operatorProfile?.portfolioPhotos || []));
+  const brandingBusy = uploadingLogo || uploadingPortfolio;
+  useEffect(() => {
+    if (!brandingDirty && !brandingBusy) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    const leave = (event: MouseEvent) => {
+      const target = (event.target as Element).closest("a[href], button");
+      const leaving = target?.matches("a[href]") || /sign out/i.test(target?.textContent || "");
+      if (leaving && !window.confirm("Your business profile has unsaved changes. Leave without saving?")) {
+        event.preventDefault(); event.stopPropagation();
+      }
+    };
+    window.addEventListener("beforeunload", warn);
+    document.addEventListener("click", leave, true);
+    return () => { window.removeEventListener("beforeunload", warn); document.removeEventListener("click", leave, true); };
+  }, [brandingDirty, brandingBusy]);
 
   const verificationStatus = (profile as UserProfile & { verificationStatus?: string })?.verificationStatus;
   const verificationNote = (profile as UserProfile & { verificationNote?: string })?.verificationNote;
@@ -180,19 +214,20 @@ export default function SettingsPage() {
   };
 
   // Logo upload
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>, kind: "logo" | "avatar" = "logo") => {
     const file = e.target.files?.[0];
     if (!file || !profile?.uid) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) { setFeedback("Choose a JPG, PNG or WebP image under 5 MB."); return; }
     setUploadingLogo(true);
     try {
-      const storageRef = ref(storage, `branding/${profile.uid}/logo`);
+      const storageRef = ref(storage, `branding/${profile.uid}/${kind}/${crypto.randomUUID()}`);
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
-      await updateDoc(doc(db, "users", profile.uid), { logoUrl: url });
-      setLogoUrl(url);
-      await refreshProfile();
+      if (kind === "avatar") setAvatarUrl(url); else setLogoUrl(url);
+      setSaved(false);
     } catch (err) {
       console.error("Logo upload error:", err);
+      setFeedback("Logo upload failed. Please try again.");
     } finally {
       setUploadingLogo(false);
     }
@@ -202,22 +237,24 @@ export default function SettingsPage() {
   const handlePortfolioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0 || !profile?.uid) return;
+    if (portfolioPhotos.length + files.length > 12) { setFeedback("You can add up to 12 portfolio photos."); return; }
+    if (Array.from(files).some(file => !["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024)) { setFeedback("Choose JPG, PNG or WebP images under 5 MB each."); return; }
     setUploadingPortfolio(true);
     try {
       const newUrls: string[] = [];
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const storageRef = ref(storage, `branding/${profile.uid}/portfolio/${Date.now()}-${file.name}`);
+        const storageRef = ref(storage, `branding/${profile.uid}/portfolio/${crypto.randomUUID()}`);
         await uploadBytes(storageRef, file);
         const url = await getDownloadURL(storageRef);
         newUrls.push(url);
       }
       const updated = [...portfolioPhotos, ...newUrls];
-      await updateDoc(doc(db, "users", profile.uid), { portfolioPhotos: updated });
       setPortfolioPhotos(updated);
-      await refreshProfile();
+      setSaved(false);
     } catch (err) {
       console.error("Portfolio upload error:", err);
+      setFeedback("Portfolio upload failed. Please try again.");
     } finally {
       setUploadingPortfolio(false);
     }
@@ -227,14 +264,13 @@ export default function SettingsPage() {
   const removePortfolioPhoto = async (index: number) => {
     if (!profile?.uid) return;
     const updated = portfolioPhotos.filter((_, i) => i !== index);
-    await updateDoc(doc(db, "users", profile.uid), { portfolioPhotos: updated });
     setPortfolioPhotos(updated);
-    await refreshProfile();
+    setSaved(false);
   };
 
   // Save branding info
   const saveBranding = async () => {
-    if (!profile?.uid) return;
+    if (!profile?.uid || brandingBusy || saving) return;
     setSaved(false);
     setSaving(true);
     const startedAt = Date.now();
@@ -242,6 +278,9 @@ export default function SettingsPage() {
       await updateDoc(doc(db, "users", profile.uid), {
         tagline: brandingTagline,
         brandDescription: brandingDescription,
+        logoUrl,
+        avatar: avatarUrl,
+        portfolioPhotos,
       });
       await refreshProfile();
       const remaining = 2000 - (Date.now() - startedAt);
@@ -252,6 +291,7 @@ export default function SettingsPage() {
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
       console.error("Branding save error:", err);
+      setFeedback("Could not save your business profile. Your changes are still here; please try again.");
     } finally {
       setSaving(false);
     }
@@ -350,15 +390,17 @@ export default function SettingsPage() {
     } catch (error) {
       console.error("Stripe connect error:", error);
       const message = error instanceof Error ? error.message : "Failed to start Stripe setup. Please try again.";
-      alert(message);
+      setFeedback(message);
     } finally {
       setStripeConnecting(false);
     }
   };
 
-  // Sync state if profile changes
+  // Initialize once per account; live profile updates must not overwrite edits.
+  const generalOwner = useRef<string | null>(null);
   useEffect(() => {
-    if (profile) {
+    if (profile && generalOwner.current !== profile.uid) {
+      generalOwner.current = profile.uid;
       setDisplayName(profile.displayName || "");
       setPhone(profile.phone || "");
       setCity(profile.city || "");
@@ -378,7 +420,7 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     setSaveError("");
-    if (!profile?.uid) return;
+    if (!profile?.uid || brandingBusy || saving) return;
     setSaved(false);
     setSaving(true);
     const startedAt = Date.now();
@@ -395,6 +437,11 @@ export default function SettingsPage() {
         updates.bio = bio;
         updates.businessName = businessName;
         updates.serviceRadius = serviceRadius;
+        updates.logoUrl = logoUrl;
+        updates.avatar = avatarUrl;
+        updates.tagline = brandingTagline;
+        updates.brandDescription = brandingDescription;
+        updates.portfolioPhotos = portfolioPhotos;
       } else {
         updates.age = age || null;
         updates.simplifiedMode = !!(age && age >= 55);
@@ -430,11 +477,6 @@ export default function SettingsPage() {
 
   const handleSignOut = async () => {
     try {
-      if (profile?.uid) {
-        updateDoc(doc(db, "users", profile.uid), { isOnline: false }).catch((error) => {
-          console.warn("Could not update online status before sign out:", error);
-        });
-      }
       await signOut();
     } catch (error) {
       console.error("Sign out error:", error);
@@ -444,14 +486,6 @@ export default function SettingsPage() {
   };
 
   const handleDeleteAccount = async () => {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete your account? This is permanent and cannot be undone. All your data will be lost."
-    );
-    if (!confirmed) return;
-    const doubleConfirmed = window.confirm(
-      "Final confirmation: your account and all data will be permanently deleted. Are you absolutely sure?"
-    );
-    if (!doubleConfirmed) return;
     setDeletingAccount(true);
     try {
       await deleteAccount();
@@ -459,9 +493,9 @@ export default function SettingsPage() {
     } catch (error) {
       console.error("Delete account error:", error);
       if ((error as { code?: string }).code === "auth/requires-recent-login") {
-        alert("For security, please sign out and sign back in before deleting your account.");
+        setFeedback("For security, please sign out and sign back in before deleting your account.");
       } else {
-        alert("Failed to delete account. Please try again.");
+        setFeedback("Failed to delete account. Please try again.");
       }
     } finally {
       setDeletingAccount(false);
@@ -482,7 +516,7 @@ export default function SettingsPage() {
     appearance: "Your familiar snowd look, on every screen",
     payment: "Review cards, payouts, and Stripe setup",
     verification: "Upload and manage your verification documents",
-    notifications: "Control updates, alerts, and communication",
+    notifications: "Where to find your updates and receipts",
     branding: "Configure business identity and portfolio",
   };
 
@@ -795,7 +829,7 @@ export default function SettingsPage() {
               </div>
             </div>
             <button
-              onClick={handleDeleteAccount}
+              onClick={() => setDeleteOpen(true)}
               disabled={deletingAccount}
               className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm border border-red-200 text-red-600 hover:bg-red-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -822,6 +856,7 @@ export default function SettingsPage() {
             <div className={styles.swatches} aria-label="Navy, orange, ice blue and white brand colors"><i /><i /><i /><i /></div>
           </div>
           <p className="mt-5 flex items-center gap-2 text-sm font-bold"><CheckCircle size={18} /> Snowd theme is active</p>
+          <button type="button" className="mt-5 min-h-11 rounded-xl border px-4 py-3 font-semibold" onClick={() => window.dispatchEvent(new Event("snowd:start-tour"))}>Take a quick app tour</button>
         </div>
       )}
 
@@ -853,7 +888,7 @@ export default function SettingsPage() {
               <div className="text-center py-8 text-[var(--text-muted)]">
                 <CreditCard className="w-8 h-8 mx-auto mb-2 opacity-50" />
                 <p className="text-sm">No payment methods saved</p>
-                <p className="text-xs mt-1">Your card will be saved when you make your first payment</p>
+                <p className="text-xs mt-1">Enter your card securely when you authorize a booking</p>
               </div>
             )}
 
@@ -958,34 +993,23 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* Notification Settings */}
+      {feedback && <Notification message={feedback} type="error" onClose={() => setFeedback("")} />}
+      <DeleteConfirmPopup isOpen={deleteOpen} onCancel={() => { if (!deletingAccount) setDeleteOpen(false); }} onConfirm={handleDeleteAccount} loading={deletingAccount} title="Delete your account?" message="This permanently removes your sign-in and profile. Job, payment and conversation records may remain. You cannot undo this." confirmLabel="Delete account" />
+            {/* Notification Settings */}
       {activeTab === "notifications" && (
         <div className="space-y-6">
           <div className={styles.card}>
             <h3 className="text-lg font-semibold text-[var(--ink)] mb-4 flex items-center gap-2">
               <Bell className="w-5 h-5 text-[var(--accent)]" />
-              Notification Preferences
+              Your notifications
             </h3>
-            <div className="space-y-4">
-              {[
-                { label: "Job Updates", desc: "When someone accepts or updates a job" },
-                { label: "Messages", desc: "New chat messages from operators/clients" },
-                { label: "Payment Alerts", desc: "Payment confirmations and receipts" },
-                { label: "Promotions", desc: "New features and seasonal offers" },
-              ].map((notification, i) => (
-                <div key={i} className="flex items-center justify-between gap-4 py-3 border-b border-[var(--border-soft)] last:border-0">
-                  <div>
-                    <p className="text-sm font-medium text-[var(--ink)]">{notification.label}</p>
-                    <p className="text-xs text-[var(--text-muted)] mt-0.5">{notification.desc}</p>
-                  </div>
-                  <label className="relative inline-block w-11 h-6 shrink-0 cursor-pointer">
-                    <input type="checkbox" aria-label={notification.label} defaultChecked className="sr-only peer" />
-                    <div className="w-11 h-6 bg-[var(--border)] peer-checked:bg-[var(--accent)] rounded-full transition-colors" />
-                    <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow peer-checked:translate-x-5 transition-transform" />
-                  </label>
-                </div>
-              ))}
+            <p className="text-sm text-[var(--text-secondary)]">Job, message and payment updates appear inside Snowd. Open the bell in the navigation to review updates and mark them as read.</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <Link className="min-h-11 rounded-xl border p-3 font-semibold underline" href="/dashboard/jobs">Job updates</Link>
+              <Link className="min-h-11 rounded-xl border p-3 font-semibold underline" href="/dashboard/messages">Messages</Link>
+              <Link className="min-h-11 rounded-xl border p-3 font-semibold underline" href="/dashboard/transactions">Payments & receipts</Link>
             </div>
+            <p className="mt-4 text-sm text-[var(--text-muted)]">Email, text-message and promotional notification preferences are not available yet.</p>
           </div>
         </div>
       )}
@@ -996,12 +1020,12 @@ export default function SettingsPage() {
           {/* Account Public Status — operators only */}
           {isOperator && (
             <div className={`rounded-2xl border p-5 ${
-              (profile as UserProfile & { accountApproved?: boolean })?.accountApproved
+              isOperatorPublic(profile as OperatorProfile)
                 ? "bg-green-50 border-green-200"
                 : "bg-amber-50 border-amber-200"
             }`}>
               <div className="flex items-center gap-3">
-                {(profile as UserProfile & { accountApproved?: boolean })?.accountApproved ? (
+                {isOperatorPublic(profile as OperatorProfile) ? (
                   <>
                     <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center shrink-0">
                       <ShieldCheck className="w-5 h-5 text-green-600" />
@@ -1021,7 +1045,9 @@ export default function SettingsPage() {
                     <div>
                       <h3 className="font-bold text-amber-900">Account Not Public Yet</h3>
                       <p className="text-sm text-amber-700">
-                        {verificationStatus === "rejected"
+                        {(profile as OperatorProfile)?.idVerified && (profile as OperatorProfile)?.isAvailable === false
+                          ? "Your ID is verified. Turn on availability from Home to appear in nearby searches."
+                          : verificationStatus === "rejected"
                           ? "Your previous submission was rejected. Review the feedback below and upload a new ID photo."
                           : !(profile as UserProfile & { idPhotoUrl?: string })?.idPhotoUrl
                           ? "Upload your government ID below to start the verification process."
@@ -1066,7 +1092,9 @@ export default function SettingsPage() {
               )}
             </div>
 
-            {verificationStatus === "rejected" && verificationNote && (
+            {(profile as OperatorProfile)?.idVerified && (profile as OperatorProfile)?.isAvailable === false
+                          ? "Your ID is verified. Turn on availability from Home to appear in nearby searches."
+                          : verificationStatus === "rejected" && verificationNote && (
               <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4">
                 <p className="text-xs font-semibold text-red-900 uppercase tracking-wide mb-1">Admin feedback</p>
                 <p className="text-sm text-red-700">{verificationNote}</p>
@@ -1175,10 +1203,18 @@ export default function SettingsPage() {
       )}
 
       {/* Branding Tab — Operators only */}
-      {activeTab === "branding" && isOperator && (
-        <div className="space-y-6">
+      {(activeTab === "general" || activeTab === "branding") && isOperator && (
+        <fieldset disabled={saving || brandingBusy} className="space-y-6">
           {/* Business Identity */}
           <div className={styles.card}>
+            <div className="mb-6">
+              <h3 className="mb-2 text-lg font-semibold">Profile photo</h3>
+              {avatarUrl && <img src={avatarUrl} alt="Your profile photo" className="mb-3 h-20 w-20 rounded-full object-cover" />}
+              <label className="block text-sm font-medium">Upload profile photo
+                <input type="file" accept="image/jpeg,image/png,image/webp" onChange={event => handleLogoUpload(event, "avatar")} className="mt-2 block w-full text-sm" />
+              </label>
+              <p className="mt-2 text-xs">JPG, PNG or WebP, up to 5 MB. Save to publish.</p>
+            </div>
             <h3 className="text-lg font-semibold text-[var(--ink)] mb-4 flex items-center gap-2">
               <Briefcase className="w-5 h-5 text-[var(--accent)]" />
               Business Identity
@@ -1195,7 +1231,7 @@ export default function SettingsPage() {
               </div>
               <div>
                 <p className="text-sm font-medium text-[var(--ink)]">Business Logo</p>
-                <p className="text-xs text-[var(--text-muted)] mb-2">Displayed on your profile and invoices</p>
+                <p className="text-xs text-[var(--text-muted)] mb-2">Shown on your public profile after you save. JPG, PNG or WebP, up to 5 MB.</p>
                 <label className="inline-flex items-center gap-2 px-3 py-1.5 bg-[var(--accent)]/10 text-[var(--accent)] rounded-lg text-xs font-semibold cursor-pointer hover:bg-[var(--accent)]/20 transition">
                   {uploadingLogo ? (
                     <><Loader2 className="w-3 h-3 animate-spin" /> Uploading...</>
@@ -1210,8 +1246,9 @@ export default function SettingsPage() {
             {/* Tagline */}
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-[var(--ink)] mb-1">Business Tagline</label>
+                <label htmlFor="business-tagline" className="block text-sm font-medium text-[var(--ink)] mb-1">Business Tagline / Slogan</label>
                 <input
+                  id="business-tagline"
                   type="text"
                   value={brandingTagline}
                   onChange={(e) => setBrandingTagline(e.target.value)}
@@ -1223,8 +1260,9 @@ export default function SettingsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-[var(--ink)] mb-1">About Your Business</label>
+                <label htmlFor="business-description" className="block text-sm font-medium text-[var(--ink)] mb-1">About Your Business</label>
                 <textarea
+                  id="business-description"
                   value={brandingDescription}
                   onChange={(e) => setBrandingDescription(e.target.value)}
                   placeholder="Tell clients about your experience, services, and what makes you stand out..."
@@ -1237,7 +1275,7 @@ export default function SettingsPage() {
 
               <button
                 onClick={saveBranding}
-                disabled={saving}
+                disabled={saving || brandingBusy}
                 className={`flex items-center gap-2 px-5 py-2.5 text-white rounded-xl text-sm font-semibold transition disabled:opacity-50 ${
                   saved ? "bg-green-600 hover:bg-green-700" : "bg-[var(--accent)] hover:bg-[var(--accent-dark)]"
                 }`}
@@ -1309,10 +1347,15 @@ export default function SettingsPage() {
                 disabled={uploadingPortfolio}
               />
             </label>
-            <p className="text-xs text-[var(--text-muted)] mt-2">You can upload multiple photos at once. Max 12 photos recommended.</p>
+            <p className="text-xs text-[var(--text-muted)] mt-2">Up to 12 photos, 5 MB each. Save your changes to publish them on your public profile.</p>
           </div>
-        </div>
+        </fieldset>
       )}
+            {isOperator && (brandingDirty || brandingBusy) && <div role="status" className="sticky bottom-24 z-20 rounded-xl border border-amber-300 bg-amber-50 p-4 shadow-lg">
+              <p className="font-semibold">{brandingBusy ? "Uploading images…" : "Your business profile has unsaved changes"}</p>
+              <p className="text-sm">Save to make your photo, logo, tagline and portfolio visible on your public profile.</p>
+              <button type="button" onClick={saveBranding} disabled={saving || brandingBusy} className="mt-3 min-h-11 rounded-lg bg-[var(--accent)] px-4 text-white disabled:opacity-50">{saving ? "Saving…" : "Save business profile"}</button>
+            </div>}
             </div>
           </section>
       </div>

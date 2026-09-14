@@ -12,7 +12,8 @@ assert(process.env.FIREBASE_AUTH_EMULATOR_HOST === "127.0.0.1:9099");
 initializeApp({ projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID });
 const db = getFirestore(),
   auth = getAuth(),
-  base = "http://127.0.0.1:3004";
+  base = process.env.SNOWD_QA_URL || "http://127.0.0.1:3004";
+assert(["127.0.0.1", "localhost"].includes(new URL(base).hostname), "Local QA application required");
 const tokens = {};
 const address = {
   address: "100 Test Street",
@@ -227,7 +228,7 @@ ok(
     completionPhotoUrl: "data:image/png;base64,iVBORw0KGgo=",
   }),
 );
-ok(await action(underway.jobId, "complete"));
+assert.equal((await data(underway.jobId)).status, "completed");
 assert.equal((await data(underway.jobId)).paymentStatus, "pending");
 ok(await api("confirm-cash", { jobId: underway.jobId }, "wo-operator"));
 assert.equal((await data(underway.jobId)).paymentStatus, "paid");

@@ -48,7 +48,7 @@ export default function OrderCard({
         <dl className={styles.facts}>
           <div>
             <dt>{job.status === "pending" ? "Requested visit" : "Visit"}</dt>
-            <dd><span className="visit-timing" data-asap={isAsap(job)}>{isAsap(job) ? "ASAP · As soon as possible" : `Scheduled · ${scheduleText(job)}`}</span>{isAsap(job) && <p className={styles.secondary}>Arrival time to be confirmed</p>}</dd>
+            <dd><span className="visit-timing" data-asap={isAsap(job)}>{isAsap(job) ? "ASAP · As soon as possible" : `Scheduled · ${scheduleText(job)}`}</span>{isAsap(job) && !["completed", "cancelled"].includes(job.status) && <p className={styles.secondary}>Arrival time to be confirmed</p>}</dd>
           </div>
           <div>
             <dt>Location & service</dt>

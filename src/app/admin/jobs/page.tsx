@@ -62,6 +62,8 @@ export default function AdminJobsPage() {
           <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-white text-sm">
             <option>All</option>
             <option>Open</option>
+            <option>Scheduled</option>
+            <option>On the way</option>
             <option>In Progress</option>
             <option>Completed</option>
             <option>Flagged</option><option>Cancelled</option>
@@ -93,7 +95,7 @@ export default function AdminJobsPage() {
                   <td className={tableCell}>
                     <StatusTag
                       label={job.status}
-                      tone={job.status === "Open" ? "blue" : job.status === "In Progress" ? "yellow" : job.status === "Completed" ? "green" : "red"}
+                      tone={["Open", "Scheduled"].includes(job.status) ? "blue" : ["In Progress", "On the way"].includes(job.status) ? "yellow" : job.status === "Completed" ? "green" : "red"}
                     />
                   </td>
                   <td className={tableCell}>{job.datePosted}</td>

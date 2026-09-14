@@ -130,6 +130,9 @@ export interface OperatorProfile extends UserProfile {
   activeJobs: string[];
   completedJobs: number;
   portfolioPhotos?: string[]; // photo URLs of past work
+  logoUrl?: string;
+  tagline?: string;
+  brandDescription?: string;
 }
 
 export interface ScheduleProposal {
