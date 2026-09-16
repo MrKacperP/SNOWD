@@ -2,11 +2,13 @@
 import { jobDisplayPrice } from "@/lib/marketplacePricing";
 import CompanyIdentity from "@/components/CompanyIdentity";
 import Link from "next/link";
-import { Job, OperatorProfile } from "@/lib/types";
+import { ClientProfile, Job, OperatorProfile } from "@/lib/types";
 import { isAsap, orderLabel, orderNumber, scheduleText } from "@/lib/workOrders";
 import { useAuth } from "@/context/AuthContext";
 import styles from "./work-orders.module.css";
+import OrderGuide from "./OrderGuide";
 import OrderActions from "./OrderActions";
+const drivewayCapacity: Record<string, string> = { small: "Fits about 1–2 cars", medium: "Fits about 3–4 cars", large: "Fits about 5+ cars" };
 export default function OrderCard({
   job,
   name,
@@ -17,13 +19,16 @@ export default function OrderCard({
 }: {
   job: Job;
   name: string;
-  person?: OperatorProfile;
+  person?: OperatorProfile | ClientProfile;
   detail?: boolean;
   conflict?: boolean;
   onUpdated?: (message: string) => void;
 }) {
   const { user } = useAuth();
   const operator = user?.uid === job.operatorId;
+  const propertyPhotos = operator && person?.role === "client"
+    ? (person as ClientProfile).propertyDetails?.photos || []
+    : [];
   return (
     <article className={styles.card}>
       <div className={styles.body}>
@@ -39,6 +44,17 @@ export default function OrderCard({
             {orderLabel(job)}
           </span>
         </div>
+        <div className={styles.priorityFacts} aria-label="Visit time and payment">
+          <div>
+            <span>Visit time</span>
+            <strong>{job.status === "en-route" && job.eta ? `Arriving in about ${job.eta} ${job.eta === 1 ? "minute" : "minutes"}` : isAsap(job) ? "ASAP · As soon as possible" : scheduleText(job)}</strong>
+          </div>
+          <div>
+            <span>Payment</span>
+            <strong>${jobDisplayPrice(job, operator).toFixed(2)} CAD · {job.paymentMethod === "cash" ? "Cash" : "Card"}</strong>
+            <small>{job.paymentStatus === "held" ? "Authorized" : job.paymentStatus === "paid" ? "Paid" : job.paymentStatus === "refunded" ? "Refunded / released" : "Pending"}</small>
+          </div>
+        </div>
         {detail && job.status !== "cancelled" && (
           <ol className={styles.progress} aria-label="Work order progress">
             {["Requested", "Confirmed", "On the way", "Working", "Completed"].map((label, index) => {
@@ -49,41 +65,41 @@ export default function OrderCard({
             })}
           </ol>
         )}
+        <OrderGuide job={job} uid={user?.uid || ""} />
+        <OrderActions job={job} onUpdated={onUpdated} />
+        {job.chatId && (
+          <Link className={styles.messageButton} href={`/dashboard/messages/${job.chatId}`}>
+            Message {operator ? "customer" : "provider"}
+          </Link>
+        )}
+        <section className={styles.orderDetails} aria-labelledby={`visit-details-${job.id}`}>
+        <h3 id={`visit-details-${job.id}`} className={styles.detailSummary}>Visit details</h3>
         <dl className={styles.facts}>
           <div>
-            <dt>{job.status === "pending" ? "Requested visit" : "Visit"}</dt>
-            <dd><span className="visit-timing" data-asap={isAsap(job)}>{isAsap(job) ? "ASAP · As soon as possible" : `Scheduled · ${scheduleText(job)}`}</span>{isAsap(job) && !["completed", "cancelled"].includes(job.status) && <p className={styles.secondary}>Arrival time to be confirmed</p>}</dd>
+            <dt>Location</dt>
+            <dd>
+              {job.address ? <a className="font-semibold underline" href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(job.address)}&travelmode=driving&dir_action=navigate`} target="_blank" rel="noreferrer">{job.address} ↗</a> : <strong>Address to be confirmed</strong>}
+            </dd>
           </div>
           <div>
-            <dt>Location & service</dt>
+            <dt>Driveway size</dt>
+            <dd className="capitalize"><strong>{job.propertySize || "medium"} driveway</strong><small className="mt-1 block normal-case text-[var(--text-muted)]">{drivewayCapacity[job.propertySize || "medium"]}</small></dd>
+          </div>
+          <div>
+            <dt>Expected clearing</dt>
             <dd>
-              <strong>{job.address || "Address to be confirmed"}</strong>
-              {job.address && <a className="ml-3 inline-flex min-h-11 items-center underline" href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(job.address)}&travelmode=driving&dir_action=navigate`} target="_blank" rel="noreferrer">Google Maps directions ↗</a>}
-              <p className="capitalize">{job.propertySize || "medium"} driveway</p>
-              <p className={`${styles.secondary} capitalize`}>
+              <strong className="capitalize">
                 {job.serviceTypes
                   ?.map((s) => s.replaceAll("-", " "))
                   .join(" · ") || "Snow removal"}
-              </p>
+              </strong>
+              <p className={styles.secondary}>{job.specialInstructions || "Clear the selected areas of snow."}</p>
+              {propertyPhotos.length > 0 && <p className={styles.photoLinks}>{propertyPhotos.map((url, index) => <a key={url} href={url} target="_blank" rel="noreferrer">View property photo {index + 1} ↗</a>)}</p>}
             </dd>
           </div>
-          <div>
-            <dt>Payment</dt>
-            <dd>
-              <strong>${jobDisplayPrice(job, operator).toFixed(2)} CAD</strong>
-              <p className={styles.secondary}>
-                {job.paymentMethod === "cash" ? "Cash" : "Card"} ·{" "}
-                {job.paymentStatus === "held"
-                  ? "Authorized"
-                  : job.paymentStatus === "paid"
-                    ? "Paid"
-                    : job.paymentStatus === "refunded"
-                      ? "Refunded / released"
-                      : "Pending"}
-              </p>
-            </dd>
-          </div>
+          {job.status === "en-route" && job.eta && <div><dt>Live arrival</dt><dd><strong>About {job.eta} {job.eta === 1 ? "minute" : "minutes"} away</strong>{Number.isFinite(job.operatorApproxLat) && Number.isFinite(job.operatorApproxLng) && <a className="mt-1 block font-semibold underline" href={`https://www.google.com/maps?q=${job.operatorApproxLat},${job.operatorApproxLng}`} target="_blank" rel="noreferrer">View approximate area ({job.operatorLocationRadiusKm || 1} km radius) ↗</a>}<p className={styles.secondary}>The operator’s exact location stays private.</p></dd></div>}
         </dl>
+        </section>
         {conflict && (
           <p
             role="status"
@@ -93,7 +109,6 @@ export default function OrderCard({
             different time before accepting.
           </p>
         )}
-        <OrderActions job={job} onUpdated={onUpdated} />
       </div>
       <div className={styles.footer}>
         {!detail && (
@@ -101,7 +116,7 @@ export default function OrderCard({
             View work order
           </Link>
         )}
-        {job.chatId && (
+        {!detail && job.chatId && (
           <Link
             className={styles.button}
             href={`/dashboard/messages/${job.chatId}`}

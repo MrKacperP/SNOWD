@@ -2,7 +2,8 @@
 
 import React, { Suspense, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Camera, CheckCircle2, Loader2 } from "lucide-react";
+import { Camera, Loader2 } from "lucide-react";
+import { ResultState } from "@/components/ui/AppPrimitives";
 
 function dataUrlToImage(dataUrl: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -79,20 +80,15 @@ function MobileUploadPageInner() {
   };
 
   return (
-    <main className="min-h-dvh bg-[#EEF3FA] px-4 py-8 flex items-center justify-center">
-      <section className="w-full max-w-sm bg-white border-[3px] border-[var(--border)] rounded-2xl p-5 shadow-[var(--surface-shadow)]">
-        <h1 className="text-lg font-bold text-[var(--ink)]">Send Photo</h1>
-        <p className="text-sm text-[var(--text-muted)] mt-1">Take a photo and submit it back to your SNOWD chat.</p>
+    <main className="min-h-dvh bg-[var(--bg-primary)] px-4 py-8 flex items-center justify-center">
+      <section className="w-full max-w-sm bg-white border border-[var(--border)] rounded-2xl p-5 shadow-[var(--surface-shadow)]">
+        {submitted ? <ResultState title="Photo sent." description="You can close this page." /> : <><p className="app-eyebrow">From your phone</p><h1 className="text-2xl font-bold text-[var(--ink)]">Send a photo</h1>
+        <p className="text-sm text-[var(--text-muted)] mt-1">Take a photo and send it to your conversation.</p>
 
         {!canUpload && (
           <p className="mt-4 text-sm text-red-600">This link is missing a session.</p>
         )}
 
-        {submitted ? (
-          <div className="mt-5 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-green-800 text-sm flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4" /> Photo submitted successfully. You can close this page.
-          </div>
-        ) : (
           <>
             <input
               ref={fileInputRef}
@@ -117,8 +113,7 @@ function MobileUploadPageInner() {
             {error && (
               <p className="mt-3 text-sm text-red-600">{error}</p>
             )}
-          </>
-        )}
+          </></>}
       </section>
     </main>
   );

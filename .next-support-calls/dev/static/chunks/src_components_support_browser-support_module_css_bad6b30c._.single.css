@@ -1,0 +1,168 @@
+/* [project]/src/components/support/browser-support.module.css [app-client] (css) */
+.browser-support-module__T6_vAq__panel {
+  z-index: 10000;
+  color: #172335;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 18px;
+  width: min(390px, 100vw - 24px);
+  max-height: calc(100dvh - 40px);
+  padding: 18px;
+  font-size: 14px;
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  overflow: auto;
+  box-shadow: 0 12px 48px #10233530;
+}
+
+.browser-support-module__T6_vAq__wide {
+  width: min(850px, 100vw - 24px);
+}
+
+.browser-support-module__T6_vAq__panel header {
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  display: flex;
+}
+
+.browser-support-module__T6_vAq__panel p {
+  margin: 10px 0;
+}
+
+.browser-support-module__T6_vAq__panel button {
+  cursor: pointer;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  padding: 9px 12px;
+  font-weight: 600;
+}
+
+.browser-support-module__T6_vAq__panel button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.browser-support-module__T6_vAq__panel button:focus-visible, .browser-support-module__T6_vAq__consent input:focus-visible {
+  outline-offset: 2px;
+  outline: 3px solid #2563eb;
+}
+
+.browser-support-module__T6_vAq__actions {
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  display: flex;
+}
+
+.browser-support-module__T6_vAq__panel .browser-support-module__T6_vAq__end {
+  color: #fff;
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
+
+.browser-support-module__T6_vAq__video {
+  object-fit: contain;
+  background: #101827;
+  border-radius: 10px;
+  width: 100%;
+  max-height: 55dvh;
+  margin-top: 10px;
+  display: block;
+}
+
+.browser-support-module__T6_vAq__panel audio {
+  width: 100%;
+  height: 32px;
+}
+
+.browser-support-module__T6_vAq__consent {
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 14px;
+  display: flex;
+}
+
+.browser-support-module__T6_vAq__consent input {
+  margin-top: 4px;
+}
+
+.browser-support-module__T6_vAq__error {
+  color: #b91c1c;
+}
+
+.browser-support-module__T6_vAq__incoming {
+  border-top: 1px solid #e2e8f0;
+  margin-top: 12px;
+  padding-top: 4px;
+}
+
+.browser-support-module__T6_vAq__pointer {
+  pointer-events: none;
+  z-index: 2147483647;
+  color: #7c3aed;
+  align-items: center;
+  gap: 4px;
+  display: flex;
+  position: fixed;
+}
+
+.browser-support-module__T6_vAq__pointer span {
+  text-shadow: 1px 1px #fff, -1px -1px #fff;
+  font-size: 34px;
+  line-height: 1;
+}
+
+.browser-support-module__T6_vAq__pointer b {
+  color: #fff;
+  white-space: nowrap;
+  background: #6d28d9;
+  border: 1px solid #fff;
+  border-radius: 6px;
+  padding: 3px 6px;
+  font: 12px system-ui;
+}
+
+.browser-support-module__T6_vAq__clicked:before {
+  content: "";
+  background: #8b5cf633;
+  border: 3px solid #7c3aed;
+  border-radius: 50%;
+  width: 42px;
+  height: 42px;
+  position: absolute;
+  top: -14px;
+  left: -14px;
+}
+
+@media (max-width: 600px) {
+  .browser-support-module__T6_vAq__panel {
+    padding: 14px;
+    bottom: 12px;
+    right: 12px;
+  }
+}
+
+.browser-support-module__T6_vAq__preview .browser-support-module__T6_vAq__video {
+  width: auto;
+  max-width: 100%;
+  max-height: 160px;
+}
+
+.browser-support-module__T6_vAq__controls {
+  background: #fff;
+  padding: 10px 0;
+  position: sticky;
+  bottom: -18px;
+}
+
+@media (max-width: 600px) {
+  .browser-support-module__T6_vAq__panel {
+    bottom: calc(88px + env(safe-area-inset-bottom));
+    max-height: calc(100dvh - 112px - env(safe-area-inset-bottom));
+  }
+}
+
+/*# sourceMappingURL=src_components_support_browser-support_module_css_bad6b30c._.single.css.map*/

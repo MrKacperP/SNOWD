@@ -6,6 +6,7 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import { sendAdminNotif } from "@/lib/adminNotifications";
+import { stripeConnectFetch } from "@/lib/stripeConnectClient";
 import OnboardingFlow, {
   type OnboardingDraft,
 } from "@/components/OnboardingFlow";
@@ -77,7 +78,8 @@ export default function OnboardingPage() {
       postalCode,
       address,
       isOnline: true,
-      themePreference: "system" as const,
+      themePreference: "light" as const,
+      emailNotifications: { account: true, workOrders: true },
       age: age || null,
       lat: lat ?? null,
       lng: lng ?? null,
@@ -131,6 +133,7 @@ export default function OnboardingPage() {
     }
 
     await refreshProfile();
+    await stripeConnectFetch("/api/email/welcome", { method: "POST" }).catch((error) => console.error("Welcome email request failed", error));
     void sendAdminNotif({
       type: "profile_saved",
       message: `New ${role} profile created: ${displayName} (${city}, ${province})`,

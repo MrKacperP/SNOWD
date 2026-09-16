@@ -1,8 +1,21 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
-import { ThemeProvider } from "@/context/ThemeContext";
+import BrowserSupport from "@/components/support/BrowserSupport";
 import PageVisitTracker from "@/components/PageVisitTracker";
+import { Instrument_Sans, Space_Grotesk } from "next/font/google";
+
+const instrumentSans = Instrument_Sans({
+  subsets: ["latin"],
+  variable: "--font-instrument-sans",
+  display: "swap",
+});
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-space-grotesk",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://snowd.ca"),
@@ -37,21 +50,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={`${instrumentSans.variable} ${spaceGrotesk.variable}`}>
       <head>
         <link rel="icon" href="/icon.png" sizes="any" />
         <link rel="icon" type="image/png" href="/icon.png" />
         <link rel="apple-touch-icon" href="/icon.png" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
       </head>
       <body className="antialiased">
         <AuthProvider>
-          <ThemeProvider>
+          <BrowserSupport>
             <PageVisitTracker />
             {children}
-          </ThemeProvider>
+          </BrowserSupport>
         </AuthProvider>
       </body>
     </html>

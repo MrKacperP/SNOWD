@@ -65,7 +65,7 @@ const defaults: OnboardingDraft = {
   age: "",
 };
 const field =
-  "w-full min-h-12 rounded-xl border-2 border-[#061321] bg-white px-3 text-base font-bold outline-none focus-visible:ring-4 focus-visible:ring-[#ff820e]/40";
+  "w-full min-h-12 rounded-xl border border-[var(--border-color)] bg-white px-3 text-base font-semibold outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/30";
 const services: [ServiceType, string][] = [
   ["driveway", "Driveway"],
   ["walkway", "Walkway"],
@@ -99,12 +99,12 @@ function Choice({
       type="button"
       aria-pressed={selected}
       onClick={onClick}
-      className={`flex min-h-14 items-center justify-between gap-3 rounded-2xl border-[3px] border-[#061321] px-4 py-3 text-left transition motion-safe:hover:-translate-y-0.5 focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[#ff820e] ${selected ? "bg-[#dfeef8] shadow-[0_3px_0_#061321]" : "bg-white hover:bg-[#f3f8fb]"}`}
+      className={`flex min-h-14 items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${selected ? "border-[var(--ink)] bg-[var(--accent-soft)]" : "border-[var(--border-color)] bg-white hover:bg-[var(--bg-primary)]"}`}
     >
       {children}
       <span
         aria-hidden="true"
-        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-[#061321] ${selected ? "bg-[#ff820e]" : "bg-white"}`}
+        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--ink)] ${selected ? "bg-[var(--accent-sun)]" : "bg-white"}`}
       >
         {selected && <Check size={15} strokeWidth={3} />}
       </span>
@@ -297,7 +297,7 @@ export default function OnboardingFlow({
       </main>
     );
   return (
-    <main className="min-h-dvh bg-[#f3f8fb] px-4 py-5 text-[#061321] sm:px-6 sm:py-8">
+    <main className="onboarding-flow min-h-dvh bg-[var(--bg-primary)] px-4 py-5 text-[var(--ink)] sm:px-6 sm:py-8">
       <header className="mx-auto flex max-w-5xl items-center justify-between gap-4">
         <Link
           href="/"
@@ -319,8 +319,8 @@ export default function OnboardingFlow({
           {saved ? "Progress saved" : "A few steps. A fresh start."}
         </span>
       </header>
-      <div className="mx-auto mt-6 max-w-5xl overflow-hidden rounded-[1.5rem] border-[3px] border-[#061321] bg-white shadow-[6px_6px_0_#061321] lg:grid lg:grid-cols-[0.72fr_1fr]">
-        <aside className="relative flex items-center gap-3 border-b-[3px] border-[#061321] bg-[#dfeef8] p-4 lg:flex-col lg:justify-center lg:border-b-0 lg:border-r-[3px] lg:p-8">
+      <div className="onboarding-card mx-auto mt-6 max-w-5xl overflow-hidden rounded-2xl border border-[var(--border-color)] bg-white shadow-[var(--surface-shadow-strong)] lg:grid lg:grid-cols-[0.64fr_1fr]">
+        <aside className="onboarding-aside relative flex items-center gap-3 border-b border-[var(--border-color)] bg-[var(--accent-soft)] p-4 lg:flex-col lg:justify-center lg:border-b-0 lg:border-r lg:p-8">
           <motion.div
             key={step}
             initial={reduceMotion ? false : { scale: 0.97, y: 5 }}
@@ -338,7 +338,7 @@ export default function OnboardingFlow({
             />
           </motion.div>
           <div
-            className="rounded-2xl border-2 border-[#061321] bg-white px-4 py-3 text-sm font-extrabold leading-relaxed lg:text-center lg:text-lg"
+            className="rounded-xl border border-[var(--border-color)] bg-white px-4 py-3 text-sm font-semibold leading-relaxed lg:text-center lg:text-base"
             aria-live="polite"
           >
             {message}
@@ -361,10 +361,10 @@ export default function OnboardingFlow({
               aria-valuemin={0}
               aria-valuemax={3}
               aria-valuenow={step}
-              className="h-3 overflow-hidden rounded-full border-2 border-[#061321] bg-[#f3f8fb]"
+              className="h-2 overflow-hidden rounded-full bg-[var(--bg-secondary)]"
             >
               <div
-                className="h-full bg-[#ff820e] motion-safe:transition-all motion-safe:duration-300"
+                className="h-full bg-[var(--accent-sun)] motion-safe:transition-all motion-safe:duration-300"
                 style={{ width: `${(step / 3) * 100}%` }}
               />
             </div>
@@ -508,7 +508,7 @@ export default function OnboardingFlow({
                 </div>
                 {role === "operator" && (
                   <>
-                    <div className="rounded-2xl border-2 border-[#061321] bg-[#f3f8fb] p-4">
+                    <div className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
                       <h2 className="flex items-center gap-2 text-sm font-black">
                         <Sparkles size={18} className="text-[#ff820e]" />
                         Starter prices · CAD / visit
@@ -602,12 +602,12 @@ export default function OnboardingFlow({
                     </p>
                   </>
                 )}
-                <details className="rounded-2xl border-2 border-[#061321]/20 p-3">
-                  <summary className="cursor-pointer py-2 text-sm font-bold">
+                <section className="rounded-2xl border-2 border-[#061321]/20 p-3">
+                  <h3 className="py-2 text-sm font-bold">
                     {role === "operator"
                       ? "Your equipment & optional details"
                       : "Add a note or contact details (optional)"}
-                  </summary>
+                  </h3>
                   <div className="mt-3 space-y-3">
                     {role === "operator" && (
                       <>
@@ -620,7 +620,7 @@ export default function OnboardingFlow({
                               type="button"
                               key={item}
                               aria-pressed={draft.equipment.includes(item)}
-                              className={`min-h-11 rounded-xl border-2 border-[#061321] px-3 text-xs font-bold ${draft.equipment.includes(item) ? "bg-[#dfeef8]" : "bg-white"}`}
+                              className={`min-h-11 rounded-xl border border-[var(--border-color)] px-3 text-xs font-bold ${draft.equipment.includes(item) ? "bg-[var(--accent-soft)]" : "bg-white"}`}
                               onClick={() =>
                                 update({
                                   equipment: draft.equipment.includes(item)
@@ -700,7 +700,7 @@ export default function OnboardingFlow({
                       </span>
                     </label>
                   </div>
-                </details>
+                </section>
                 {!validAge && (
                   <p className="text-sm font-bold text-red-700">
                     Enter an age between 13 and 120, or leave it blank.
@@ -734,7 +734,7 @@ export default function OnboardingFlow({
                 aria-label="Previous step"
                 disabled={saving}
                 onClick={() => move(step - 1)}
-                className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl border-[3px] border-[#061321] bg-white disabled:opacity-50"
+                className="flex h-13 w-13 shrink-0 items-center justify-center rounded-xl border border-[var(--border-color)] bg-white disabled:opacity-50"
               >
                 <ArrowLeft size={20} />
               </button>
@@ -743,7 +743,7 @@ export default function OnboardingFlow({
               type="button"
               disabled={!canContinue || saving}
               onClick={() => (step < 3 ? move(step + 1) : void submit())}
-              className="flex min-h-13 flex-1 items-center justify-center gap-2 rounded-2xl border-[3px] border-[#061321] bg-[#ff820e] px-4 py-3 text-base font-black shadow-[0_4px_0_#061321] transition enabled:hover:bg-[#ff9c40] focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[#061321] disabled:opacity-45"
+              className="btn-primary flex min-h-13 flex-1 items-center justify-center gap-2 px-4 py-3 text-base disabled:opacity-45"
             >
               {saving
                 ? "Getting things ready…"

@@ -86,7 +86,7 @@ export default function AdminOverview({ data }: { data: OverviewData }) {
               <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#6B7280" }} />
               <YAxis tick={{ fontSize: 11, fill: "#6B7280" }} />
               <Tooltip />
-              <Area type="monotone" dataKey="value" stroke="#36704e" fill="#d9eade" fillOpacity={0.45} />
+              <Area type="monotone" dataKey="value" stroke="#47758c" fill="#e8f1f5" fillOpacity={0.72} />
             </AreaChart>
           </ResponsiveContainer>
         </AdminCard>

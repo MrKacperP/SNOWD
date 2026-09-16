@@ -340,7 +340,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
               </header>
 
               <main id="admin-content" tabIndex={-1} className="p-4 sm:p-6 lg:p-8 min-w-0">
-                <div className="admin-content mx-auto w-full">{loading && <p role="status" className="mb-4">Loading platform records…</p>}{dataErrors.map(error => <p role="alert" key={error} className="mb-3 p-3 border border-red-200 rounded-xl text-red-700">{error}</p>)}{actionError && <p role="alert" className="text-red-700 mb-3">{actionError}</p>}<Suspense fallback={<p>Loading workspace…</p>}>{children}</Suspense></div>
+                <div className="admin-content mx-auto w-full">{dataErrors.map(error => <p role="alert" key={error} className="mb-3 p-3 border border-red-200 rounded-xl text-red-700">{error}</p>)}{actionError && <p role="alert" className="text-red-700 mb-3">{actionError}</p>}{loading ? <LoadingScreen embedded label="Preparing your admin workspace…" /> : <Suspense fallback={<LoadingScreen embedded label="Opening workspace…" />}>{children}</Suspense>}</div>
               </main>
             </div>
 

@@ -26,7 +26,7 @@ export type ServiceType =
 
 export type PropertySize = "small" | "medium" | "large" | "commercial";
 
-export type ThemePreference = "light" | "dark" | "system";
+export type ThemePreference = "light" | "dark";
 
 export type ClaimStatus = "open" | "under-review" | "resolved" | "dismissed";
 export type ClaimType = "property-damage" | "incomplete-job" | "misconduct" | "other";
@@ -51,6 +51,10 @@ export interface UserProfile {
   isOnline?: boolean;
   lastSeen?: Date;
   themePreference?: ThemePreference;
+  emailNotifications?: {
+    account?: boolean;
+    workOrders?: boolean;
+  };
   // Stripe
   stripeCustomerId?: string;
   stripePaymentMethods?: {
@@ -112,6 +116,7 @@ export interface OperatorProfile extends UserProfile {
   bio: string;
   equipment: string[];
   serviceRadius: number; // km
+  serviceAreas?: OperatorServiceArea[];
   serviceTypes: ServiceType[];
   pricing: {
     driveway: { small: number; medium: number; large: number };
@@ -133,6 +138,22 @@ export interface OperatorProfile extends UserProfile {
   logoUrl?: string;
   tagline?: string;
   brandDescription?: string;
+}
+
+export interface OperatorServiceArea {
+  placeId: string;
+  city: string;
+  province: string;
+  provinceCode: string;
+  country: "Canada";
+  lat: number;
+  lng: number;
+  bounds?: {
+    north: number;
+    south: number;
+    east: number;
+    west: number;
+  };
 }
 
 export interface ScheduleProposal {
@@ -191,6 +212,15 @@ export interface Job {
   paymentCaptureAttempts?: number;
   completionPhotoUrl?: string;
   eta?: number; // minutes
+  etaSource?: "route" | "estimate";
+  estimatedArrivalAt?: Date;
+  operatorLat?: number | null;
+  operatorLng?: number | null;
+  operatorApproxLat?: number | null;
+  operatorApproxLng?: number | null;
+  operatorLocationRadiusKm?: number | null;
+  operatorLocationAccuracy?: number | null;
+  operatorLocationUpdatedAt?: Date | null;
   startTime?: Date;
   completionTime?: Date;
   clientRating?: number;
@@ -206,6 +236,7 @@ export interface Job {
 export type MessageType = "text" | "system" | "payment" | "eta-update" | "status-update" | "image" | "voice" | "payment-request" | "completion-photo" | "progress-update";
 
 export interface ChatMessage {
+  pending?: boolean; // Local Firestore write awaiting server confirmation
   id: string;
   chatId: string;
   jobId?: string;

@@ -1,18 +1,13 @@
 "use client";
-import { jobDisplayPrice } from "@/lib/marketplacePricing";
 
-import { stripeConnectFetch } from "@/lib/stripeConnectClient";
+import { canAcceptPlatformPayments } from "@/lib/operatorDiscovery";
+import { isStripeAccountReady,stripeConnectFetch } from "@/lib/stripeConnectClient";
 
-import { useWorkOrders } from "@/hooks/useWorkOrders";
-import { completeWithPhoto } from "@/lib/completeWithPhoto";
-import { prepareCompletionPhoto } from "@/lib/completionPhoto";
-import OrderActions from "@/components/work-orders/OrderActions";
 import CancellationPopup from "@/components/CancellationPopup";
 import ProgressTracker from "@/components/ProgressTracker";
 import StatusBadge from "@/components/StatusBadge";
 import StripeCheckout from "@/components/StripeCheckout";
 import SupportChatButton from "@/components/SupportChatButton";
-import Notification from "@/components/Notification";
 import Modal from "@/components/ui/Modal";
 import UserAvatar from "@/components/UserAvatar";
 import { useAuth } from "@/context/AuthContext";
@@ -20,15 +15,14 @@ import { db } from "@/lib/firebase";
 import { sendAdminNotif } from "@/lib/adminNotifications";
 import {
 ChatMessage,
-OperatorProfile,
 ClaimType,
 Job,
+JobStatus,
 UserProfile,
 } from "@/lib/types";
 import { format } from "date-fns";
 import {
 addDoc,
-writeBatch,
 collection,
 doc,
 getDoc,
@@ -38,32 +32,39 @@ orderBy,
 query,
 Timestamp,
 updateDoc,
-where
+where,
+writeBatch
 } from "firebase/firestore";
 import {
 AlertTriangle,
 ArrowLeft,
+Briefcase,
 Camera,
 CheckCircle,
 Clock,
 CreditCard,
+ChevronRight,
 DollarSign,
 ExternalLink,
-Flag,
+MapPin,
 MessageSquare,
 Mic,
-Plus,
+MoreHorizontal,
+Navigation,
+Paperclip,
+Play,
 Send,
+Shield,
 Square,
 Star,
+User,
 X,
 } from "lucide-react";
-import LoadingScreen from "@/components/LoadingScreen";
+import Image from "next/image";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams,useRouter } from "next/navigation";
 import React,{ useCallback,useEffect,useRef,useState } from "react";
 import "./chat.css";
-import { isAsap, orderLabel, orderNumber, scheduleText } from "@/lib/workOrders";
 
 type QuickCommConfirmation = {
   title: string;
@@ -90,33 +91,23 @@ function getDistanceKm(
 
 export default function ChatPage() {
   const params = useParams();
-  const router = useRouter();
-  const [legacyHistory, setLegacyHistory] = useState(false);
-  const [legacyJobIds, setLegacyJobIds] = useState<string[]>([]);
   const chatId = params.chatId as string;
+  const router = useRouter();
   const { user, profile } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [feedback, setFeedback] = useState("");
-  const [messageError, setMessageError] = useState("");
-  const messageLock = useRef(false);
   const [newMessage, setNewMessage] = useState("");
   const [job, setJob] = useState<Job | null>(null);
-  const { jobs: allOrders, loading: ordersLoading, error: ordersError } = useWorkOrders();
-  const [photoError, setPhotoError] = useState("");
-  const [photoUploading, setPhotoUploading] = useState(false);
-  const [attachmentsOpen, setAttachmentsOpen] = useState(false);
-  const [repliesOpen, setRepliesOpen] = useState(false);
-  const [orderPanelOpen, setOrderPanelOpen] = useState(false);
+  const [linkedJobs, setLinkedJobs] = useState<Job[]>([]);
   const [otherUser, setOtherUser] = useState<UserProfile | null>(null);
-  const activeOrder = allOrders.find(order => order.id !== job?.id && !["completed", "cancelled"].includes(order.status) && (job ? order.clientId === job.clientId && order.operatorId === job.operatorId : order.clientId === otherUser?.uid || order.operatorId === otherUser?.uid));
   const [showMobileTasksSheet, setShowMobileTasksSheet] = useState(false);
+  const [showEarlierOrders, setShowEarlierOrders] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [confirmingCash, setConfirmingCash] = useState(false);
   const [cashError, setCashError] = useState("");
   const [cashActionBusy, setCashActionBusy] = useState(false);
   const [showCashPayment, setShowCashPayment] = useState(false);
-  const historyRef = useRef<HTMLDivElement>(null);
-  const followLatestRef = useRef(true);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     const textarea = composerRef.current;
@@ -128,9 +119,11 @@ export default function ChatPage() {
   // Stripe state
   const [showCheckout, setShowCheckout] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [processingPayment] = useState(false);
+  const [processingPayment, setProcessingPayment] = useState(false);
 
   // Photo upload state
+  const [completionPhoto, setCompletionPhoto] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatAttachInputRef = useRef<HTMLInputElement>(null);
   const chatCameraInputRef = useRef<HTMLInputElement>(null);
@@ -147,6 +140,8 @@ export default function ChatPage() {
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
 
   // Rehire state
+  const [rehiring, setRehiring] = useState(false);
+  const [rehireSent, setRehireSent] = useState(false);
 
   // Cancellation popup state
   const [showCancelPopup, setShowCancelPopup] = useState(false);
@@ -173,6 +168,8 @@ export default function ChatPage() {
     useState<QuickCommConfirmation | null>(null);
 
   const isOperator = profile?.role === "operator";
+  const clientName = isOperator ? otherUser?.displayName : profile?.displayName;
+  const operatorName = isOperator ? profile?.displayName : otherUser?.displayName;
   const mapAddress = [job?.address, job?.city, job?.province].filter(Boolean).join(", ");
   const mapQuery = encodeURIComponent(mapAddress || "Canada");
   const mapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
@@ -237,18 +234,6 @@ export default function ChatPage() {
     };
   }, []);
 
-  const receiveCameraPhoto = React.useEffectEvent(async (imageDataUrl: string) => {
-    try {
-      if (job && profile?.role === "operator" && job.status === "in-progress") await completeWithPhoto(job, imageDataUrl);
-      await sendMessage("Sent a photo", "image", { imageUrl: imageDataUrl });
-      return true;
-    } catch (error) {
-      setPhotoError(error instanceof Error ? error.message : "Could not complete the photo upload. Open the work order to retry.");
-      setShowCameraQrModal(false);
-      return false;
-    }
-  });
-
   useEffect(() => {
     if (!showCameraQrModal || !guestUploadSessionId) return;
 
@@ -267,9 +252,9 @@ export default function ChatPage() {
 
         const data = (await response.json()) as { imageDataUrl?: string; pending?: boolean };
         if (data.imageDataUrl) {
-          if (!await receiveCameraPhoto(data.imageDataUrl)) return;
+          await sendMessage("Sent a photo", "image", { imageUrl: data.imageDataUrl });
           setShowCameraQrModal(false);
-          setFeedback("Photo uploaded successfully.");
+          alert("Photo uploaded successfully.");
           return;
         }
       } catch {
@@ -311,9 +296,9 @@ export default function ChatPage() {
     return null;
   }, [profile, otherUser]);
 
-  // Fetch chat, job, and other user data
+  // Fetch chat, linked work orders, and other user data
   useEffect(() => {
-    let unsubscribeJob: (() => void) | undefined;
+    let unsubscribeJobs: (() => void) | undefined;
     let cancelled = false;
 
     const fetchChatData = async () => {
@@ -324,8 +309,7 @@ export default function ChatPage() {
 
         if (chatDoc.exists()) {
           const chatData = chatDoc.data();
-          setLegacyHistory(chatData.legacyHistory === true);
-          setLegacyJobIds(chatData.legacyJobIds || []);
+          if (chatData.rehireSent) setRehireSent(true);
           const otherUid = chatData.participants?.find(
             (p: string) => p !== user.uid
           );
@@ -338,13 +322,20 @@ export default function ChatPage() {
             }
           }
 
-          if (chatData.jobId && !chatData.legacyHistory) {
-            unsubscribeJob = onSnapshot(doc(db, "jobs", chatData.jobId), (jobDoc) => {
-              if (jobDoc.exists()) {
-                setJob({ id: jobDoc.id, ...jobDoc.data() } as Job);
-              }
-            });
-          }
+          const jobsQuery = query(collection(db, "jobs"), where("chatId", "==", chatId));
+          unsubscribeJobs = onSnapshot(jobsQuery, (snapshot) => {
+            const jobs = snapshot.docs
+              .map((jobDoc) => ({ id: jobDoc.id, ...jobDoc.data() } as Job))
+              .sort((a, b) => {
+                if (a.id === chatData.jobId) return -1;
+                if (b.id === chatData.jobId) return 1;
+                return String(b.createdAt || "").localeCompare(String(a.createdAt || ""));
+              });
+            setLinkedJobs(jobs);
+            setJob((currentJob) => jobs.find((linkedJob) => linkedJob.id === currentJob?.id) || jobs[0] || null);
+          }, (error) => {
+            console.error("Work orders listener error:", error);
+          });
         }
       } catch (error) {
         console.error("Error fetching chat data:", error);
@@ -356,9 +347,14 @@ export default function ChatPage() {
 
     return () => {
       cancelled = true;
-      unsubscribeJob?.();
+      unsubscribeJobs?.();
     };
   }, [chatId, user?.uid]);
+
+  const selectWorkOrder = (selectedJob: Job) => {
+    setJob(selectedJob);
+    setRightPanelView("updates");
+  };
 
   // Real-time messages listener
   useEffect(() => {
@@ -418,11 +414,10 @@ export default function ChatPage() {
     setRightPanelView("updates");
   }, [chatId]);
 
-  // Scroll only the history, and preserve the position when reading older messages.
+  // Auto scroll to bottom
   useEffect(() => {
-    const history = historyRef.current;
-    if (history && !orderPanelOpen && followLatestRef.current) history.scrollTop = history.scrollHeight;
-  }, [messages, loading, orderPanelOpen]);
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading]);
 
   // Mark messages as read — runs when new messages arrive while chat is open.
   // Uses a ref to avoid clearing the other user's freshly-incremented counter.
@@ -476,18 +471,14 @@ export default function ChatPage() {
       metadata?: ChatMessage["metadata"]
     ) => {
       if (!content.trim() && type === "text") return;
-      if (messageLock.current) return;
-      if (!user?.uid || !chatId || legacyHistory || !job) return;
+      if (!user?.uid || !chatId) return;
 
-      messageLock.current = true;
-      setMessageError("");
       const trackSendingState = type === "text";
       if (trackSendingState) setSendingMessage(true);
 
       try {
         const messageData: Record<string, unknown> = {
           chatId,
-          jobId: job.id,
           senderId: user.uid,
           senderName: profile?.displayName || "User",
           type,
@@ -495,9 +486,10 @@ export default function ChatPage() {
           read: false,
           createdAt: Timestamp.now(),
         };
+        if (job?.id) messageData.jobId = job.id;
         if (metadata !== undefined) messageData.metadata = metadata;
 
-        const messageRef = doc(collection(db, "messages"));
+        await addDoc(collection(db, "messages"), messageData);
 
         const chatDocRef = doc(db, "chats", chatId);
         const chatSnap = await getDoc(chatDocRef);
@@ -506,21 +498,6 @@ export default function ChatPage() {
           (p: string) => p !== user.uid
         );
 
-        const updateData: Record<string, unknown> = {
-          lastMessage:
-            type === "text" ? content : `[${type.replace("-", " ")}]`,
-          lastMessageTime: Timestamp.now(),
-        };
-
-        if (otherUid) {
-          updateData[`unreadCount.${otherUid}`] = increment(1);
-        }
-
-        const batch = writeBatch(db);
-        batch.set(messageRef, messageData);
-        batch.update(chatDocRef, updateData);
-        await batch.commit();
-        if (type === "text") setNewMessage(current => current === content ? "" : current);
         if (type === "text") {
           void sendAdminNotif({
             type: "system",
@@ -533,46 +510,311 @@ export default function ChatPage() {
             uid: user.uid,
             meta: { path: "/admin/chats", jobId: chatData?.jobId || "" },
           });
+          void user.getIdToken().then((token) => fetch("/api/notifications/message", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ chatId, message: content, senderName: profile?.displayName || "User" }),
+          })).catch(() => {});
         }
 
+        const isPersonMessage = ["text", "image", "voice"].includes(type);
+        const updateData: Record<string, unknown> = { lastActivityTime: Timestamp.now() };
 
+        if (isPersonMessage) {
+          updateData.lastMessage = type === "text" ? content : `[${type.replace("-", " ")}]`;
+          updateData.lastMessageTime = Timestamp.now();
+        }
+
+        if (otherUid && isPersonMessage) {
+          updateData[`unreadCount.${otherUid}`] = increment(1);
+        }
+
+        await updateDoc(chatDocRef, updateData);
+        if (type === "text") setNewMessage("");
       } catch (error) {
         console.error("Error sending message:", error);
-        setMessageError(type === "text" ? "Message not sent. Check your connection and try again. Your text is still here." : type === "voice" ? "Voice message not sent. Check your connection and record it again." : "Attachment not sent. Check your connection and choose the file again.");
-        if (type === "image") throw error;
       } finally {
-        messageLock.current = false;
         if (trackSendingState) setSendingMessage(false);
       }
     },
-    [user?.uid, chatId, profile?.displayName, job, legacyHistory]
+    [user?.uid, chatId, profile?.displayName, job?.id]
   );
+
+  // Operator actions
+  const updateJobStatus = async (newStatus: JobStatus) => {
+    if (!job) return;
+    try {
+      // ── Guard: photo proof required before completing ──────────────────────
+      if (newStatus === "completed" && !completionPhoto && !job.completionPhotoUrl) {
+        alert("You must submit photo proof before completing the job. Please upload a completion photo first.");
+        return;
+      }
+
+      // ── Guard: one active job at a time on accept ──────────────────────────
+      if (newStatus === "accepted") {
+        if (!profile?.idVerified) {
+          alert("ID verification is required before accepting a job.");
+          return;
+        }
+        if (job.paymentMethod !== "cash" && !(await isStripeAccountReady(profile.stripeConnectAccountId))) {
+          alert("Stripe setup is required for card-paid jobs. Cash jobs can be accepted without Stripe.");
+          return;
+        }
+        const { getDocs: gd, query: q2, collection: col2, where: w2 } = await import("firebase/firestore");
+        const activeSnap = await gd(q2(col2(db, "jobs"), w2("operatorId", "==", user?.uid), w2("status", "in", ["accepted", "en-route", "in-progress"])));
+        const otherActive = activeSnap.docs.filter(d => d.id !== job.id);
+        if (otherActive.length > 0) {
+          alert("You already have an active job in progress. Please complete it before accepting another.");
+          return;
+        }
+      }
+
+      // ── Guard: payment must be made before proceeding past accepted (credit/e-transfer) ──
+      if ((newStatus === "en-route" || newStatus === "in-progress" || newStatus === "completed") && job.paymentMethod !== "cash" && !["held", "paid"].includes(job.paymentStatus)) {
+        setShowPaymentGateModal(true);
+        return;
+      }
+
+      const updateData: Record<string, unknown> = {
+        status: newStatus,
+        updatedAt: Timestamp.now(),
+      };
+      if (newStatus === "in-progress") {
+        updateData.startTime = Timestamp.now();
+      }
+      if (newStatus === "completed") {
+        updateData.completionTime = Timestamp.now();
+        // Verify Stripe payment before completing (unless cash)
+        if (job.stripePaymentIntentId) {
+          const captureResult = await captureStripePaymentIfNeeded(job);
+          if (captureResult.error) {
+            alert(`Payment verification failed. ${captureResult.error}`);
+            return;
+          }
+          if (captureResult.captured || job.paymentStatus === "paid" || job.paymentCapturedAt) {
+            updateData.paymentStatus = "paid";
+          }
+        } else if (job.paymentMethod === "cash") {
+          await cashPaymentAction("complete");
+          return;
+        } else {
+          alert("A confirmed platform payment is required before completing this job.");
+          return;
+        }
+      }
+
+      await updateDoc(doc(db, "jobs", job.id), updateData);
+
+      const statusLabels: Record<string, string> = {
+        accepted: "accepted this job",
+        "en-route": "is on the way",
+        "in-progress": "has started snow removal",
+        completed: "has completed the job",
+        cancelled: "has cancelled the job",
+      };
+
+      // Send a single status-only message
+      await sendMessage(
+        `${profile?.displayName} ${statusLabels[newStatus] || `updated status to ${newStatus}`}`,
+        "status-update",
+        { newStatus }
+      );
+
+      if (newStatus === "accepted") {
+        // Auto-send payment request to client when operator accepts
+        if (job.paymentMethod !== "cash" && (job.paymentStatus === "pending" || job.paymentStatus === "refunded")) {
+          await sendMessage(
+            `${profile?.displayName} has accepted the job! Please pay $${job.price} CAD to confirm — funds are held securely by snowd.ca until job completion.`,
+            "payment-request",
+            { amount: job.price }
+          );
+        }
+      }
+
+      setShowMobileTasksSheet(false);
+    } catch (error) {
+      console.error("Error updating status:", error);
+    }
+  };
 
   const cancelJob = async () => {
     if (!job?.id) return;
-    if (["completed", "cancelled"].includes(job.status)) {
-      setFeedback("This job is already closed.");
+    if (job.status === "in-progress") {
+      alert("This job cannot be cancelled after work has started.");
       return;
     }
     setShowCancelPopup(true);
   };
 
   const confirmCancelJob = async () => {
-    if (!job?.id || ["completed", "cancelled"].includes(job.status)) return;
+    if (!job?.id || job.status === "in-progress") return;
     setCancelling(true);
+    const userRole = isOperator ? "operator" : "client";
     try {
-      const response = await stripeConnectFetch("/api/jobs/cancel", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jobId: job.id }) });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Could not cancel this job.");
-      if (result.warning) setFeedback(result.warning);
+      if (job.stripePaymentIntentId) {
+        const response = await stripeConnectFetch("/api/stripe/cancel-payment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paymentIntentId: job.stripePaymentIntentId }),
+        });
+        const result = await response.json();
+        if (!response.ok || result.status !== "canceled") {
+          throw new Error(result.error || "Could not release the payment hold. Please retry.");
+        }
+      }
+      await updateDoc(doc(db, "jobs", job.id), {
+        status: "cancelled",
+        cancelledAt: Timestamp.now(),
+        cancelledBy: user?.uid,
+        updatedAt: Timestamp.now(),
+      });
+      await sendMessage(
+        `${profile?.displayName} (${userRole}) has cancelled this job`,
+        "status-update",
+        { newStatus: "cancelled" }
+      );
       setShowMobileTasksSheet(false);
       setShowCancelPopup(false);
     } catch (error) {
       console.error("Error cancelling job:", error);
-      setFeedback(error instanceof Error ? error.message : "Failed to cancel job. Please try again.");
+      alert(error instanceof Error ? error.message : "Failed to cancel job. Please try again.");
     } finally {
       setCancelling(false);
     }
+  };
+
+  // Rehire operator from a completed/cancelled chat
+  const rehireOperator = async (cashAccepted = false) => {
+    if (!job || !user?.uid || !otherUser?.uid || rehiring || rehireSent) return;
+    if (job.paymentMethod === "cash" && job.status === "completed" && job.paymentStatus === "pending") {
+      setCashError("Settle this job's cash payment before booking again in this conversation.");
+      setShowMobileTasksSheet(true);
+      return;
+    }
+    setRehiring(true);
+    try {
+      const { collection: col, Timestamp: Ts } = await import("firebase/firestore");
+      const bookingOperator = isOperator ? profile : otherUser;
+      if (!bookingOperator?.idVerified) throw new Error("The operator must verify their ID before receiving jobs.");
+      const operatorRequiresCard = canAcceptPlatformPayments(bookingOperator) && (bookingOperator.stripeEnabledJobsOnly ?? true);
+
+      if (!operatorRequiresCard && !cashAccepted) {
+        setQuickCommConfirmation({ title: "Book a cash-only job?", confirmLabel: "Agree & request help", message: `Pay $${(job.price || 0).toFixed(2)} directly to the operator after the work. No card will be charged.`, onConfirm: () => rehireOperator(true) });
+        return;
+      }
+
+      // Keep the cancelled/completed work order immutable and start a new thread.
+      const newJobRef = doc(col(db, "jobs"));
+      const newChatRef = doc(col(db, "chats"));
+      const now = Ts.now();
+      const batch = writeBatch(db);
+      batch.set(newJobRef, {
+        clientId: isOperator ? otherUser.uid : user.uid,
+        operatorId: isOperator ? user.uid : otherUser.uid,
+        status: "pending",
+        serviceTypes: job.serviceTypes || [],
+        propertySize: job.propertySize || "medium",
+        address: job.address || "",
+        city: job.city || "",
+        province: job.province || "",
+        postalCode: job.postalCode || "",
+        specialInstructions: job.specialInstructions || "",
+        scheduledDate: Ts.now(),
+        scheduledTime: "ASAP",
+        estimatedDuration: job.estimatedDuration || 60,
+        price: job.price || 0,
+        paymentMethod: operatorRequiresCard ? "credit" : "cash",
+        requiresCardPayment: operatorRequiresCard,
+        cashPaymentAcknowledged: !operatorRequiresCard,
+        paymentStatus: "pending",
+        chatId: newChatRef.id,
+        createdAt: now,
+        updatedAt: now,
+      });
+      batch.set(newChatRef, {
+        jobId: newJobRef.id,
+        participants: [isOperator ? otherUser.uid : user.uid, isOperator ? user.uid : otherUser.uid],
+        lastMessage: "New job request created",
+        lastMessageTime: now,
+        createdAt: now,
+      });
+      batch.set(doc(col(db, "messages")), {
+        chatId: newChatRef.id,
+        senderId: user.uid,
+        senderName: profile?.displayName || "snowd.ca",
+        type: "system",
+        content: `${profile?.displayName} has requested a new work order with the same operator.${operatorRequiresCard ? "" : " Cash only: pay the operator directly after the work. No card will be charged."}`,
+        read: false,
+        createdAt: now,
+      });
+      await batch.commit();
+      setRehireSent(true);
+      router.push(`/dashboard/messages/${newChatRef.id}`);
+
+    } catch (error) {
+      console.error("Error rehiring:", error);
+      alert("Failed to create new job. Please try again.");
+    } finally {
+      setRehiring(false);
+    }
+  };
+
+  // Reopen a cancelled job within 5-minute window
+  const reopenJob = async () => {
+    if (!job?.id) return;
+    try {
+      await updateDoc(doc(db, "jobs", job.id), {
+        status: "pending",
+        cancelledAt: null,
+        cancelledBy: null,
+        updatedAt: Timestamp.now(),
+      });
+      await sendMessage(
+        `${profile?.displayName} has reopened the job`,
+        "status-update",
+        { newStatus: "pending" }
+      );
+    } catch (error) {
+      console.error("Error reopening job:", error);
+      alert("Failed to reopen job. Please try again.");
+    }
+  };
+
+  // Check if within 5-min reopen window
+  const [reopenTimeLeft, setReopenTimeLeft] = useState<number | null>(null);
+  useEffect(() => {
+    if (job?.status !== "cancelled" || !job?.cancelledAt) {
+      setReopenTimeLeft(null);
+      return;
+    }
+    const cancelledAt = job.cancelledAt;
+    const cancelledDate = cancelledAt instanceof Date
+      ? cancelledAt
+      : typeof cancelledAt === "object" && cancelledAt !== null && "toDate" in cancelledAt
+      ? (cancelledAt as unknown as Timestamp).toDate()
+      : new Date(cancelledAt as unknown as string);
+
+    const calcRemaining = () => {
+      const elapsed = Date.now() - cancelledDate.getTime();
+      const remaining = 5 * 60 * 1000 - elapsed; // 5 minutes
+      return remaining > 0 ? remaining : 0;
+    };
+
+    setReopenTimeLeft(calcRemaining());
+    const interval = setInterval(() => {
+      const remaining = calcRemaining();
+      setReopenTimeLeft(remaining);
+      if (remaining <= 0) clearInterval(interval);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [job?.status, job?.cancelledAt]);
+
+  const sendEtaUpdate = async (minutes: number) => {
+    await sendMessage(`Estimated arrival: ${minutes} minutes`, "eta-update", {
+      eta: minutes,
+    });
+    setShowMobileTasksSheet(false);
   };
 
   const cashPaymentAction = async (action: "defer" | "complete" | "refund") => {
@@ -590,9 +832,92 @@ export default function ChatPage() {
     } finally { setCashActionBusy(false); }
   };
 
-  const requestQuickCommConfirmation = (confirmation: QuickCommConfirmation) => setQuickCommConfirmation(confirmation);
+  const confirmCashReceived = async () => {
+    if (!job || confirmingCash) return;
+    setConfirmingCash(true); setCashError("");
+    try {
+      const response = await stripeConnectFetch("/api/jobs/confirm-cash", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jobId: job.id }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not confirm cash received.");
+      if (!result.alreadyConfirmed) await sendMessage(`Cash payment of $${job.price} CAD received and confirmed by ${profile?.displayName || "the operator"}. No card was charged.`, "payment", { amount: job.price });
+    } catch (error) { setCashError(error instanceof Error ? error.message : "Could not confirm cash received."); }
+    finally { setConfirmingCash(false); }
+  };
 
-  const initiatePayment = async () => { if (job) router.push(`/dashboard/jobs/${job.id}`); };
+  const requestQuickCommConfirmation = (confirmation: QuickCommConfirmation) => {
+    setQuickCommConfirmation(confirmation);
+  };
+
+  const captureStripePaymentIfNeeded = async (activeJob: Job) => {
+    if (!activeJob.stripePaymentIntentId) {
+      return { captured: false, skipped: true };
+    }
+
+    if (activeJob.paymentStatus === "paid" || activeJob.paymentCapturedAt) {
+      return { captured: false, skipped: true };
+    }
+
+    if (activeJob.paymentStatus !== "held") {
+      return { captured: false, skipped: false, error: "Payment is not in a hold state yet." };
+    }
+
+    try {
+      const response = await stripeConnectFetch("/api/stripe/capture-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentIntentId: activeJob.stripePaymentIntentId }),
+      });
+      const data = await response.json();
+      if (!response.ok || data.status !== "succeeded") {
+        return { captured: false, skipped: false, error: data.error || "Payment capture has not succeeded." };
+      }
+
+      return { captured: true, skipped: false };
+    } catch {
+      return { captured: false, skipped: false, error: "Unable to capture payment. Please retry." };
+    }
+  };
+
+  // Stripe payment initiation
+  const initiatePayment = async () => {
+    if (job?.paymentMethod === "cash") { setShowCashPayment(true); return; }
+    if (!job) return;
+    setProcessingPayment(true);
+    try {
+      // Check if operator has a Stripe Connect account
+      let operatorStripeAccountId = null;
+      if (otherUser && isOperator === false) {
+        const opData = otherUser as UserProfile & { stripeConnectAccountId?: string };
+        operatorStripeAccountId = opData.stripeConnectAccountId || null;
+      }
+
+      const response = await stripeConnectFetch("/api/stripe/create-payment-intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: job.price,
+          jobId: job.id,
+          clientId: job.clientId,
+          operatorId: job.operatorId,
+          description: `Snow removal - ${job.serviceTypes?.join(", ")} at ${job.address}`,
+          operatorStripeAccountId,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error || "Failed to initiate payment");
+      }
+      if (data.error) throw new Error(data.error);
+      setClientSecret(data.clientSecret);
+      setShowCheckout(true);
+    } catch (error) {
+      console.error("Payment initiation error:", error);
+      const message = error instanceof Error ? error.message : "Failed to initiate payment. Please try again.";
+      alert(message);
+    } finally {
+      setProcessingPayment(false);
+    }
+  };
 
   const handlePaymentSuccess = async (paymentIntentId: string) => {
     if (!job) return;
@@ -606,7 +931,7 @@ export default function ChatPage() {
         throw new Error(result.error || "Your payment is still processing. Please check again shortly.");
       }
       await sendMessage(
-        `Card payment has been authorized. Payment will be captured when the job is completed with photo proof.`,
+        `Payment of $${job.price} CAD has been securely held by snowd.ca. Funds will be released when the job is completed and verified.`,
         "payment",
         { amount: job.price, paymentIntentId }
       );
@@ -618,23 +943,50 @@ export default function ChatPage() {
     }
   };
 
-  const handlePhotoUpload = async () => { if (job) router.push(`/dashboard/jobs/${job.id}`); };
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !job) return;
+    setUploadingPhoto(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error("Could not read the photo."));
+        reader.readAsDataURL(file);
+      });
+      await updateDoc(doc(db, "jobs", job.id), {
+        completionPhotoUrl: base64,
+        updatedAt: Timestamp.now(),
+      });
+      setCompletionPhoto(base64);
+      await sendMessage(
+        `${profile?.displayName} submitted completion photo proof.`,
+        "completion-photo",
+        { completionPhotoUrl: base64 }
+      );
+    } catch (error) {
+      console.error("Photo upload error:", error);
+      alert("Could not save photo proof. Please try again.");
+    } finally {
+      setUploadingPhoto(false);
+      e.target.value = "";
+    }
+  };
 
+  // Chat photo upload (send image in chat)
   const handleChatPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (photoUploading) return;
-    setPhotoUploading(true); setPhotoError("");
     try {
-      const base64 = await prepareCompletionPhoto(file);
-      if (job && isOperator && job.status === "in-progress") {
-        await completeWithPhoto(job, base64);
-      }
-      await sendMessage("Sent a photo", "image", { imageUrl: base64 });
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = reader.result as string;
+        await sendMessage("Sent a photo", "image", { imageUrl: base64 });
+      };
+      reader.readAsDataURL(file);
     } catch (error) {
-      setPhotoError(error instanceof Error ? error.message : "Could not upload photo. Please retry.");
+      console.error("Chat photo upload error:", error);
     } finally {
-      setPhotoUploading(false);
       e.target.value = "";
     }
   };
@@ -648,7 +1000,7 @@ export default function ChatPage() {
   const startVoiceRecorder = async () => {
     try {
       if (typeof window === "undefined" || !("MediaRecorder" in window)) {
-        setFeedback("Voice recording is not supported on this device.");
+        alert("Voice recording is not supported on this device.");
         return;
       }
 
@@ -692,7 +1044,7 @@ export default function ChatPage() {
       setIsRecordingVoice(true);
     } catch (error) {
       console.error("Voice recorder start error:", error);
-      setFeedback("Microphone access was denied or unavailable.");
+      alert("Microphone access was denied or unavailable.");
     }
   };
 
@@ -722,7 +1074,7 @@ export default function ChatPage() {
 
     // Validation: if rating is lower than 3 stars, description is required
     if (reviewRating < 3 && !reviewComment.trim()) {
-      setFeedback("Please add a description for ratings below 3 stars.");
+      alert("Please add a description for ratings below 3 stars.");
       return;
     }
 
@@ -815,7 +1167,7 @@ export default function ChatPage() {
         return `${origin}${path}`;
       } catch (error) {
         const message = error instanceof Error ? error.message : "Failed to create temporary upload link";
-        setFeedback(message);
+        alert(message);
         return "";
       } finally {
         setCreatingGuestUploadLink(false);
@@ -915,17 +1267,12 @@ export default function ChatPage() {
   };
 
   const quickReplies = React.useMemo(() => {
-    if (job?.status === "cancelled") return ["Thanks for letting me know", "Could we arrange another visit?"];
-    if (job?.status === "completed") return job.paymentMethod === "cash" && job.paymentStatus !== "paid"
-      ? ["When can we settle the cash payment?", "Thanks for your help"]
-      : ["Thank you!", "Everything looks good"];
-    if (job?.status === "in-progress") return isOperator
-      ? ["I’m finishing up", "I’ll upload a completion photo"] : ["Thanks for the update", "Let me know when you’re finished"];
-    if (job?.status === "en-route") return isOperator ? ["I just arrived", "I’m a few minutes away"] : ["I’ll keep an eye out", "Please message when you arrive"];
-    const lastMessage = messages.at(-1)?.content.toLowerCase() || "";
-    if (/time|arriv|when/.test(lastMessage)) return ["What time works for you?", "That time works for me"];
-    return isOperator ? ["On my way soon", "What time works for you?"] : ["Thanks for the update", "When can you arrive?"];
-  }, [isOperator, job?.status, job?.paymentMethod, job?.paymentStatus, messages]);
+    if (isOperator) {
+      return ["On my way now", "I just arrived", "I will send a photo when finished"];
+    }
+
+    return ["Thanks for the update", "Please let me know when you arrive", "I will keep an eye out"];
+  }, [isOperator]);
 
   const latestOwnMessageId = React.useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i -= 1) {
@@ -944,16 +1291,6 @@ export default function ChatPage() {
       msg.type === "payment" ||
       msg.type === "payment-request";
 
-    if (msg.type === "system" && msg.senderName === "Work order update" && job && !legacyHistory) {
-      return <div className="my-4 flex justify-center chat-bubble">
-        <article className="conversation-widget">
-          <p className="conversation-widget-title">Work order update <span>· {formatTimestamp(msg.createdAt)}</span></p>
-          <p className="mt-1 text-sm text-[var(--text-primary)]">{msg.content}</p>
-          <button type="button" className="conversation-widget-link" onClick={() => setOrderPanelOpen(true)}>View job actions</button>
-        </article>
-      </div>;
-    }
-
     // Image message
     if (msg.type === "image" && msg.metadata?.imageUrl) {
       return (
@@ -962,10 +1299,8 @@ export default function ChatPage() {
           className={`mb-4 flex ${isOwn ? "justify-end" : "justify-start"} chat-bubble`}
         >
           {!isOwn && otherUser && (
-            <Link href={`/dashboard/u/${msg.senderId}?returnTo=${encodeURIComponent(`/dashboard/messages/${chatId}`)}`} className="shrink-0 mr-2 self-end">
-              <div className="w-7 h-7 bg-[var(--accent)] rounded-full flex items-center justify-center text-white font-semibold text-xs hover:ring-2 hover:ring-[var(--accent)]/30 transition">
-                {otherUser.displayName?.charAt(0)?.toUpperCase() || "?"}
-              </div>
+            <Link href={`/dashboard/u/${msg.senderId}`} className="shrink-0 mr-2 self-end">
+              <UserAvatar photoURL={(otherUser as unknown as Record<string, string>)?.avatar} logoURL={(otherUser as unknown as Record<string, string>)?.logoUrl} role={otherUser.role} displayName={otherUser.displayName} size={28} />
             </Link>
           )}
           <div className={`max-w-[72%] overflow-hidden rounded-[1.4rem] ${isOwn ? "rounded-br-md" : "rounded-bl-md"}`}>
@@ -1018,7 +1353,7 @@ export default function ChatPage() {
       );
     }
 
-    // Progress updates stay intentionally quiet so they read as timeline events.
+    // Progress update widget — clean centered status chip
     if (msg.type === "progress-update" || msg.type === "status-update") {
       const statusMeta: Record<string, { label: string; color: string; bg: string }> = {
         accepted:    { label: "Job Accepted",      color: "text-blue-700",    bg: "bg-blue-50 border-blue-200" },
@@ -1032,10 +1367,10 @@ export default function ChatPage() {
 
       return (
         <div key={msg.id} className="my-4 flex justify-center chat-bubble">
-          <div className={`${meta.bg} conversation-status-widget`}>
+          <div className={`${meta.bg} flex items-center gap-2 rounded-full border px-4 py-1.5`}>
             <CheckCircle className={`w-3.5 h-3.5 ${meta.color}`} />
             <span className={`text-xs font-semibold ${meta.color}`}>{meta.label}</span>
-            <span className="text-[10px] text-[var(--text-muted)]">· {formatTimestamp(msg.createdAt)}</span>
+            <span className="text-[10px] text-gray-400">{formatTimestamp(msg.createdAt)}</span>
           </div>
         </div>
       );
@@ -1044,21 +1379,26 @@ export default function ChatPage() {
     if (msg.type === "completion-photo") {
       return (
         <div key={msg.id} className="my-4 flex justify-center chat-bubble">
-          <div className="conversation-widget">
-            <div className="conversation-widget-title flex items-center gap-1.5">
-              <Camera className="h-3.5 w-3.5 text-emerald-600" />
-              <span>Completion photo</span>
-              <span>· {formatTimestamp(msg.createdAt)}</span>
+          <div className="w-full max-w-[300px] rounded-[1.4rem] border border-green-100 bg-white p-4 shadow-[var(--surface-shadow)]">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                <Camera className="w-4 h-4 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-900">Completion Photo</p>
+                <p className="text-xs text-gray-500">{formatTimestamp(msg.createdAt)}</p>
+              </div>
             </div>
             {msg.metadata?.completionPhotoUrl && (
               <img
                 src={msg.metadata.completionPhotoUrl}
                 alt="Job completion"
-                className="mt-2 max-h-44 w-full cursor-pointer rounded-lg object-cover"
+                className="w-full rounded-xl cursor-pointer object-cover"
+                style={{ maxHeight: 200 }}
                 onClick={() => window.open(msg.metadata!.completionPhotoUrl!, "_blank")}
               />
             )}
-            <p className="mt-2 text-xs text-[var(--text-secondary)]">{msg.content}</p>
+            <p className="text-xs text-green-700 font-medium mt-2">{msg.content}</p>
           </div>
         </div>
       );
@@ -1069,32 +1409,38 @@ export default function ChatPage() {
       return (
         <div key={msg.id} className="my-3 flex justify-center chat-bubble">
           {isPay ? (
-            <div className="conversation-widget">
-              <div className="conversation-widget-title flex items-center gap-1.5">
+            <div className={`w-full max-w-[300px] rounded-[1.4rem] border bg-white p-4 shadow-[var(--surface-shadow)] ${
+              msg.type === "payment" ? "border-green-100" : "border-amber-100"
+            }`}>
+              <div className="flex items-center gap-2 mb-1">
                 {msg.type === "payment" ? (
-                  <DollarSign className="h-3.5 w-3.5 text-emerald-600" />
+                  <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                    <DollarSign className="w-4 h-4 text-green-600" />
+                  </div>
                 ) : (
-                  <CreditCard className="h-3.5 w-3.5 text-amber-600" />
+                  <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
+                    <CreditCard className="w-4 h-4 text-amber-600" />
+                  </div>
                 )}
-                <span>
+                <span className={`text-sm font-semibold ${msg.type === "payment" ? "text-green-800" : "text-amber-800"}`}>
                   {msg.type === "payment" ? "Payment Update" : "Payment Request"}
                 </span>
-                <span>· {formatTimestamp(msg.createdAt)}</span>
               </div>
-              <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">{msg.content}</p>
+              <p className="text-xs text-gray-600 leading-relaxed">{msg.content}</p>
               {msg.type === "payment-request" && !isOperator && job?.paymentMethod !== "cash" && (job?.paymentStatus === "pending" || job?.paymentStatus === "refunded") && (
                 <button
                   onClick={initiatePayment}
                   disabled={processingPayment}
-                    className="mt-2 rounded-lg bg-[var(--ink)] px-3 py-2 text-xs font-semibold text-white transition hover:bg-black disabled:opacity-50"
+                    className="mt-3 w-full rounded-xl bg-[var(--ink)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-black disabled:opacity-50"
                   >
-                  {processingPayment ? "Processing..." : `Pay $${job?.price} CAD`}
+                  {processingPayment ? "Processing..." : `Pay $${job?.price} CAD Now`}
                 </button>
               )}
+              <p className="text-[10px] text-gray-400 mt-2 text-right">{formatTimestamp(msg.createdAt)}</p>
             </div>
           ) : (
-            <div className="conversation-status-widget border-[var(--border-soft)] bg-[var(--bg-secondary)]">
-              <span className="text-center text-xs text-[var(--text-muted)]">
+            <div className="rounded-full bg-[var(--bg-secondary)] px-3 py-1.5">
+              <span className="text-xs text-[var(--text-muted)]">
                 {msg.type === "eta-update" && <><Clock className="w-3 h-3 inline mr-1" />{msg.content}</>}
                 {msg.type !== "eta-update" && msg.content}
               </span>
@@ -1107,9 +1453,10 @@ export default function ChatPage() {
     return (
       <div key={msg.id} className={`mb-2 flex items-end gap-2 ${isOwn ? "justify-end" : "justify-start"} chat-bubble`}>
         {!isOwn && otherUser && (
-          <Link href={`/dashboard/u/${msg.senderId}?returnTo=${encodeURIComponent(`/dashboard/messages/${chatId}`)}`} className="hidden shrink-0 sm:block">
+          <Link href={`/dashboard/u/${msg.senderId}`} className="hidden shrink-0 sm:block">
             <UserAvatar
-              logoURL={(otherUser as OperatorProfile | null)?.logoUrl} photoURL={(otherUser as unknown as Record<string, string>)?.avatar}
+              photoURL={(otherUser as unknown as Record<string, string>)?.avatar}
+              logoURL={(otherUser as unknown as Record<string, string>)?.logoUrl}
               role={otherUser.role}
               displayName={otherUser.displayName}
               size={28}
@@ -1120,7 +1467,7 @@ export default function ChatPage() {
           className={`max-w-[82%] px-4 py-3 rounded-[1.2rem] shadow-[var(--surface-shadow)] sm:max-w-[72%] ${
             isOwn
               ? "bg-[var(--ink)] text-white rounded-br-sm border border-[var(--ink)]"
-              : "bg-white text-[var(--text-primary)] rounded-bl-sm border border-[var(--border-color)]"
+              : "bg-white text-[var(--text-primary)] rounded-bl-sm border-[3px] border-[var(--border-color)]"
           }`}
         >
           <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{msg.content}</p>
@@ -1138,71 +1485,55 @@ export default function ChatPage() {
   };
 
   if (loading) {
-    return <LoadingScreen embedded label="Loading conversation…" />;
+    return (
+      <div className="flex flex-col items-center justify-center h-96 text-[var(--text-muted)] gap-3">
+        <div className="animate-spin-slow">
+          <Image src="/logo.png" alt="Loading" width={40} height={40} style={{ width: "auto", height: "auto" }} />
+        </div>
+        <p>Loading conversation...</p>
+      </div>
+    );
   }
 
 
   return (
     <div className="chat-workspace flex w-full min-h-0 gap-0">
-      {feedback && <Notification message={feedback} type="info" onClose={() => setFeedback("")} />}
       {/* Chat Column */}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-y border-r border-[var(--border-color)] bg-[var(--bg-card-solid)] xl:border-l">
         {/* Chat Header */}
         <div className="flex shrink-0 items-center gap-3 border-b border-[var(--border-soft)] bg-white/95 px-3 py-3 backdrop-blur sm:px-4">
           <Link
             href="/dashboard/messages"
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]"
+            className="rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]"
             aria-label="Back to messages"
           >
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <button type="button" onClick={() => { setRightPanelView("profile"); setShowMobileTasksSheet(true); }} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={`View ${otherUser?.displayName || "user"} profile details`}>
-            <span><UserAvatar logoURL={(otherUser as OperatorProfile | null)?.logoUrl} photoURL={(otherUser as unknown as Record<string, string> | null)?.avatar} role={otherUser?.role} displayName={otherUser?.displayName} size={44} /></span>
-            <span className="min-w-0"><span className="block truncate font-semibold">{(otherUser as OperatorProfile)?.businessName || otherUser?.displayName || "User"}</span><span className="block truncate text-xs text-[var(--text-muted)]">{[otherUser?.city, otherUser?.province].filter(Boolean).join(", ") || "View profile"}</span></span>
+            <span className="hidden sm:block"><UserAvatar photoURL={(otherUser as unknown as Record<string, string> | null)?.avatar} logoURL={(otherUser as unknown as Record<string, string> | null)?.logoUrl} role={otherUser?.role} displayName={otherUser?.displayName} size={44} /></span>
+            <span className="min-w-0"><span className="block truncate font-semibold">{otherUser?.displayName || "User"}</span><span className="block truncate text-xs text-[var(--text-muted)]">{[otherUser?.city, otherUser?.province].filter(Boolean).join(", ") || "View profile"}</span></span>
           </button>
           <SupportChatButton inline />
-          {job && (
-            <div className="hidden lg:block">
-              <StatusBadge status={job.status} />
-            </div>
-          )}
-          <button
-            onClick={() => setShowReportModal(true)}
-            className="rounded-lg p-2 text-gray-400 transition hover:bg-red-50 hover:text-red-500"
-            title="Report / File Claim"
-            aria-label="Report issue"
-          >
-            <Flag className="w-4 h-4" />
+          <button type="button" onClick={() => { setRightPanelView("updates"); setShowMobileTasksSheet(true); }} className="rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-[var(--bg-secondary)]" aria-label="Conversation options">
+            <MoreHorizontal className="h-5 w-5" />
           </button>
         </div>
 
-        {legacyHistory ? <div className="shrink-0 border-b bg-amber-50 p-4 text-sm text-amber-950"><strong>Earlier shared conversation · read-only history</strong><p>This conversation contains earlier work. Each work order now has a separate conversation.</p><div className="mt-2 flex flex-wrap gap-3">{legacyJobIds.map(id => <Link className="underline" key={id} href={`/dashboard/jobs/${id}`}>View order {id}</Link>)}</div></div> : job && <section className="conversation-order-summary shrink-0">
-          <Link className="flex w-full min-w-0 items-center justify-between gap-3 text-left" href={`/dashboard/jobs/${job.id}`}>
-            <span className="min-w-0"><span className="block truncate text-sm font-semibold">{orderLabel(job)}</span><span className="block text-xs text-[var(--text-muted)]">Order #{orderNumber(job)} · {job.status.replaceAll("-", " ")}</span></span>
-            <span className="conversation-order-action">View work order →</span>
-          </Link>
-        </section>}
+        {job && (
+          <div className="shrink-0 border-b border-[var(--border-soft)] bg-[var(--bg-secondary)] px-3 py-2.5 sm:px-4">
+            <Link href={`/dashboard/jobs/${job.id}`} className="flex min-h-11 items-center justify-between gap-3 rounded-xl bg-white px-3 py-2">
+              <span className="min-w-0"><span className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Work order</span><span className="block truncate text-sm font-semibold capitalize">{job.serviceTypes?.map(service => service.replaceAll("-", " ")).join(" + ") || "Snow clearing"} <strong className="ml-1 rounded-md bg-[var(--accent-sun-soft)] px-2 py-1 text-base font-extrabold text-[var(--ink)]">${job.price} CAD</strong></span></span>
+              <span className="flex shrink-0 items-center gap-2"><StatusBadge status={job.status} /><ChevronRight className="h-4 w-4" /></span>
+            </Link>
+            {linkedJobs.length > 1 && <section className="mt-1"><button type="button" className="py-2 text-xs font-semibold text-[var(--text-secondary)]" aria-expanded={showEarlierOrders} onClick={() => setShowEarlierOrders(value => !value)}>Earlier work orders ({linkedJobs.length - 1}) <span aria-hidden="true">{showEarlierOrders ? "−" : "+"}</span></button>{showEarlierOrders && <div className="grid gap-1">{linkedJobs.filter(linkedJob => linkedJob.id !== job.id).map(linkedJob => <button key={linkedJob.id} type="button" onClick={() => selectWorkOrder(linkedJob)} className="rounded-lg px-3 py-2 text-left text-sm hover:bg-white">{linkedJob.serviceTypes?.[0]?.replaceAll("-", " ") || "Snow service"} · ${linkedJob.price} CAD</button>)}</div>}</section>}
+          </div>
+        )}
 
-
-        {legacyHistory && activeOrder && <Link className="conversation-order-summary text-sm font-semibold" href={`/dashboard/jobs/${activeOrder.id}`}>You have an open work order · View current order</Link>}
-        {job && !legacyHistory && <section id="order-details-panel" hidden={!orderPanelOpen} className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4">
-          <button type="button" className="mb-3 inline-flex min-h-11 items-center gap-2 font-semibold" onClick={() => setOrderPanelOpen(false)}><ArrowLeft className="h-5 w-5" />Back to conversation</button>
-          <h2 className="font-semibold">{orderLabel(job)} · #{orderNumber(job)}</h2>
-          <p className="mt-2 text-sm">{job.address}</p>
-          <ProgressTracker status={job.status} compact />
-          {job && !legacyHistory && <section id="current-order-actions" className="conversation-widget conversation-action-widget my-4 scroll-mt-4">
-            <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-sm font-semibold">Next steps</h2><StatusBadge status={job.status} /></div>
-            <p className="visit-timing mt-2" data-asap={isAsap(job)}>{isAsap(job) ? "ASAP · As soon as possible" : `Scheduled · ${scheduleText(job)}`}</p>
-            <OrderActions key={job.id} job={job} activeOrder={activeOrder} bookingUnavailable={ordersLoading || !!ordersError} />
-          </section>}
-          <Link className="inline-flex min-h-11 items-center underline" href={`/dashboard/jobs/${job.id}?returnTo=${encodeURIComponent(`/dashboard/messages/${chatId}`)}`}>Open work order</Link>
-          {["completed", "cancelled"].includes(job.status) && <p className="mt-2 text-sm">This order is {job.status}. {activeOrder ? <Link className="underline" href={`/dashboard/jobs/${activeOrder.id}`}>View current order</Link> : !ordersLoading && !ordersError && <Link className="underline" href={`/dashboard/jobs/new?previousOrder=${job.id}`}>{isOperator ? "Propose another booking" : "Request again"}</Link>}</p>}
-        </section>}
         {/* Messages */}
-        <div hidden={orderPanelOpen} ref={historyRef} onScroll={(event) => { const history = event.currentTarget; followLatestRef.current = history.scrollHeight - history.scrollTop - history.clientHeight < 80; }} role="log" aria-label="Conversation" className="chat-history min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain bg-[var(--bg-primary)] p-3 sm:p-5">
+        <div role="log" aria-label="Conversation" className="chat-history min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain bg-[var(--bg-primary)] p-3 sm:p-5">
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center py-12 text-[var(--text-muted)]">
-              <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--border-soft)] bg-white shadow-[var(--surface-shadow)]">
+              <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border-[3px] border-[var(--border-soft)] bg-white shadow-[var(--surface-shadow)]">
                 <MessageSquare className="h-7 w-7 text-[var(--ink)]" />
               </div>
               <p className="text-sm font-semibold text-gray-800">Start the conversation</p>
@@ -1218,7 +1549,7 @@ export default function ChatPage() {
               <React.Fragment key={message.id}>
                 {showDayBreak && (
                   <div className="sticky top-2 z-10 my-3 flex justify-center">
-                    <span className="rounded-full border border-[var(--border-soft)] bg-white px-3 py-1 text-[11px] font-semibold text-[var(--text-muted)] shadow-[var(--surface-shadow)] backdrop-blur">
+                    <span className="rounded-full border-[3px] border-[var(--border-soft)] bg-white px-3 py-1 text-[11px] font-semibold text-[var(--text-muted)] shadow-[var(--surface-shadow)] backdrop-blur">
                       {currentDay}
                     </span>
                   </div>
@@ -1227,13 +1558,11 @@ export default function ChatPage() {
               </React.Fragment>
             );
           })}
-
-
+          <div ref={messagesEndRef} />
         </div>
 
-        {messageError && <p role="alert" className="shrink-0 bg-red-50 px-4 py-3 text-sm text-red-800">{messageError}</p>}
         {/* Message Input */}
-        <div hidden={legacyHistory || orderPanelOpen} className="sticky bottom-0 z-20 shrink-0 border-t border-[var(--border-soft)] bg-white/95 px-2.5 pb-[max(10px,env(safe-area-inset-bottom))] pt-2.5 shadow-[var(--surface-shadow)] backdrop-blur sm:px-4">
+        <div className="sticky bottom-0 z-20 shrink-0 border-t border-[var(--border-soft)] bg-white/95 px-2.5 pb-[max(10px,env(safe-area-inset-bottom))] pt-2.5 shadow-[var(--surface-shadow)] backdrop-blur sm:px-4">
           <input
             ref={fileInputRef}
             type="file"
@@ -1258,20 +1587,11 @@ export default function ChatPage() {
             className="hidden"
           />
 
-          {repliesOpen && <div className="quick-replies" aria-label="Suggested replies">
-            {quickReplies.map(reply => <button key={reply} type="button" onClick={() => { setNewMessage(reply); setRepliesOpen(false); composerRef.current?.focus(); }}>{reply}</button>)}
-          </div>}
-          {photoError && <p role="alert" className="text-sm text-red-700">{photoError}</p>}
-          {photoUploading && <p role="status" className="text-sm">Uploading photo and updating work order…</p>}
-          {attachmentsOpen && <div id="chat-attachments" className="attachment-menu">
-            <button type="button" onClick={() => { setRepliesOpen(value => !value); setAttachmentsOpen(false); }}>Suggested replies</button>
-            {isOperator && job?.status === "in-progress" && <p className="text-xs">Uploading a photo completes this work order.</p>}
-            <button type="button" disabled={photoUploading} onClick={() => { chatAttachInputRef.current?.click(); setAttachmentsOpen(false); }}>Choose photo</button>
-            <button type="button" disabled={creatingGuestUploadLink || photoUploading} onClick={() => { void handleOpenCameraUpload(); setAttachmentsOpen(false); }}><Camera className="inline h-4 w-4" /> Take photo</button>
-          </div>}
+          <div className="quick-replies" aria-label="Quick replies">{quickReplies.map(reply => <button key={reply} type="button" onClick={() => { setNewMessage(reply); composerRef.current?.focus(); }}>{reply}</button>)}</div>
           {isRecordingVoice && <p role="status" className="mb-2 text-sm font-semibold text-red-600">Recording… Tap stop to send your voice message.</p>}
           <form onSubmit={handleSubmit} className="flex items-end gap-1 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card-solid)] p-1.5">
-            <button type="button" className="min-h-11 min-w-11 rounded-xl hover:bg-gray-100" aria-label="Add photo or attachment" aria-expanded={attachmentsOpen} aria-controls="chat-attachments" onClick={() => setAttachmentsOpen(value => !value)}><Plus className="mx-auto h-5 w-5" /></button>
+            <button type="button" onClick={() => chatAttachInputRef.current?.click()} className="min-h-11 rounded-xl px-2.5 text-[var(--text-muted)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]" aria-label="Attach photo" title="Attach photo"><Paperclip className="h-5 w-5" /></button>
+            <button type="button" onClick={handleOpenCameraUpload} disabled={creatingGuestUploadLink} className="min-h-11 rounded-xl px-2.5 text-[var(--text-muted)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] disabled:opacity-50" aria-label="Take photo" title="Take photo"><Camera className="h-5 w-5" /></button>
             <textarea
               ref={composerRef}
               value={newMessage}
@@ -1319,7 +1639,7 @@ export default function ChatPage() {
 
       <Modal isOpen={showMobileTasksSheet && !showCashPayment && !showCancelPopup && !quickCommConfirmation && !showMapModal && !showCheckout && !showPaymentGateModal && !showReportModal && !showCameraQrModal} onClose={() => setShowMobileTasksSheet(false)} title="Conversation details" size="lg">
         <div className="chat-details">
-            <div className="mb-4 flex items-center gap-2 rounded-xl border border-[var(--border-soft)] bg-[var(--bg-secondary)] p-1">
+            <div className="mb-4 flex items-center gap-2 rounded-xl border-[3px] border-[var(--border-soft)] bg-[var(--bg-secondary)] p-1">
               <button
                 type="button"
                 onClick={() => { setRightPanelView("updates"); setShowMobileTasksSheet(true); }}
@@ -1340,28 +1660,70 @@ export default function ChatPage() {
               </button>
             </div>
 
-            {rightPanelView === "updates" && job && <div>
-              <p className="text-sm">{job.address}</p>
-              <ProgressTracker status={job.status} compact />
-              <Link className="inline-flex min-h-12 items-center rounded-xl bg-[var(--ink)] px-4 py-3 font-semibold text-white" href={`/dashboard/jobs/${job.id}?returnTo=${encodeURIComponent(`/dashboard/messages/${chatId}`)}`}>Open work order</Link>
+            {job && (
+              <section className="mb-4 rounded-2xl border border-[var(--border-color)] bg-white p-3">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-sm font-bold text-[var(--text-primary)]">Work orders</h2>
+                    <p className="text-xs text-[var(--text-muted)]">This chat keeps updates for all linked orders together.</p>
+                  </div>
+                  <span className="rounded-full bg-[var(--bg-secondary)] px-2 py-1 text-[10px] font-bold text-[var(--text-muted)]">{linkedJobs.length}</span>
+                </div>
+                <div className="space-y-2">
+                  {linkedJobs.map((linkedJob, index) => (
+                    <button
+                      key={linkedJob.id}
+                      type="button"
+                      onClick={() => selectWorkOrder(linkedJob)}
+                      aria-pressed={linkedJob.id === job.id}
+                      className={`w-full rounded-xl border px-3 py-2 text-left ${linkedJob.id === job.id ? "border-[var(--ink)] bg-[var(--bg-secondary)]" : "border-[var(--border-soft)] hover:bg-[var(--bg-secondary)]"}`}
+                    >
+                      <span className="flex items-center justify-between gap-2 text-xs font-semibold">
+                        <span>Order {index + 1}{linkedJob.id === job.id ? " · Active" : ""}</span>
+                        <StatusBadge status={linkedJob.status} />
+                      </span>
+                      <span className="mt-1 block text-xs capitalize text-[var(--text-muted)]">{linkedJob.serviceTypes?.[0]?.replaceAll("-", " ") || "Snow service"} · ${linkedJob.price} CAD</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {rightPanelView === "updates" && job && (
+              <>
+        {job?.paymentMethod === "cash" && <section className="mb-4 rounded-2xl bg-[#eaf1ee] p-4 text-sm">
+          <h3 className="text-base font-semibold">{job.paymentStatus === "paid" ? "Cash received" : job.paymentStatus === "refunded" ? "Cash refunded" : job.status === "completed" ? "Work complete · cash payment pending" : "Cash payment pending"}</h3>
+          <p className="mt-2">{job.paymentStatus === "paid" ? `The operator confirmed $${job.price} CAD in cash. Your receipt is in Payments.` : job.paymentStatus === "refunded" ? "The operator recorded a cash refund. The job remains open until completed or cancelled." : `Pay $${job.price} CAD directly to the operator ${job.status === "completed" ? "now that the work is complete" : "when the work is done"}. This is not a prepaid job.`}</p>
+          {isOperator && job.paymentStatus !== "paid" && job.status !== "cancelled" && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-amber-900">You are responsible for collecting cash. No advance payment is held through Stripe, so travelling and working before payment is at your own risk. You can complete the work while payment remains pending.</p>}
+          {!isOperator && job.paymentStatus !== "paid" && job.status !== "cancelled" && <button onClick={initiatePayment} className="btn-primary mt-4 w-full px-4 py-3">{job.status === "completed" ? "Pay cash · view instructions" : job.cashPaymentDeferredAt ? "View pending cash payment" : "Pay cash after the job"}</button>}
+          {isOperator && job.paymentStatus === "paid" && !["completed", "cancelled"].includes(job.status) && <button disabled={cashActionBusy} onClick={() => requestQuickCommConfirmation({ title: "Record cash refund?", message: `Only confirm after returning $${job.price} CAD to the client in cash. This records the refund; it does not transfer money or cancel the job.`, confirmLabel: "Cash returned to client", onConfirm: () => cashPaymentAction("refund") })} className="btn-secondary mt-4 w-full px-4 py-3">Record cash refund</button>}
+          {!isOperator && job.paymentStatus === "paid" && !["completed", "cancelled"].includes(job.status) && <button onClick={() => requestQuickCommConfirmation({ title: "Request cash refund?", message: "This asks the operator to return your cash. They must return the money directly and record the refund. The job stays open until cancelled or completed.", confirmLabel: "Send refund request", onConfirm: () => sendMessage(`Please return my $${job.price} CAD cash payment and record the refund. The work is not completed.`, "payment") })} className="btn-secondary mt-4 w-full px-4 py-3">Request cash refund</button>}
+          {job.paymentStatus !== "paid" && ["pending", "accepted", "en-route"].includes(job.status) && <button onClick={cancelJob} className="mt-3 w-full rounded-xl px-4 py-3 font-semibold text-red-700">Cancel job</button>}
+          {isOperator && ["in-progress", "completed"].includes(job.status) && job.paymentStatus !== "paid" && <button disabled={confirmingCash} onClick={() => requestQuickCommConfirmation({ title: "Confirm cash received?", message: `Confirm only after you have received $${job.price} CAD from the client. This records a cash receipt for both of you.`, confirmLabel: "Yes, cash received", onConfirm: confirmCashReceived })} className="mt-4 w-full rounded-full bg-[#112b3b] px-4 py-3 font-semibold text-white disabled:opacity-50">{confirmingCash ? "Confirming…" : "Confirm cash received"}</button>}
+          {cashError && <p role="alert" className="mt-3 text-red-700">{cashError}</p>}
+        </section>}
+
                         {/* Review Prompt — Auto-shows when job is completed */}
         {job?.status === "completed" && !reviewSubmitted && (
-          <div className="bg-yellow-50 border-x border-[var(--border)] px-4 py-4 border-t border-yellow-200">
-            <div className="text-center mb-3">
-              <Star className="w-6 h-6 text-yellow-500 mx-auto mb-1" />
-              <p className="text-sm font-semibold text-gray-900">
-                How was your experience with {otherUser?.displayName || "them"}?
-              </p>
-              <p className="text-xs text-gray-500">Your review helps the community</p>
+          <div className="guided-review">
+            <div className="guided-review-heading">
+              <span className="guided-review-icon"><Star size={18} aria-hidden="true" /></span>
+              <div>
+                <p className="guided-review-eyebrow">Final step</p>
+                <p className="text-sm font-semibold text-[var(--text-primary)]">
+                  How was {otherUser?.displayName || "your shoveler"}?
+                </p>
+                <p className="text-xs text-[var(--text-secondary)]">A quick rating closes the visit.</p>
+              </div>
             </div>
             {/* Star Rating */}
-            <div className="flex justify-center gap-2 mb-3">
+            <div className="guided-review-stars">
               {[1, 2, 3, 4, 5].map((star) => (
                 <button
                   key={star}
                   aria-label={`Rate ${star} out of 5`}
                   onClick={() => setReviewRating(star)}
-                  className="transition-transform hover:scale-110"
+                  className="guided-review-star"
                 >
                   <Star
                     className={`w-8 h-8 ${
@@ -1374,9 +1736,8 @@ export default function ChatPage() {
               ))}
             </div>
             {reviewRating > 0 && (
-              <div className="space-y-2">
-                <button type="button" className="min-h-11 min-w-11 rounded-xl hover:bg-gray-100" aria-label="Add photo or attachment" aria-expanded={attachmentsOpen} aria-controls="chat-attachments" onClick={() => setAttachmentsOpen(value => !value)}><Plus className="mx-auto h-5 w-5" /></button>
-            <textarea
+              <div className="guided-review-form">
+                <textarea
                   value={reviewComment}
                   aria-label="Review comment"
                   onChange={(e) => setReviewComment(e.target.value)}
@@ -1401,50 +1762,356 @@ export default function ChatPage() {
           </div>
         )}
         {job?.status === "completed" && reviewSubmitted && (
-          <div className="bg-green-50 border-x border-[var(--border)] px-4 py-3 border-t border-green-200 text-center">
-            <div className="flex items-center justify-center gap-2 text-green-700">
-              <CheckCircle className="w-4 h-4" />
-              <span className="text-sm font-medium">Thank you for your review!</span>
+          <div className="guided-review guided-review-complete" role="status">
+            <span className="guided-success-icon"><CheckCircle size={16} aria-hidden="true" /></span>
+            <div>
+              <p className="font-semibold text-[var(--text-primary)]">Visit complete.</p>
+              <p className="text-xs text-[var(--text-secondary)]">Thanks for helping your neighbourhood.</p>
             </div>
           </div>
         )}
 
-            </div>}
+        {/* Client cancel button for pending jobs */}
+        {!isOperator && ["pending", "accepted", "en-route"].includes(job?.status || "") && job?.paymentStatus !== "paid" && (
+          <div className="bg-gray-50 border-x border-gray-100 px-4 py-3 border-t border-gray-200">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-gray-800">Cancel this job?</p>
+                <p className="text-xs text-gray-600">You can cancel until the operator starts the work.</p>
+              </div>
+              <button
+                onClick={cancelJob}
+                className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg font-semibold text-sm transition flex items-center gap-2"
+              >
+                <X className="w-4 h-4" />
+                Cancel Job
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Client payment banner */}
+        {!isOperator && job?.paymentMethod !== "cash" && job?.status === "accepted" && (job?.paymentStatus === "pending" || job?.paymentStatus === "refunded") && (
+          <div className="bg-yellow-50 border-x border-yellow-100 px-4 py-3 border-t border-yellow-200">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Shield className="w-5 h-5 text-yellow-600" />
+                <div>
+                  <p className="text-sm font-medium text-yellow-800">Pay ${job.price} CAD to confirm</p>
+                  <p className="text-xs text-yellow-600">Funds held securely until job completion</p>
+                </div>
+              </div>
+              <button
+                onClick={initiatePayment}
+                disabled={processingPayment}
+                className="px-4 py-2 bg-[var(--accent)] text-white rounded-lg font-semibold text-sm hover:bg-[var(--accent-dark)] transition disabled:opacity-50 flex items-center gap-2"
+              >
+                {processingPayment ? (
+                  <>
+                    <Image src="/logo.png" alt="Loading" width={16} height={16} className="animate-spin-slow" style={{ width: "auto", height: "auto" }} />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="w-4 h-4" />
+                    Pay Now
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Completed Job — Rehire option (clients only, once) */}
+        {job?.status === "completed" && reviewSubmitted && !isOperator && !rehireSent && (
+          <div className="bg-[var(--accent)]/5 border-x border-[var(--accent)]/10 px-4 py-3 border-t border-[var(--accent)]/20">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-gray-900">Job Complete</p>
+                <p className="text-xs text-gray-500">Need this service again?</p>
+              </div>
+              <button
+                onClick={() => rehireOperator()}
+                disabled={rehiring}
+                className="px-4 py-2 bg-[var(--accent)] text-white rounded-lg font-semibold text-sm hover:bg-[var(--accent-dark)] transition flex items-center gap-2 disabled:opacity-50"
+              >
+                <Briefcase className="w-4 h-4" />
+                {rehiring ? "Creating..." : "Rehire"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Cancelled Job — reopen the original briefly, or create a separate work order. */}
+        {job?.status === "cancelled" && (
+          <div className="bg-red-50 border-x border-red-100 px-4 py-3 border-t border-red-200">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-red-800">Job Cancelled</p>
+                {!isOperator && <p className="text-xs text-red-600">Reopen this order or request a separate visit.</p>}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {!isOperator && reopenTimeLeft !== null && reopenTimeLeft > 0 && (
+                  <button onClick={reopenJob} className="px-4 py-2 bg-[var(--accent)] text-white rounded-lg font-semibold text-sm hover:bg-[var(--accent-dark)] transition flex items-center gap-2">
+                    <Play className="w-4 h-4" />
+                    Reopen order ({Math.floor(reopenTimeLeft / 60000)}:{String(Math.floor((reopenTimeLeft % 60000) / 1000)).padStart(2, "0")})
+                  </button>
+                )}
+                {!isOperator && !rehireSent && (
+                  <button onClick={() => rehireOperator()} disabled={rehiring} className="px-4 py-2 bg-[var(--accent)] text-white rounded-lg font-semibold text-sm hover:bg-[var(--accent-dark)] transition flex items-center gap-2 disabled:opacity-50">
+                    <Briefcase className="w-4 h-4" />
+                    {rehiring ? "Creating..." : "New work order"}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+
+                <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-[var(--text-muted)]">Work order progress</h3>
+            <ProgressTracker
+              status={job.status}
+              paymentMethod={job.paymentMethod}
+              paymentStatus={job.paymentStatus as "pending" | "held" | "paid" | "refunded" | undefined}
+            />
+
+            {/* Operator Update Buttons */}
+            {isOperator && job.status !== "completed" && job.status !== "cancelled" && (
+              <div className="mt-4 pt-3 border-t border-[var(--border)] space-y-2">
+                <p className="mb-3 text-xs font-bold uppercase tracking-widest text-gray-400">Update Progress</p>
+                {job.status === "pending" && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => updateJobStatus("accepted")}
+                      className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-green-500 text-white rounded-xl text-xs font-bold hover:bg-green-600 transition shadow-[var(--surface-shadow)]"
+                    >
+                      <CheckCircle className="w-3.5 h-3.5" /> Accept
+                    </button>
+                    <button
+                      onClick={() => updateJobStatus("cancelled")}
+                      className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-red-50 text-red-600 rounded-xl text-xs font-bold hover:bg-red-100 transition"
+                    >
+                      <X className="w-3.5 h-3.5" /> Decline
+                    </button>
+                  </div>
+                )}
+                {job.status === "accepted" && (
+                  <button
+                    onClick={() => updateJobStatus("en-route")}
+                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-[var(--accent)] text-white rounded-xl text-xs font-bold hover:bg-[var(--accent-dark)] transition shadow-[var(--surface-shadow)]"
+                  >
+                    <Navigation className="w-3.5 h-3.5" /> Mark En Route
+                  </button>
+                )}
+                {job.status === "en-route" && (
+                  <>
+                    <button
+                      onClick={() => updateJobStatus("in-progress")}
+                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-[var(--accent)] text-white rounded-xl text-xs font-bold hover:bg-[var(--accent-dark)] transition shadow-[var(--surface-shadow)]"
+                    >
+                      <Play className="w-3.5 h-3.5" /> Start Job
+                    </button>
+                    <button
+                      onClick={() => updateJobStatus("accepted")}
+                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-100 text-gray-500 rounded-xl text-xs font-medium hover:bg-gray-200 transition"
+                    >
+                      <ArrowLeft className="w-3.5 h-3.5" /> Go Back
+                    </button>
+                  </>
+                )}
+                {job.status === "in-progress" && (
+                  <>
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingPhoto}
+                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-[var(--accent)] text-white rounded-xl text-xs font-bold hover:bg-[var(--accent-dark)] transition shadow-[var(--surface-shadow)] disabled:opacity-50"
+                    >
+                      <Camera className="w-3.5 h-3.5" /> {uploadingPhoto ? "Uploading..." : job.completionPhotoUrl || completionPhoto ? "Update Photo Proof" : "Submit Photo Proof"}
+                    </button>
+                    {(job.completionPhotoUrl || completionPhoto) && (
+                      <button
+                        disabled={cashActionBusy}
+                        onClick={() => job.paymentMethod === "cash" && job.paymentStatus !== "paid" ? requestQuickCommConfirmation({ title: "Complete work with payment pending?", message: `The client will be notified to pay $${job.price} CAD in cash. You remain responsible for collecting it; no Stripe prepayment is held.`, confirmLabel: "Complete work · cash still due", onConfirm: () => updateJobStatus("completed") }) : updateJobStatus("completed")}
+                        className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-green-600 text-white rounded-xl text-xs font-bold hover:bg-green-700 transition shadow-[var(--surface-shadow)]"
+                      >
+                        <CheckCircle className="w-3.5 h-3.5" /> {job.paymentMethod === "cash" ? "Complete work order" : "Complete & release payment"}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => updateJobStatus("en-route")}
+                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-100 text-gray-500 rounded-xl text-xs font-medium hover:bg-gray-200 transition"
+                    >
+                      <ArrowLeft className="w-3.5 h-3.5" /> Go Back
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+
+            {isOperator && (job.status === "accepted" || job.status === "en-route") && (
+              <div className="mt-4 pt-3 border-t border-[var(--border)] space-y-2">
+                <p className="mb-2 text-xs font-bold uppercase tracking-widest text-gray-400">Send arrival time</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => {
+                      requestQuickCommConfirmation({
+                        title: "Send ETA update?",
+                        message: "This will message the client that your estimated arrival is 10 minutes.",
+                        confirmLabel: "Send 10m ETA",
+                        onConfirm: () => sendEtaUpdate(10),
+                      });
+                    }}
+                    className="flex items-center justify-center gap-1 rounded-xl bg-[var(--bg-secondary)] px-2 py-2 text-xs font-semibold text-[var(--text-primary)] transition hover:bg-[var(--border)]"
+                  >
+                    10 min
+                  </button>
+                  <button
+                    onClick={() => {
+                      requestQuickCommConfirmation({
+                        title: "Send ETA update?",
+                        message: "This will message the client that your estimated arrival is 20 minutes.",
+                        confirmLabel: "Send 20m ETA",
+                        onConfirm: () => sendEtaUpdate(20),
+                      });
+                    }}
+                    className="flex items-center justify-center gap-1 rounded-xl bg-[var(--bg-secondary)] px-2 py-2 text-xs font-semibold text-[var(--text-primary)] transition hover:bg-[var(--border)]"
+                  >
+                    20 min
+                  </button>
+                  <button
+                    onClick={() => {
+                      requestQuickCommConfirmation({
+                        title: "Send ETA update?",
+                        message: "This will message the client that your estimated arrival is 30 minutes.",
+                        confirmLabel: "Send 30m ETA",
+                        onConfirm: () => sendEtaUpdate(30),
+                      });
+                    }}
+                    className="flex items-center justify-center gap-1 rounded-xl bg-[var(--bg-secondary)] px-2 py-2 text-xs font-semibold text-[var(--text-primary)] transition hover:bg-[var(--border)]"
+                  >
+                    30 min
+                  </button>
+                </div>
+                {job.paymentMethod !== "cash" && job.status === "accepted" && (job.paymentStatus === "pending" || job.paymentStatus === "refunded") && (
+                  <button
+                    onClick={() => {
+                      requestQuickCommConfirmation({
+                        title: "Send payment request?",
+                        message: `This will ask the client to pay $${job.price} CAD for this job.`,
+                        confirmLabel: "Send Request",
+                        onConfirm: async () => {
+                          await sendMessage(
+                            `${profile?.displayName} is requesting payment of $${job.price} CAD for this job. Tap Pay Now to hold funds securely with snowd.ca.`,
+                            "payment-request",
+                            { amount: job.price }
+                          );
+                        },
+                      });
+                    }}
+                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-amber-500 text-white rounded-xl text-xs font-bold hover:bg-amber-600 transition"
+                  >
+                    <CreditCard className="w-3.5 h-3.5" /> Request Payment
+                  </button>
+                )}
+              </div>
+            )}
+
+            <dl className="mt-4 space-y-3 border-t border-[var(--border)] pt-4 text-sm">
+              <div><dt className="font-semibold">Scheduled</dt><dd>{formatMessageDay(job.scheduledDate) || "Date to be confirmed"}{job.scheduledTime ? ` · ${job.scheduledTime}` : ""}</dd></div>
+              {job.specialInstructions && <div><dt className="font-semibold">Special instructions</dt><dd className="whitespace-pre-wrap">{job.specialInstructions}</dd></div>}
+              <div><dt className="font-semibold">Property size</dt><dd className="capitalize">{job.propertySize?.replaceAll("-", " ") || "Not specified"}</dd></div>
+            </dl>
+
+            {/* Job summary */}
+            <div className="mt-4 border-t border-[var(--border)] pt-4 text-sm">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-xl border-[3px] border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2.5">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+                    {isOperator ? "Job price" : "Price"}
+                  </p>
+                  <div className="mt-1 flex items-center gap-1">
+                    <DollarSign className="h-4 w-4 text-[var(--accent)]" />
+                    <span className="text-lg font-bold text-[var(--ink)]">{job.price}</span>
+                    <span className="text-xs text-[var(--text-muted)]">CAD</span>
+                  </div>
+                </div>
+                <div className="rounded-xl border-[3px] border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2.5">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Payment</p>
+                  <p className="mt-1 text-sm font-semibold capitalize text-[var(--ink)]">{job.paymentStatus}</p>
+                </div>
+                <div className="rounded-xl border-[3px] border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2.5">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Service</p>
+                  <p className="mt-1 break-words text-sm font-semibold capitalize text-[var(--ink)]">
+                    {job.serviceTypes?.map((s) => s.replace("-", " ")).join(", ") || "Service"}
+                  </p>
+                </div>
+                <div className="rounded-xl border-[3px] border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2.5">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Distance</p>
+                  <p className="mt-1 text-sm font-semibold text-[var(--ink)]">
+                    {distance !== null ? `${distance.toFixed(1)} km` : "Unknown"}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowMapModal(true)}
+                className="mt-2 flex w-full items-center gap-2 rounded-xl border-[3px] border-[var(--border)] bg-white px-3 py-2.5 text-left text-xs text-[var(--text-muted)] transition hover:text-[var(--accent)]"
+              >
+                <MapPin className="h-3.5 w-3.5 shrink-0" />
+                <span className="min-w-0 flex-1 break-words">{job.address}, {job.city}</span>
+                <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+              </button>
+            </div>
+
+                <div className="mt-4 border-t border-[var(--border)] pt-3">
+                  <button
+                    type="button"
+                    onClick={() => { setRightPanelView("profile"); setShowMobileTasksSheet(true); }}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--bg-secondary)] px-3 py-2.5 text-xs font-semibold text-[var(--text-primary)] transition hover:bg-[var(--border)]"
+                  >
+                    <User className="w-3.5 h-3.5" /> View profile details
+                  </button>
+                </div>
+              </>
+            )}
 
             {rightPanelView === "profile" && otherUser && (
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
                   <UserAvatar
-                    logoURL={(otherUser as OperatorProfile | null)?.logoUrl} photoURL={(otherUser as unknown as Record<string, string>)?.avatar}
+                    photoURL={(otherUser as unknown as Record<string, string>)?.avatar}
+                    logoURL={(otherUser as unknown as Record<string, string>)?.logoUrl}
                     role={otherUser.role}
                     displayName={otherUser.displayName}
                     size={48}
                   />
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-[var(--ink)] truncate">{(otherUser as OperatorProfile).businessName || otherUser.displayName}</p>
+                    <p className="text-sm font-semibold text-[var(--ink)] truncate">{otherUser.displayName}</p>
                     <p className="text-xs text-[var(--text-muted)] capitalize">{otherUser.role}</p>
                   </div>
                 </div>
                 <div className="space-y-2 text-sm">
-                  <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2.5">
+                  <div className="rounded-xl border-[3px] border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2.5">
                     <p className="text-[11px] uppercase tracking-wide text-[var(--text-muted)]">Location</p>
                     <p className="text-[var(--ink)]">{otherUser.city}, {otherUser.province}</p>
                   </div>
                   {distance !== null && (
-                    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2.5">
+                    <div className="rounded-xl border-[3px] border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2.5">
                       <p className="text-[11px] uppercase tracking-wide text-[var(--text-muted)]">Distance</p>
                       <p className="text-[var(--ink)]">{distance.toFixed(1)} km away</p>
                     </div>
                   )}
                   {otherUser.phone && (
-                    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2.5">
+                    <div className="rounded-xl border-[3px] border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2.5">
                       <p className="text-[11px] uppercase tracking-wide text-[var(--text-muted)]">Phone</p>
                       <p className="text-[var(--ink)]">{otherUser.phone}</p>
                     </div>
                   )}
                 </div>
                 <Link
-                  href={`/dashboard/u/${otherUser.uid}?returnTo=${encodeURIComponent(`/dashboard/messages/${chatId}`)}`}
+                  href={`/dashboard/u/${otherUser.uid}`}
                   className="w-full inline-flex items-center justify-center gap-2 px-3 py-2.5 bg-[var(--accent)] text-white rounded-xl text-xs font-semibold hover:bg-[var(--accent-dark)] transition"
                 >
                   Open Full Profile <ExternalLink className="w-3.5 h-3.5" />
@@ -1459,7 +2126,7 @@ export default function ChatPage() {
       </Modal>
 
       <Modal isOpen={showCashPayment && !showCancelPopup} onClose={() => { if (!cashActionBusy) setShowCashPayment(false); }} title="Cash payment" size="sm">
-        <p className="text-2xl font-semibold">${job ? jobDisplayPrice(job, isOperator).toFixed(2) : "0.00"} CAD</p>
+        <p className="text-2xl font-semibold">${job?.price} CAD</p>
         <p className="mt-3 text-sm leading-6">{job?.status === "completed" ? "The work is complete. Pay the operator directly in cash. Payment remains pending until they confirm receipt." : "Pay the operator directly after the work. Confirming below records payment as pending; no money is charged or held."}</p>
         {cashError && <p role="alert" className="mt-3 text-sm text-red-700">{cashError}</p>}
         {job && !["completed", "cancelled"].includes(job.status) && job.paymentStatus !== "paid" && <button disabled={cashActionBusy} onClick={() => cashPaymentAction("defer")} className="btn-primary mt-5 w-full px-4 py-3">{cashActionBusy ? "Saving…" : "Confirm · pay cash after work"}</button>}
@@ -1474,7 +2141,7 @@ export default function ChatPage() {
         onConfirm={confirmCancelJob}
         loading={cancelling}
         title="Cancel this job?"
-        message={`This will cancel the ${job?.serviceTypes?.map(s => s.replace("-", " ")).join(", ") || "snow removal"} job at ${job?.address || "this address"}. ${job?.paymentMethod === "cash" ? "No card will be charged. Any cash already exchanged must be settled directly with the operator." : `Any held card payment will be released.`}`}
+        message={`This will cancel the ${job?.serviceTypes?.map(s => s.replace("-", " ")).join(", ") || "snow removal"} job at ${job?.address || "this address"}. ${job?.paymentMethod === "cash" ? "No card will be charged. Any cash already exchanged must be settled directly with the operator." : `Any held payment of $${job?.price || 0} will be released.`}`}
       />
 
       <Modal isOpen={!!quickCommConfirmation} onClose={() => setQuickCommConfirmation(null)} title={quickCommConfirmation?.title} size="sm">
@@ -1492,7 +2159,7 @@ export default function ChatPage() {
       {/* Report / Claim Modal */}
       {showReportModal && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setShowReportModal(false)}>
-          <div className="max-h-[calc(100dvh-2rem)] overflow-y-auto bg-white rounded-2xl max-w-md w-full p-6 space-y-4" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-5 h-5 text-red-500" />
@@ -1518,8 +2185,7 @@ export default function ChatPage() {
             </div>
             <div>
               <label className="text-xs text-gray-500 font-medium">Description</label>
-              <button type="button" className="min-h-11 min-w-11 rounded-xl hover:bg-gray-100" aria-label="Add photo or attachment" aria-expanded={attachmentsOpen} aria-controls="chat-attachments" onClick={() => setAttachmentsOpen(value => !value)}><Plus className="mx-auto h-5 w-5" /></button>
-            <textarea
+              <textarea
                 value={reportDescription}
                 onChange={e => setReportDescription(e.target.value)}
                 className="w-full px-3 py-2 border rounded-lg text-sm mt-1"
@@ -1541,7 +2207,7 @@ export default function ChatPage() {
       {/* Payment Gate Modal — shown when operator tries to go en-route without client payment */}
       {showPaymentGateModal && job && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowPaymentGateModal(false)}>
-          <div className="max-h-[calc(100dvh-2rem)] overflow-y-auto bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-[var(--surface-shadow)]" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-[var(--surface-shadow)]" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-1">
               <div className="w-11 h-11 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
                 <CreditCard className="w-5 h-5 text-amber-600" />
@@ -1552,18 +2218,18 @@ export default function ChatPage() {
               </div>
             </div>
             <p className="text-sm text-gray-600 leading-relaxed">
-              The client needs to authorize payment before you can proceed. Send them a payment request so funds are held securely.
+              The client needs to pay <span className="font-bold text-gray-900">${job.price} CAD</span> before you can proceed. Send them a payment request so funds are held securely.
             </p>
             <div className="space-y-2 pt-1">
               <button
                 onClick={() => {
                   requestQuickCommConfirmation({
                     title: "Send payment request?",
-                    message: `This will ask the client to authorize the agreed payment before the job starts.`,
+                    message: `This will ask the client to pay $${job.price} CAD before the job starts.`,
                     confirmLabel: "Send Request",
                     onConfirm: async () => {
                       await sendMessage(
-                        `${profile?.displayName} is requesting card authorization before starting the job. Open the work order to review your agreed price and payment status.`,
+                        `${profile?.displayName} is requesting payment of $${job.price} CAD before starting the job. Please pay to confirm — funds are held securely by snowd.ca until completion.`,
                         "payment-request",
                         { amount: job.price }
                       );
@@ -1631,7 +2297,7 @@ export default function ChatPage() {
 
       {showCameraQrModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowCameraQrModal(false)}>
-          <div className="max-h-[calc(100dvh-2rem)] overflow-y-auto bg-white rounded-2xl max-w-sm w-full p-5 shadow-[var(--surface-shadow)]" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-[var(--surface-shadow)]" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-[var(--ink)]">Send Photo From Phone</h3>
               <button
@@ -1643,12 +2309,12 @@ export default function ChatPage() {
               </button>
             </div>
             <p className="text-xs text-[var(--text-muted)] mt-1.5">Scan on your phone, take one photo, and keep this window open until the upload appears in chat.</p>
-            <div className="mt-4 rounded-xl border border-[var(--border)] bg-[#F8FAFD] p-3 flex items-center justify-center">
+            <div className="mt-4 rounded-xl border-[3px] border-[var(--border)] bg-[#F8FAFD] p-3 flex items-center justify-center">
               {primaryGuestUploadUrl ? (
                 <img
                   src={`https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(primaryGuestUploadUrl)}`}
                   alt="QR code for mobile camera upload"
-                  className="w-[240px] max-w-full h-auto"
+                  className="w-[240px] h-[240px]"
                 />
               ) : (
                 <p className="text-sm text-[var(--text-muted)]">Preparing temporary link...</p>
@@ -1676,12 +2342,12 @@ export default function ChatPage() {
                       onClick={async () => {
                         try {
                           await navigator.clipboard.writeText(url);
-                          setFeedback(`Link ${index + 1} copied.`);
+                          alert(`Link ${index + 1} copied.`);
                         } catch {
-                          setFeedback("Could not copy link.");
+                          alert("Could not copy link.");
                         }
                       }}
-                      className="px-2.5 py-2 rounded-lg border border-[var(--border)] text-xs text-[var(--accent)] hover:bg-[#F3F8FF]"
+                      className="px-2.5 py-2 rounded-lg border-[3px] border-[var(--border)] text-xs text-[var(--accent)] hover:bg-[#F3F8FF]"
                     >
                       Copy
                     </button>
@@ -1713,13 +2379,13 @@ export default function ChatPage() {
                 onClick={async () => {
                   try {
                     await navigator.clipboard.writeText(primaryGuestUploadUrl);
-                    setFeedback("Mobile upload link copied.");
+                    alert("Mobile upload link copied.");
                   } catch {
-                    setFeedback("Could not copy link. Use Open Link instead.");
+                    alert("Could not copy link. Use Open Link instead.");
                   }
                 }}
                 disabled={!primaryGuestUploadUrl}
-                className="px-3 py-2.5 rounded-xl border border-[var(--border)] text-[var(--accent)] text-sm font-semibold hover:bg-[#F3F8FF]"
+                className="px-3 py-2.5 rounded-xl border-[3px] border-[var(--border)] text-[var(--accent)] text-sm font-semibold hover:bg-[#F3F8FF]"
               >
                 Copy
               </button>

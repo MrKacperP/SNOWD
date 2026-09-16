@@ -16,7 +16,7 @@ export default function Card({
   variant = 'default',
   padding = 'lg'
 }: CardProps) {
-  const baseStyles = 'rounded-2xl border border-[var(--border)] transition-all duration-150';
+  const baseStyles = 'rounded-2xl border border-[var(--border)]';
   
   const variants = {
     default: 'bg-[var(--bg-card-solid)] shadow-[var(--surface-shadow)]',
@@ -31,12 +31,7 @@ export default function Card({
   };
   
   return (
-    <MotionDiv 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className={`${baseStyles} ${variants[variant]} ${paddings[padding]} ${className}`}
-    >
+    <MotionDiv className={`${baseStyles} ${variants[variant]} ${paddings[padding]} ${className}`}>
       {children}
     </MotionDiv>
   );

@@ -14,6 +14,10 @@ const db = getFirestore(),
   auth = getAuth(),
   base = process.env.SNOWD_QA_URL || "http://127.0.0.1:3004";
 assert(["127.0.0.1", "localhost"].includes(new URL(base).hostname), "Local QA application required");
+const runId = randomUUID().slice(0, 8);
+const clientId = `wo-client-${runId}`;
+const operatorId = `wo-operator-${runId}`;
+const strangerId = `wo-stranger-${runId}`;
 const tokens = {};
 const address = {
   address: "100 Test Street",
@@ -24,9 +28,9 @@ const address = {
   lng: -79.38,
 };
 for (const [uid, role] of [
-  ["wo-client", "client"],
-  ["wo-operator", "operator"],
-  ["wo-stranger", "client"],
+  [clientId, "client"],
+  [operatorId, "operator"],
+  [strangerId, "client"],
 ]) {
   try {
     await auth.createUser({
@@ -44,7 +48,7 @@ for (const [uid, role] of [
       role,
       email: `${uid}@example.test`,
       displayName:
-        uid === "wo-operator" ? "ABC Snow operator" : "Test customer",
+        uid === operatorId ? "ABC Snow operator" : "Test customer",
       businessName: role === "operator" ? "ABC Snow" : "",
       ...address,
       onboardingComplete: true,
@@ -71,7 +75,7 @@ for (const [uid, role] of [
   tokens[uid] = (await r.json()).idToken;
   assert(tokens[uid]);
 }
-async function api(path, body, uid = "wo-client") {
+async function api(path, body, uid = clientId) {
   const r = await fetch(`${base}/api/jobs/${path}`, {
     method: "POST",
     headers: {
@@ -85,7 +89,7 @@ async function api(path, body, uid = "wo-client") {
 const data = async (id) => (await db.doc(`jobs/${id}`).get()).data();
 const when = (hours) => new Date(Date.now() + hours * 3600000).toISOString();
 const booking = {
-  operatorId: "wo-operator",
+  operatorId: operatorId,
   paymentMethod: "cash",
   cashPaymentAcknowledged: true,
   expectedPrice: 40,
@@ -102,12 +106,13 @@ async function create(overrides = {}, uid) {
   assert.equal(result.status, 200, JSON.stringify(result));
   return result;
 }
-async function action(id, action, uid = "wo-operator", extra = {}) {
+async function action(id, action, uid = operatorId, extra = {}) {
   return api(
     "action",
     {
       jobId: id,
       action,
+      ...(action === "en-route" ? { operatorLat: 43.65, operatorLng: -79.38, operatorLocationAccuracy: 10 } : {}),
       revision: (await data(id)).revision || 0,
       requestId: randomUUID(),
       ...extra,
@@ -132,7 +137,7 @@ assert.equal(
   (await db.doc(`chats/${first.chatId}`).get()).data().jobId,
   first.jobId,
 );
-assert.equal((await action(first.jobId, "accept", "wo-stranger")).status, 403);
+assert.equal((await action(first.jobId, "accept", strangerId)).status, 403);
 assert.equal(
   (await api("create", { ...booking, requestId: randomUUID() }, "invalid"))
     .status,
@@ -154,7 +159,7 @@ console.log(
 );
 
 ok(
-  await action(overlap.jobId, "propose-time", "wo-operator", {
+  await action(overlap.jobId, "propose-time", operatorId, {
     scheduleMode: "scheduled",
     scheduledDate: when(28),
     scheduleTimezone: "America/Toronto",
@@ -162,18 +167,18 @@ ok(
 );
 const proposal = (await data(overlap.jobId)).scheduleProposal;
 conflict(
-  await action(overlap.jobId, "approve-time", "wo-client", {
+  await action(overlap.jobId, "approve-time", clientId, {
     proposalId: "stale",
   }),
 );
 ok(
-  await action(overlap.jobId, "approve-time", "wo-client", {
+  await action(overlap.jobId, "approve-time", clientId, {
     proposalId: proposal.id,
   }),
 );
 const original = (await data(first.jobId)).scheduledDate.toMillis();
 ok(
-  await action(first.jobId, "propose-time", "wo-client", {
+  await action(first.jobId, "propose-time", clientId, {
     scheduleMode: "scheduled",
     scheduledDate: when(30),
     scheduleTimezone: "America/Toronto",
@@ -181,7 +186,7 @@ ok(
 );
 assert.equal((await data(first.jobId)).scheduledDate.toMillis(), original);
 ok(
-  await action(first.jobId, "decline-time", "wo-operator", {
+  await action(first.jobId, "decline-time", operatorId, {
     proposalId: (await data(first.jobId)).scheduleProposal.id,
   }),
 );
@@ -189,16 +194,16 @@ assert.equal((await data(first.jobId)).scheduledDate.toMillis(), original);
 const company = await create(
   {
     previousOrderId: first.jobId,
-    clientId: "wo-client",
+    clientId: clientId,
     scheduledDate: when(32),
     cashPaymentAcknowledged: false,
   },
-  "wo-operator",
+  operatorId,
 );
 assert.equal((await data(company.jobId)).cashPaymentAcknowledged, false);
-assert.equal((await action(company.jobId, "accept", "wo-client")).status, 400);
+assert.equal((await action(company.jobId, "accept", clientId)).status, 400);
 ok(
-  await action(company.jobId, "accept", "wo-client", {
+  await action(company.jobId, "accept", clientId, {
     cashPaymentAcknowledged: true,
   }),
 );
@@ -207,8 +212,8 @@ console.log(
 );
 
 const starts = await Promise.all([
-  action(first.jobId, "en-route"),
-  action(second.jobId, "en-route"),
+  action(first.jobId, "en-route", operatorId),
+  action(second.jobId, "en-route", operatorId),
 ]);
 assert.equal(
   starts.filter((r) => r.status === 200).length,
@@ -224,13 +229,13 @@ const underway = starts[0].status === 200 ? first : second;
 ok(await action(underway.jobId, "in-progress"));
 conflict(await action(underway.jobId, "complete"));
 ok(
-  await action(underway.jobId, "photo", "wo-operator", {
+  await action(underway.jobId, "photo", operatorId, {
     completionPhotoUrl: "data:image/png;base64,iVBORw0KGgo=",
   }),
 );
 assert.equal((await data(underway.jobId)).status, "completed");
 assert.equal((await data(underway.jobId)).paymentStatus, "pending");
-ok(await api("confirm-cash", { jobId: underway.jobId }, "wo-operator"));
+ok(await api("confirm-cash", { jobId: underway.jobId }, operatorId));
 assert.equal((await data(underway.jobId)).paymentStatus, "paid");
 conflict(await action(underway.jobId, "accept"));
 ok(await api("cancel", { jobId: overlap.jobId }));
@@ -263,7 +268,7 @@ await db
 
 await db
   .doc("chats/wo-legacy")
-  .set({ jobId: "wo-legacy-two", participants: ["wo-client", "wo-operator"] });
+  .set({ jobId: "wo-legacy-two", participants: [clientId, operatorId] });
 for (const id of ["wo-legacy-one", "wo-legacy-two"])
   await db
     .doc(`jobs/${id}`)
@@ -277,7 +282,7 @@ await db
   .doc("messages/wo-legacy-message")
   .set({
     chatId: "wo-legacy",
-    senderId: "wo-client",
+    senderId: clientId,
     content: "Ambiguous old message",
     read: false,
   });

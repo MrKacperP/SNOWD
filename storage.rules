@@ -46,6 +46,12 @@ service firebase.storage {
       allow read: if true;
       allow write: if request.auth != null && request.auth.uid == userId;
     }
+
+    // Client property photos shown only to signed-in marketplace participants.
+    match /property-photos/{userId}/{allPaths=**} {
+      allow read: if isSignedIn();
+      allow write: if isSelf(userId);
+    }
     
     // Completion photos for jobs
     match /completion-photos/{allPaths=**} {

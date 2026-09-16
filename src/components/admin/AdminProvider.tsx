@@ -286,6 +286,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
         return {
           id: d.id,
+          orderNumber: String(data.orderNumber || ""),
           title: serviceTypes.length ? serviceTypes.map(titleCase).join(", ") : "Job",
           postedBy: String(data.clientName || data.clientId || "Unknown"),
           category: serviceTypes[0] ? titleCase(serviceTypes[0]) : "Unspecified",
@@ -332,7 +333,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       setSupportTickets(prev => snap.docs.map(d => {
         const data = d.data();
         const existing = prev.find(t => t.id === d.id);
-        return { id: d.id, userId: String(data.userId || data.uid || d.id.replace(/^support_/, "")), userName: String(data.userName || "User"), userAvatar: initials(String(data.userName || "U")), subject: String(data.subject || data.problemCategory || "Support conversation"), status: ["resolved", "closed"].includes(data.status) ? "Resolved" : data.status === "in-progress" ? "Waiting" : "Open", urgency: ["High", "Medium", "Low"].includes(data.urgency) ? data.urgency : "Medium", lastMessageAgo: toRelativeLabel(data.lastMessageTime || data.updatedAt), createdAt: toIsoDate(data.createdAt), unreadReplies: existing?.unreadReplies || 0, thread: existing?.thread || [] } as SupportTicket;
+        return { id: d.id, userId: String(data.userId || data.uid || d.id.replace(/^support_/, "")), userName: String(data.userName || "User"), userAvatar: initials(String(data.userName || "U")), subject: String(data.subject || data.problemCategory || "Support conversation"), status: ["resolved", "closed"].includes(data.status) ? "Resolved" : data.status === "in-progress" ? "Waiting" : "Open", urgency: ["High", "Medium", "Low"].includes(data.urgency) ? data.urgency : "Medium", lastMessageAgo: toRelativeLabel(data.lastMessageTime || data.updatedAt), lastMessageAt: toIsoDate(data.lastMessageTime || data.updatedAt), createdAt: toIsoDate(data.createdAt), unreadReplies: existing?.unreadReplies || 0, thread: existing?.thread || [] } as SupportTicket;
       }));
       snap.docs.forEach(d => {
         if (supportListeners.has(d.id)) return;
@@ -402,12 +403,14 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             id: d.id,
             type:
               type === "verification" ||
+              type === "signup" ||
+              type === "profile_saved" ||
               type === "user" ||
               type === "job" ||
               type === "support" ||
               type === "transaction" ||
               type === "claim"
-                ? type
+                ? type === "signup" || type === "profile_saved" ? "user" : type
                 : "system",
               title: typeof data.title === "string" ? data.title : undefined,
             message: String(data.message || ""),

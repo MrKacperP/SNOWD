@@ -68,6 +68,7 @@ export function orderEvent(
   eventId: string,
   title: string,
   completionPhotoUrl?: string,
+  options?: { type?: "system" | "eta-update"; metadata?: Record<string, unknown> },
 ) {
   const db = getAdminDb(),
     now = FieldValue.serverTimestamp();
@@ -94,18 +95,17 @@ export function orderEvent(
       jobId: job.id,
       senderId: uid,
       senderName: "Work order update",
-      type: completionPhotoUrl ? "completion-photo" : "system",
-      ...(completionPhotoUrl ? { metadata: { completionPhotoUrl } } : {}),
+      type: completionPhotoUrl ? "completion-photo" : options?.type || "system",
+      ...(completionPhotoUrl ? { metadata: { completionPhotoUrl } } : options?.metadata ? { metadata: options.metadata } : {}),
       content: message,
       createdAt: now,
       read: false,
     });
     tx.update(db.doc(`chats/${job.chatId}`), {
-      lastMessage: message,
-      lastMessageTime: now,
-      [`unreadCount.${recipient}`]: FieldValue.increment(1),
+      lastActivityTime: now,
     });
   }
+  return { recipient, message };
 }
 export function orderFailure(error: unknown) {
   if (error instanceof OrderError)

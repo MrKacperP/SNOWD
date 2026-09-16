@@ -4,6 +4,7 @@ import { getAdminAuth, getAdminDb } from "@/lib/firebaseAdmin";
 import { getStripe } from "@/lib/stripe";
 import { syncStripePayment } from "@/lib/stripePaymentState";
 import { Job } from "@/lib/types";
+import { sendWorkOrderEmail } from "@/lib/emailNotifications";
 export async function POST(request: NextRequest) {
   let uid: string;
   try {
@@ -22,6 +23,8 @@ export async function POST(request: NextRequest) {
       if (!job) return { error: "Job not found.", status: 404 };
       if (uid !== job.clientId && uid !== job.operatorId) return { error: "You cannot cancel this job.", status: 403 };
       if (job.status === "completed") return { error: "Completed jobs cannot be cancelled.", status: 409 };
+      if (["en-route", "in-progress"].includes(job.status)) return { error: "Once the operator is on the way, cancellation must be handled by support at 437-922-3895.", status: 409 };
+      let email: { uid: string; title: string; eventId: string } | undefined;
       if (job.status !== "cancelled") {
         const now = FieldValue.serverTimestamp();
         transaction.update(ref, { status: "cancelled", revision: (job.revision || 0) + 1, scheduleProposal: null, awaitingResponseFrom: null, cancelledBy: uid, cancelledAt: now, updatedAt: now });
@@ -29,12 +32,13 @@ export async function POST(request: NextRequest) {
         const recipient = uid === job.clientId ? job.operatorId : job.clientId;
         const message = `This job has been cancelled. ${job.paymentMethod === "cash" ? "Any cash already exchanged must be settled directly; the operator can record cash returned." : "Held card payments will be released. Captured payments require a refund through support."}`;
         transaction.set(db.doc(`notifications/${jobId}-cancelled`), { uid: recipient, type: "job", title: "Job cancelled", message, jobId, chatId: job.chatId || "", read: false, createdAt: now });
+        email = { uid: recipient, title: `Order #${job.orderNumber || job.id} · Job cancelled`, eventId: "cancelled" };
         if (job.chatId) {
           transaction.set(db.doc(`messages/${jobId}-cancelled`), { chatId: job.chatId, jobId, senderId: uid, senderName: "Job update", type: "status-update", content: message, metadata: { newStatus: "cancelled" }, read: false, createdAt: now });
-          transaction.update(db.doc(`chats/${job.chatId}`), { lastMessage: message, lastMessageTime: now, [`unreadCount.${recipient}`]: FieldValue.increment(1) });
+          transaction.update(db.doc(`chats/${job.chatId}`), { lastActivityTime: now });
         }
       }
-      return { job };
+      return { job, email };
     });
     if ("error" in result) return NextResponse.json({ error: result.error }, { status: result.status });
     // Closing the job first prevents subsequent work/payment actions. Retrying this
@@ -54,6 +58,7 @@ export async function POST(request: NextRequest) {
         warning = "Job cancelled, but the card hold could not be released yet. Retry releasing the hold from this work order or contact support.";
       }
     }
+    if (result.email) await sendWorkOrderEmail(result.email.uid, jobId as string, result.email.title, result.email.eventId).catch(error => console.error("Cancellation email failed", error));
     return NextResponse.json({ success: true, warning });
   } catch (error) {
     console.error("Job cancellation failed:", error);

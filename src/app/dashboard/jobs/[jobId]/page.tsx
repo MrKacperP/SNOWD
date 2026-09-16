@@ -1,21 +1,16 @@
 "use client";
-import CompanyIdentity from "@/components/CompanyIdentity";
 import BackButton from "@/components/BackButton";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import {
-  collection,
   doc,
   getDoc,
   onSnapshot,
-  orderBy,
-  query,
 } from "firebase/firestore";
 import Link from "next/link";
 import { db } from "@/lib/firebase";
-import { Job, OperatorProfile } from "@/lib/types";
+import { ClientProfile, Job, OperatorProfile } from "@/lib/types";
 import { useAuth } from "@/context/AuthContext";
-import { dateMillis } from "@/lib/workOrders";
 import OrderCard from "@/components/work-orders/OrderCard";
 import styles from "@/components/work-orders/work-orders.module.css";
 export default function WorkOrderPage() {
@@ -24,11 +19,7 @@ export default function WorkOrderPage() {
   const [job, setJob] = useState<Job | null>(null),
     [name, setName] = useState("Company / customer"),
     [error, setError] = useState("");
-  const [events, setEvents] = useState<
-    { id: string; title: string; createdAt: unknown }[]
-  >([]);
-  const [person, setPerson] = useState<OperatorProfile>();
-  const [eventError, setEventError] = useState("");
+  const [person, setPerson] = useState<OperatorProfile | ClientProfile>();
   const [notice, setNotice] = useState("");
   useEffect(() => {
     if (!user) return;
@@ -60,7 +51,7 @@ export default function WorkOrderPage() {
       .then((snap) => {
         const p = snap.data() as OperatorProfile;
         if (active) {
-          setPerson({ ...p, uid: snap.id });
+          setPerson({ ...p, uid: snap.id } as OperatorProfile | ClientProfile);
           setName(p?.businessName || p?.displayName || "Company / customer");
         }
       })
@@ -69,29 +60,6 @@ export default function WorkOrderPage() {
       active = false;
     };
   }, [job, user]);
-  useEffect(() => {
-    if (!user) return;
-    return onSnapshot(
-      query(
-        collection(db, "jobs", jobId, "events"),
-        orderBy("createdAt", "asc"),
-      ),
-      (snap) => {
-        setEvents(
-          snap.docs.map(
-            (d) =>
-              ({ ...d.data(), id: d.id }) as {
-                id: string;
-                title: string;
-                createdAt: unknown;
-              },
-          ),
-        );
-        setEventError("");
-      },
-      () => setEventError("The activity timeline is temporarily unavailable."),
-    );
-  }, [jobId, user]);
   return (
     <div className={styles.detailPage}>
       <BackButton href="/dashboard/jobs" label="Back" />
@@ -101,26 +69,15 @@ export default function WorkOrderPage() {
         <p role="status">Loading work order…</p>
       ) : (
         <>
-          <header className={styles.detailIntro}>
-            <h1>Work order</h1>
-            <p>
-              <CompanyIdentity person={person} name={name} /> · Order #{job.orderNumber || job.id}
-            </p>
-          </header>
           {notice && (
             <p role="status" className="text-sm text-[var(--text-secondary)]">
               {notice}
             </p>
           )}
           <OrderCard job={job} name={name} person={person} detail onUpdated={setNotice} />
-          <section className={styles.detailSection}>
-            <h2 className="text-xl font-bold">Service details</h2>
-            <p className="mt-3">
-              {job.specialInstructions || "No special instructions."}
-            </p>
-            <p className="mt-2">
-              Estimated duration: {job.estimatedDuration || 45} minutes
-            </p>
+          {(job.specialInstructions || job.completionPhotoUrl || job.legacyChatId) && <section className={styles.detailSection} aria-labelledby="visit-notes-heading">
+            <h2 id="visit-notes-heading" className={styles.detailSummary}>Notes & proof</h2>
+            {job.specialInstructions && <p className="mt-3">{job.specialInstructions}</p>}
             {job.completionPhotoUrl && (
               <a
                 className="mt-3 inline-flex min-h-11 items-center underline"
@@ -141,29 +98,7 @@ export default function WorkOrderPage() {
                 </Link>
               </p>
             )}
-          </section>
-          <section className={styles.detailSection}>
-            <h2 className="text-xl font-bold">Activity</h2>
-            {eventError && <p role="alert">{eventError}</p>}
-            <ol className={styles.timeline}>
-              {events.map((event) => (
-                <li key={event.id} className={styles.timelineItem}>
-                  <p className="font-semibold">{event.title}</p>
-                  <p className="mt-1 text-sm text-[var(--text-muted)]">
-                    {dateMillis(event.createdAt)
-                      ? new Date(dateMillis(event.createdAt)).toLocaleString()
-                      : "Just now"}
-                  </p>
-                </li>
-              ))}
-            </ol>
-            {!events.length && !eventError && (
-              <p className="mt-3">
-                This order predates the activity timeline. Earlier updates
-                remain in its conversation.
-              </p>
-            )}
-          </section>
+          </section>}
         </>
       )}
     </div>

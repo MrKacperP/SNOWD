@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { ThemePreference } from "@/lib/types";
 
 interface ThemeContextType {
@@ -18,24 +18,31 @@ const ThemeContext = createContext<ThemeContextType>({
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<ThemePreference>("light");
-  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">("light");
+  const [theme, setThemeState] = useState<ThemePreference>(() => {
+    if (typeof window === "undefined") return "light";
+    return localStorage.getItem("snowd-theme") === "dark" ? "dark" : "light";
+  });
+  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(theme);
 
-  useEffect(() => {
-    document.documentElement.classList.remove("dark");
-    localStorage.setItem("snowd-theme", "light");
+  const applyTheme = useCallback((newTheme: ThemePreference) => {
+    const root = document.documentElement;
+    root.classList.toggle("dark", newTheme === "dark");
+    root.style.colorScheme = newTheme;
   }, []);
 
-  const setTheme = (newTheme: ThemePreference) => {
-    void newTheme;
-    setThemeState("light");
-    setResolvedTheme("light");
-    document.documentElement.classList.remove("dark");
-    localStorage.setItem("snowd-theme", "light");
-  };
+  useEffect(() => {
+    applyTheme(theme);
+  }, [applyTheme, theme]);
+
+  const setTheme = useCallback((newTheme: ThemePreference) => {
+    setThemeState(newTheme);
+    setResolvedTheme(newTheme);
+    localStorage.setItem("snowd-theme", newTheme);
+    applyTheme(newTheme);
+  }, [applyTheme]);
 
   const toggleTheme = () => {
-    setTheme("light");
+    setTheme(resolvedTheme === "light" ? "dark" : "light");
   };
 
   return (

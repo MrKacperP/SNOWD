@@ -6,7 +6,7 @@ import ts from 'typescript';
 function load(path, mocks = {}) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(path, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText, {
-    exports, require: name => { if (name in mocks) return mocks[name]; throw Error(name); }, console: { error() {} },
+    exports, require: name => { if (name === '@/lib/emailNotifications') return { sendWorkOrderEmail: async () => ({ sent: true }) }; if (name in mocks) return mocks[name]; throw Error(name); }, console: { error() {} },
   });
   return exports;
 }
@@ -127,7 +127,7 @@ test('cancelled cash jobs can record money returned without reopening work', asy
   assert.match(f.writes.find(w => w.path.startsWith('messages/')).data.content, /remains cancelled/);
 });
 
-function cancelFixture({ uid = 'client', status = 'in-progress', method = 'cash', payment = 'requires_capture', failRelease = false } = {}) {
+function cancelFixture({ uid = 'client', status = 'accepted', method = 'cash', payment = 'requires_capture', failRelease = false } = {}) {
   const writes = [];
   let releases = 0;
   const job = { clientId: 'client', operatorId: 'operator', chatId: 'chat', status, paymentMethod: method, paymentStatus: 'pending', ...(method === 'credit' ? { stripePaymentIntentId: 'pi_1' } : {}) };
@@ -141,14 +141,23 @@ function cancelFixture({ uid = 'client', status = 'in-progress', method = 'cash'
   });
   return { writes, releases: () => releases, run: () => route.POST({ headers: new Map([['authorization', 'Bearer valid']]), json: async () => ({ jobId: 'job' }) }) };
 }
-test('either participant can cancel every unfinished job and notify the other party', async () => {
-  for (const uid of ['client', 'operator']) for (const status of ['pending', 'accepted', 'en-route', 'in-progress']) {
+test('either participant can cancel before departure and notify the other party', async () => {
+  for (const uid of ['client', 'operator']) for (const status of ['pending', 'accepted']) {
     const f = cancelFixture({ uid, status });
     assert.equal((await f.run()).status, 200);
     assert.equal(f.writes[0].data.status, 'cancelled');
     assert.equal(f.writes[0].data.paymentStatus, undefined);
     assert.equal(f.writes.find(w => w.path.startsWith('notifications/')).data.uid, uid === 'client' ? 'operator' : 'client');
     assert.equal(f.releases(), 0);
+  }
+});
+test('cancellation requires support once the operator is on the way', async () => {
+  for (const uid of ['client', 'operator']) for (const status of ['en-route', 'in-progress']) {
+    const f = cancelFixture({ uid, status });
+    const response = await f.run();
+    assert.equal(response.status, 409);
+    assert.match(response.body.error, /support/i);
+    assert.equal(f.writes.length, 0);
   }
 });
 test('completed jobs and unrelated callers cannot cancel', async () => {

@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { GoogleMap, Circle, useJsApiLoader } from "@react-google-maps/api";
+import { GoogleMap, Circle, Marker, Rectangle, useJsApiLoader } from "@react-google-maps/api";
+import type { OperatorServiceArea } from "@/lib/types";
 import {
   GOOGLE_MAPS_LIBRARIES,
   GOOGLE_MAPS_API_KEY,
@@ -17,6 +18,7 @@ interface ServiceRadiusMapProps {
   radiusKm: number;
   lat?: number;
   lng?: number;
+  serviceAreas?: OperatorServiceArea[];
 }
 
 const mapContainerStyle = {
@@ -33,6 +35,7 @@ export default function ServiceRadiusMap({
   radiusKm,
   lat,
   lng,
+  serviceAreas = [],
 }: ServiceRadiusMapProps) {
   const fullAddress = `${address}, ${city}, ${province}, ${postalCode}, Canada`;
 
@@ -65,6 +68,7 @@ export default function ServiceRadiusMap({
       lat={lat}
       lng={lng}
       radiusKm={radiusKm}
+      serviceAreas={serviceAreas}
     />
   );
 }
@@ -77,6 +81,7 @@ function ServiceRadiusMapWithApi({
   radiusKm,
   lat,
   lng,
+  serviceAreas = [],
 }: ServiceRadiusMapProps) {
   const fullAddress = `${address}, ${city}, ${province}, ${postalCode}, Canada`;
   const { isLoaded, loadError } = useJsApiLoader({
@@ -121,7 +126,7 @@ function ServiceRadiusMapWithApi({
     geocodeAddress();
   }, [geocodeAddress]);
 
-  // Auto-zoom to fit the radius circle
+  // Keep the home radius and every selected city visible.
   useEffect(() => {
     if (!mapRef.current || !isLoaded || !center) return;
     
@@ -132,9 +137,13 @@ function ServiceRadiusMapWithApi({
     });
     const bounds = circle.getBounds();
     if (bounds) {
+      serviceAreas.forEach(area => {
+        if (area.bounds) bounds.union(area.bounds);
+        else bounds.extend({ lat: area.lat, lng: area.lng });
+      });
       mapRef.current.fitBounds(bounds);
     }
-  }, [center, radiusKm, isLoaded]);
+  }, [center, radiusKm, isLoaded, serviceAreas]);
 
   if (loadError) {
     return (
@@ -190,7 +199,10 @@ function ServiceRadiusMapWithApi({
         onLoad={(map) => {
           mapRef.current = map;
           const bounds = new google.maps.Circle({ center, radius: radiusKm * 1000 }).getBounds();
-          if (bounds) map.fitBounds(bounds);
+          if (bounds) {
+            serviceAreas.forEach(area => area.bounds ? bounds.union(area.bounds) : bounds.extend({ lat: area.lat, lng: area.lng }));
+            map.fitBounds(bounds);
+          }
         }}
       >
         <Circle
@@ -198,10 +210,16 @@ function ServiceRadiusMapWithApi({
           radius={radiusKm * 1000}
           options={circleOptions}
         />
+        {serviceAreas.map(area => (
+          <React.Fragment key={area.placeId}>
+            {area.bounds && <Rectangle bounds={area.bounds} options={{ strokeColor: "#ff7a00", strokeWeight: 2, fillColor: "#ff7a00", fillOpacity: 0.14 }} />}
+            <Marker position={{ lat: area.lat, lng: area.lng }} label={{ text: area.city, color: "#061321", fontWeight: "700" }} title={`${area.city}, ${area.provinceCode}`} />
+          </React.Fragment>
+        ))}
       </GoogleMap>
 
       <div className="mt-2 text-xs text-gray-500 text-center">
-        Service area: {radiusKm} km radius
+        Service area: {radiusKm} km home radius{serviceAreas.length ? ` plus ${serviceAreas.length} ${serviceAreas.length === 1 ? "city" : "cities"}` : ""}
         {!address && " • Approximate service area"}
       </div>
     </div>

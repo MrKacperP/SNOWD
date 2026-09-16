@@ -101,6 +101,19 @@ export async function POST(req: NextRequest) {
     }
     const paymentIntent = await stripe.paymentIntents.create(params, { idempotencyKey: `job-payment-${jobId}-${amountInCents}-${operatorStripeAccountId}-${previousId}` });
     await jobRef.update({ stripePaymentIntentId: paymentIntent.id, paymentStatus: "pending" });
+    const notificationDb = getAdminDb();
+    if (typeof notificationDb.collection === "function") {
+      await notificationDb.collection("adminNotifications").add({
+        type: "transaction",
+        title: "Payment pending",
+        message: `Payment is pending for order #${job.orderNumber || jobId}.`,
+        read: false,
+        actionRequired: true,
+        priority: "medium",
+        meta: { path: "/admin/transactions", jobId },
+        createdAt: new Date(),
+      });
+    }
 
     return NextResponse.json({
       clientSecret: paymentIntent.client_secret,

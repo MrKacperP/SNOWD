@@ -5,6 +5,7 @@ import { OperatorProfile } from "@/lib/types";
 import AvailabilityToggle from "@/components/dashboard/AvailabilityToggle";
 import MobileNavigation from "@/components/dashboard/MobileNavigation";
 import SupportChatButton from "@/components/SupportChatButton";
+import { primaryNavigation } from "@/lib/appNavigation";
 
 import { useUserChats } from "@/hooks/useUserChats";
 
@@ -27,11 +28,8 @@ Bell,
 Briefcase,
 CalendarDays,
 CheckCheck,
-ClipboardList,
-Home,
 LogOut,
 Menu,
-MessageSquare,
 Settings,
 User,
 X,
@@ -39,7 +37,7 @@ X,
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname,useRouter } from "next/navigation";
-import { useEffect,useMemo,useRef,useState } from "react";
+import { useEffect,useRef,useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 
 type NotificationItem = {
@@ -97,40 +95,11 @@ export default function Navbar() {
   }, [profileMenuOpen, notifOpen]);
 
   const isClient = profile?.role === "client";
-  const simplifiedClient =
-    isClient &&
-    (((profile as unknown as Record<string, unknown>)?.simplifiedMode as boolean) ||
-      Number((profile as unknown as Record<string, unknown>)?.age || 0) >= 55);
   const isOnline = profile?.role === "operator"
     ? (profile as unknown as Record<string, unknown>)?.isAvailable !== false
     : (profile as unknown as Record<string, unknown>)?.isOnline !== false;
 
-  const navItems = useMemo(() => {
-    if (simplifiedClient) {
-      return [
-        { href: "/dashboard", label: "Home", icon: Home },
-        { href: "/dashboard/calendar", label: "Schedule", icon: CalendarDays },
-        { href: "/dashboard/jobs", label: "Work orders", icon: ClipboardList },
-        { href: "/dashboard/messages", label: "Messages", icon: MessageSquare },
-      ];
-    }
-    if (isClient) {
-      return [
-        { href: "/dashboard", label: "Home", icon: Home },
-        { href: "/dashboard/jobs", label: "Work orders", icon: ClipboardList },
-        { href: "/dashboard/messages", label: "Messages", icon: MessageSquare },
-        { href: "/dashboard/calendar", label: "Schedule", icon: CalendarDays },
-        { href: "/dashboard/transactions", label: "Payments", icon: Briefcase },
-      ];
-    }
-    return [
-      { href: "/dashboard", label: "Home", icon: Home },
-      { href: "/dashboard/jobs", label: "Work orders", icon: Briefcase },
-      { href: "/dashboard/messages", label: "Messages", icon: MessageSquare },
-      { href: "/dashboard/calendar", label: "Schedule", icon: CalendarDays },
-      { href: "/dashboard/transactions", label: "Payments", icon: Briefcase },
-    ];
-  }, [isClient, simplifiedClient]);
+  const navItems = primaryNavigation(profile?.role);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -276,7 +245,7 @@ export default function Navbar() {
 
   return (
     <>
-      <aside className="fixed left-0 top-0 z-30 hidden h-dvh w-[248px] overflow-y-auto border-r-[3px] border-[var(--border-color)] bg-white px-5 py-5  lg:flex lg:flex-col">
+      <aside className="fixed left-0 top-0 z-30 hidden h-dvh w-[248px] overflow-y-auto border-r-[3px] border-[var(--border-color)] bg-[var(--card)] px-5 py-5  lg:flex lg:flex-col">
         <Link href="/dashboard" className="flex items-center gap-3 rounded-[1.5rem] bg-[var(--ink)] px-4 py-4 text-white">
           <Image src="/logo.png" alt="snowd logo" width={34} height={34} />
           <div>
@@ -311,7 +280,8 @@ export default function Navbar() {
           {navItems.map(({ href, label, icon: Icon }) => {
             const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(`${href}/`));
             const count = href.includes("messages") ? unreadCount : href.includes("jobs") ? pendingJobCount : 0;
-            return <Link key={href} href={href} aria-current={active ? "page" : undefined}>
+            const tour = href === "/dashboard" ? "nav-home" : href.includes("jobs") ? "nav-jobs" : href.includes("messages") ? "nav-messages" : href.includes("calendar") ? "nav-calendar" : undefined;
+            return <Link data-tour={tour} key={href} href={href} aria-current={active ? "page" : undefined}>
               <Icon size={20} aria-hidden="true" /><span className="flex-1">{label}</span>
               {count > 0 && <span className="unread-badge">{count > 9 ? "9+" : count}</span>}
             </Link>;
@@ -322,7 +292,7 @@ export default function Navbar() {
           <button
             aria-expanded={notifOpen}
             onClick={() => { setProfileMenuOpen(false); setNotifOpen((value) => !value); }}
-            className="flex w-full items-center gap-3 rounded-[1.2rem] border-[3px] border-[var(--border-color)] bg-white px-4 py-3 text-left"
+            className="flex w-full items-center gap-3 rounded-[1.2rem] border-[3px] border-[var(--border-color)] bg-[var(--card)] px-4 py-3 text-left"
           >
             <Bell className="h-4 w-4" />
             <span className="flex-1 text-sm font-bold">Notifications</span>
@@ -347,7 +317,7 @@ export default function Navbar() {
                       key={notification.id}
                       onClick={() => { markNotificationRead(notification.id); if (notification.type === "booking-invite" && notification.operatorId) { setNotifOpen(false); router.push(`/dashboard/find?operator=${encodeURIComponent(notification.operatorId)}`); } else if (notification.jobId && notification.type !== "message") { setNotifOpen(false); router.push(`/dashboard/jobs/${encodeURIComponent(notification.jobId)}`); } else if (notification.chatId) { setNotifOpen(false); router.push(`/dashboard/messages/${encodeURIComponent(notification.chatId)}`); } }}
                       aria-label={`${notification.read ? "Read" : "Unread"} notification: ${notificationTitle(notification)}`}
-                      className={`w-full border-b border-[var(--border-soft)] border-l-4 px-4 py-3 text-left transition last:border-b-0 hover:bg-[var(--bg-secondary)] ${notification.read ? "border-l-transparent bg-white" : "border-l-[var(--accent)] bg-[var(--accent-soft)]"}`}
+                      className={`w-full border-b border-[var(--border-soft)] border-l-4 px-4 py-3 text-left transition last:border-b-0 hover:bg-[var(--bg-secondary)] ${notification.read ? "border-l-transparent bg-[var(--card)]" : "border-l-[var(--accent)] bg-[var(--accent-soft)]"}`}
                     >
                       <span className="flex items-start gap-3 text-sm leading-5 text-[var(--text-primary)]">
                         <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${notification.read ? "bg-[var(--border-color)]" : "bg-[var(--accent)]"}`} aria-hidden="true" />
@@ -369,9 +339,10 @@ export default function Navbar() {
 
         <div className="joined-menu relative mt-4 shrink-0" ref={menuRef}>
           <button
+            data-tour="profile-menu"
             aria-expanded={profileMenuOpen}
             onClick={() => { setNotifOpen(false); setProfileMenuOpen((value) => !value); }}
-            className="flex w-full items-center gap-3 rounded-[1.2rem] border-[3px] border-[var(--ink)] bg-white px-4 py-3 shadow-[var(--surface-shadow)]"
+            className="flex w-full items-center gap-3 rounded-[1.2rem] border-[3px] border-[var(--ink)] bg-[var(--card)] px-4 py-3 shadow-[var(--surface-shadow)]"
           >
             <div className="relative">
               <UserAvatar
@@ -408,7 +379,7 @@ export default function Navbar() {
         </div>
       </aside>
 
-      <header className="fixed left-0 right-0 top-0 z-30 border-b-[3px] border-[var(--border-color)] bg-white px-4 py-3  lg:hidden">
+      <header className="fixed left-0 right-0 top-0 z-30 border-b-[3px] border-[var(--border-color)] bg-[var(--card)] px-4 py-3  lg:hidden">
         <div className="flex items-center justify-between gap-3">
           <Link href="/dashboard" className="flex items-center gap-3">
             <Image src="/logo.png" alt="snowd logo" width={30} height={30} />
@@ -419,7 +390,7 @@ export default function Navbar() {
           </Link>
           <div className="flex items-center gap-1">
             <SupportChatButton inline />
-            <button ref={mobileNotifButtonRef} aria-label="Notifications" aria-expanded={notifOpen} onClick={() => { setDrawerOpen(false); setNotifOpen((value) => !value); }} className="relative rounded-full border-[3px] border-[var(--border-color)] bg-white p-2">
+            <button ref={mobileNotifButtonRef} aria-label="Notifications" aria-expanded={notifOpen} onClick={() => { setDrawerOpen(false); setNotifOpen((value) => !value); }} className="relative rounded-full border-[3px] border-[var(--border-color)] bg-[var(--card)] p-2">
               <Bell className="h-4 w-4" />
               {unreadNotifications > 0 ? <span className="absolute -right-1 -top-1 unread-badge">{unreadNotifications > 9 ? "9+" : unreadNotifications}</span> : null}
             </button>
@@ -429,7 +400,7 @@ export default function Navbar() {
       </header>
 
       {notifOpen ? (
-        <div className="fixed left-0 right-0 top-[69px] z-40 w-full overflow-hidden rounded-b-3xl border border-t-0 border-[var(--border-color)] bg-white shadow-[var(--surface-shadow)] lg:hidden" ref={mobileNotifRef}>
+        <div className="fixed left-0 right-0 top-[69px] z-40 w-full overflow-hidden rounded-b-3xl border border-t-0 border-[var(--border-color)] bg-[var(--card)] shadow-[var(--surface-shadow)] lg:hidden" ref={mobileNotifRef}>
           <div className="flex items-center justify-between border-b-[3px] border-[var(--border-color)] px-4 py-3">
             <div className="text-sm font-bold">Notifications</div>
             {unreadNotifications > 0 ? (
@@ -460,11 +431,11 @@ export default function Navbar() {
         </div>
       ) : null}
 
-      <MobileNavigation pathname={pathname} unreadMessages={unreadCount} pendingJobs={pendingJobCount} menuOpen={drawerOpen} onOpenMenu={() => { setNotifOpen(false); setDrawerOpen(true); }} />
+      <MobileNavigation role={profile?.role} pathname={pathname} unreadMessages={unreadCount} pendingJobs={pendingJobCount} menuOpen={drawerOpen} onOpenMenu={() => { setNotifOpen(false); setDrawerOpen(true); }} />
 
       {drawerOpen ? (
         <div className="fixed inset-0 z-40 bg-black/35 lg:hidden" onClick={() => setDrawerOpen(false)}>
-          <div id="mobile-account-menu" ref={drawerRef} role="dialog" aria-modal="true" aria-label="Account menu" tabIndex={-1} className="absolute bottom-0 left-0 right-0 overflow-y-auto overscroll-contain max-h-[85dvh] w-full rounded-t-3xl bg-white px-5 pt-5 pb-[max(20px,env(safe-area-inset-bottom))] shadow-[var(--surface-shadow)]" onClick={(event) => event.stopPropagation()}>
+          <div id="mobile-account-menu" ref={drawerRef} role="dialog" aria-modal="true" aria-label="Account menu" tabIndex={-1} className="absolute bottom-0 left-0 right-0 overflow-y-auto overscroll-contain max-h-[85dvh] w-full rounded-t-3xl bg-[var(--card)] px-5 pt-5 pb-[max(20px,env(safe-area-inset-bottom))] shadow-[var(--surface-shadow)]" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <UserAvatar

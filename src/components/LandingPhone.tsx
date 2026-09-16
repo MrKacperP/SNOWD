@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { ArrowLeft, ArrowRight, BatteryFull, Camera, Check, CheckCheck, CreditCard, MapPin, Pause, Play, RotateCcw, Send, Shovel, Signal, Wifi } from "lucide-react";
 import styles from "./LandingPhone.module.css";
 
@@ -84,6 +85,7 @@ export default function LandingPhone() {
         <div className={styles.homeIndicator} />
       </div>
       <div className={styles.controls}><button onClick={() => go((stage + 4) % 5)} aria-label="Previous demo step"><ArrowLeft size={15} /></button><button onClick={() => setPlaying(!playing)} aria-label={playing ? "Pause demo" : "Play demo"}>{playing ? <Pause size={14} /> : <Play size={14} />} {playing ? "Autoplay on" : "Play demo"}</button><button onClick={restart} aria-label="Restart demo"><RotateCcw size={15} /></button></div>
+      <Link href="/signup" className={styles.realApp}>Start a real snow day <ArrowRight size={15} /></Link>
       <p className={styles.hint}>{playing ? "Tap the phone to take over." : "Try the buttons inside the phone."} <span>Interactive demo · sample details</span></p>
     </div>
   );

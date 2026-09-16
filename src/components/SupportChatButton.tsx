@@ -1,5 +1,6 @@
 "use client";
 
+import { useBrowserSupport } from "@/components/support/BrowserSupport";
 import { useAuth } from "@/context/AuthContext";
 import { sendAdminNotif } from "@/lib/adminNotifications";
 import { db } from "@/lib/firebase";
@@ -36,6 +37,7 @@ const PROBLEM_CATEGORIES = [
 
 export default function SupportChatButton({ inline = false }: { inline?: boolean }) {
   const { user, profile } = useAuth();
+  const browserSupport = useBrowserSupport();
   const [isOpen, setIsOpen] = useState(false);
   const [chatPhase, setChatPhase] = useState<"select" | "urgent" | "chat">("select");
   const [selectedProblem, setSelectedProblem] = useState<string | null>(null);
@@ -302,7 +304,7 @@ export default function SupportChatButton({ inline = false }: { inline?: boolean
                   <div className="px-3 pb-4">
                     <button onClick={() => setChatPhase("urgent")}
                       className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-red-50 border border-red-100 text-red-600 hover:bg-red-100 transition font-semibold text-sm">
-                      <AlertTriangle className="w-3.5 h-3.5" /> Urgent — I Need to Call
+                      <AlertTriangle className="w-3.5 h-3.5" /> Call Support · Phone or Browser
                     </button>
                   </div>
                 </motion.div>
@@ -325,7 +327,11 @@ export default function SupportChatButton({ inline = false }: { inline?: boolean
                     className="w-full flex items-center justify-center gap-2 py-3.5 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold text-base shadow-[var(--surface-shadow)]  transition">
                     <Phone className="w-4.5 h-4.5" style={{ width: 18, height: 18 }} /> {SUPPORT_PHONE}
                   </a>
-                  <p className="text-xs text-gray-400">For urgent matters only.</p>
+                  <button disabled={browserSupport.busy} onClick={() => { setIsOpen(false); browserSupport.start(); }}
+                    className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 font-bold text-gray-900 disabled:opacity-50">
+                    {browserSupport.busy ? "Browser call in progress" : "Call in browser"}
+                  </button>
+                  <p className="text-xs text-gray-500">Use your microphone, with optional camera and screen sharing.</p>
                   <button onClick={() => startChatWithProblem(selectedProblem || "other")}
                     className="flex items-center gap-1.5 text-xs text-[var(--accent)] hover:underline transition">
                     <MessageSquare className="w-3.5 h-3.5" /> Continue via chat instead

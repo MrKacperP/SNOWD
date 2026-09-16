@@ -1,0 +1,587 @@
+/* [project]/src/components/LandingPhone.module.css [app-client] (css) */
+.LandingPhone-module__Z-grba__demo {
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  display: flex;
+}
+
+.LandingPhone-module__Z-grba__caption {
+  color: #47758c;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  display: flex;
+}
+
+.LandingPhone-module__Z-grba__caption > span {
+  background: #47758c;
+  border-radius: 50%;
+  width: 6px;
+  height: 6px;
+}
+
+.LandingPhone-module__Z-grba__phone {
+  color: #172b35;
+  background: #f8faf7;
+  border: 7px solid #142c39;
+  border-radius: 44px;
+  width: 310px;
+  max-width: 100%;
+  height: 590px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 25px 60px #17394b25, inset 0 0 0 2px #fff;
+}
+
+.LandingPhone-module__Z-grba__status {
+  justify-content: space-between;
+  align-items: center;
+  height: 36px;
+  padding: 9px 19px 0;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+}
+
+.LandingPhone-module__Z-grba__status > span:last-child {
+  align-items: center;
+  gap: 3px;
+  display: flex;
+}
+
+.LandingPhone-module__Z-grba__island {
+  background: #142c39;
+  border-radius: 20px;
+  width: 84px;
+  height: 23px;
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.LandingPhone-module__Z-grba__header {
+  border-bottom: 1px solid #e0e7e2;
+  align-items: center;
+  gap: 5px;
+  height: 47px;
+  padding: 0 19px;
+  display: flex;
+}
+
+.LandingPhone-module__Z-grba__header strong {
+  letter-spacing: -1.3px;
+  font-size: 23px;
+}
+
+.LandingPhone-module__Z-grba__header > span {
+  letter-spacing: .12em;
+  color: #677c73;
+  border: 1px solid #dce4df;
+  border-radius: 5px;
+  margin-left: auto;
+  padding: 2px 6px;
+  font-size: 8px;
+}
+
+.LandingPhone-module__Z-grba__screen {
+  padding: 15px 18px;
+}
+
+.LandingPhone-module__Z-grba__topline {
+  letter-spacing: .12em;
+  color: #6c7e83;
+  justify-content: space-between;
+  font-size: 8px;
+  font-weight: 700;
+  display: flex;
+}
+
+.LandingPhone-module__Z-grba__progress {
+  gap: 4px;
+  margin: 9px 0 18px;
+  display: flex;
+}
+
+.LandingPhone-module__Z-grba__progress span {
+  background: #dfe7e6;
+  border-radius: 5px;
+  flex: 1;
+  height: 3px;
+}
+
+.LandingPhone-module__Z-grba__progress span[data-active="true"] {
+  background: #578268;
+}
+
+.LandingPhone-module__Z-grba__scene {
+  animation: .4s both LandingPhone-module__Z-grba__enter;
+}
+
+.LandingPhone-module__Z-grba__scene h3 {
+  letter-spacing: -1px;
+  font-size: 25px;
+  font-weight: 600;
+  line-height: 1.13;
+}
+
+.LandingPhone-module__Z-grba__scene p {
+  color: #64777b;
+  margin-top: 7px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.LandingPhone-module__Z-grba__primary {
+  color: #fff;
+  cursor: pointer;
+  background: #173c2c;
+  border: 0;
+  border-radius: 10px;
+  justify-content: center;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 42px;
+  margin-top: 15px;
+  padding: 10px;
+  font-size: 11px;
+  display: flex;
+}
+
+.LandingPhone-module__Z-grba__primary:hover {
+  background: #28553e;
+}
+
+.LandingPhone-module__Z-grba__map {
+  background: #e5eee7;
+  border-radius: 12px;
+  height: 119px;
+  margin-top: 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.LandingPhone-module__Z-grba__road {
+  background: linear-gradient(90deg, #0000 45%, #fafcf9 45% 49%, #0000 49%), linear-gradient(0deg, #0000 48%, #fafcf9 48% 53%, #0000 53%);
+  position: absolute;
+  inset: -90%;
+  transform: rotate(-25deg);
+}
+
+.LandingPhone-module__Z-grba__pin {
+  color: #254f3a;
+  position: absolute;
+  top: 32px;
+  left: 30%;
+}
+
+.LandingPhone-module__Z-grba__shovelPin {
+  background: #ffac6d;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  padding: 7px;
+  position: absolute;
+  top: 16px;
+  right: 24%;
+}
+
+.LandingPhone-module__Z-grba__mapLabel {
+  background: #ffffffdf;
+  border-radius: 5px;
+  padding: 3px 7px;
+  font-size: 9px;
+  position: absolute;
+  bottom: 8px;
+  left: 12px;
+}
+
+.LandingPhone-module__Z-grba__helper {
+  align-items: center;
+  gap: 9px;
+  margin-top: 14px;
+  font-size: 12px;
+  display: flex;
+}
+
+.LandingPhone-module__Z-grba__avatar {
+  color: #85572c;
+  background: #efddca;
+  border-radius: 50%;
+  flex-shrink: 0;
+  place-items: center;
+  width: 33px;
+  height: 33px;
+  font-weight: 700;
+  display: grid;
+}
+
+.LandingPhone-module__Z-grba__helper small, .LandingPhone-module__Z-grba__chatHeading small {
+  color: #70807a;
+  font-size: 9px;
+  display: block;
+}
+
+.LandingPhone-module__Z-grba__available {
+  background: #e4eee3;
+  border-radius: 5px;
+  margin-left: auto;
+  padding: 3px 6px;
+  font-size: 8px;
+}
+
+.LandingPhone-module__Z-grba__price {
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 13px;
+  font-size: 10px;
+  display: flex;
+}
+
+.LandingPhone-module__Z-grba__price strong {
+  font-size: 17px;
+}
+
+.LandingPhone-module__Z-grba__price small {
+  font-size: 8px;
+}
+
+.LandingPhone-module__Z-grba__chatHeading {
+  align-items: center;
+  gap: 9px;
+  display: flex;
+}
+
+.LandingPhone-module__Z-grba__chatHeading h3 {
+  font-size: 18px;
+}
+
+.LandingPhone-module__Z-grba__chat {
+  flex-direction: column;
+  gap: 11px;
+  height: 228px;
+  padding-top: 16px;
+  display: flex;
+  overflow-y: auto;
+}
+
+.LandingPhone-module__Z-grba__bubble, .LandingPhone-module__Z-grba__reply {
+  overflow-wrap: anywhere;
+  background: #dcebdc;
+  border-radius: 13px 13px 3px;
+  align-self: flex-end;
+  max-width: 88%;
+  padding: 10px 12px;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.LandingPhone-module__Z-grba__reply {
+  background: #ecefea;
+  border-radius: 13px 13px 13px 3px;
+  align-self: flex-start;
+}
+
+.LandingPhone-module__Z-grba__bubble small, .LandingPhone-module__Z-grba__reply small {
+  color: #617564;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+  font-size: 7px;
+  display: flex;
+}
+
+.LandingPhone-module__Z-grba__composer {
+  gap: 5px;
+  margin-top: 12px;
+  display: flex;
+}
+
+.LandingPhone-module__Z-grba__composer input {
+  border: 1px solid #dce4df;
+  border-radius: 9px;
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.LandingPhone-module__Z-grba__composer button {
+  color: #fff;
+  cursor: pointer;
+  background: #173c2c;
+  border-radius: 9px;
+  place-items: center;
+  min-width: 36px;
+  display: grid;
+}
+
+.LandingPhone-module__Z-grba__composer button:disabled {
+  opacity: .4;
+}
+
+.LandingPhone-module__Z-grba__successIcon {
+  color: #3c7749;
+  background: #e0edde;
+  border-radius: 50%;
+  place-items: center;
+  width: 57px;
+  height: 57px;
+  margin: 6px 0 16px;
+  display: grid;
+}
+
+.LandingPhone-module__Z-grba__receipt {
+  background: #fff;
+  border: 1px solid #e1e7df;
+  border-radius: 12px;
+  margin-top: 18px;
+  padding: 17px;
+}
+
+.LandingPhone-module__Z-grba__receipt > span {
+  color: #6f8073;
+  letter-spacing: .1em;
+  font-size: 8px;
+  display: block;
+}
+
+.LandingPhone-module__Z-grba__receipt > strong {
+  letter-spacing: -1px;
+  margin: 5px 0 13px;
+  font-size: 29px;
+  display: block;
+}
+
+.LandingPhone-module__Z-grba__receipt small {
+  letter-spacing: 0;
+  font-size: 10px;
+}
+
+.LandingPhone-module__Z-grba__receipt > div {
+  border-top: 1px solid #edf0ea;
+  justify-content: space-between;
+  gap: 8px;
+  padding-block: 9px;
+  font-size: 9px;
+  display: flex;
+}
+
+.LandingPhone-module__Z-grba__receipt b {
+  color: #41744b;
+}
+
+.LandingPhone-module__Z-grba__scene .LandingPhone-module__Z-grba__note {
+  text-align: center;
+  font-size: 9px;
+}
+
+.LandingPhone-module__Z-grba__camera {
+  background: #dee8eb;
+  border-radius: 14px;
+  height: 251px;
+  margin-top: 17px;
+  position: relative;
+  overflow: hidden;
+}
+
+.LandingPhone-module__Z-grba__camera img, .LandingPhone-module__Z-grba__finishedPhoto img {
+  object-fit: cover;
+  object-position: 40% center;
+}
+
+.LandingPhone-module__Z-grba__viewfinder {
+  border: 1px solid #ffffffc9;
+  border-radius: 7px;
+  position: absolute;
+  inset: 26px;
+}
+
+.LandingPhone-module__Z-grba__cameraLabel {
+  text-align: center;
+  color: #fff;
+  letter-spacing: .07em;
+  background: #112b3b99;
+  padding: 5px;
+  font-size: 8px;
+  position: absolute;
+  bottom: 13px;
+  left: 0;
+  right: 0;
+}
+
+.LandingPhone-module__Z-grba__completeHeading {
+  align-items: center;
+  gap: 12px;
+  display: flex;
+}
+
+.LandingPhone-module__Z-grba__completeHeading .LandingPhone-module__Z-grba__successIcon {
+  width: 43px;
+  height: 43px;
+  margin: 0;
+}
+
+.LandingPhone-module__Z-grba__completeHeading p {
+  margin-top: 3px;
+}
+
+.LandingPhone-module__Z-grba__finishedPhoto {
+  border-radius: 13px;
+  height: 233px;
+  margin-top: 19px;
+  position: relative;
+  overflow: hidden;
+}
+
+.LandingPhone-module__Z-grba__finishedPhoto > span {
+  background: #fff;
+  border-radius: 5px;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  font-size: 8px;
+  display: flex;
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+}
+
+.LandingPhone-module__Z-grba__completion {
+  color: #3d704c;
+  align-items: center;
+  gap: 10px;
+  margin-top: 15px;
+  font-size: 11px;
+  display: flex;
+}
+
+.LandingPhone-module__Z-grba__completion small {
+  color: #667c6c;
+  font-size: 8px;
+  display: block;
+}
+
+.LandingPhone-module__Z-grba__homeIndicator {
+  background: #18332b;
+  border-radius: 5px;
+  width: 94px;
+  height: 4px;
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.LandingPhone-module__Z-grba__controls {
+  align-items: center;
+  gap: 6px;
+  display: flex;
+}
+
+.LandingPhone-module__Z-grba__controls button {
+  color: #33596b;
+  cursor: pointer;
+  background: #ffffffa8;
+  border: 1px solid #d1e0e5;
+  border-radius: 30px;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  min-width: 34px;
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: 10px;
+  display: flex;
+}
+
+.LandingPhone-module__Z-grba__hint {
+  text-align: center;
+  color: #47758c;
+  font-size: 11px;
+}
+
+.LandingPhone-module__Z-grba__hint span {
+  color: #667d86;
+  margin-top: 4px;
+  font-size: 9px;
+  display: block;
+}
+
+.LandingPhone-module__Z-grba__realApp {
+  color: #173c2c;
+  background: #ffffffd9;
+  border: 1px solid #b9d1d9;
+  border-radius: 999px;
+  align-items: center;
+  gap: 7px;
+  min-height: 35px;
+  padding: 7px 13px;
+  font-size: 10px;
+  font-weight: 700;
+  text-decoration: none;
+  display: inline-flex;
+}
+
+.LandingPhone-module__Z-grba__realApp:hover {
+  background: #fff;
+}
+
+@keyframes LandingPhone-module__Z-grba__enter {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 700px) {
+  .LandingPhone-module__Z-grba__phone {
+    height: 600px;
+  }
+
+  .LandingPhone-module__Z-grba__caption {
+    font-size: 10px;
+  }
+
+  .LandingPhone-module__Z-grba__composer input {
+    font-size: 16px;
+  }
+
+  .LandingPhone-module__Z-grba__controls button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .LandingPhone-module__Z-grba__scene {
+    animation: none;
+  }
+}
+
+.LandingPhone-module__Z-grba__chat[data-playing="true"] > :first-child {
+  animation: .4s .3s both LandingPhone-module__Z-grba__enter;
+}
+
+.LandingPhone-module__Z-grba__chat[data-playing="true"] > :nth-child(2) {
+  animation: .4s 1.8s both LandingPhone-module__Z-grba__enter;
+}
+
+.LandingPhone-module__Z-grba__chat[data-playing="true"] > :nth-child(3) {
+  animation: .4s 3.5s both LandingPhone-module__Z-grba__enter;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .LandingPhone-module__Z-grba__chat[data-playing="true"] > div {
+    animation: none;
+  }
+}
+
+/*# sourceMappingURL=src_components_LandingPhone_module_css_bad6b30c._.single.css.map*/

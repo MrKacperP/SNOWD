@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { getAdminAuth, getAdminDb } from "@/lib/firebaseAdmin";
 import { Job } from "@/lib/types";
+import { sendWorkOrderEmail } from "@/lib/emailNotifications";
 
 export async function POST(request: NextRequest) {
   const token = request.headers.get("authorization")?.replace(/^Bearer /, "");
@@ -48,15 +49,29 @@ export async function POST(request: NextRequest) {
         message = `The operator confirmed that $${job.price} CAD was returned to you in cash. No electronic refund was issued. ${job.status === "cancelled" ? "Your job remains cancelled." : job.status === "completed" ? "Your work remains completed." : "Your unfinished job remains open; cancel it if the work is no longer needed."}`;
       }
       const recipient = action === "defer" ? job.operatorId : job.clientId;
+      if (action === "defer" && typeof db.collection === "function") {
+        transaction.set(db.collection("adminNotifications").doc(), {
+          type: "transaction",
+          title: "Payment pending",
+          message: `Cash payment is pending for order #${job.orderNumber || jobId}.`,
+          read: false,
+          actionRequired: true,
+          priority: "medium",
+          meta: { path: "/admin/transactions", jobId },
+          createdAt: now,
+        });
+      }
       transaction.set(db.doc(`notifications/${jobId}-cash-${action}`), { uid: recipient, type: "payment", title, message, jobId, chatId: job.chatId || "", read: false, createdAt: now });
       if (job.chatId) {
         transaction.set(db.doc(`messages/${jobId}-cash-${action}`), { chatId: job.chatId, jobId, senderId: uid, senderName: "Cash payment update", type: "payment", content: message, read: false, createdAt: now });
-        transaction.update(db.doc(`chats/${job.chatId}`), { lastMessage: message, lastMessageTime: now, [`unreadCount.${recipient}`]: FieldValue.increment(1) });
+        transaction.update(db.doc(`chats/${job.chatId}`), { lastActivityTime: now });
       }
-      return { alreadyApplied: false };
+      return { alreadyApplied: false, email: { uid: recipient, title: `Order #${job.orderNumber || job.id} · ${title}`, eventId: `cash-${action}` } };
     });
     if ("error" in result) return NextResponse.json({ error: result.error }, { status: result.status });
-    return NextResponse.json({ success: true, ...result });
+    if (result.email) await sendWorkOrderEmail(result.email.uid, jobId as string, result.email.title, result.email.eventId).catch(error => console.error("Cash update email failed", error));
+    const { email: _email, ...response } = result;
+    return NextResponse.json({ success: true, ...response });
   } catch (error) {
     console.error("Cash payment action failed:", error);
     return NextResponse.json({ error: "Could not update this cash payment. Please try again." }, { status: 500 });

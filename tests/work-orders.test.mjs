@@ -23,16 +23,16 @@ const job = {
   estimatedDuration: 45,
 };
 test("order labels separate approval, payment and work state", () => {
-  assert.equal(exports.orderLabel(job), "Awaiting company");
+  assert.equal(exports.orderLabel(job), "Awaiting confirmation");
   assert.equal(
     exports.orderLabel({ ...job, awaitingResponseFrom: "client" }),
-    "Awaiting customer",
+    "Awaiting confirmation",
   );
   assert.equal(
     exports.orderLabel({ ...job, status: "accepted", paymentMethod: "credit" }),
     "Payment needed",
   );
-  assert.equal(exports.orderLabel({ ...job, status: "accepted" }), "Scheduled");
+  assert.equal(exports.orderLabel({ ...job, status: "accepted" }), "Confirmed");
   assert.equal(
     exports.orderLabel({ ...job, status: "cancelled" }),
     "Cancelled",

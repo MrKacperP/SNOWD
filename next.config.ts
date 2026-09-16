@@ -6,6 +6,19 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: process.cwd(),
   },
+  async rewrites() {
+    const firebaseAuthOrigin = process.env.FIREBASE_AUTH_PROXY_ORIGIN || "https://snowd-6ca54.firebaseapp.com";
+    return [
+      {
+        source: "/__/auth/:path*",
+        destination: `${firebaseAuthOrigin}/__/auth/:path*`,
+      },
+      {
+        source: "/__/firebase/init.json",
+        destination: `${firebaseAuthOrigin}/__/firebase/init.json`,
+      },
+    ];
+  },
   async headers() {
     return [
       {

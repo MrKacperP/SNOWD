@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDialogFocus } from "@/hooks/useDialogFocus";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, Compass, X } from "lucide-react";
+import { BriefcaseBusiness, CalendarDays, Check, ChevronLeft, ChevronRight, Compass, Home, LifeBuoy, MessageSquare, MousePointerClick, Search, UserRound, X } from "lucide-react";
 import { useWeather } from "@/context/WeatherContext";
 import { useAuth } from "@/context/AuthContext";
 import { usePathname } from "next/navigation";
@@ -16,6 +16,8 @@ interface TourStep {
   title: string;
   description: string;
   selector?: string;
+  action: string;
+  icon: React.ComponentType<{ className?: string }>;
 }
 
 function getVisibleElement(selector: string): HTMLElement | null {
@@ -57,12 +59,16 @@ export default function TutorialOverlay() {
           title: "Find nearby help",
           description: "Use Find to browse nearby operators and compare profiles before booking.",
           selector: "[data-tour='nav-find']",
+          action: "Compare distance, price, ratings, and payment options before you request help.",
+          icon: Search,
         }
       : {
           id: "jobs",
-          title: "Manage your jobs",
-          description: "Use Jobs to review incoming requests and track active work.",
+          title: "Manage your work orders",
+          description: "Use Work orders to review requests and track active work.",
           selector: "[data-tour='nav-jobs']",
+          action: "Open a work order to accept it, update progress, and complete the job.",
+          icon: BriefcaseBusiness,
         };
 
     return [
@@ -70,12 +76,16 @@ export default function TutorialOverlay() {
         id: "welcome",
         title: "Quick app tour",
         description: "This walkthrough points to key controls so you can learn the app layout quickly.",
+        action: "Use Next and Back to explore. Nothing will be changed while you take the tour.",
+        icon: Compass,
       },
       {
         id: "home",
         title: "Home dashboard",
         description: "This is your Home tab for daily activity and key updates.",
         selector: "[data-tour='nav-home']",
+        action: "Start here to see what needs attention today.",
+        icon: Home,
       },
       primaryStep,
       {
@@ -83,24 +93,32 @@ export default function TutorialOverlay() {
         title: "Messages",
         description: "Open Messages to chat with operators or clients in real time.",
         selector: "[data-tour='nav-messages']",
+        action: "Messages stay in time order and keep each job conversation together.",
+        icon: MessageSquare,
       },
       {
         id: "calendar",
         title: "Calendar",
         description: "Use Calendar for weather and schedule visibility.",
         selector: "[data-tour='nav-calendar']",
+        action: "Check scheduled and ASAP work before planning your day.",
+        icon: CalendarDays,
       },
       {
         id: "profile",
         title: "Profile menu",
         description: "Access your profile, settings, and online status here.",
         selector: "[data-tour='profile-menu']",
+        action: "Open More on mobile, or your account card on desktop, to reach Settings.",
+        icon: UserRound,
       },
       {
         id: "support",
         title: "Support",
         description: "Need help? Use the floating support button to chat with the team.",
         selector: "[data-tour='support-chat']",
+        action: "Tap this whenever you need help from the SNOWD team.",
+        icon: LifeBuoy,
       },
     ];
   }, [isClient]);
@@ -151,36 +169,20 @@ export default function TutorialOverlay() {
     };
   }, [visible, step, pathname, updateTarget]);
 
-  const findStepInDirection = useCallback((startIndex: number, direction: 1 | -1) => {
-    let idx = startIndex;
-
-    while (idx >= 0 && idx < steps.length) {
-      const candidate = steps[idx];
-      if (!candidate.selector) return idx;
-      if (getVisibleElement(candidate.selector)) return idx;
-      idx += direction;
-    }
-
-    return -1;
-  }, [steps]);
-
   const next = () => {
-    const nextIndex = findStepInDirection(step + 1, 1);
-    if (nextIndex === -1) {
+    if (step === steps.length - 1) {
       dismiss();
       return;
     }
-    setStep(nextIndex);
+    setStep(value => value + 1);
   };
 
   const prev = () => {
-    const prevIndex = findStepInDirection(step - 1, -1);
-    if (prevIndex >= 0) {
-      setStep(prevIndex);
-    }
+    setStep(value => Math.max(0, value - 1));
   };
 
   const current = steps[step];
+  const StepIcon = current.icon;
   const hasTarget = !!(current?.selector && targetRect);
 
   const tooltipStyle: React.CSSProperties = useMemo(() => {
@@ -264,10 +266,10 @@ export default function TutorialOverlay() {
             className={hasTarget ? "fixed" : "fixed inset-0 flex items-center justify-center p-4"}
             style={hasTarget ? tooltipStyle : undefined}
           >
-            <div className="w-full max-h-[calc(100dvh-2rem)] overflow-y-auto max-w-[340px] bg-[var(--bg-card-solid)] border-[3px] border-[var(--border)] rounded-2xl shadow-[var(--surface-shadow)] p-4">
+            <div className="w-full max-h-[calc(100dvh-2rem)] overflow-y-auto max-w-[380px] bg-[var(--bg-card-solid)] border-[3px] border-[var(--border)] rounded-2xl shadow-[var(--surface-shadow)] p-4">
               <div className="flex items-start gap-3">
                 <div className="w-9 h-9 rounded-xl bg-[var(--accent-soft)] text-[var(--accent)] flex items-center justify-center shrink-0 mt-0.5">
-                  <Compass className="w-4.5 h-4.5" style={{ width: 18, height: 18 }} />
+                  <StepIcon className="h-[18px] w-[18px]" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">
@@ -283,6 +285,28 @@ export default function TutorialOverlay() {
                 >
                   <X className="w-4 h-4" />
                 </button>
+              </div>
+
+              <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] p-3" aria-label={`${current.title} example`}>
+                <div className="flex items-center gap-2">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[var(--accent)] shadow-sm">
+                    <StepIcon className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="h-2.5 w-2/3 rounded-full bg-[var(--ink)]/15" />
+                    <div className="mt-2 h-2 w-5/6 rounded-full bg-[var(--ink)]/8" />
+                  </div>
+                  <MousePointerClick className="h-5 w-5 shrink-0 text-[var(--accent)]" />
+                </div>
+                <p className="mt-3 text-xs font-medium leading-5 text-[var(--text-secondary)]">{current.action}</p>
+              </div>
+
+              <div className="mt-4 flex items-center justify-center gap-1.5" aria-label={`Tour progress: step ${step + 1} of ${steps.length}`}>
+                {steps.map((item, index) => (
+                  <button key={item.id} type="button" onClick={() => setStep(index)} aria-label={`Go to step ${index + 1}: ${item.title}`} aria-current={index === step ? "step" : undefined} className={`flex h-6 min-h-6 items-center justify-center rounded-full transition-all ${index === step ? "w-8 bg-[var(--accent)] text-white" : index < step ? "w-6 bg-[var(--accent-soft)] text-[var(--accent)]" : "w-6 bg-[var(--border-soft)] text-transparent"}`}>
+                    {index < step ? <Check className="h-3 w-3" /> : index === step ? <span className="text-[10px] font-bold">{index + 1}</span> : <span aria-hidden="true">•</span>}
+                  </button>
+                ))}
               </div>
 
               <div className="flex items-center gap-2 mt-4">

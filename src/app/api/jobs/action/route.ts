@@ -12,6 +12,8 @@ import {
   orderFailure,
   orderEvent,
 } from "@/lib/workOrderServer";
+import { sendWorkOrderEmail } from "@/lib/emailNotifications";
+import { calculateTravelEta } from "@/lib/travelEta";
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,6 +22,22 @@ export async function POST(request: NextRequest) {
     if (!validId(body.jobId) || !validId(body.requestId))
       throw new OrderError("Invalid work order action.", 400);
     const db = getAdminDb();
+    let journey: Awaited<ReturnType<typeof calculateTravelEta>> | null = null;
+    if (body.action === "en-route") {
+      const origin = { lat: Number(body.operatorLat), lng: Number(body.operatorLng) };
+      const accuracy = Number(body.operatorLocationAccuracy);
+      if (!Number.isFinite(origin.lat) || Math.abs(origin.lat) > 90 || !Number.isFinite(origin.lng) || Math.abs(origin.lng) > 180 || !Number.isFinite(accuracy) || accuracy < 0 || accuracy > 10000)
+        throw new OrderError("Share a valid current location to send your ETA.", 400);
+      const destinationSnap = await db.doc(`jobs/${body.jobId}`).get();
+      const destinationJob = destinationSnap.data() as Job | undefined;
+      if (!destinationJob || destinationJob.operatorId !== uid)
+        throw new OrderError("This work order belongs to another account.", 403);
+      const clientLat = destinationJob.clientLat;
+      const clientLng = destinationJob.clientLng;
+      if (typeof clientLat !== "number" || !Number.isFinite(clientLat) || Math.abs(clientLat) > 90 || typeof clientLng !== "number" || !Number.isFinite(clientLng) || Math.abs(clientLng) > 180)
+        throw new OrderError("The customer’s location is unavailable, so an ETA could not be calculated.");
+      journey = await calculateTravelEta(origin, { lat: clientLat, lng: clientLng });
+    }
     const result = await db.runTransaction(async (tx) => {
       const ref = db.doc(`jobs/${body.jobId}`),
         snap = await tx.get(ref);
@@ -223,6 +241,27 @@ export async function POST(request: NextRequest) {
           update.scheduleProposal = null;
           break;
         }
+        case "return-to-confirmed": {
+          if (!isOperator)
+            throw new OrderError("Only the assigned operator can change the arrival status.", 403);
+          if (job.status !== "en-route")
+            throw new OrderError("Only an on-the-way visit can return to confirmed.");
+          Object.assign(update, {
+            status: "accepted",
+            eta: FieldValue.delete(),
+            etaSource: FieldValue.delete(),
+            estimatedArrivalAt: FieldValue.delete(),
+            operatorLat: FieldValue.delete(),
+            operatorLng: FieldValue.delete(),
+            operatorLocationAccuracy: FieldValue.delete(),
+            operatorApproxLat: FieldValue.delete(),
+            operatorApproxLng: FieldValue.delete(),
+            operatorLocationRadiusKm: FieldValue.delete(),
+            operatorLocationUpdatedAt: FieldValue.delete(),
+          });
+          title = "Operator returned visit to confirmed";
+          break;
+        }
         case "en-route":
         case "in-progress": {
           if (!isOperator)
@@ -258,10 +297,36 @@ export async function POST(request: NextRequest) {
               "Finish the order already underway before starting this one.",
             );
           update.status = body.action;
-          if (body.action === "in-progress") update.startTime = now;
+          if (body.action === "en-route") {
+            if (!journey) throw new OrderError("Calculate an ETA before leaving.");
+            const approximateLat = Math.round(Number(body.operatorLat) * 100) / 100;
+            const approximateLng = Math.round(Number(body.operatorLng) * 100) / 100;
+            Object.assign(update, {
+              eta: journey.minutes,
+              etaSource: journey.source,
+              estimatedArrivalAt: new Date(Date.now() + journey.minutes * 60000),
+              operatorApproxLat: approximateLat,
+              operatorApproxLng: approximateLng,
+              operatorLocationRadiusKm: Math.max(1, Math.ceil(Number(body.operatorLocationAccuracy) / 1000)),
+              operatorLocationUpdatedAt: now,
+              operatorLat: FieldValue.delete(),
+              operatorLng: FieldValue.delete(),
+              operatorLocationAccuracy: FieldValue.delete(),
+            });
+          }
+          if (body.action === "in-progress") Object.assign(update, {
+            startTime: now,
+            operatorLat: FieldValue.delete(),
+            operatorLng: FieldValue.delete(),
+            operatorLocationAccuracy: FieldValue.delete(),
+            operatorApproxLat: FieldValue.delete(),
+            operatorApproxLng: FieldValue.delete(),
+            operatorLocationRadiusKm: FieldValue.delete(),
+            operatorLocationUpdatedAt: FieldValue.delete(),
+          });
           title =
             body.action === "en-route"
-              ? "Operator is on the way"
+              ? `Operator is on the way · ETA ${journey?.minutes} ${journey?.minutes === 1 ? "minute" : "minutes"}`
               : "Work started";
           break;
         }
@@ -312,10 +377,20 @@ export async function POST(request: NextRequest) {
       tx.set(lock, { updatedAt: now });
       tx.update(ref, update);
       tx.set(receipt, { action: body.action, createdAt: now });
-      orderEvent(tx, job, uid, body.requestId, title, body.action === "photo" ? update.completionPhotoUrl as string : undefined);
-      return { success: true, revision: update.revision };
+      const email = orderEvent(
+        tx,
+        job,
+        uid,
+        body.requestId,
+        title,
+        body.action === "photo" ? update.completionPhotoUrl as string : undefined,
+        body.action === "en-route" ? { type: "eta-update", metadata: { eta: journey?.minutes } } : undefined,
+      );
+      return { success: true, revision: update.revision, eta: body.action === "en-route" ? journey?.minutes : undefined, email: { uid: email.recipient, title: email.message, eventId: body.requestId } };
     });
-    return NextResponse.json(result);
+    if (result.email) await sendWorkOrderEmail(result.email.uid, String(body.jobId), result.email.title, result.email.eventId).catch(error => console.error("Work order email failed", error));
+    const { email: _email, ...response } = result;
+    return NextResponse.json(response);
   } catch (error) {
     return orderFailure(error);
   }

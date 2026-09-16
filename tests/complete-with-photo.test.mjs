@@ -47,9 +47,10 @@ function actionFixture({ method = 'cash', payment = 'pending', uid = 'operator',
     'firebase-admin/firestore': { FieldValue: { serverTimestamp: () => 'now' } },
     '@/lib/firebaseAdmin': { getAdminDb: () => ({ doc: path => path, collection: () => ({ where: () => 'other-jobs' }), runTransaction: fn => fn(tx) }) },
     '@/lib/workOrders': {}, '@/lib/operatorDiscovery': {},
-    '@/lib/workOrderServer': { orderUser: async () => uid, validId: () => true, OrderError: Error, orderFailure: error => ({ error: error.message }), orderEvent: () => {} },
+    '@/lib/travelEta': { calculateTravelEta: async () => ({ minutes: 12, source: 'estimate' }) },
+    '@/lib/workOrderServer': { orderUser: async () => uid, validId: () => true, OrderError: Error, orderFailure: error => ({ error: error.message }), orderEvent: () => ({ recipient: 'client', message: 'Order updated' }) },
   };
-  vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/app/api/jobs/action/route.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText, { exports, require: name => { if (name in mocks) return mocks[name]; throw Error(name); } });
+    vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/app/api/jobs/action/route.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText, { exports, require: name => { if (name === '@/lib/emailNotifications') return { sendWorkOrderEmail: async () => ({ sent: true }) }; if (name in mocks) return mocks[name]; throw Error(name); } });
   return { writes, run: () => exports.POST({ json: async () => ({ jobId: 'job', requestId: 'request', revision: 7, action: 'photo', completionPhotoUrl: 'data:image/jpeg;base64,cHJvb2Y=' }) }) };
 }
 test('completion proof atomically closes cash work while preserving its payment record', async () => {

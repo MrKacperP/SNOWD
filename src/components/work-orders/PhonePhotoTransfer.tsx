@@ -1,6 +1,6 @@
 "use client";
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { stripeConnectFetch } from "@/lib/stripeConnectClient";
 
@@ -12,12 +12,13 @@ async function transfer(jobId: string, action: string, sessionId?: string) {
   if (!response.ok) throw new Error(data.error || "Could not connect to your phone. Try again.");
   return data;
 }
-export default function PhonePhotoTransfer({ jobId, onPhoto, disabled }: { jobId: string; onPhoto: (photo: string) => void; disabled?: boolean }) {
+export default function PhonePhotoTransfer({ jobId, onPhoto, disabled, autoStart = false }: { jobId: string; onPhoto: (photo: string) => void; disabled?: boolean; autoStart?: boolean }) {
   const [qr, setQr] = useState(""), [error, setError] = useState("");
   const [busy, setBusy] = useState(false), [received, setReceived] = useState(false);
   const [expiresAt, setExpiresAt] = useState(0);
   const [sessionId, setSessionId] = useState("");
   const activeSession = useRef("");
+  const started = useRef(false);
   const callback = useRef(onPhoto);
   useEffect(() => { callback.current = onPhoto; }, [onPhoto]);
   useEffect(() => {
@@ -43,7 +44,7 @@ export default function PhonePhotoTransfer({ jobId, onPhoto, disabled }: { jobId
     return () => { stopped = true; clearTimeout(timer); };
   }, [qr, jobId, expiresAt, sessionId]);
   useEffect(() => () => { if (activeSession.current) void transfer(jobId, "close", activeSession.current).catch(() => {}); }, [jobId]);
-  async function create() {
+  const create = useCallback(async () => {
     setBusy(true); setError(""); setReceived(false);
     try {
       const data = await transfer(jobId, "create");
@@ -55,14 +56,19 @@ export default function PhonePhotoTransfer({ jobId, onPhoto, disabled }: { jobId
       setExpiresAt(data.expiresAt);
     } catch (e) { setError(e instanceof Error ? e.message : "Could not create QR code."); }
     finally { setBusy(false); }
-  }
+  }, [jobId]);
+  useEffect(() => {
+    if (!autoStart || disabled || started.current) return;
+    started.current = true;
+    void create();
+  }, [autoStart, create, disabled]);
   return <div className="space-y-3 border-t pt-4">
     <p className="font-semibold">Upload from your phone</p>
     {qr ? <>
       <Image unoptimized src={qr} alt="Scan this QR code to upload a completion photo from your phone" width={240} height={240} className="mx-auto" />
       <p className="text-sm" role="status">Scan with your phone’s camera. Choose or take a photo, then send it here. Keep this window open. This link expires in 10 minutes.</p>
-    </> : <button type="button" disabled={busy || disabled} onClick={create} className="min-h-12 rounded-xl border px-4 py-3 font-semibold disabled:opacity-50">{busy ? "Creating QR code…" : "Show QR code"}</button>}
-    {received && <p role="status">Photo received from your phone. Review the preview and select Save photo proof.</p>}
+    </> : autoStart ? <p role="status">{busy ? "Creating QR code…" : "Preparing phone upload…"}</p> : <button type="button" disabled={busy || disabled} onClick={create} className="min-h-12 rounded-xl border px-4 py-3 font-semibold disabled:opacity-50">{busy ? "Creating QR code…" : "Show QR code"}</button>}
+    {received && <p role="status">Photo received. Completing the work order…</p>}
     {error && <p role="alert" className="text-red-700">{error}</p>}
   </div>;
 }

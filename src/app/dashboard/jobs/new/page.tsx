@@ -1,5 +1,6 @@
 "use client";
-import { quoteMarketplace } from "@/lib/marketplacePricing";
+import { calculateServicePrice, quoteMarketplace } from "@/lib/marketplacePricing";
+import GuidedStep from "@/components/ui/GuidedStep";
 import CompanyIdentity from "@/components/CompanyIdentity";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -22,6 +23,7 @@ export default function RepeatBookingPage() {
     [asap, setAsap] = useState(true),
     [cash, setCash] = useState(false),
     [method, setMethod] = useState("cash");
+  const [step, setStep] = useState(0);
   const attempt = useRef<{ key: string; id: string } | null>(null);
   useEffect(() => {
     if (!user) return;
@@ -52,10 +54,9 @@ export default function RepeatBookingPage() {
     };
   }, [user]);
   const isOperator = profile?.role === "operator";
-  const price =
-    operator?.pricing?.driveway?.[
-      (previous?.propertySize || client?.propertyDetails?.propertySize || "medium") as "small" | "medium" | "large"
-    ] || 40;
+  const bookingSize = (previous?.propertySize || client?.propertyDetails?.propertySize || "medium") as "small" | "medium" | "large";
+  const bookingServices = previous?.serviceTypes || client?.propertyDetails?.serviceTypes || ["driveway"];
+  const price = calculateServicePrice(operator?.pricing, bookingServices, bookingSize);
   const shownPrice = isOperator ? price : quoteMarketplace(price, method).price;
   const submit = async () => {
     if (!previous || !operator || busy) return;
@@ -101,12 +102,12 @@ export default function RepeatBookingPage() {
         {isOperator ? "Propose another booking" : "Request again"}
       </h1>
       <p>
-        A new work order and a separate conversation will be created. The
-        previous order stays in history.
+        Same helping hand. A fresh visit.
       </p>
       {previous && operator && (
         <section className="surface-card space-y-4 rounded-3xl p-6">
-          <p className="text-sm font-semibold text-[var(--text-secondary)]">1. Review service and price</p>
+          <GuidedStep step={step} labels={["Service", "When", "Payment"]} title={["Same service again?", "When works for you?", "Ready to send?"][step]}>
+          {step === 0 && <>
           <h2 className="text-xl font-bold">
             <CompanyIdentity person={operator} name={operator.businessName || operator.displayName} />
           </h2>
@@ -118,15 +119,14 @@ export default function RepeatBookingPage() {
           <p className="text-lg font-bold">
             Current price: ${shownPrice.toFixed(2)} CAD
           </p>
-          <h2 className="border-t pt-4 font-semibold">2. Choose when</h2>
-          <label className="flex gap-3">
-            <input
-              type="checkbox"
-              checked={asap}
-              onChange={(e) => setAsap(e.target.checked)}
-            />
-            ASAP · no promised appointment time
-          </label>
+          </>}
+          {step === 1 && <>
+          <div className="grid grid-cols-2 gap-3">
+            {[true, false].map(value => <button key={String(value)} type="button" aria-pressed={asap === value} onClick={() => setAsap(value)} className={`min-h-20 rounded-xl border-2 p-4 text-left font-semibold motion-safe:transition ${asap === value ? "border-[var(--ink)] bg-[var(--accent-soft)]" : "border-[var(--border-color)]"}`}>
+              {value ? "As soon as possible" : "Choose a time"}
+            </button>)}
+          </div>
+          {asap && <p className="text-sm text-[var(--text-secondary)]">Your shoveler will confirm the arrival time.</p>}
           {!asap && (
             <label className="block">
               Requested date and time
@@ -141,7 +141,9 @@ export default function RepeatBookingPage() {
           <p className="text-sm">
             Choose a future time. Time zone: {Intl.DateTimeFormat().resolvedOptions().timeZone}
           </p>
-          <h2 className="border-t pt-4 font-semibold">3. Confirm payment terms</h2>
+          </>}
+          {step === 2 && <>
+          <p className="text-lg font-bold">Total: ${shownPrice.toFixed(2)} CAD</p>
           <label className="block">
             Payment method
             <select
@@ -178,21 +180,24 @@ export default function RepeatBookingPage() {
               terms before this is booked.
             </p>
           )}
+          </>}
           <button
             className="min-h-12 rounded-xl bg-[var(--ink)] px-5 py-3 font-semibold text-white disabled:opacity-50"
             disabled={
               busy ||
-              (!asap && (!time || !Number.isFinite(new Date(time).getTime()) || new Date(time).getTime() <= Date.now())) ||
-              (!isOperator && method === "cash" && !cash)
+              (step === 1 && !asap && (!time || !Number.isFinite(new Date(time).getTime()) || new Date(time).getTime() <= Date.now())) ||
+              (step === 2 && !isOperator && method === "cash" && !cash)
             }
-            onClick={submit}
+            onClick={() => step === 2 ? void submit() : setStep(value => value + 1)}
           >
             {busy
               ? "Sending…"
-              : isOperator
+              : step < 2 ? "Continue →" : isOperator
                 ? "Send booking proposal"
                 : "Send new request"}
           </button>
+          {step > 0 && <button className="min-h-11 underline" disabled={busy} onClick={() => setStep(value => value - 1)}>Back</button>}
+          </GuidedStep>
         </section>
       )}
       {error && (

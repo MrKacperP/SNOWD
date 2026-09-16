@@ -13,7 +13,7 @@ import { sendAdminNotif } from "@/lib/adminNotifications";
 import { db,storage } from "@/lib/firebase";
 import { doc,updateDoc } from "firebase/firestore";
 import { getDownloadURL,ref,uploadBytes } from "firebase/storage";
-import { ArrowLeft,Camera,CheckCircle,Shield } from "lucide-react";
+import { ArrowLeft,Camera,Shield } from "lucide-react";
 import Link from "next/link";
 import { usePathname,useRouter,useSearchParams } from "next/navigation";
 import React,{ Suspense,useEffect,useRef,useState } from "react";
@@ -62,11 +62,19 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     if (!file || !user?.uid) return;
     setUploadingId(true);
     try {
-      const storageRef = ref(storage, `id-documents/${user.uid}/${file.name}`);
+      if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 10 * 1024 * 1024) {
+        setUploadError("Choose a clear JPG, PNG, or WebP image under 10 MB.");
+        return;
+      }
+      const storageRef = ref(storage, `verification/${user.uid}/id-photo`);
       await uploadBytes(storageRef, file);
       const downloadURL = await getDownloadURL(storageRef);
       await updateDoc(doc(db, "users", user.uid), {
         idPhotoUrl: downloadURL,
+        idVerified: false,
+        accountApproved: false,
+        verificationStatus: "pending",
+        verificationNote: "",
         updatedAt: new Date(),
       });
       sendAdminNotif({
@@ -87,9 +95,11 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   if (loading) return <LoadingScreen />;
   if (!user || !profile) return <LoadingScreen />;
 
-  const accountApproved = profile.role === "operator" ? profile.idVerified === true : profile.accountApproved !== false;
   const hasIdPhoto = !!(profile as unknown as Record<string, unknown>).idPhotoUrl;
   const isAdmin = profile.role === "admin" || profile.role === "employee";
+  const requiresVerification = profile.role === "operator" && profile.idVerified !== true;
+  const verificationRejected = profile.verificationStatus === "rejected";
+  const verificationPending = hasIdPhoto && !verificationRejected;
 
   return (
     <WeatherProvider>
@@ -114,6 +124,44 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
             </div>
           )}
 
+          {requiresVerification && !isAdmin && (
+            <section aria-label="Verification required" className={`${inConversation ? "shrink-0 px-3 pt-3" : "container-app mt-2 md:mt-0"}`}>
+              <div className={`rounded-[1.4rem] border p-4 ${verificationRejected ? "border-red-300 bg-red-50 text-red-950" : verificationPending ? "border-amber-300 bg-amber-50 text-amber-950" : "border-blue-300 bg-blue-50 text-blue-950"}`}>
+                <div className="flex items-start gap-3">
+                  <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${verificationRejected ? "bg-red-100" : verificationPending ? "bg-amber-100" : "bg-blue-100"}`}>
+                    <Shield className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h2 className="font-bold">
+                      {verificationRejected ? "Verification needs attention" : verificationPending ? "Verification submitted" : "Complete verification to use Snowd"}
+                    </h2>
+                    <p className="mt-1 text-sm leading-relaxed">
+                      {verificationRejected
+                        ? profile.verificationNote || "Review the feedback and submit a new government ID."
+                        : verificationPending
+                          ? "Your government ID is waiting for review. We’ll update your account after it has been checked."
+                          : "Submit a clear government-issued ID before your profile can appear to customers or receive work orders."}
+                    </p>
+                    <div className="mt-3 flex flex-wrap items-center gap-3">
+                      {!verificationPending && (
+                        <>
+                          <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleIdUpload} className="hidden" />
+                          <button onClick={() => fileInputRef.current?.click()} disabled={uploadingId} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--ink)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+                            {uploadingId ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" /> : <Camera className="h-4 w-4" />}
+                            {uploadingId ? "Submitting…" : verificationRejected ? "Submit a new ID" : "Submit government ID"}
+                          </button>
+                        </>
+                      )}
+                      <Link href="/dashboard/settings?tab=verification" className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4">
+                        {verificationPending ? "View verification status" : "Open verification settings"}
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
           {!inConversation && pathname !== "/dashboard" && profile.role === "operator" && !canAcceptPlatformPayments(profile) && (
             <div className="container-app mb-4">
               <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
@@ -123,53 +171,6 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
               </div>
             </div>
           )}
-          {!inConversation && pathname !== "/dashboard" && !accountApproved && !isAdmin && (
-            <div className="container-app mt-2 md:mt-0">
-              <div className="rounded-[1.6rem] border border-blue-200 bg-blue-50 p-5">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center shrink-0">
-                  <Shield className="w-6 h-6 text-blue-600" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-bold text-blue-900 text-base">Account Pending Approval</h3>
-                  <p className="text-sm text-blue-700 mt-1 leading-relaxed">
-                    Your account is being reviewed by our team. To speed up the process, please upload a valid government-issued ID.
-                  </p>
-                  {!hasIdPhoto ? (
-                    <div className="mt-3 flex flex-wrap items-center gap-3">
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={handleIdUpload}
-                        className="hidden"
-                      />
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={uploadingId}
-                        className="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-dark)] disabled:opacity-50"
-                      >
-                        {uploadingId ? (
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        ) : (
-                          <Camera className="w-4 h-4" />
-                        )}
-                        {uploadingId ? "Uploading..." : "Upload Government ID"}
-                      </button>
-                      <span className="text-xs text-blue-500">Driver&apos;s license, passport, or health card</span>
-                    </div>
-                  ) : (
-                    <div className="mt-3 flex items-center gap-2 text-sm">
-                      <CheckCircle className="w-4 h-4 text-green-600" />
-                      <span className="text-green-700 font-medium">ID uploaded — awaiting admin review</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-              </div>
-            </div>
-          )}
-
           <div className={inConversation ? "flex min-h-0 flex-1" : "container-app mt-4 md:mt-6"}>{children}</div>
         </main>
         {!inConversation && <div className="hidden lg:block"><SupportChatButton /></div>}

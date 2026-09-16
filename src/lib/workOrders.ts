@@ -26,16 +26,13 @@ export function orderLabel(job: Job) {
   if (job.status === "completed") return "Completed";
   if (job.status === "en-route") return "On the way";
   if (job.status === "in-progress") return "Work in progress";
-  if (job.status === "pending")
-    return job.awaitingResponseFrom === job.clientId
-      ? "Awaiting customer"
-      : "Awaiting company";
+  if (job.status === "pending") return "Awaiting confirmation";
   if (
     job.paymentMethod !== "cash" &&
     !["held", "paid"].includes(job.paymentStatus)
   )
     return "Payment needed";
-  return isAsap(job) ? "Booked · ASAP queue" : "Scheduled";
+  return "Confirmed";
 }
 export function orderActionNeeded(job: Job, uid: string) {
   if (job.status === "cancelled") return "";
@@ -55,6 +52,10 @@ export function orderSection(job: Job, uid: string) {
   if (["en-route", "in-progress"].includes(job.status)) return "progress";
   if (job.status === "pending") return "waiting";
   return "upcoming";
+}
+/** Open work stays ahead of message history so the current client/operator is easy to reach. */
+export function isOpenOrder(job?: Pick<Job, "status"> | null) {
+  return !!job && !["completed", "cancelled"].includes(job.status);
 }
 export function scheduleText(
   job: Pick<

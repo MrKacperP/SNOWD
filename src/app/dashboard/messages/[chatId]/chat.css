@@ -16,7 +16,7 @@
 .conversation-main { height: var(--conversation-height, 100dvh); }
 
 .chat-workspace textarea[aria-label="Message"] { border: 0; border-radius: 12px; background: transparent; }
-.chat-history > .chat-bubble { width: 100%; max-width: 960px; margin-inline: auto; }
+.chat-timeline-row > .chat-bubble { width: 100%; max-width: 960px; margin-inline: auto; }
 .conversation-widget {
   width: min(100%, 360px);
   margin-inline: auto;
@@ -140,3 +140,7 @@
   .conversation-widget-link { min-height: 44px; }
   .conversation-status-widget { border-radius: 12px; padding: 6px 10px; }
 }
+
+/* A sender changes horizontal alignment only; every message occupies its own row. */
+.chat-history:not([hidden]) { display: flex; flex-direction: column; }
+.chat-timeline-row { width: 100%; flex: 0 0 auto; display: flow-root; }

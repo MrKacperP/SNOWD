@@ -3,6 +3,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { getAdminAuth, getAdminDb } from "@/lib/firebaseAdmin";
 import { cashConfirmationError } from "@/lib/cashPayments";
 import { Job } from "@/lib/types";
+import { sendWorkOrderEmail } from "@/lib/emailNotifications";
 
 export async function POST(request: NextRequest) {
   const token = request.headers.get("authorization")?.replace(/^Bearer /, "");
@@ -36,10 +37,22 @@ export async function POST(request: NextRequest) {
         address: job.address || "", serviceTypes: job.serviceTypes || [],
         confirmedBy: uid, confirmedAt: now, createdAt: now, updatedAt: now,
       }, { merge: true });
-      return { alreadyConfirmed: false };
+      if (typeof db.collection === "function") transaction.set(db.collection("adminNotifications").doc(), {
+        type: "transaction",
+        title: "Payment successful",
+        message: `Cash payment received for order #${job.orderNumber || jobId}.`,
+        read: false,
+        actionRequired: false,
+        priority: "low",
+        meta: { path: "/admin/transactions", jobId },
+        createdAt: now,
+      });
+      return { alreadyConfirmed: false, email: { uid: job.clientId, title: `Order #${job.orderNumber || job.id} · Cash payment received`, eventId: "cash-confirmed" } };
     });
     if ("error" in result) return NextResponse.json({ error: result.error }, { status: result.status });
-    return NextResponse.json({ confirmed: true, ...result });
+    if (result.email) await sendWorkOrderEmail(result.email.uid, jobId as string, result.email.title, result.email.eventId).catch(error => console.error("Cash confirmation email failed", error));
+    const { email: _email, ...response } = result;
+    return NextResponse.json({ confirmed: true, ...response });
   } catch (error) {
     console.error("Cash confirmation failed:", error);
     return NextResponse.json({ error: "Could not confirm cash received. Please try again." }, { status: 500 });

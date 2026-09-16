@@ -1,4 +1,4 @@
-import { quoteMarketplace } from "@/lib/marketplacePricing";
+import { calculateServicePrice, quoteMarketplace } from "@/lib/marketplacePricing";
 import { NextRequest, NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { getAdminDb } from "@/lib/firebaseAdmin";
@@ -7,7 +7,7 @@ import {
   isClientWithinOperatorRadius,
   isOperatorPublic,
 } from "@/lib/operatorDiscovery";
-import { ClientProfile, OperatorProfile, Job } from "@/lib/types";
+import { ClientProfile, OperatorProfile, Job, ServiceType } from "@/lib/types";
 import {
   orderUser,
   validId,
@@ -16,6 +16,7 @@ import {
   orderFailure,
   orderEvent,
 } from "@/lib/workOrderServer";
+import { sendWorkOrderEmail } from "@/lib/emailNotifications";
 
 export async function POST(request: NextRequest) {
   try {
@@ -96,9 +97,21 @@ export async function POST(request: NextRequest) {
         previous?.propertySize ||
         client.propertyDetails?.propertySize ||
         "medium";
-      const operatorPrice =
-        operator.pricing?.driveway?.[size as "small" | "medium" | "large"] ||
-        40;
+      const requestedServices: ServiceType[] = Array.isArray(body.serviceTypes)
+        ? [...new Set<ServiceType>(body.serviceTypes.filter((service: unknown): service is ServiceType =>
+            typeof service === "string" && operator.serviceTypes.includes(service as ServiceType),
+          ))]
+        : [];
+      if (!fromOperator && Array.isArray(body.serviceTypes) && requestedServices.length !== body.serviceTypes.length)
+        throw new OrderError("Choose valid services offered by this company.", 400);
+      const services = previous?.serviceTypes || (requestedServices.length > 0
+        ? requestedServices
+        : client.propertyDetails?.serviceTypes || ["driveway"]);
+      const operatorPrice = calculateServicePrice(
+        operator.pricing,
+        services,
+        size as "small" | "medium" | "large",
+      );
       if (!Number.isFinite(operatorPrice) || operatorPrice <= 0)
         throw new OrderError("The company must set a valid service price.");
       const quote = quoteMarketplace(operatorPrice, body.paymentMethod);
@@ -123,8 +136,7 @@ export async function POST(request: NextRequest) {
         awaitingResponseFrom: fromOperator ? clientId : operator.uid,
         ...(previous ? { previousOrderId: body.previousOrderId } : {}),
         status: "pending",
-        serviceTypes: previous?.serviceTypes ||
-          client.propertyDetails?.serviceTypes || ["driveway"],
+        serviceTypes: services,
         propertySize: size,
         address: client.address || "",
         city: client.city || "",
@@ -154,24 +166,28 @@ export async function POST(request: NextRequest) {
         unreadCount: { [clientId]: 0, [operator.uid]: 0 },
         createdAt: now,
       });
-      orderEvent(
+      const email = orderEvent(
         tx,
         { ...data, id: ref.id } as unknown as Job,
         uid,
         "created",
-        fromOperator
+        `${size} driveway · ${services.map(service => service.replaceAll("-", " ")).join(", ")} · ${fromOperator
           ? "Booking proposal · customer approval needed"
-          : "Request sent · awaiting company",
+          : "Request sent · awaiting company"}`,
       );
       const result = {
         jobId: ref.id,
         chatId: chat.id,
         orderNumber: String(number),
+        email: { uid: email.recipient, title: email.message, eventId: "created" },
       };
       tx.set(requestRef, result);
       return result;
     });
-    return NextResponse.json(result);
+    if (!result) throw new OrderError("Could not create this booking. Please retry.");
+    if (result.email) await sendWorkOrderEmail(result.email.uid, result.jobId, result.email.title, result.email.eventId).catch(error => console.error("Work order email failed", error));
+    const { email: _email, ...response } = result;
+    return NextResponse.json(response);
   } catch (error) {
     return orderFailure(error);
   }

@@ -47,9 +47,9 @@ export function EmptyState({ title, subtitle }: { title: string; subtitle: strin
   return (
     <div className="flex flex-col items-center justify-center py-14 text-center text-[var(--text-muted)]">
       <svg width="84" height="84" viewBox="0 0 84 84" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-        <rect x="6" y="12" width="72" height="60" rx="12" fill="#edf3ef" stroke="#d5e1d9" />
-        <rect x="18" y="28" width="48" height="8" rx="4" fill="#cbded0" />
-        <rect x="18" y="42" width="36" height="8" rx="4" fill="#cbded0" />
+        <rect x="6" y="12" width="72" height="60" rx="12" fill="#f1f6f8" stroke="#d8e2e6" />
+        <rect x="18" y="28" width="48" height="8" rx="4" fill="#c7d9e1" />
+        <rect x="18" y="42" width="36" height="8" rx="4" fill="#c7d9e1" />
       </svg>
       <p className="mt-4 text-sm font-semibold text-[var(--text-secondary)]">{title}</p>
       <p className="text-sm mt-1">{subtitle}</p>

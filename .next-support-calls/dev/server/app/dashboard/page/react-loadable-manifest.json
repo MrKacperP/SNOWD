@@ -1,0 +1,10 @@
+{
+  "[project]/src/components/StripeCheckout.tsx [app-client] (ecmascript, next/dynamic entry)": {
+    "id": "[project]/src/components/StripeCheckout.tsx [app-client] (ecmascript, next/dynamic entry)",
+    "files": [
+      "static/chunks/node_modules_c4f32741._.js",
+      "static/chunks/src_ef35f456._.js",
+      "static/chunks/src_components_StripeCheckout_tsx_ef5b4c85._.js"
+    ]
+  }
+}

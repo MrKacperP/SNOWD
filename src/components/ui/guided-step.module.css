@@ -1,0 +1,12 @@
+.flow { width: 100%; padding: 4px; }
+.progress { display: flex; gap: 8px; list-style: none; padding: 0; margin: 0 0 24px; }
+.progress li { flex: 1; color: var(--text-secondary); font-size: 12px; }
+.progress span { display: block; height: 4px; border-radius: 4px; background: var(--border-color); margin-bottom: 8px; }
+.progress li[data-reached="true"] span { background: #3f8052; }
+.eyebrow { text-transform: uppercase; letter-spacing: .12em; font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
+.title { font-size: clamp(24px, 4vw, 32px); font-weight: 800; line-height: 1.15; outline: none; }
+.description { color: var(--text-secondary); margin-top: 10px; line-height: 1.6; }
+.content { display: grid; gap: 16px; margin-top: 24px; }
+.scene { animation: arrive 180ms ease-out; }
+@keyframes arrive { from { opacity: .4; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .scene { animation: none; } }

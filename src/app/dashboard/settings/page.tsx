@@ -2,6 +2,7 @@
 
 import { isOperatorPublic } from "@/lib/operatorDiscovery";
 import Link from "next/link";
+import Image from "next/image";
 import DeleteConfirmPopup from "@/components/DeleteConfirmPopup";
 import Notification from "@/components/Notification";
 import PageHeader from "@/components/ui/PageHeader";
@@ -10,6 +11,7 @@ import StripeOnboarding from "@/components/StripeOnboarding";
 import { stripeConnectFetch } from "@/lib/stripeConnectClient";
 
 import ServiceRadiusMap from "@/components/ServiceRadiusMap";
+import ServiceAreaCityPicker from "@/components/ServiceAreaCityPicker";
 import { useAuth } from "@/context/AuthContext";
 import { sendAdminNotif } from "@/lib/adminNotifications";
 import { db,storage } from "@/lib/firebase";
@@ -18,6 +20,7 @@ import {
 CANADIAN_PROVINCES,
 ClientProfile,
 OperatorProfile,
+OperatorServiceArea,
 UserProfile,
 } from "@/lib/types";
 import { doc,updateDoc } from "firebase/firestore";
@@ -37,12 +40,11 @@ ImagePlus,
 Loader2,
 LogOut,
 MapPin,
-Palette,
+  Palette,
 RefreshCw,
 Save,
 Shield,
 ShieldCheck,
-Sun,
 Trash2,
 Upload,
 User
@@ -62,16 +64,26 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [deletingAccount, setDeletingAccount] = useState(false);
-  const [activeTab, setActiveTab] = useState<"general" | "appearance" | "payment" | "notifications" | "verification" | "branding">("general");
+  const [savingEmailPreferences, setSavingEmailPreferences] = useState(false);
+  const [emailPreferences, setEmailPreferences] = useState({ account: true, workOrders: true });
+  const [activeTab, setActiveTab] = useState<"general" | "payment" | "notifications" | "verification" | "branding">("general");
   const [onboardingAccountId, setOnboardingAccountId] = useState<string | null>(null);
   const [stripeCheckVersion, setStripeCheckVersion] = useState(0);
   const [stripeConnecting, setStripeConnecting] = useState(false);
   const [stripeConfigError, setStripeConfigError] = useState<string | null>(null);
   const [stripeStatus, setStripeStatus] = useState<{
+    accountId?: string;
     fullyReady?: boolean;
     chargesEnabled?: boolean;
     payoutsEnabled?: boolean;
     detailsSubmitted?: boolean;
+    accountDetails?: {
+      businessName?: string | null;
+      email?: string | null;
+      country?: string | null;
+      currency?: string | null;
+      payoutBank?: { bankName?: string | null; last4?: string | null; currency?: string | null } | null;
+    };
   } | null>(null);
 
   // Editable fields
@@ -82,15 +94,101 @@ export default function SettingsPage() {
   const [postalCode, setPostalCode] = useState(profile?.postalCode || "");
   const [address, setAddress] = useState(profile?.address || "");
   const [age, setAge] = useState<number | undefined>((profile as ClientProfile)?.age);
+  const [propertyPhotos, setPropertyPhotos] = useState<string[]>((profile as ClientProfile)?.propertyDetails?.photos || []);
+  const [uploadingPropertyPhotos, setUploadingPropertyPhotos] = useState(false);
 
   // Operator fields
   const operatorProfile = profile as OperatorProfile;
   const [bio, setBio] = useState(operatorProfile?.bio || "");
   const [businessName, setBusinessName] = useState(operatorProfile?.businessName || "");
   const [serviceRadius, setServiceRadius] = useState(operatorProfile?.serviceRadius || 10);
+  const [serviceAreas, setServiceAreas] = useState<OperatorServiceArea[]>(operatorProfile?.serviceAreas || []);
+  const [pricing, setPricing] = useState(() => ({
+    small: operatorProfile?.pricing?.driveway?.small || 25,
+    medium: operatorProfile?.pricing?.driveway?.medium || 40,
+    large: operatorProfile?.pricing?.driveway?.large || 60,
+    walkway: operatorProfile?.pricing?.walkway || 15,
+    sidewalk: operatorProfile?.pricing?.sidewalk || 15,
+  }));
 
   const isOperator = profile?.role === "operator";
+  const savedPropertyPhotosKey = JSON.stringify(profile?.role === "client" ? (profile as ClientProfile).propertyDetails?.photos || [] : []);
   const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  useEffect(() => {
+    if (!profile) return;
+    setEmailPreferences({
+      account: profile.emailNotifications?.account !== false,
+      workOrders: profile.emailNotifications?.workOrders !== false,
+    });
+  }, [profile?.uid, profile?.emailNotifications?.account, profile?.emailNotifications?.workOrders]);
+
+  useEffect(() => {
+    if (profile?.role === "client") setPropertyPhotos(JSON.parse(savedPropertyPhotosKey) as string[]);
+  }, [profile?.uid, profile?.role, savedPropertyPhotosKey]);
+
+  const handlePropertyPhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (!profile?.uid || !files.length) return;
+    if (propertyPhotos.length + files.length > 6) { setFeedback("You can add up to 6 property photos."); return; }
+    if (files.some(file => !["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024)) { setFeedback("Choose JPG, PNG or WebP images under 5 MB each."); return; }
+    setUploadingPropertyPhotos(true);
+    setFeedback("");
+    try {
+      const uploaded: string[] = [];
+      for (const file of files) {
+        const storageRef = ref(storage, `property-photos/${profile.uid}/${crypto.randomUUID()}`);
+        await uploadBytes(storageRef, file);
+        uploaded.push(await getDownloadURL(storageRef));
+      }
+      const next = [...propertyPhotos, ...uploaded];
+      await updateDoc(doc(db, "users", profile.uid), { "propertyDetails.photos": next });
+      setPropertyPhotos(next);
+      await refreshProfile();
+      setFeedback("Property photos saved. Operators can view them before arrival.");
+    } catch (error) {
+      console.error("Property photo upload failed", error);
+      setFeedback("Property photos could not be saved. Please try again.");
+    } finally {
+      setUploadingPropertyPhotos(false);
+      event.target.value = "";
+    }
+  };
+
+  const removePropertyPhoto = async (index: number) => {
+    if (!profile?.uid || uploadingPropertyPhotos) return;
+    const next = propertyPhotos.filter((_, photoIndex) => photoIndex !== index);
+    setUploadingPropertyPhotos(true);
+    try {
+      await updateDoc(doc(db, "users", profile.uid), { "propertyDetails.photos": next });
+      setPropertyPhotos(next);
+      await refreshProfile();
+      setFeedback("Property photo removed.");
+    } catch (error) {
+      console.error("Property photo removal failed", error);
+      setFeedback("The photo could not be removed. Please try again.");
+    } finally {
+      setUploadingPropertyPhotos(false);
+    }
+  };
+
+  const updateEmailPreference = async (key: "account" | "workOrders", enabled: boolean) => {
+    if (!profile?.uid || savingEmailPreferences) return;
+    const previous = emailPreferences;
+    const next = { ...emailPreferences, [key]: enabled };
+    setEmailPreferences(next);
+    setSavingEmailPreferences(true);
+    try {
+      await updateDoc(doc(db, "users", profile.uid), { emailNotifications: next });
+      await refreshProfile();
+    } catch (error) {
+      console.error("Email preference save failed", error);
+      setEmailPreferences(previous);
+      setFeedback("Could not save your email preference. Please try again.");
+    } finally {
+      setSavingEmailPreferences(false);
+    }
+  };
 
   const requiredGeneralFields: { key: string; label: string; value: string }[] = [
     { key: "displayName", label: "Display Name", value: displayName || "" },
@@ -308,7 +406,7 @@ export default function SettingsPage() {
 
     // Handle tab query param (e.g. from transactions page)
     const tabParam = searchParams.get("tab");
-    if (tabParam && ["general", "appearance", "payment", "notifications", "verification", "branding"].includes(tabParam)) {
+    if (tabParam && ["general", "payment", "notifications", "verification", "branding"].includes(tabParam)) {
       setActiveTab(tabParam as typeof activeTab);
     }
   }, [searchParams, profile?.uid, router, refreshProfile]);
@@ -412,6 +510,14 @@ export default function SettingsPage() {
         setBio(op.bio || "");
         setBusinessName(op.businessName || "");
         setServiceRadius(op.serviceRadius || 10);
+        setServiceAreas(op.serviceAreas || []);
+        setPricing({
+          small: op.pricing?.driveway?.small || 25,
+          medium: op.pricing?.driveway?.medium || 40,
+          large: op.pricing?.driveway?.large || 60,
+          walkway: op.pricing?.walkway || 15,
+          sidewalk: op.pricing?.sidewalk || 15,
+        });
       } else {
         setAge((profile as ClientProfile)?.age);
       }
@@ -421,6 +527,10 @@ export default function SettingsPage() {
   const handleSave = async () => {
     setSaveError("");
     if (!profile?.uid || brandingBusy || saving) return;
+    if (isOperator && Object.values(pricing).some(value => !Number.isFinite(value) || value < 0.01 || value > 10000)) {
+      setSaveError("Enter each service price from $0.01 to $10,000 CAD.");
+      return;
+    }
     setSaved(false);
     setSaving(true);
     const startedAt = Date.now();
@@ -437,6 +547,12 @@ export default function SettingsPage() {
         updates.bio = bio;
         updates.businessName = businessName;
         updates.serviceRadius = serviceRadius;
+        updates.serviceAreas = serviceAreas;
+        updates.pricing = {
+          driveway: { small: pricing.small, medium: pricing.medium, large: pricing.large },
+          walkway: pricing.walkway,
+          sidewalk: pricing.sidewalk,
+        };
         updates.logoUrl = logoUrl;
         updates.avatar = avatarUrl;
         updates.tagline = brandingTagline;
@@ -503,8 +619,7 @@ export default function SettingsPage() {
   };
 
   const TABS = [
-    { key: "general" as const, label: "General", icon: User },
-    { key: "appearance" as const, label: "Appearance", icon: Sun },
+    { key: "general" as const, label: "Account", icon: User },
     { key: "payment" as const, label: "Payment", icon: CreditCard },
     { key: "verification" as const, label: "Verification", icon: ShieldCheck },
     { key: "notifications" as const, label: "Notifications", icon: Bell },
@@ -512,9 +627,8 @@ export default function SettingsPage() {
   ];
 
   const TAB_DESCRIPTIONS: Record<string, string> = {
-    general: "Your profile, contact details, and service location",
-    appearance: "Your familiar snowd look, on every screen",
-    payment: "Review cards, payouts, and Stripe setup",
+    general: "Contact details and service location",
+    payment: isOperator ? "Connect and manage your Stripe payout account" : "Review cards and secure payment details",
     verification: "Upload and manage your verification documents",
     notifications: "Where to find your updates and receipts",
     branding: "Configure business identity and portfolio",
@@ -524,7 +638,7 @@ export default function SettingsPage() {
 
   return (
     <div className={`${styles.settings} max-w-[1040px] mx-auto space-y-5`}>
-      <PageHeader title="Settings" description="Your account and preferences." />
+      <PageHeader title="Settings" description="Payments, verification, and account preferences." action={<Link className="btn-secondary min-h-11" href="/dashboard/profile">Edit profile</Link>} />
       <div className={styles.layout}>
         <aside className={styles.sidebar}>
           <p className={styles.navLabel}>Settings</p>
@@ -578,11 +692,12 @@ export default function SettingsPage() {
             </div>
           </div>}
 
+          <p className="text-sm text-[var(--text-secondary)]">Choose what you want to update, then save your changes.</p>
           {/* Profile Info */}
-          <div className={styles.card}>
-            <h3 className="text-lg font-semibold text-[var(--ink)] mb-4 flex items-center gap-2">
+          <section className={styles.card}>
+            <h3 className="min-h-11 text-lg font-semibold text-[var(--ink)] flex items-center gap-2">
               <User className="w-5 h-5 text-[var(--accent)]" />
-              Profile Information
+              Your contact details
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -665,13 +780,51 @@ export default function SettingsPage() {
                 />
               </div>
             )}
-          </div>
+          </section>
+
+          {isOperator && (
+            <section className={styles.card}>
+              <h3 className="mb-1 min-h-11 text-lg font-semibold text-[var(--ink)]">Your services & prices</h3>
+              <p className="mb-4 text-sm text-[var(--text-muted)]">Set the amount you receive for each area. New work orders use these rates; existing orders keep their agreed price.</p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {([
+                  ["small", "Small driveway", "1-car driveway"],
+                  ["medium", "Medium driveway", "2-car driveway"],
+                  ["large", "Large driveway", "3+ cars or double-wide"],
+                  ["walkway", "Walkway", "Paths and front steps"],
+                  ["sidewalk", "Sidewalk", "Public sidewalk frontage"],
+                ] as const).map(([key, label, description]) => (
+                  <label key={key} className="flex min-h-20 items-center justify-between gap-4 rounded-2xl border border-[var(--border-color)] bg-[var(--sky)] p-4">
+                    <span>
+                      <span className="block font-semibold">{label}</span>
+                      <span className="block text-xs text-[var(--text-muted)]">{description}</span>
+                    </span>
+                    <span className="relative w-28 shrink-0">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 font-semibold" aria-hidden="true">$</span>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        aria-label={`${label} price in CAD`}
+                        min="0.01"
+                        max="10000"
+                        step="0.01"
+                        value={pricing[key]}
+                        onChange={event => setPricing(current => ({ ...current, [key]: Number(event.target.value) }))}
+                        className="w-full border py-2 pl-7 pr-2 text-right font-semibold"
+                      />
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <p className="mt-3 text-xs text-[var(--text-muted)]">When a customer selects more than one area, the applicable rates are added together.</p>
+            </section>
+          )}
 
           {/* Location */}
-          <div className={styles.card}>
-            <h3 className="text-lg font-semibold text-[var(--ink)] mb-4 flex items-center gap-2">
+          <section className={styles.card}>
+            <h3 className="min-h-11 text-lg font-semibold text-[var(--ink)] flex items-center gap-2">
               <MapPin className="w-5 h-5 text-[var(--accent)]" />
-              Location
+              Your location
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
               <div className="sm:col-span-2">
@@ -750,16 +903,23 @@ export default function SettingsPage() {
                   <button type="button" aria-label="Increase service radius" disabled={serviceRadius >= 50} onClick={() => setServiceRadius(value => Math.min(50, value + 1))} className="min-h-12 min-w-12 rounded-xl border disabled:opacity-40">+</button>
                 </div>
                 <p className="mb-3 text-sm text-[var(--text-muted)]">Choose 1–50 km, then tap Save Changes below.</p>
-                {address && city ? <details><summary className="flex min-h-12 cursor-pointer items-center font-medium">Show coverage map</summary>
-                <div className="rounded-xl overflow-hidden border-[3px] border-[var(--border)]">
+                <div className="mb-5 rounded-2xl border border-[var(--border-color)] bg-[var(--sky)] p-4">
+                  <h4 className="font-semibold">Serve complete cities</h4>
+                  <p className="mb-3 mt-1 text-sm text-[var(--text-muted)]">Add every city where you accept work. Customers anywhere inside a selected city can find you, even outside your home radius.</p>
+                  <ServiceAreaCityPicker value={serviceAreas} onChange={setServiceAreas} />
+                </div>
+                {address && city ? <div>
+                <h4 className="mb-2 font-semibold">Coverage map</h4>
+                <div className="rounded-xl overflow-hidden border-[3px] border-[var(--border)]" aria-label="Operator coverage map">
                   <ServiceRadiusMap
                     address={address}
                     city={city}
                     province={province}
                     postalCode={postalCode}
                     radiusKm={serviceRadius}
+                    serviceAreas={serviceAreas}
                   />
-                </div></details> : <p className="text-sm text-[var(--text-muted)]">Add your street address and city to preview coverage.</p>}
+                </div></div> : <p className="text-sm text-[var(--text-muted)]">Add your street address and city to preview coverage.</p>}
               </div>
             )}
 
@@ -785,7 +945,19 @@ export default function SettingsPage() {
                 </p>
               </div>
             )}
-          </div>
+
+            {!isOperator && (
+              <section className="mt-5 border-t border-[var(--border-color)] pt-5" aria-labelledby="property-photos-heading">
+                <h4 id="property-photos-heading" className="font-semibold">Expected clearing photos</h4>
+                <p className="mt-1 text-sm text-[var(--text-muted)]">Add driveway or clearing-area photos so the operator knows what to expect before arriving.</p>
+                {propertyPhotos.length > 0 && <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">{propertyPhotos.map((url, index) => <figure key={url} className="overflow-hidden rounded-xl border bg-white"><Image src={url} alt={`Property clearing area ${index + 1}`} width={480} height={320} unoptimized className="aspect-[3/2] w-full object-cover" /><button type="button" disabled={uploadingPropertyPhotos} onClick={() => removePropertyPhoto(index)} className="min-h-11 w-full text-sm font-semibold text-red-700 disabled:opacity-50">Remove photo</button></figure>)}</div>}
+                {propertyPhotos.length < 6 && <label className="mt-3 inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-[var(--ink)] px-4 py-2 text-sm font-semibold">
+                  <ImagePlus className="h-4 w-4" /> {uploadingPropertyPhotos ? "Uploading…" : "Add property photos"}
+                  <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={uploadingPropertyPhotos} onChange={handlePropertyPhotoUpload} className="sr-only" />
+                </label>}
+              </section>
+            )}
+          </section>
 
           {saveError && <p role="alert" className="text-sm text-red-700">{saveError}</p>}
           {/* Save */}
@@ -816,7 +988,8 @@ export default function SettingsPage() {
           </button>
 
           {/* Delete Account */}
-          <div className="border-t border-red-100 pt-5">
+          <section className="border-t border-red-100 pt-5">
+            <h3 className="min-h-11 text-sm font-semibold">Account removal</h3>
             <div className="rounded-xl border border-red-200 bg-red-50/60 p-4 mb-3">
               <div className="flex items-start gap-3">
                 <Trash2 className="w-5 h-5 text-red-600 mt-0.5 shrink-0" />
@@ -837,7 +1010,7 @@ export default function SettingsPage() {
               {deletingAccount ? "Deleting account..." : "Delete account and start over"}
             </button>
             <p className="text-center text-xs text-[var(--text-muted)] mt-2">This cannot be undone.</p>
-          </div>
+          </section>
 
           <div className="text-center py-2">
             <p className="text-xs text-[var(--text-muted)]">snowd.ca v0.1.0</p>
@@ -845,25 +1018,10 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* Appearance Settings */}
-      {activeTab === "appearance" && (
-        <div className={styles.card}>
-          <h3 className="text-lg font-black mb-2">A little snowd, everywhere.</h3>
-          <p className="text-sm text-[var(--text-muted)] mb-6">The same clear, familiar look on your phone and computer.</p>
-          <div className={styles.themePreview} aria-label="Snowd theme preview">
-            <span className={styles.themeLogo}>snowd<span>.</span></span>
-            <div className={styles.previewCard}><span className={styles.previewIcon}><Sun size={24} /></span><div><strong>Ready for your snow day.</strong><p>Fresh snow. Familiar settings.</p></div></div>
-            <div className={styles.swatches} aria-label="Navy, orange, ice blue and white brand colors"><i /><i /><i /><i /></div>
-          </div>
-          <p className="mt-5 flex items-center gap-2 text-sm font-bold"><CheckCircle size={18} /> Snowd theme is active</p>
-          <button type="button" className="mt-5 min-h-11 rounded-xl border px-4 py-3 font-semibold" onClick={() => window.dispatchEvent(new Event("snowd:start-tour"))}>Take a quick app tour</button>
-        </div>
-      )}
-
       {/* Payment Settings */}
       {activeTab === "payment" && (
         <div className="space-y-6">
-          <div className={styles.card}>
+          {!isOperator && <div className={styles.card}>
             <h3 className="text-lg font-semibold text-[var(--ink)] mb-4 flex items-center gap-2">
               <CreditCard className="w-5 h-5 text-[var(--accent)]" />
               Payment Methods
@@ -898,17 +1056,17 @@ export default function SettingsPage() {
                 <span>Payments are securely processed by Stripe. snowd.ca never stores your card data.</span>
               </div>
             </div>
-          </div>
+          </div>}
 
           {/* Operator: Banking Info */}
           {isOperator && (
             <div className={styles.card}>
               <h3 className="text-lg font-semibold text-[var(--ink)] mb-4 flex items-center gap-2">
                 <Building2 className="w-5 h-5 text-[var(--accent)]" />
-                Payout Information
+                Stripe Connect
               </h3>
 
-              <p className="mb-4 text-sm text-[var(--text-secondary)]">You connect your own business to the SNOWD marketplace using your own legal identity and bank details. For new card bookings, your service rate is your payout; the customer sees a total that includes SNOWD’s 30% share of that total. SNOWD pays Stripe processing fees from its share. Cash bookings have no platform fee. Card payment is captured after completion with photo proof, subject to authorization expiry; bank payout timing depends on Stripe.</p>
+              <p className="mb-4 text-sm text-[var(--text-secondary)]">Connect your verified Stripe account to receive card payments and payouts directly to your Canadian bank account.</p>
               {onboardingAccountId && <StripeOnboarding key={onboardingAccountId} accountId={onboardingAccountId} onExit={() => { setOnboardingAccountId(null); setStripeCheckVersion((value) => value + 1); }} />}
               {stripeConfigError && (
                 <div className="mb-4 flex items-start gap-2 p-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-800">
@@ -919,12 +1077,23 @@ export default function SettingsPage() {
 
               {stripeStatus?.fullyReady ? (
                 <div className="space-y-3">
-                  <div className="flex items-center gap-3 p-4 bg-green-50 rounded-xl">
-                    <CheckCircle className="w-6 h-6 text-green-600" />
-                    <div>
-                      <p className="font-semibold text-green-800">Stripe Connected</p>
-                      <p className="text-sm text-green-600">Your account is set up to receive payouts</p>
+                  <div className="rounded-2xl border border-green-200 bg-green-50 p-5">
+                    <div className="flex items-center gap-3">
+                      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-green-100">
+                        <ShieldCheck className="h-6 w-6 text-green-700" />
+                      </span>
+                      <div>
+                        <p className="font-bold text-green-900">Verified Stripe connection</p>
+                        <p className="text-sm text-green-700">Card payments and bank payouts are enabled.</p>
+                      </div>
                     </div>
+                    <dl className="mt-5 grid gap-4 border-t border-green-200 pt-4 sm:grid-cols-2">
+                      {stripeStatus.accountDetails?.businessName ? <div><dt className="text-xs font-semibold text-green-700">Business</dt><dd className="mt-1 text-sm font-medium text-green-950">{stripeStatus.accountDetails.businessName}</dd></div> : null}
+                      {stripeStatus.accountDetails?.email ? <div><dt className="text-xs font-semibold text-green-700">Stripe email</dt><dd className="mt-1 break-all text-sm font-medium text-green-950">{stripeStatus.accountDetails.email}</dd></div> : null}
+                      <div><dt className="text-xs font-semibold text-green-700">Account</dt><dd className="mt-1 font-mono text-sm text-green-950">{stripeStatus.accountId}</dd></div>
+                      <div><dt className="text-xs font-semibold text-green-700">Region and currency</dt><dd className="mt-1 text-sm font-medium text-green-950">{[stripeStatus.accountDetails?.country, stripeStatus.accountDetails?.currency].filter(Boolean).join(" · ") || "Canada · CAD"}</dd></div>
+                      {stripeStatus.accountDetails?.payoutBank ? <div className="sm:col-span-2"><dt className="text-xs font-semibold text-green-700">Payout account</dt><dd className="mt-1 text-sm font-medium text-green-950">{stripeStatus.accountDetails.payoutBank.bankName || "Bank account"} ending in {stripeStatus.accountDetails.payoutBank.last4}</dd></div> : null}
+                    </dl>
                   </div>
                   <button
                     onClick={handleStripeConnect}
@@ -932,7 +1101,7 @@ export default function SettingsPage() {
                     className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border-[3px] border-[var(--border)] text-[var(--ink)] rounded-xl font-medium text-sm hover:bg-[var(--bg-primary)] transition"
                   >
                     <ExternalLink className="w-4 h-4" />
-                    Manage Stripe Dashboard
+                    Manage Stripe account
                   </button>
                 </div>
               ) : stripeStatus?.detailsSubmitted ? (
@@ -968,8 +1137,8 @@ export default function SettingsPage() {
               ) : (
                 <div className="text-center py-6 text-[var(--text-muted)]">
                   <Building2 className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm font-medium">Connect your bank account</p>
-                  <p className="text-xs mt-1 mb-4">Receive payouts directly to your Canadian bank account</p>
+                  <p className="text-sm font-medium">Connect your Stripe account</p>
+                  <p className="text-xs mt-1 mb-4">Verify your information and add a Canadian payout account</p>
                   <button
                     onClick={handleStripeConnect}
                     disabled={stripeConnecting}
@@ -1005,12 +1174,22 @@ export default function SettingsPage() {
               Your notifications
             </h3>
             <p className="text-sm text-[var(--text-secondary)]">Job, message and payment updates appear inside Snowd. Open the bell in the navigation to review updates and mark them as read.</p>
+            <div className="mt-5 divide-y divide-[var(--border-color)] rounded-2xl border border-[var(--border-color)]">
+              <label className="flex min-h-20 cursor-pointer items-center justify-between gap-4 p-4">
+                <span><span className="block text-sm font-semibold">Work-order emails</span><span className="mt-1 block text-xs text-[var(--text-muted)]">New requests, approvals, scheduling, arrival, completion, cancellation, and payment updates.</span></span>
+                <input type="checkbox" checked={emailPreferences.workOrders} disabled={savingEmailPreferences} onChange={(event) => void updateEmailPreference("workOrders", event.target.checked)} className="h-5 w-5 shrink-0 accent-[var(--accent)]" />
+              </label>
+              <label className="flex min-h-20 cursor-pointer items-center justify-between gap-4 p-4">
+                <span><span className="block text-sm font-semibold">Account emails</span><span className="mt-1 block text-xs text-[var(--text-muted)]">Welcome messages and important updates about your SNOWD account.</span></span>
+                <input type="checkbox" checked={emailPreferences.account} disabled={savingEmailPreferences} onChange={(event) => void updateEmailPreference("account", event.target.checked)} className="h-5 w-5 shrink-0 accent-[var(--accent)]" />
+              </label>
+            </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               <Link className="min-h-11 rounded-xl border p-3 font-semibold underline" href="/dashboard/jobs">Job updates</Link>
               <Link className="min-h-11 rounded-xl border p-3 font-semibold underline" href="/dashboard/messages">Messages</Link>
               <Link className="min-h-11 rounded-xl border p-3 font-semibold underline" href="/dashboard/transactions">Payments & receipts</Link>
             </div>
-            <p className="mt-4 text-sm text-[var(--text-muted)]">Email, text-message and promotional notification preferences are not available yet.</p>
+            <p className="mt-4 text-sm text-[var(--text-muted)]">Emails are sent to {profile?.email}. You can change these preferences at any time.</p>
           </div>
         </div>
       )}

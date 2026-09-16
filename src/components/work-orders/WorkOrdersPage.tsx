@@ -3,6 +3,7 @@ import { jobDisplayPrice } from "@/lib/marketplacePricing";
 import CompanyIdentity from "@/components/CompanyIdentity";
 import { useState } from "react";
 import Link from "next/link";
+import { ArrowRight, CalendarClock, MapPin, WalletCards } from "lucide-react";
 import { useWorkOrders } from "@/hooks/useWorkOrders";
 import {
   dateMillis,
@@ -14,9 +15,15 @@ import {
   orderActionNeeded,
   scheduleText,
 } from "@/lib/workOrders";
-import JobFilters, { JOB_FILTERS } from "./JobFilters";
 import OrderCard from "./OrderCard";
 import styles from "./work-orders.module.css";
+
+const GROUP_FILTERS = [
+  ["all", "All work orders"],
+  ["in-progress", "In progress"],
+  ["completed", "Completed"],
+  ["cancelled", "Cancelled"],
+] as const;
 export default function WorkOrdersPage({
   history = false,
   schedule = false,
@@ -25,24 +32,18 @@ export default function WorkOrdersPage({
   schedule?: boolean;
 }) {
   const { jobs, names, people, uid, isOperator, loading, error } = useWorkOrders();
-  const [tab, setTab] = useState(history ? "history" : "all"),
-    [date, setDate] = useState("");
+  const [date, setDate] = useState("");
   const [notice, setNotice] = useState("");
   const [search, setSearch] = useState("");
+  const [groupFilters, setGroupFilters] = useState<Record<string, string>>({});
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const localDate = (value: unknown) => {
     const d = new Date(dateMillis(value));
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   };
   const sorted = [...jobs].sort((a, b) => {
-    if (tab === "all" && !schedule) {
-      const rank: Record<string, number> = { attention: 0, progress: 1, waiting: 2, upcoming: 3, history: 4 };
-      const difference = rank[orderSection(a, uid)] - rank[orderSection(b, uid)];
-      if (difference) return difference;
-      if (orderSection(a, uid) === "history") return dateMillis(b.createdAt) - dateMillis(a.createdAt);
-    }
-    return tab === "history"
-      ? dateMillis(b.createdAt) - dateMillis(a.createdAt)
-      : (dateMillis(a.scheduledDate) || dateMillis(a.createdAt)) - (dateMillis(b.scheduledDate) || dateMillis(b.createdAt));
+    if (!schedule) return dateMillis(b.createdAt) - dateMillis(a.createdAt);
+    return (dateMillis(a.scheduledDate) || dateMillis(a.createdAt)) - (dateMillis(b.scheduledDate) || dateMillis(b.createdAt));
   });
   const matching = sorted.filter((job) =>
     [orderNumber(job), job.address, names[isOperator ? job.clientId : job.operatorId], job.serviceTypes?.join(" ")]
@@ -52,35 +53,84 @@ export default function WorkOrdersPage({
     items.length ? (
       [...new Set(items.map(job => isOperator ? job.clientId : job.operatorId))].map(personId => {
         const personOrders = items.filter(job => (isOperator ? job.clientId : job.operatorId) === personId);
+        const groupFilter = groupFilters[personId] || "all";
+        const visibleOrders = personOrders.filter(job => groupFilter === "all" || job.status === groupFilter);
+        const expanded = isOperator || !!expandedGroups[personId];
         if (!schedule) return (
-          <details key={personId} className={styles.companyGroup}>
-            <summary className={styles.companySummary}>
+          <section key={personId} className={styles.companyGroup}>
+            <button
+              type="button"
+              className={`${styles.companySummary} w-full text-left`}
+              aria-expanded={expanded}
+              onClick={() => {
+                if (!isOperator) setExpandedGroups(current => ({ ...current, [personId]: !current[personId] }));
+              }}
+            >
               <span className={styles.companyInfo}>
                 <CompanyIdentity person={people[personId]} name={names[personId] || (isOperator ? "Customer" : "Company")} />
-                <span className={styles.companyMeta}>{personOrders.length} work order{personOrders.length === 1 ? "" : "s"} · View orders</span>
+                <span className={styles.companyMeta}>{personOrders.length} work order{personOrders.length === 1 ? "" : "s"}</span>
               </span>
-              <span className={styles.companyChevron} aria-hidden="true">›</span>
-            </summary>
+              {!isOperator && <span className={styles.companyChevron} aria-hidden="true">›</span>}
+            </button>
+            {expanded && <><div className={styles.companyTools}>
+              <label className={styles.companyFilter}>
+                <span>View work orders</span>
+                <select
+                  aria-label={`Filter work orders for ${names[personId] || (isOperator ? "customer" : "operator")}`}
+                  value={groupFilter}
+                  onChange={(event) => setGroupFilters(current => ({ ...current, [personId]: event.target.value }))}
+                >
+                  {GROUP_FILTERS.map(([key, label]) => (
+                    <option key={key} value={key}>
+                      {label} ({personOrders.filter(job => key === "all" || job.status === key).length})
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
             <ul className={styles.companyList}>
-              {personOrders.map(job => (
+              {visibleOrders.map(job => (
                 <li key={job.id}>
                   <Link className={styles.orderRow} href={`/dashboard/jobs/${job.id}`}>
-                    <span className={styles.orderRowMain}>
-                      <strong>Work order #{orderNumber(job)}</strong>
-                      <span className={styles.secondary}>{job.address || "Address to be confirmed"}</span>
-                      <span className={styles.secondary}>{scheduleText(job)}</span>
-                      {orderActionNeeded(job, uid) && <span className={styles.rowAction}>{orderActionNeeded(job, uid)}</span>}
-                    </span>
-                    <span className={styles.orderRowStatus}>
+                    <span className={styles.orderRowHeader}>
+                      <span className={styles.orderReference}>Work order #{orderNumber(job)}</span>
                       <span className={styles.badge} data-status={job.status}>{orderLabel(job)}</span>
-                      <span className={styles.secondary}>${jobDisplayPrice(job, isOperator).toFixed(2)} CAD</span>
-                      <span className={styles.secondary}>View order →</span>
+                    </span>
+                    <span className={styles.orderHighlights}>
+                      <span className={styles.orderHighlight}>
+                        <CalendarClock aria-hidden="true" size={20} />
+                        <span>
+                          <span className={styles.orderHighlightLabel}>Date and time</span>
+                          <strong>{scheduleText(job)}</strong>
+                        </span>
+                      </span>
+                      <span className={styles.orderHighlight}>
+                        <WalletCards aria-hidden="true" size={20} />
+                        <span>
+                          <span className={styles.orderHighlightLabel}>Payment amount</span>
+                          <strong className={styles.orderPrice}>${jobDisplayPrice(job, isOperator).toFixed(2)} CAD</strong>
+                          <span className={styles.orderPaymentMethod}>{job.paymentMethod === "cash" ? "Cash" : job.paymentMethod === "e-transfer" ? "E-transfer" : "Card"}</span>
+                        </span>
+                      </span>
+                    </span>
+                    <span className={styles.orderRowFooter}>
+                      <span className={styles.orderAddress}>
+                        <MapPin aria-hidden="true" size={16} />
+                        {job.address || "Address to be confirmed"}
+                      </span>
+                      <span className={styles.orderView}>View order <ArrowRight aria-hidden="true" size={16} /></span>
+                    </span>
+                    <span className={styles.orderRowMain}>
+                      {orderActionNeeded(job, uid) && <span className={styles.rowAction}>{orderActionNeeded(job, uid)}</span>}
                     </span>
                   </Link>
                 </li>
               ))}
-            </ul>
-          </details>
+              {!visibleOrders.length && (
+                <li className={styles.groupEmpty}>No work orders match this filter.</li>
+              )}
+            </ul></>}
+          </section>
         );
         return <section key={personId} className="space-y-3 rounded-2xl border border-[var(--border-color)] p-3 sm:p-4">
           <header className="flex items-center justify-between gap-3"><h2 className="font-semibold"><CompanyIdentity person={people[personId]} name={names[personId] || (isOperator ? "Customer" : "Company")} /></h2><span className="text-sm text-[var(--text-muted)]">{personOrders.length} order{personOrders.length === 1 ? "" : "s"}</span></header>
@@ -205,42 +255,22 @@ export default function WorkOrdersPage({
             Find a work order
             <input type="search" className={styles.searchInput} value={search}
               placeholder="Search order number, name, address or service"
-              onChange={(event) => { setSearch(event.target.value); if (event.target.value) setTab("all"); }} />
+              onChange={(event) => setSearch(event.target.value)} />
           </label>
           {search && <button type="button" className={styles.button} onClick={() => setSearch("")}>Clear search</button>}
-          <JobFilters
-            value={tab}
-            onChange={setTab}
-            counts={Object.fromEntries(
-              JOB_FILTERS.map(([key]) => [
-                key,
-                matching.filter((job) => key === "all" || orderSection(job, uid) === key).length,
-              ]),
-            )}
-          />
           <p className={styles.scheduleHint}>
-            {tab === "all" ? "All your requests and visits. Choose a filter to focus on what you need." : tab === "attention" ? "Requests, time changes and payments that need your action."
-              : tab === "waiting" ? "The other participant needs to respond before these visits are confirmed."
-              : tab === "upcoming" ? "Confirmed visits. Open an order to review its schedule and payment."
-              : tab === "progress" ? "Visits where the provider is on the way or working."
-              : "Completed and cancelled orders. Unpaid cash work remains in Needs attention for the provider."}
+            {history
+              ? "Completed and cancelled work orders, with the most recent first."
+              : `Choose ${isOperator ? "a customer" : "an operator"} to see their newest work orders and filter that list.`}
           </p>
           <div className="space-y-4">
             {cards(
-              matching.filter((j) => tab === "all" || orderSection(j, uid) === tab),
+              history ? matching.filter((job) => orderSection(job, uid) === "history") : matching,
               search.trim()
-                ? "No matching orders in this view. Try another search or filter."
-                : tab === "all"
-                  ? "No jobs yet. Your booking requests and visits will appear here."
-                : tab === "waiting"
-                  ? "No requests waiting for a response from the other participant."
-                : tab === "attention"
-                ? "You’re all caught up. No requests or payments need attention."
-                : tab === "upcoming"
-                  ? "No upcoming jobs. Confirmed bookings will appear here."
-                  : tab === "progress"
-                    ? "No jobs in progress right now."
-                    : "Completed and cancelled work orders will appear here.",
+                ? "No matching work orders. Try another search."
+                : history
+                  ? "Completed and cancelled work orders will appear here."
+                  : "No jobs yet. Your booking requests and visits will appear here.",
             )}
           </div>
         </>

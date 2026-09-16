@@ -28,7 +28,22 @@ export async function POST(req: NextRequest) {
     const account = await stripe.accounts.retrieve(accountId);
 
     const state = await syncStripeAccount(account);
-    return NextResponse.json({ ...state, accountId: account.id }, { headers: { "Cache-Control": "no-store" } });
+    const payoutAccount = account.external_accounts?.data.find((externalAccount) => externalAccount.object === "bank_account");
+    return NextResponse.json({
+      ...state,
+      accountId: account.id,
+      accountDetails: {
+        businessName: account.business_profile?.name || null,
+        email: account.email || null,
+        country: account.country || null,
+        currency: account.default_currency?.toUpperCase() || null,
+        payoutBank: payoutAccount?.object === "bank_account" ? {
+          bankName: payoutAccount.bank_name || null,
+          last4: payoutAccount.last4 || null,
+          currency: payoutAccount.currency?.toUpperCase() || null,
+        } : null,
+      },
+    }, { headers: { "Cache-Control": "no-store" } });
   } catch (error: unknown) {
     console.error("Stripe account status error:", error);
     const message = error instanceof Error ? error.message : "Internal server error";

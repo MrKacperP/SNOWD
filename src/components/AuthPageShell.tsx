@@ -24,11 +24,11 @@ export default function AuthPageShell({ eyebrow, title, body, features, children
         <div className="auth-form-content mx-auto flex w-full max-w-[440px] flex-1 flex-col justify-center py-8">{children}</div>
       </section>
       <section className="auth-welcome relative hidden flex-col justify-center overflow-hidden rounded-3xl p-10 lg:flex">
-        <span className="mb-8 flex items-center gap-2 text-sm font-medium text-[#435f4e]"><Snowflake size={20} />{eyebrow}</span>
+        <span className="mb-8 flex items-center gap-2 text-sm font-medium text-[#47758c]"><Snowflake size={20} />{eyebrow}</span>
         <h1 className="text-5xl font-semibold leading-[1.1] tracking-tight first-letter:uppercase">{title}<span className="text-[#ca641d]">.</span></h1>
-        <p className="mt-5 text-lg leading-relaxed text-[#43574b]">{body}</p>
+        <p className="mt-5 text-lg leading-relaxed text-[#526873]">{body}</p>
         <div className="mt-10 grid gap-5">{features.map(feature => <div key={feature} className="flex items-start gap-3">
-          <CheckCircle2 size={20} className="mt-1 shrink-0 text-[#36704e]" /><p className="text-sm leading-6 text-[#43574b]">{feature}</p>
+          <CheckCircle2 size={20} className="mt-1 shrink-0 text-[#47758c]" /><p className="text-sm leading-6 text-[#526873]">{feature}</p>
         </div>)}</div>
         <Image src="/logo.png" alt="" width={180} height={190} className="mt-10 h-32 w-32 self-end object-contain" />
       </section>

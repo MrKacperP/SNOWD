@@ -79,6 +79,7 @@ export interface VerificationItem {
 
 export interface JobItem {
   id: string;
+  orderNumber?: string;
   title: string;
   postedBy: string;
   category: string;
@@ -117,6 +118,7 @@ export interface SupportTicket {
   userName: string;
   userId?: string;
   createdAt?: string;
+  lastMessageAt?: string;
   userAvatar: string;
   subject: string;
   status: "Open" | "Waiting" | "Resolved";

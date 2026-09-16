@@ -37,7 +37,7 @@ function setup({
           useRef: (value) => ({ current: value }),
           useState: (initial) => {
             const i = index++;
-            state[i] = i === 7 ? secret : initial;
+            state[i] = i === 8 ? secret : initial;
             return [
               state[i],
               (value) => {

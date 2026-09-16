@@ -25,7 +25,8 @@ test('completion proof appears as an image message and notifies the customer in 
   assert.equal(message.chatId, 'chat');
   assert.equal(message.metadata.completionPhotoUrl, 'https://example.test/proof.jpg');
   assert.equal(writes.find(w => w.path === 'notifications/job-photo-event').data.uid, 'client');
-  assert.equal(writes.find(w => w.path === 'chats/chat').data['unreadCount.client'], 1);
+  assert.equal(writes.find(w => w.path === 'chats/chat').data['unreadCount.client'], undefined);
+  assert.equal(writes.find(w => w.path === 'chats/chat').data.lastActivityTime, 'now');
 });
 test('ordinary progress events remain text and notify the other participant', () => {
   const { orderEvent, writes } = events();
@@ -34,6 +35,15 @@ test('ordinary progress events remain text and notify the other participant', ()
   assert.equal(message.type, 'system');
   assert.equal(message.metadata, undefined);
   assert.equal(writes.find(w => w.path === 'notifications/job-accept-event').data.uid, 'operator');
+});
+test('on-my-way event becomes an ETA chat update for both participants', () => {
+  const { orderEvent, writes } = events();
+  orderEvent(job, 'operator', 'journey-event', 'Operator is on the way · ETA 12 minutes', undefined, { type: 'eta-update', metadata: { eta: 12 } });
+  const message = writes.find(w => w.path === 'messages/job-journey-event').data;
+  assert.equal(message.type, 'eta-update');
+  assert.equal(message.metadata.eta, 12);
+  assert.match(message.content, /ETA 12 minutes/);
+  assert.equal(writes.find(w => w.path === 'notifications/job-journey-event').data.uid, 'client');
 });
 
 test('viewing progress clears its update but preserves unread messages and unrelated orders', () => {

@@ -10,7 +10,7 @@ function load(path, mocks = {}, env = {}) {
   }).outputText;
   const exports = {};
   vm.runInNewContext(code, {
-    exports, require: (name) => { if (name in mocks) return mocks[name]; throw new Error(`Unexpected import: ${name}`); },
+    exports, require: (name) => { if (name === '@/lib/emailNotifications') return { sendWorkOrderEmail: async () => ({ sent: true }) }; if (name in mocks) return mocks[name]; throw new Error(`Unexpected import: ${name}`); },
     process: { env: { STRIPE_SECRET_KEY: 'sk_test_fixture', NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: 'pk_test_fixture', ...env } },
     console: { error() {} },
   });
@@ -33,6 +33,20 @@ test('service radius includes nearby customers and excludes distant ones', () =>
   const operator = { lat: 43.65, lng: -79.38, serviceRadius: 10 };
   assert.equal(discovery.isClientWithinOperatorRadius({ lat: 43.66, lng: -79.38 }, operator), true);
   assert.equal(discovery.isClientWithinOperatorRadius({ lat: 45, lng: -79.38 }, operator), false);
+});
+test('selected cities cover the complete city and support multiple operating cities', () => {
+  const operator = {
+    lat: 43.59,
+    lng: -79.64,
+    serviceRadius: 1,
+    serviceAreas: [
+      { city: 'Mississauga', province: 'Ontario', provinceCode: 'ON' },
+      { city: 'Oakville', province: 'Ontario', provinceCode: 'ON' },
+    ],
+  };
+  assert.equal(discovery.isClientWithinOperatorRadius({ city: 'Mississauga', province: 'ON', lat: 45, lng: -75 }, operator), true);
+  assert.equal(discovery.isClientWithinOperatorRadius({ city: 'oakville', province: 'Ontario', lat: 45, lng: -75 }, operator), true);
+  assert.equal(discovery.isClientWithinOperatorRadius({ city: 'Toronto', province: 'ON', lat: 45, lng: -75 }, operator), false);
 });
 
 function paymentRoute({ ready = true, uid = 'client', verified = true, jobOverrides = {} } = {}) {
@@ -191,6 +205,11 @@ test('30% marketplace share preserves operator rate to the cent', () => {
   assert.equal(pricing.quoteMarketplace(70, 'cash').price, 70);
   assert.equal(pricing.quoteMarketplace(70, 'cash').platformFeeAmount, 0);
 });
+test('new booking totals add each selected clearing area at the saved operator rates', () => {
+  const rates = { driveway: { small: 25, medium: 40, large: 60 }, walkway: 15, sidewalk: 12.5 };
+  assert.equal(pricing.calculateServicePrice(rates, ['driveway'], 'large'), 60);
+  assert.equal(pricing.calculateServicePrice(rates, ['driveway', 'walkway', 'sidewalk'], 'medium'), 67.5);
+});
 test('new card bookings charge the saved total and allocate exactly the quoted payout', async () => {
   const {route, calls} = paymentRoute({jobOverrides: {...pricing.quoteMarketplace(70, 'credit'), paymentMethod: 'credit'}});
   assert.equal((await route.POST({json: async () => ({jobId:'job',amount:1})})).status, 200);
@@ -220,7 +239,7 @@ test('booking server rejects stale client totals and saves the server-calculated
     '@/lib/firebaseAdmin':{getAdminDb:()=>db},
     '@/lib/marketplacePricing':pricing,
     '@/lib/operatorDiscovery':{isOperatorPublic:()=>true,isClientWithinOperatorRadius:()=>true,canAcceptPlatformPayments:()=>true},
-    '@/lib/workOrderServer':{orderUser:async()=> 'client',validId:x=>!!x,parseSchedule:()=>({}),OrderError:Error,orderFailure:e=>({status:409,error:e.message}),orderEvent:()=>{}},
+    '@/lib/workOrderServer':{orderUser:async()=> 'client',validId:x=>!!x,parseSchedule:()=>({}),OrderError:Error,orderFailure:e=>({status:409,error:e.message}),orderEvent:()=>({recipient:'operator',message:'Order created'})},
   });
   const body={requestId:'req',operatorId:'operator',paymentMethod:'credit',expectedPrice:70};
   assert.equal((await POST({json:async()=>body})).status,409);

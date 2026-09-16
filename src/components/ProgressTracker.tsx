@@ -17,10 +17,10 @@ interface ProgressTrackerProps {
 }
 
 const STEPS = [
-  { key: "pending", label: "Requested", icon: Circle, description: "Waiting for operator" },
-  { key: "accepted", label: "Accepted", icon: CheckCircle, description: "Operator confirmed" },
-  { key: "en-route", label: "En Route", icon: Truck, description: "On the way" },
-  { key: "in-progress", label: "In Progress", icon: PlayCircle, description: "Working now" },
+  { key: "pending", label: "Requested", icon: Circle, description: "Waiting for confirmation" },
+  { key: "accepted", label: "Confirmed", icon: CheckCircle, description: "Visit is booked" },
+  { key: "en-route", label: "On the way", icon: Truck, description: "Heading to you" },
+  { key: "in-progress", label: "Work in progress", icon: PlayCircle, description: "Work is happening now" },
   { key: "completed", label: "Completed", icon: CheckCircle2, description: "Job complete" },
 ];
 

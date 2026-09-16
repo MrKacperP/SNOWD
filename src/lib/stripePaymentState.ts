@@ -42,6 +42,18 @@ export async function syncStripePayment(payment: Stripe.PaymentIntent) {
         ...(status === "paid" ? { completedAt: now } : {}),
       }, { merge: true });
     }
+    if (status === "paid" && typeof db.collection === "function") {
+      transaction.set(db.collection("adminNotifications").doc(), {
+        type: "transaction",
+        title: "Payment successful",
+        message: `Payment completed for order #${job.orderNumber || jobId}.`,
+        read: false,
+        actionRequired: false,
+        priority: "low",
+        meta: { path: "/admin/transactions", jobId },
+        createdAt: now,
+      });
+    }
   });
   return { status: payment.status, paymentStatus: status };
 }

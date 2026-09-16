@@ -20,7 +20,7 @@ export default function Button({
   ...props
 }: ButtonProps) {
   const reduceMotion = useReducedMotion();
-  const baseStyles = 'inline-flex items-center justify-center gap-2 border border-[var(--ink)] font-black transition-all duration-150 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed btn-lift';
+  const baseStyles = 'inline-flex items-center justify-center gap-2 border border-[var(--ink)] font-semibold transition-colors duration-150 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed';
   
   const variants = {
     primary: 'bg-[var(--accent)] hover:bg-[var(--accent-dark)] text-white shadow-[var(--surface-shadow)]',
@@ -38,8 +38,7 @@ export default function Button({
   
   return (
     <MotionButton
-      whileHover={reduceMotion || disabled || isLoading ? undefined : { y: -2 }}
-      whileTap={reduceMotion || disabled || isLoading ? undefined : { y: 1 }}
+      whileTap={reduceMotion || disabled || isLoading ? undefined : { scale: 0.98 }}
       className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
       disabled={disabled || isLoading}
       {...props}

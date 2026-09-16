@@ -5,6 +5,7 @@ type PartialLocation = {
   lng?: number | null;
   city?: string | null;
   province?: string | null;
+  serviceAreas?: Array<{ city?: string | null; province?: string | null; provinceCode?: string | null }> | null;
 };
 
 const EARTH_RADIUS_KM = 6371;
@@ -55,6 +56,13 @@ export function isOperatorPublic(operator: OperatorProfile): boolean {
 
 export function isClientWithinOperatorRadius(client: ClientProfile, operator: OperatorProfile): boolean {
   if (!client) return false;
+  const cityCovered = operator.serviceAreas?.some(area => {
+    const sameCity = normalizeAddress(client.city) === normalizeAddress(area.city);
+    const clientProvince = normalizeAddress(client.province);
+    const sameProvince = clientProvince === normalizeAddress(area.province) || clientProvince === normalizeAddress(area.provinceCode);
+    return sameCity && sameProvince;
+  });
+  if (cityCovered) return true;
   const radius = toFiniteNumber(operator.serviceRadius) ?? DEFAULT_SERVICE_RADIUS_KM;
   if (radius <= 0) return false;
 

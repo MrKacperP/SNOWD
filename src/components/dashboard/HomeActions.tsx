@@ -3,7 +3,7 @@ import { ArrowRight, CalendarDays, CreditCard, MapPin, Users, Settings } from "l
 import styles from "./mobile.module.css";
 
 export function BookingAction({ location }: { location: string }) {
-  return <section className={styles.bookingCard} aria-labelledby="booking-heading">
+  return <section className={`dashboard-widget ${styles.bookingCard}`} aria-labelledby="booking-heading">
     <p className={styles.location}><MapPin size={16} aria-hidden="true" />{location}</p>
     <h2 id="booking-heading">Need snow cleared?</h2>
     <p>Find a nearby shoveler for your driveway, walkway, or steps.</p>

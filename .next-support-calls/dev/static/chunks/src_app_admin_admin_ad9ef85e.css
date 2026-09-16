@@ -1,0 +1,310 @@
+/* [project]/src/app/admin/admin.css [app-client] (css) */
+.admin-shell {
+  --ink: #112b3b;
+  --ink-2: #294653;
+  --accent: #112b3b;
+  --accent-soft: #e8f1f5;
+  --bg-primary: #fbfcfa;
+  --bg-secondary: #e8f1f5;
+  --ice: #fbfcfa;
+  --sky: #eaf2f8;
+  --border: #d8e2e6;
+  --border-color: #d8e2e6;
+  --border-soft: #e7edef;
+  --text-primary: #112b3b;
+  --text-secondary: #526873;
+  --text-muted: #71828a;
+  --surface-shadow: 0 2px 8px #112b3b06;
+  background: var(--bg-primary);
+}
+
+.admin-shell :is(h1, h2, h3, h4) {
+  letter-spacing: -.025em;
+  font-family: Instrument Sans, sans-serif;
+  font-weight: 600;
+}
+
+.admin-shell :is(button, a, input, select, textarea) {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.admin-shell :is(button, a) {
+  transition: background-color .18s, border-color .18s, color .18s;
+}
+
+.admin-shell :is(button, a, input, select, textarea):focus-visible {
+  outline-offset: 3px;
+  outline: 2px solid #47758c;
+}
+
+.admin-shell [class*="border-[3px]"] {
+  border-width: 1px;
+}
+
+.admin-shell :is(input, select, textarea) {
+  border: 1px solid var(--border);
+  background: #fff;
+  border-radius: 10px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.admin-shell :is(input, select, textarea):focus {
+  border-color: #70967d;
+}
+
+.admin-shell :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select) {
+  min-height: 44px;
+}
+
+.admin-shell .admin-content {
+  max-width: 1200px;
+}
+
+.admin-shell .admin-header {
+  border-bottom: 1px solid var(--border);
+  background: #fff;
+}
+
+.admin-shell .admin-sidebar {
+  border-right: 1px solid var(--border);
+  background: #fff;
+}
+
+.admin-sidebar-brand {
+  flex-shrink: 0;
+}
+
+.admin-brand {
+  color: #fff;
+  background: #112b3b;
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.admin-app-link {
+  color: #526873;
+  background: #f1f6f8;
+  flex-shrink: 0;
+}
+
+.admin-app-link:hover {
+  background: #e8f1f5;
+}
+
+.admin-shell .admin-nav-link {
+  color: #526873;
+  border-radius: 10px;
+  gap: 12px;
+  min-height: 44px;
+  padding: 10px 12px;
+}
+
+.admin-shell .admin-nav-link svg {
+  stroke-width: 1.7px;
+  width: 19px;
+  height: 19px;
+}
+
+.admin-shell .admin-nav-link[data-active="true"] {
+  color: #112b3b;
+  background: #e8f1f5;
+}
+
+.admin-shell .admin-nav-link[data-active="true"] > span {
+  font-weight: 600;
+}
+
+.admin-shell .admin-nav-link[data-active="false"]:hover {
+  background: #f1f6f8;
+}
+
+.admin-sidebar-footer {
+  border-top: 1px solid var(--border);
+  background: #fff;
+}
+
+.admin-shell .admin-notification-button {
+  border: 1px solid var(--border);
+  background: #fff;
+  border-radius: 12px;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.admin-shell .admin-notification-button:hover {
+  background: var(--bg-secondary);
+}
+
+.admin-shell .admin-card {
+  border: 1px solid var(--border);
+  box-shadow: var(--surface-shadow);
+  background: #fff;
+  border-radius: 14px;
+}
+
+.admin-shell .admin-overview-heading {
+  background: linear-gradient(120deg, #e8f1f5, #fbfcfa);
+  border: 1px solid #d8e2e6;
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.admin-shell .admin-overview-heading h1 {
+  font-size: clamp(28px, 3vw, 36px);
+  line-height: 1.2;
+}
+
+.admin-shell .admin-stat:hover {
+  background: #fbfdfb;
+  border-color: #aac6b2;
+}
+
+.admin-icon {
+  border-radius: 12px;
+  flex-shrink: 0;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  display: inline-grid;
+}
+
+.admin-icon[data-tone="sage"] {
+  color: #47758c;
+  background: #e8f1f5;
+}
+
+.admin-icon[data-tone="blue"] {
+  color: #376987;
+  background: #eaf2f8;
+}
+
+.admin-icon[data-tone="amber"] {
+  color: #9b632b;
+  background: #fff2df;
+}
+
+.admin-icon[data-tone="lavender"] {
+  color: #69528b;
+  background: #f1edf7;
+}
+
+.admin-shell .admin-queue-link {
+  background: #fbfcfb;
+}
+
+.admin-shell .admin-queue-link:hover {
+  background: #f1f6f8;
+  border-color: #b9d1d9;
+}
+
+.admin-shell .admin-primary, .admin-shell .admin-secondary {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  display: inline-flex;
+}
+
+.admin-shell .admin-primary {
+  background: var(--ink);
+  color: #fff;
+  border-color: var(--ink);
+}
+
+.admin-shell .admin-primary:hover {
+  background: var(--ink-2);
+}
+
+.admin-shell .admin-secondary {
+  background: #fff;
+}
+
+.admin-shell .admin-secondary:hover {
+  background: var(--bg-secondary);
+}
+
+.admin-shell button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.admin-shell td {
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+
+.admin-shell th {
+  background: #f4f7f5;
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+
+.admin-shell tbody tr:hover {
+  background: #f6f9f7;
+}
+
+.admin-shell td button {
+  min-width: 36px;
+  min-height: 36px;
+}
+
+.admin-shell [role="dialog"] {
+  border-color: var(--border);
+  box-shadow: 0 12px 48px #112b3b1a;
+}
+
+.admin-shell [role="dialog"] button[aria-label="Close dialog"] {
+  border-radius: 10px;
+  flex-shrink: 0;
+  place-items: center;
+  min-width: 36px;
+  min-height: 36px;
+  display: inline-grid;
+}
+
+.admin-shell .admin-live-tray, .admin-shell .admin-tray-toggle {
+  display: none !important;
+}
+
+@media (max-width: 767px) {
+  .admin-shell button, .admin-shell td button, .admin-shell nav a {
+    min-height: 44px;
+  }
+
+  .admin-shell button {
+    min-width: 44px;
+  }
+
+  .admin-shell :is(input, select, textarea) {
+    font-size: 16px;
+  }
+
+  .admin-shell .admin-content {
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
+  }
+
+  .admin-shell .admin-card {
+    box-shadow: none;
+    border-radius: 16px;
+  }
+
+  .admin-shell .admin-overview-heading {
+    padding: 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-shell *, .admin-shell :before, .admin-shell :after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/*# sourceMappingURL=src_app_admin_admin_ad9ef85e.css.map*/

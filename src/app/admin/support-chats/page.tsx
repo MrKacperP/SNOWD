@@ -15,7 +15,10 @@ export default function AdminSupportPage() {
   const [message, setMessage] = useState("");
 
   const sorted = useMemo(() => {
-    return [...supportTickets].sort((a, b) => urgencyOrder[a.urgency] - urgencyOrder[b.urgency]);
+    return [...supportTickets].sort((a, b) => {
+      const recent = new Date(b.lastMessageAt || b.createdAt || 0).getTime() - new Date(a.lastMessageAt || a.createdAt || 0).getTime();
+      return recent || urgencyOrder[a.urgency] - urgencyOrder[b.urgency];
+    });
   }, [supportTickets]);
 
   const selected = selectedId ? sorted.find(t => t.id === selectedId) || null : sorted[0] || null;

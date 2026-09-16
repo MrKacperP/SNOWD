@@ -1,0 +1,24 @@
+.panel { position: fixed; bottom: 20px; right: 20px; z-index: 10000; width: min(390px, calc(100vw - 24px)); max-height: calc(100dvh - 40px); overflow: auto; padding: 18px; border: 1px solid #cbd5e1; border-radius: 18px; background: #fff; color: #172335; box-shadow: 0 12px 48px #10233530; font-size: 14px; }
+.wide { width: min(850px, calc(100vw - 24px)); }
+.panel header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.panel p { margin: 10px 0; }
+.panel button { border: 1px solid #cbd5e1; border-radius: 9px; background: #f1f5f9; padding: 9px 12px; cursor: pointer; font-weight: 600; }
+.panel button:disabled { opacity: .5; cursor: not-allowed; }
+.panel button:focus-visible, .consent input:focus-visible { outline: 3px solid #2563eb; outline-offset: 2px; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.panel .end { background: #b91c1c; border-color: #b91c1c; color: white; }
+.video { display: block; width: 100%; max-height: 55dvh; object-fit: contain; background: #101827; border-radius: 10px; margin-top: 10px; }
+.panel audio { width: 100%; height: 32px; }
+.consent { display: flex; align-items: flex-start; gap: 8px; margin-top: 14px; }
+.consent input { margin-top: 4px; }
+.error { color: #b91c1c; }
+.incoming { border-top: 1px solid #e2e8f0; margin-top: 12px; padding-top: 4px; }
+.pointer { position: fixed; pointer-events: none; z-index: 2147483647; color: #7c3aed; display: flex; align-items: center; gap: 4px; }
+.pointer span { font-size: 34px; line-height: 1; text-shadow: 1px 1px white, -1px -1px white; }
+.pointer b { background: #6d28d9; color: #fff; border: 1px solid white; border-radius: 6px; padding: 3px 6px; font: 12px system-ui; white-space: nowrap; }
+.clicked::before { content: ""; position: absolute; left: -14px; top: -14px; width: 42px; height: 42px; border: 3px solid #7c3aed; border-radius: 50%; background: #8b5cf633; }
+@media (max-width: 600px) { .panel { right: 12px; bottom: 12px; padding: 14px; } }
+
+.preview .video { max-height: 160px; width: auto; max-width: 100%; }
+.controls { position: sticky; bottom: -18px; background: white; padding: 10px 0; }
+@media (max-width: 600px) { .panel { bottom: calc(88px + env(safe-area-inset-bottom)); max-height: calc(100dvh - 112px - env(safe-area-inset-bottom)); } }

@@ -1,8 +1,9 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, ChevronDown, Shovel, Snowflake, Check, ArrowUpRight, House, CalendarDays, Coffee } from "lucide-react";
+import { ArrowRight, Shovel, Snowflake, Check, ArrowUpRight, House, CalendarDays, Coffee } from "lucide-react";
 import styles from "./landing.module.css";
 import LandingPhone from "@/components/LandingPhone";
+import LandingProductShowcase from "@/components/LandingProductShowcase";
 
 const steps = [
   ["Find your helping hand.", "Sign up, add your address, and meet the shovelers near you."],
@@ -109,6 +110,7 @@ export default function HomePage() {
           <LandingPhone />
         </section>
         <div className={styles.serviceStrip}><span>A fresh start, right outside.</span><p><Check size={16} aria-hidden="true" /> Driveways</p><p><Check size={16} aria-hidden="true" /> Walkways</p><p><Check size={16} aria-hidden="true" /> Steps & entrances</p></div>
+        <LandingProductShowcase />
         <section id="how" className={styles.how} aria-labelledby="how-title">
           <div className={styles.sectionHeading}>
             <p className={styles.eyebrow}>HOW IT WORKS</p>
@@ -132,13 +134,10 @@ export default function HomePage() {
           <div><p className={styles.eyebrow}>GOOD QUESTIONS</p><h2 id="faq-title">Let’s clear<br />a few things up.</h2></div>
           <div className={styles.questions}>
             {questions.map(([question, answer]) => (
-              <details key={question}>
-                <summary>
-                  {question}
-                  <ChevronDown size={18} aria-hidden="true" />
-                </summary>
+              <article key={question}>
+                <h3>{question}</h3>
                 <p>{answer}</p>
-              </details>
+              </article>
             ))}
           </div>
         </section>

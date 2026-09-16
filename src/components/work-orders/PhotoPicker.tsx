@@ -3,8 +3,8 @@ import Image from "next/image";
 import { useState } from "react";
 import { prepareCompletionPhoto } from "@/lib/completionPhoto";
 
-export default function PhotoPicker({ photo, onChange, disabled, onBusy }: {
-  photo: string; onChange: (photo: string) => void; disabled?: boolean; onBusy?: (busy: boolean) => void;
+export default function PhotoPicker({ photo, onChange, disabled, onBusy, showCamera = true }: {
+  photo: string; onChange: (photo: string) => void; disabled?: boolean; onBusy?: (busy: boolean) => void; showCamera?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -17,7 +17,7 @@ export default function PhotoPicker({ photo, onChange, disabled, onBusy }: {
   }
   return <div className="space-y-3">
     <div className="flex flex-wrap gap-3">
-      {[false, true].map(camera => <label key={String(camera)} className={`rounded-xl border p-3 font-semibold ${busy || disabled ? "opacity-50" : "cursor-pointer"}`}>
+      {[false, true].filter(camera => showCamera !== false || !camera).map(camera => <label key={String(camera)} className={`rounded-xl border p-3 font-semibold ${busy || disabled ? "opacity-50" : "cursor-pointer"}`}>
         {camera ? "Take a photo" : "Choose from gallery or files"}
         <input className="sr-only" type="file" accept="image/*" capture={camera ? "environment" : undefined} disabled={busy || disabled} onChange={e => { void choose(e.target.files?.[0]); e.target.value = ""; }} />
       </label>)}
