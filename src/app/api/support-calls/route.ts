@@ -44,7 +44,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const user = await identity(req), db = getAdminDb();
-    const body = await req.json();
+    const body = await req.json().catch(() => { throw new CallError("Invalid call request."); });
+    if (!body || typeof body !== "object") throw new CallError("Invalid call request.");
     if (body.action === "start") {
       if (user.staff) throw new CallError("Use the admin page to answer calls.");
       const offer = description(body.offer, "offer"), id = randomUUID(), now = Date.now();

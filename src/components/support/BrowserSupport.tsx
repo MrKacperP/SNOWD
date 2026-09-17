@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { usePathname } from "next/navigation";
 import { createPortal } from "react-dom";
 import { useAuth } from "@/context/AuthContext";
+import SupportPageBoundary from "./SupportPageBoundary";
 import styles from "./browser-support.module.css";
 
 type Incoming = { id: string; callerName: string };
@@ -60,6 +61,7 @@ export default function BrowserSupport({ children }: { children: React.ReactNode
   const [error, setError] = useState("");
   const [connected, setConnected] = useState(false);
   const [muted, setMuted] = useState(false);
+  const mutedRef = useRef(false);
   const [camera, setCamera] = useState<MediaStream | null>(null);
   const [screen, setScreen] = useState<MediaStream | null>(null);
   const [audio, setAudio] = useState<MediaStream | null>(null);
@@ -86,6 +88,7 @@ export default function BrowserSupport({ children }: { children: React.ReactNode
     if (!user) throw new Error("Please sign in to call support.");
     const res = await fetch(`/api/support-calls${typeof params === "string" ? params : ""}`, {
       method: typeof params === "string" ? "GET" : "POST",
+      signal: AbortSignal.timeout(15000),
       headers: { Authorization: `Bearer ${await user.getIdToken()}`, "Content-Type": "application/json" },
       ...(typeof params === "string" ? {} : { body: JSON.stringify(params) }),
     });
@@ -93,7 +96,11 @@ export default function BrowserSupport({ children }: { children: React.ReactNode
     if (!res.ok) throw new Error(data.error || "Call unavailable.");
     return data;
   }, [user]);
-  const send = useCallback((data: unknown) => { if (channel.current?.readyState === "open") channel.current.send(JSON.stringify(data)); }, []);
+  const send = useCallback((data: unknown) => {
+    const dc = channel.current;
+    if (dc?.readyState !== "open" || dc.bufferedAmount > 65536) return;
+    try { dc.send(JSON.stringify(data)); } catch { /* A closing connection cannot receive guidance. */ }
+  }, []);
   const clean = useCallback(() => {
     generation.current++;
     if (connectionTimer.current) clearTimeout(connectionTimer.current);
@@ -103,6 +110,7 @@ export default function BrowserSupport({ children }: { children: React.ReactNode
     if (pcRef.current) { pcRef.current.onconnectionstatechange = null; pcRef.current.close(); }
     pcRef.current = null; channel.current = null; activeId.current = null; busyRef.current = false;
     sharing.current = { camera: false, screen: false, guidance: false };
+    mutedRef.current = false;
     if (pointerTimer.current) clearTimeout(pointerTimer.current);
     setCall(null); setBusy(false); setConnected(false); setCamera(null); setScreen(null); setAudio(null);
     setRemoteCamera(null); setRemoteScreen(null); setPointer(null); setGuidance(false); setMuted(false);
@@ -159,21 +167,21 @@ export default function BrowserSupport({ children }: { children: React.ReactNode
       try {
         const data: Call = await api(`?id=${call.id}`);
         if (cancelled) return;
-        lastSuccess = Date.now();
         if (data.status === "ended") { clean(); setStatus("Call ended or was not answered. You can try again or call 437-922-3895."); return; }
         const pc = pcRef.current;
         if (!staff && data.answer && pc && !pc.currentRemoteDescription) await pc.setRemoteDescription(data.answer);
         if (data.status === "active" && Date.now() - lastHeartbeat > 30000) { await api({ action: "heartbeat", id: call.id }); lastHeartbeat = Date.now(); }
+        lastSuccess = Date.now();
       } catch (e) {
         if (!cancelled) {
           setError((e as Error).message);
-          if (Date.now() - lastSuccess > 30000) { clean(); setStatus("Call ended after losing the support connection."); return; }
+          if (Date.now() - lastSuccess > 30000) { send({ type: "end" }); clean(); setStatus("Call ended after losing the support connection."); return; }
         }
       }
       if (!cancelled) timer = setTimeout(poll, 2000);
     };
     void poll(); return () => { cancelled = true; clearTimeout(timer); };
-  }, [call, api, staff, clean]);
+  }, [call, api, staff, clean, send]);
 
   const wireChannel = (dc: RTCDataChannel) => {
     channel.current = dc;
@@ -202,6 +210,7 @@ export default function BrowserSupport({ children }: { children: React.ReactNode
       if (!navigator.mediaDevices?.getUserMedia || !window.RTCPeerConnection) throw new Error("Browser calling requires HTTPS and a browser with microphone support.");
       const mic = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       if (attempt !== generation.current) { mic.getTracks().forEach(track => track.stop()); return; }
+      mic.getAudioTracks().forEach(track => { track.enabled = !mutedRef.current; });
       streams.current.push(mic);
       const config = await api("?config=1");
       if (attempt !== generation.current) return;
@@ -233,7 +242,7 @@ export default function BrowserSupport({ children }: { children: React.ReactNode
         if (attempt !== generation.current) return;
         await api({ action: "answer", id: incomingCall.id, answer });
         if (attempt !== generation.current) { void api({ action: "end", id: incomingCall.id }).catch(() => {}); return; }
-        activeId.current = incomingCall.id; setCall(incomingCall); setIncoming([]); setStatus("Connecting…");
+        activeId.current = incomingCall.id; setCall(incomingCall); setIncoming([]); setStatus(pc.connectionState === "connected" ? "Connected to support" : "Connecting…");
       } else {
         pc.addTransceiver(mic.getAudioTracks()[0], { direction: "sendrecv", streams: [mic] });
         pc.addTransceiver("video", { direction: "sendonly" });
@@ -252,6 +261,7 @@ export default function BrowserSupport({ children }: { children: React.ReactNode
     if (mediaBusy || !connected) return;
     setMediaBusy(true); setError("");
     const pc = pcRef.current;
+    const attempt = generation.current;
     const existing = kind === "camera" ? camera : screen;
     const update = (stream: MediaStream | null) => {
       if (kind === "camera") setCamera(stream); else { setScreen(stream); setGuidance(false); setPointer(null); sharing.current.guidance = false; }
@@ -262,13 +272,14 @@ export default function BrowserSupport({ children }: { children: React.ReactNode
       if (!sender) return;
       if (existing) { await sender.replaceTrack(null); existing.getTracks().forEach(track => track.stop()); update(null); return; }
       if (kind === "screen" && !navigator.mediaDevices.getDisplayMedia) throw new Error("Screen sharing is unavailable in this browser. Try a desktop browser.");
-      const stream = kind === "camera" ? await navigator.mediaDevices.getUserMedia({ video: true, audio: false }) : await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false, preferCurrentTab: true } as DisplayMediaStreamOptions);
+      const stream = kind === "camera" ? await navigator.mediaDevices.getUserMedia({ video: true, audio: false }) : await navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: "browser" }, audio: false, preferCurrentTab: true, selfBrowserSurface: "include", surfaceSwitching: "exclude" } as DisplayMediaStreamOptions);
       if (pc !== pcRef.current) { stream.getTracks().forEach(track => track.stop()); return; }
       streams.current.push(stream);
       try { await sender.replaceTrack(stream.getVideoTracks()[0]); } catch (e) { stream.getTracks().forEach(track => track.stop()); throw e; }
+      if (pc !== pcRef.current) { stream.getTracks().forEach(track => track.stop()); return; }
       update(stream);
       stream.getVideoTracks()[0].onended = () => { if (pc === pcRef.current) { void sender.replaceTrack(null).catch(() => {}); update(null); } };
-    } catch (e) { setError((e as Error).message); } finally { setMediaBusy(false); }
+    } catch (e) { if (attempt === generation.current) setError((e as Error).message); } finally { if (attempt === generation.current) setMediaBusy(false); }
   };
 
   const sendPointer = (point: Pointer | null) => {
@@ -278,9 +289,9 @@ export default function BrowserSupport({ children }: { children: React.ReactNode
   };
 
   return <SupportContext.Provider value={{ start: () => { void begin(); }, busy }}>
-    {children}
+    <SupportPageBoundary pathname={pathname} callActive={busy}>{children}</SupportPageBoundary>
     {typeof document !== "undefined" && createPortal(<>
-      {pointer && !staff && screen && guidance && <div className={`${styles.pointer} ${pointer.click ? styles.clicked : ""}`} style={{ left: `${pointer.x * 100}vw`, top: `${pointer.y * 100}vh` }}><span>↖</span><b>Support{pointer.click ? " · click" : ""}</b></div>}
+      {pointer && !staff && screen && guidance && <div className={`${styles.pointer} ${pointer.click ? styles.clicked : ""}`} style={{ left: `${pointer.x * 100}vw`, top: `${pointer.y * 100}vh` }}><svg width="24" height="30" viewBox="0 0 24 30" aria-hidden="true"><path d="M1 1 L21 17 L12 18 L8 27 Z" fill="#7c3aed" stroke="white" strokeWidth="2" /></svg><b>Support{pointer.click ? " · click" : ""}</b></div>}
       {(busy || error || status || (staff && pathname.startsWith("/admin") && incoming.length > 0)) && <section className={`${styles.panel} ${staff && expanded && remoteSharing.screen ? styles.wide : ""}`} aria-label="Browser support call">
         <header><strong>{busy ? (staff ? `Call with ${call?.callerName || "caller"}` : "SNOWD browser support") : "Support calls"}</strong>{busy && <button onClick={() => setExpanded(!expanded)}>{expanded ? "Minimize" : "Expand"}</button>}</header>
         {status && <p role="status">{status}</p>}
@@ -305,7 +316,7 @@ export default function BrowserSupport({ children }: { children: React.ReactNode
             {guidance && <p>Support clicks show a marker. You stay in control of buttons and forms.</p>}
           </>}
         </>}
-        {busy ? <div className={`${styles.actions} ${styles.controls}`}><button onClick={() => { const next = !muted; setMuted(next); streams.current.flatMap(stream => stream.getAudioTracks()).forEach(track => { track.enabled = !next; }); }}>{muted ? "Unmute" : "Mute"}</button><button className={styles.end} onClick={() => void end()}>{connected ? "End call" : "Cancel call"}</button></div> : <button onClick={() => { setError(""); setStatus(""); }}>Dismiss</button>}
+        {busy ? <div className={`${styles.actions} ${styles.controls}`}><button onClick={() => { const next = !mutedRef.current; mutedRef.current = next; setMuted(next); streams.current.flatMap(stream => stream.getAudioTracks()).forEach(track => { track.enabled = !next; }); }}>{muted ? "Unmute" : "Mute"}</button><button className={styles.end} onClick={() => void end()}>{connected ? "End call" : "Cancel call"}</button></div> : <button onClick={() => { setError(""); setStatus(""); }}>Dismiss</button>}
       </section>}
     </>, document.body)}
   </SupportContext.Provider>;
