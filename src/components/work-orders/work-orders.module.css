@@ -106,7 +106,7 @@
   min-height: 44px;
   padding: 10px 16px;
   border: 1px solid var(--border-color);
-  border-radius: 7px;
+  border-radius: 12px;
   background: var(--bg-card-solid, white);
   font-size: 14px;
   font-weight: 600;
@@ -118,13 +118,13 @@
 }
 .button:focus-visible,
 .filters select:focus-visible {
-  outline: 2px solid #2563eb;
+  outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
 .card {
   background: var(--bg-card-solid, white);
   border: 1px solid var(--border-color);
-  border-radius: 10px;
+  border-radius: 16px;
   overflow: hidden;
   box-shadow: 0 1px 2px rgb(6 19 33 / 4%);
 }
@@ -157,7 +157,7 @@
   overflow-wrap: anywhere;
   border: 1px solid var(--border-color);
   background: #f3f4f6;
-  border-radius: 6px;
+  border-radius: 999px;
   padding: 5px 9px;
   font-size: 12px;
   font-weight: 600;
@@ -198,7 +198,7 @@
   display: grid;
   gap: 2px;
   min-width: 0;
-  border-radius: 10px;
+  border-radius: 16px;
   background: var(--bg-secondary);
   padding: 11px 13px;
 }
@@ -215,7 +215,7 @@
   justify-content: center;
   margin-top: 8px;
   border: 1px solid var(--ink);
-  border-radius: 9px;
+  border-radius: 12px;
   padding: 9px 15px;
   background: var(--bg-card-solid, white);
   color: var(--ink);
@@ -267,14 +267,14 @@
   min-height: 44px;
   padding: 8px 12px;
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: 12px;
   background: var(--bg-card-solid, white);
   color: var(--text-primary);
   font: inherit;
   cursor: pointer;
 }
 .filters select:focus-visible {
-  outline: 2px solid #2563eb;
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 .section {
@@ -292,7 +292,7 @@
 }
 .empty {
   border: 1px dashed var(--border-color);
-  border-radius: 10px;
+  border-radius: 16px;
   padding: 24px;
   color: var(--text-secondary);
   font-size: 14px;
@@ -310,7 +310,7 @@
   min-height: 42px;
   margin-top: 6px;
   border: 1px solid var(--border-color);
-  border-radius: 7px;
+  border-radius: 12px;
   background: var(--bg-card-solid);
   padding: 8px 10px;
   color: var(--text-primary);
@@ -360,8 +360,8 @@
 
 
 .searchLabel { display: block; margin-bottom: 20px; font-size: 14px; font-weight: 600; }
-.searchInput { display: block; width: 100%; min-height: 48px; margin-top: 8px; padding: 12px 14px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-card-solid); color: var(--text-primary); }
-.searchInput:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+.searchInput { display: block; width: 100%; min-height: 48px; margin-top: 8px; padding: 12px 14px; border: 1px solid var(--border-color); border-radius: 12px; background: var(--bg-card-solid); color: var(--text-primary); }
+.searchInput:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .progress { display: flex; gap: 6px; margin-top: 12px; padding-block: 9px; border-block: 1px solid var(--border-color); }
 .progress li { flex: 1; color: var(--text-muted); font-size: 12px; }
 .progress li span { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; margin-right: 5px; border: 1px solid var(--border-color); border-radius: 50%; font-size: 10px; }
@@ -377,7 +377,7 @@
   background: var(--bg-card-solid, white);
   overflow: hidden;
 }
-.companyGroup[data-active-job="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.companyGroup[data-active-job="true"] { border-color: var(--surface-blue-border); box-shadow: var(--surface-shadow); }
 .companySummary {
   display: flex;
   align-items: center;
@@ -392,7 +392,7 @@
   background: var(--bg-secondary);
 }
 .companySummary:focus-visible, .orderRow:focus-visible, .conversationRow:focus-visible {
-  outline: 2px solid #2563eb;
+  outline: 2px solid var(--accent);
   outline-offset: -3px;
 }
 .companyInfo {
@@ -410,15 +410,15 @@
 .companySummary[aria-expanded="true"] .companyChevron { transform: rotate(90deg); }
 .companyTools { display: flex; justify-content: flex-end; border-top: 1px solid var(--border-color); padding: 12px 20px; background: var(--bg-secondary); }
 .companyFilter { display: flex; align-items: center; gap: 10px; color: var(--text-secondary); font-size: 13px; font-weight: 600; }
-.companyFilter select { min-height: 40px; max-width: 100%; border: 1px solid var(--border-color); border-radius: 8px; padding: 7px 34px 7px 10px; background: var(--bg-card-solid, white); color: var(--text-primary); font: inherit; font-weight: 600; }
-.companyFilter select:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+.companyFilter select { min-height: 40px; max-width: 100%; border: 1px solid var(--border-color); border-radius: 12px; padding: 7px 34px 7px 10px; background: var(--bg-card-solid, white); color: var(--text-primary); font: inherit; font-weight: 600; }
+.companyFilter select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .companyList { list-style: none; margin: 0; padding: 0; }
 .companyList > li { border-top: 1px solid var(--border-color); }
 .orderRow { display: grid; gap: 18px; padding: 20px; color: inherit; text-decoration: none; }
 .orderRowHeader, .orderRowFooter { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-width: 0; }
 .orderReference { font-size: 17px; font-weight: 750; overflow-wrap: anywhere; }
 .orderHighlights { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(180px, .8fr); gap: 12px; }
-.orderHighlight { display: flex; align-items: flex-start; gap: 11px; min-width: 0; border-radius: 10px; padding: 14px; background: var(--bg-secondary); }
+.orderHighlight { display: flex; align-items: flex-start; gap: 11px; min-width: 0; border-radius: 16px; padding: 14px; background: var(--bg-secondary); }
 .orderHighlight > svg { flex: 0 0 auto; margin-top: 2px; color: var(--text-secondary); }
 .orderHighlight > span { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
 .orderHighlight strong { font-size: 15px; line-height: 1.45; overflow-wrap: anywhere; }
@@ -461,7 +461,7 @@
 .guide .paymentNote { grid-column: 2; justify-self: start; padding: 5px 8px; border-radius: 999px; background: rgba(255,255,255,.72); font-size: 11px; font-weight: 650; line-height: 1.2; }
 .completionPhoto { position: relative; width: 100%; margin-top: 4px; overflow: hidden; border-radius: 14px; background: white; }
 .completionPhoto img { display: block; width: 100%; max-height: 420px; object-fit: cover; }
-.completionPhoto figcaption { position: absolute; left: 12px; bottom: 12px; display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 9px; background: rgba(255,255,255,.92); font-size: 12px; font-weight: 650; }
+.completionPhoto figcaption { position: absolute; left: 12px; bottom: 12px; display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 12px; background: rgba(255,255,255,.92); font-size: 12px; font-weight: 650; }
 .orderDetails { border-top: 1px solid var(--border-color); margin-top: 12px; padding-top: 8px; }
 .orderDetails { padding-bottom: 4px; }
 .orderDetails > summary { cursor: pointer; list-style: none; }
@@ -480,3 +480,17 @@
   .guide { grid-template-columns: auto 1fr; }
 }
 @keyframes task-appear { from { opacity: .4; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+.inboxPreview { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); font-size: 14px; font-weight: 400; }
+.inboxMeta { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; color: var(--text-muted); font-size: 11px; flex-shrink: 0; }
+.companySummary:has(.inboxPreview) { flex-wrap: nowrap; }
+.companySummary:has(.inboxPreview) .companyInfo { flex-basis: auto; }
+
+@media (max-width: 640px) {
+  .cardHeader { flex-direction: column; gap: 10px; }
+  .cardHeader .badge { max-width: 100%; }
+  .priorityFacts { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .priorityFacts > div { padding: 12px; }
+  .priorityFacts strong { font-size: 13px; }
+  .messageButton { width: 100%; }
+}

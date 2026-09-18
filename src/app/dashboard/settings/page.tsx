@@ -4,6 +4,7 @@ import { isOperatorPublic } from "@/lib/operatorDiscovery";
 import Link from "next/link";
 import Image from "next/image";
 import DeleteConfirmPopup from "@/components/DeleteConfirmPopup";
+import Modal from "@/components/ui/Modal";
 import Notification from "@/components/Notification";
 import PageHeader from "@/components/ui/PageHeader";
 
@@ -59,6 +60,9 @@ export default function SettingsPage() {
   const searchParams = useSearchParams();
 
   const [feedback, setFeedback] = useState("");
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const pendingLeave = useRef<(() => void) | null>(null);
+  const allowLeave = useRef(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -206,9 +210,7 @@ export default function SettingsPage() {
   ];
   const missingGeneralFields = requiredGeneralFields.filter((field) => !field.value.trim());
   const missingGeneralFieldSet = new Set(missingGeneralFields.map((field) => field.key));
-  const completionPercent = Math.round(
-    ((requiredGeneralFields.length - missingGeneralFields.length) / requiredGeneralFields.length) * 100
-  );
+
 
   // Verification state
   const [uploadingId, setUploadingId] = useState(false);
@@ -245,8 +247,14 @@ export default function SettingsPage() {
     const leave = (event: MouseEvent) => {
       const target = (event.target as Element).closest("a[href], button");
       const leaving = target?.matches("a[href]") || /sign out/i.test(target?.textContent || "");
-      if (leaving && !window.confirm("Your business profile has unsaved changes. Leave without saving?")) {
+      if (leaving && !allowLeave.current && target instanceof HTMLElement) {
         event.preventDefault(); event.stopPropagation();
+        pendingLeave.current = () => {
+          allowLeave.current = true;
+          target.click();
+          allowLeave.current = false;
+        };
+        setLeaveOpen(true);
       }
     };
     window.addEventListener("beforeunload", warn);
@@ -638,6 +646,12 @@ export default function SettingsPage() {
 
   return (
     <div className={`${styles.settings} max-w-[1040px] mx-auto space-y-5`}>
+      <Modal isOpen={leaveOpen} onClose={() => setLeaveOpen(false)} title="Leave without saving?" subtitle={brandingBusy ? "Wait for the upload to finish, then save your profile before leaving." : "Your business profile has changes that haven’t been saved."} size="sm">
+        <div className="grid gap-2">
+          <button type="button" className="btn-primary w-full" onClick={() => setLeaveOpen(false)}>Keep editing</button>
+          <button type="button" className="btn-secondary w-full" disabled={brandingBusy} onClick={() => { setLeaveOpen(false); pendingLeave.current?.(); pendingLeave.current = null; }}>Leave without saving</button>
+        </div>
+      </Modal>
       <PageHeader title="Settings" description="Payments, verification, and account preferences." action={<Link className="btn-secondary min-h-11" href="/dashboard/profile">Edit profile</Link>} />
       <div className={styles.layout}>
         <aside className={styles.sidebar}>
@@ -674,7 +688,7 @@ export default function SettingsPage() {
                 <p className={`text-sm font-semibold ${
                   missingGeneralFields.length === 0 ? "text-green-800" : "text-amber-800"
                 }`}>
-                  Profile completion: {completionPercent}%
+                  Finish your profile
                 </p>
                 {missingGeneralFields.length === 0 ? (
                   <p className="text-xs text-green-700 mt-1">Everything needed is complete.</p>
@@ -692,7 +706,6 @@ export default function SettingsPage() {
             </div>
           </div>}
 
-          <p className="text-sm text-[var(--text-secondary)]">Choose what you want to update, then save your changes.</p>
           {/* Profile Info */}
           <section className={styles.card}>
             <h3 className="min-h-11 text-lg font-semibold text-[var(--ink)] flex items-center gap-2">
@@ -713,9 +726,10 @@ export default function SettingsPage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block">Email</label>
+                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-email">Email</label>
                 <input
                   type="email"
+                  id="settings-email"
                   value={user?.email || ""}
                   disabled
                   className="w-full px-4 py-2.5 border-[3px] border-[var(--border)] rounded-xl text-sm bg-[var(--bg-primary)] text-[var(--text-muted)]"

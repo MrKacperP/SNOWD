@@ -73,18 +73,18 @@ export default function AdminCallsPage() {
     <div className="space-y-4">
       <AdminCard className="p-4">
         <div className="flex flex-wrap items-center gap-2">
-          <select value={dateRange} onChange={(e) => setDateRange(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-white text-sm">
+          <select aria-label="Filter call date" value={dateRange} onChange={(e) => setDateRange(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-white text-sm">
             <option>Last 7 days</option>
             <option>Last 30 days</option>
             <option>Last 90 days</option>
           </select>
-          <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-white text-sm">
+          <select aria-label="Filter call status" value={status} onChange={(e) => setStatus(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-white text-sm">
             <option>All</option>
             <option>Completed</option>
             <option>Missed</option>
             <option>In Progress</option>
           </select>
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by user" className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-[var(--bg-primary)] text-sm min-w-[220px]" />
+          <input aria-label="Search calls by user" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by user" className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-[var(--bg-primary)] text-sm min-w-[220px]" />
         </div>
       </AdminCard>
 

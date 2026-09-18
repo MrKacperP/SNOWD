@@ -1,5 +1,6 @@
 "use client";
 import { jobDisplayPrice } from "@/lib/marketplacePricing";
+import ProgressTracker from "@/components/ProgressTracker";
 import CompanyIdentity from "@/components/CompanyIdentity";
 import Link from "next/link";
 import { ClientProfile, Job, OperatorProfile } from "@/lib/types";
@@ -35,10 +36,8 @@ export default function OrderCard({
         <div className={styles.cardHeader}>
           <div className="min-w-0">
             <p className={styles.reference}>Work order #{orderNumber(job)}</p>
-            <h2 className={styles.title}><CompanyIdentity person={person} name={name} /></h2>
-            <p className={styles.secondary}>
-              {operator ? "Customer" : "Service provider"}
-            </p>
+            {detail ? <h1 className={styles.title}><CompanyIdentity person={person} name={name} /></h1> : <h3 className={`${styles.title} capitalize`}>{job.serviceTypes?.map(service => service.replaceAll("-", " ")).join(" · ") || "Snow clearing"}</h3>}
+            {detail && <p className={styles.secondary}>{operator ? "Customer" : "Service provider"}</p>}
           </div>
           <span className={styles.badge} data-status={job.status}>
             {orderLabel(job)}
@@ -47,7 +46,7 @@ export default function OrderCard({
         <div className={styles.priorityFacts} aria-label="Visit time and payment">
           <div>
             <span>Visit time</span>
-            <strong>{job.status === "en-route" && job.eta ? `Arriving in about ${job.eta} ${job.eta === 1 ? "minute" : "minutes"}` : isAsap(job) ? "ASAP · As soon as possible" : scheduleText(job)}</strong>
+            <strong>{job.status === "en-route" && job.eta ? `Arriving in about ${job.eta} ${job.eta === 1 ? "minute" : "minutes"}` : isAsap(job) ? "As soon as possible" : scheduleText(job)}</strong>
           </div>
           <div>
             <span>Payment</span>
@@ -55,24 +54,15 @@ export default function OrderCard({
             <small>{job.paymentStatus === "held" ? "Authorized" : job.paymentStatus === "paid" ? "Paid" : job.paymentStatus === "refunded" ? "Refunded / released" : "Pending"}</small>
           </div>
         </div>
-        {detail && job.status !== "cancelled" && (
-          <ol className={styles.progress} aria-label="Work order progress">
-            {["Requested", "Confirmed", "On the way", "Working", "Completed"].map((label, index) => {
-              const current = ["pending", "accepted", "en-route", "in-progress", "completed"].indexOf(job.status);
-              return <li key={label} data-reached={index <= current} aria-current={index === current ? "step" : undefined}>
-                <span aria-hidden="true">{index + 1}</span>{label}
-              </li>;
-            })}
-          </ol>
-        )}
+        {detail && job.status !== "cancelled" && <div className="mt-4 border-t border-[var(--border-color)] pt-4"><ProgressTracker status={job.status} compact /></div>}
         <OrderGuide job={job} uid={user?.uid || ""} />
-        <OrderActions job={job} onUpdated={onUpdated} />
-        {job.chatId && (
+        {detail && job.chatId && (
           <Link className={styles.messageButton} href={`/dashboard/messages/${job.chatId}`}>
             Message {operator ? "customer" : "provider"}
           </Link>
         )}
-        <section className={styles.orderDetails} aria-labelledby={`visit-details-${job.id}`}>
+        <OrderActions job={job} compact={!detail} onUpdated={onUpdated} />
+        {detail && <section className={styles.orderDetails} aria-labelledby={`visit-details-${job.id}`}>
         <h3 id={`visit-details-${job.id}`} className={styles.detailSummary}>Visit details</h3>
         <dl className={styles.facts}>
           <div>
@@ -99,7 +89,7 @@ export default function OrderCard({
           </div>
           {job.status === "en-route" && job.eta && <div><dt>Live arrival</dt><dd><strong>About {job.eta} {job.eta === 1 ? "minute" : "minutes"} away</strong>{Number.isFinite(job.operatorApproxLat) && Number.isFinite(job.operatorApproxLng) && <a className="mt-1 block font-semibold underline" href={`https://www.google.com/maps?q=${job.operatorApproxLat},${job.operatorApproxLng}`} target="_blank" rel="noreferrer">View approximate area ({job.operatorLocationRadiusKm || 1} km radius) ↗</a>}<p className={styles.secondary}>The operator’s exact location stays private.</p></dd></div>}
         </dl>
-        </section>
+        </section>}
         {conflict && (
           <p
             role="status"
@@ -110,7 +100,7 @@ export default function OrderCard({
           </p>
         )}
       </div>
-      <div className={styles.footer}>
+      {(!detail || job.previousOrderId) && <div className={styles.footer}>
         {!detail && (
           <Link className={styles.button} href={`/dashboard/jobs/${job.id}`}>
             View work order
@@ -132,7 +122,7 @@ export default function OrderCard({
             Previous order
           </Link>
         )}
-      </div>
+      </div>}
     </article>
   );
 }

@@ -36,7 +36,6 @@ CreditCard,
 Filter,
 MapPin,
 Search,
-ShieldCheck,
 Snowflake,
 Star,
 Zap
@@ -348,22 +347,23 @@ export default function FindOperatorsPage() {
     <div className="mx-auto max-w-[1040px] space-y-5">
       {favoriteError && <p role="alert">{favoriteError}</p>}
       <PageHeader title="Find a shoveler" description={`Choose snow help in ${clientProfile?.city || "your neighbourhood"}.`} />
-      <div className="rounded-2xl bg-[#e8f1f5] px-5 py-4 text-sm text-[#526873]"><MapPin className="mr-2 inline h-4 w-4" />{clientProfile?.address || "Add your service address"} <Link href="/dashboard/settings" className="ml-2 font-semibold underline">Change</Link></div>
+      <div className="rounded-2xl bg-[var(--accent-soft)] px-4 py-3 text-sm text-[var(--text-secondary)]"><MapPin className="mr-2 inline h-4 w-4" />{clientProfile?.address || "Add your service address"} <Link href="/dashboard/settings" className="ml-2 inline-flex min-h-11 items-center font-semibold underline">Change</Link></div>
 
       <section className="surface-panel p-4 md:p-5">
-        <div className="flex flex-col gap-3 lg:flex-row">
-          <div className="relative flex-1">
+        <div className="flex items-center gap-2">
+          <div className="relative min-w-0 flex-1">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--text-muted)]" />
             <input
               type="search"
               aria-label="Search operators"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by name, service, or city"
-              className="h-13 w-full rounded-[1.3rem] border-[3px] border-[var(--border-color)] bg-[#fbfbf8] pl-12 pr-4 text-[var(--text-primary)] outline-none transition focus:border-[var(--ink)]"
+              placeholder="Search shovelers"
+              className="h-13 w-full rounded-[1.3rem] border-[3px] border-[var(--border-color)] bg-[var(--card)] pl-12 pr-4 text-[var(--text-primary)] outline-none transition focus:border-[var(--ink)]"
             />
           </div>
           <button
+            aria-label="Filters"
             aria-expanded={showFilters}
             aria-controls="operator-filters"
             onClick={() => setShowFilters(!showFilters)}
@@ -374,7 +374,7 @@ export default function FindOperatorsPage() {
             }`}
           >
             <Filter className="h-4 w-4" />
-            Filters
+            <span className="hidden sm:inline">Filters</span>
           </button>
         </div>
 
@@ -448,33 +448,19 @@ export default function FindOperatorsPage() {
             const cashOnly = !canAcceptPlatformPayments(op);
             const price = operatorServicePrice(op, clientProfile);
             const distance = getDistanceKm(clientProfile, op);
-            return <article key={op.uid} className="overflow-hidden rounded-3xl bg-white border border-[var(--border-color)]">
-              <div className="p-5 space-y-4">
-                <div className="flex items-center gap-3"><UserAvatar photoURL={op.avatar} logoURL={op.logoUrl} role="operator" displayName={op.businessName || op.displayName} size={48} /><div className="min-w-0"><h2 className="text-xl font-semibold break-words"><Link href={`/dashboard/u/${op.uid}?returnTo=${encodeURIComponent(`/dashboard/find`)}`} className="rounded underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2">{op.businessName || op.displayName}</Link>{favorites.includes(op.uid) && <span className="ml-2 text-amber-600" aria-label="Favorite operator">★</span>}</h2><p className="mt-1 text-sm text-[var(--text-secondary)]">{op.rating ? `${op.rating.toFixed(1)} ★` : "New operator"}{distance !== null ? ` · ${distance.toFixed(1)} km away` : ` · ${op.city}`}</p></div></div>
-                <p className="text-sm capitalize">{selectedServices.map(service => service.replaceAll("-", " ")).join(" · ")} · {propertySize} property</p>
-                <div className={`grid gap-2 ${cashOnly ? "" : "sm:grid-cols-2"}`}>
-                  {!cashOnly && <div className="relative rounded-2xl border-2 border-[var(--ink)] bg-[var(--accent-soft)] p-4 pt-5">
-                    <span className="absolute -top-2.5 left-3 rounded-full bg-[var(--ink)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white">Recommended</span>
-                    <p className="flex items-center gap-2 text-sm font-bold"><CreditCard size={17} /> Pay by card</p>
-                    <p className="mt-2 text-2xl font-bold">${quoteMarketplace(price, "credit").price.toFixed(2)} <span className="text-xs font-medium">CAD</span></p>
-                    <p className="mt-1 flex items-start gap-1.5 text-xs leading-5 text-[var(--text-secondary)]"><ShieldCheck size={15} className="mt-0.5 shrink-0" /> Payment is protected and charged after photo proof.</p>
-                  </div>}
-                  <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
-                    <p className="flex items-center gap-2 text-sm font-semibold"><Banknote size={17} /> Pay cash</p>
-                    <p className="mt-2 text-2xl font-bold">${price.toFixed(2)} <span className="text-xs font-medium">CAD</span></p>
-                    <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">Pay the company directly after the work.</p>
-                  </div>
-                </div>
-                <button onClick={() => bookOperator(op)} disabled={booking} className="btn-primary w-full px-4 py-3">Request help</button>
+            return <article key={op.uid} className="operator-card app-card p-4 sm:p-5">
+              <div className="flex items-start gap-3">
+                <UserAvatar photoURL={op.avatar} logoURL={op.logoUrl} role="operator" displayName={op.businessName || op.displayName} size={44} />
+                <div className="min-w-0 flex-1"><h2 className="text-lg font-semibold break-words"><Link href={`/dashboard/u/${op.uid}?returnTo=${encodeURIComponent(`/dashboard/find`)}`} className="rounded underline-offset-4 hover:underline">{op.businessName || op.displayName}</Link></h2><p className="mt-1 text-sm text-[var(--text-secondary)]">{op.rating ? `${op.rating.toFixed(1)} ★` : "New operator"}{distance !== null ? ` · ${distance.toFixed(1)} km away` : ` · ${op.city}`}</p></div>
+                <button type="button" onClick={() => toggleFavorite(op.uid)} disabled={favoriteBusy} aria-pressed={favorites.includes(op.uid)} aria-label={favorites.includes(op.uid) ? `Unsave ${op.businessName || op.displayName}` : `Save ${op.businessName || op.displayName}`} className="-mr-1 -mt-1 grid h-11 w-11 shrink-0 place-items-center rounded-xl text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"><Star size={19} fill={favorites.includes(op.uid) ? "currentColor" : "none"} className={favorites.includes(op.uid) ? "text-amber-600" : ""} /></button>
               </div>
-              <section className="border-t border-[var(--border-color)] px-5 py-4">
-                  <div className="grid gap-2">
-                    <button onClick={() => toggleFavorite(op.uid)} disabled={favoriteBusy} aria-pressed={favorites.includes(op.uid)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-color)] px-4 py-3 text-sm font-semibold text-[var(--text-primary)]">
-                      <Star size={17} fill={favorites.includes(op.uid) ? "currentColor" : "none"} className={favorites.includes(op.uid) ? "text-amber-600" : ""} />
-                      {favorites.includes(op.uid) ? "Saved company" : "Save company"}
-                    </button>
-                </div>
-              </section>
+              <p className="mt-4 text-sm capitalize text-[var(--text-secondary)]">{selectedServices.map(service => service.replaceAll("-", " ")).join(" · ")} · {propertySize} property</p>
+              <div className={`mt-3 grid gap-2 ${cashOnly ? "" : "grid-cols-2"}`}>
+                {!cashOnly && <div className="rounded-xl bg-[var(--accent-soft)] p-3"><p className="flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)]"><CreditCard size={15} />Card</p><p className="mt-1 text-xl font-semibold">${quoteMarketplace(price, "credit").price.toFixed(2)} <span className="text-xs font-normal">CAD</span></p></div>}
+                <div className="rounded-xl bg-[var(--bg-secondary)] p-3"><p className="flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)]"><Banknote size={15} />Cash{cashOnly ? " only" : ""}</p><p className="mt-1 text-xl font-semibold">${price.toFixed(2)} <span className="text-xs font-normal">CAD</span></p></div>
+              </div>
+              <p className="mt-2 text-xs leading-5 text-[var(--text-secondary)]">{cashOnly ? "Pay directly after the work." : "Card charged after photo proof. Cash paid directly."}</p>
+              <button onClick={() => bookOperator(op)} disabled={booking} className="btn-primary mt-4 min-h-12 w-full px-4 py-3">Request help</button>
             </article>;
           })}
         </section>
@@ -482,8 +468,8 @@ export default function FindOperatorsPage() {
 
       {loadError && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4"><p>{loadError}</p><button type="button" className="mt-2 min-h-11 underline" onClick={() => setRetry(value => value + 1)}>Try again</button></div>}
       {bookingError && !schedulingOperator && <p role="alert" className="text-red-700">{bookingError}</p>}
-      <Modal isOpen={!!schedulingOperator} onClose={() => { if (!booking) { setSchedulingOperator(null); setCreatedJobId(""); } }} title={createdJobId ? undefined : "Review your request"} size="lg">
-        {schedulingOperator && createdJobId ? <ResultState title="Help requested." description={`${schedulingOperator.businessName || schedulingOperator.displayName} will confirm your visit shortly.`} actionHref={`/dashboard/jobs/${createdJobId}`} actionLabel="View work order">
+      <Modal isOpen={!!schedulingOperator} onClose={() => { if (!booking) { setSchedulingOperator(null); setCreatedJobId(""); } }} title={createdJobId ? undefined : "Review your request"} size="lg" showClose={!booking}>
+        {schedulingOperator && createdJobId ? <ResultState title="Help requested." description={`${schedulingOperator.businessName || schedulingOperator.displayName} will review your request. We’ll let you know when they respond.`} actionHref={`/dashboard/jobs/${createdJobId}`} actionLabel="View work order">
           <div className="mt-6 flex items-center justify-center gap-2 rounded-xl bg-[var(--bg-secondary)] p-4 text-sm font-semibold"><CalendarDays size={18} />{scheduleType === "asap" ? "As soon as possible" : `${scheduledDate} · ${scheduledTime}`}</div>
         </ResultState> : schedulingOperator && <div className="space-y-5">
           <div className="flex items-center justify-between gap-4 rounded-xl bg-[var(--bg-secondary)] p-4"><CompanyIdentity person={schedulingOperator} name={schedulingOperator.businessName || schedulingOperator.displayName} /><strong>${quoteMarketplace(calculateServicePrice(schedulingOperator.pricing, requestedServices, propertySize), paymentMethod).price.toFixed(2)} CAD</strong></div>

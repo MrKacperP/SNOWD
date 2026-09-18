@@ -53,3 +53,6 @@ firestore-debug.log
 .next-ux-build/
 
 firebase-debug.log
+
+# Isolated mobile design verification builds
+/.next-mobile-*/

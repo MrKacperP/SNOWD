@@ -1,34 +1,36 @@
-.bottomNav { position: fixed; z-index: 30; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 7px max(8px, env(safe-area-inset-left)) max(7px, env(safe-area-inset-bottom)); border-top: 1px solid var(--border-color); background: color-mix(in srgb,var(--card) 96%,transparent); backdrop-filter: blur(14px); }
-.bottomNav > :is(a,button) { display: flex; min-height: 58px; min-width: 0; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 12px; font-weight: 500; color: #526873; cursor: pointer; border-radius: 8px; }
-.navIcon { position: relative; display: grid; place-items: center; width: 52px; height: 30px; border-radius: 10px; }
-.bottomNav [aria-current="page"] { color: #112b3b; font-weight: 700; }
-.bottomNav [aria-current="page"] .navIcon, .bottomNav [aria-expanded="true"] .navIcon { background: #e8f1f5; }
-.badge { position: absolute; right: 0; top: -2px; background: #a83225; color: white; border: 2px solid white; min-width: 18px; padding: 0 3px; border-radius: 12px; font-size: 10px; line-height: 16px; }
-.bottomNav .moreButton { position: fixed; right: 14px; bottom: calc(78px + env(safe-area-inset-bottom)); width: 48px; min-width: 48px; height: 48px; min-height: 48px; border-radius: 999px; background: var(--ink); color: white; box-shadow: 0 8px 24px rgba(17,43,59,.18); }
-.bottomNav .moreButton[aria-expanded="true"] { background: var(--surface-green); color: var(--ink); }
-.bookingCard { border: 1px solid #274ba8; background: #4169e1; border-radius: 24px; padding: 24px; color: white; box-shadow: 0 10px 28px rgba(35, 74, 173, .22); }
-.location { display: flex; align-items: center; gap: 7px; font-size: 13px; color: #dfe8ff; overflow-wrap: anywhere; }
+.bottomNav { position: fixed; z-index: 30; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 7px max(8px, env(safe-area-inset-left)) max(7px, env(safe-area-inset-bottom)); border-top: 1px solid var(--border-color); background: color-mix(in srgb,var(--card) 96%,transparent); backdrop-filter: blur(14px); }
+.bottomNav > :is(a,button) { display: flex; min-height: 58px; min-width: 0; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 11px; font-weight: 500; color: var(--text-secondary); cursor: pointer; border-radius: 8px; }
+.navIcon { position: relative; display: grid; place-items: center; width: 48px; height: 30px; border-radius: 10px; }
+.bottomNav [aria-current="page"] { color: var(--accent); font-weight: 600; }
+.bottomNav [aria-current="page"] .navIcon, .bottomNav [aria-expanded="true"] .navIcon { background: var(--accent-soft); }
+.badge { position: absolute; right: 0; top: -2px; background: #a83225; color: white; border: 2px solid var(--card); min-width: 18px; padding: 0 3px; border-radius: 12px; font-size: 10px; line-height: 16px; }
+.bottomNav .moreButton[aria-expanded="true"] { color: var(--accent); }
+.bookingCard { border: 1px solid var(--surface-blue-border); background: var(--surface-blue); border-radius: 22px; padding: 24px; color: var(--text-primary); box-shadow: none; }
+.location { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--text-secondary); overflow-wrap: anywhere; }
 .location svg { flex-shrink: 0; }
-.bookingCard h2 { font-size: 27px; line-height: 1.2; margin-top: 20px; }
-.bookingCard > p:not(.location) { margin-top: 10px; font-size: 15px; line-height: 1.6; color: #edf2ff; max-width: 460px; }
-.mainAction { display: flex; min-height: 52px; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 18px; background: white; color: #254aa7; border-radius: 10px; margin-top: 22px; font-size: 16px; font-weight: 700; }
-.mainAction:hover { background: #e8efff; }
+.bookingCard h2 { font-size: 28px; line-height: 1.2; margin-top: 16px; }
+.bookingCard > p:not(.location) { margin-top: 10px; font-size: 15px; line-height: 1.6; color: var(--text-secondary); max-width: 460px; }
+.mainAction { display: flex; min-height: 52px; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 18px; background: var(--accent); color: white; border-radius: 14px; margin-top: 22px; font-size: 16px; font-weight: 700; }
+.mainAction:hover { background: var(--accent-dark); }
 .mainAction svg { flex-shrink: 0; }
-.actionNote { display: block; margin-top: 11px; color: #dfe8ff; font-size: 12px; line-height: 1.5; }
-.shortcuts { border: 1px solid var(--border-color); border-radius: 16px; background: var(--card); overflow: hidden; box-shadow: 0 6px 20px rgba(17,43,59,.04); }
-.shortcuts a { display: flex; align-items: center; gap: 14px; min-height: 76px; padding: 16px; }
+.actionNote { display: block; margin-top: 11px; color: var(--text-secondary); font-size: 12px; line-height: 1.5; }
+.shortcuts { border: 1px solid var(--border-color); border-radius: 16px; background: var(--card); overflow: hidden; box-shadow: none; }
+.shortcuts a { display: flex; align-items: center; gap: 14px; min-height: 72px; padding: 16px; }
 .shortcuts a + a { border-top: 1px solid var(--border-soft); }
-.shortcuts a > svg { flex-shrink: 0; color: #526873; }
+.shortcuts a > svg { flex-shrink: 0; color: var(--text-secondary); }
 .shortcuts a > span { min-width: 0; flex: 1; }
-.shortcuts strong { display: block; color: #112b3b; font-size: 16px; font-weight: 600; }
-.shortcuts a > span > span { display: block; font-size: 13px; line-height: 1.5; color: #526873; margin-top: 3px; }
+.shortcuts strong { display: block; color: var(--text-primary); font-size: 16px; font-weight: 600; }
+.shortcuts a > span > span { display: block; font-size: 13px; line-height: 1.5; color: var(--text-secondary); margin-top: 3px; }
 .shortcuts a:hover { background: var(--surface-blue); }
 .shortcuts a:focus-visible { outline-offset: -3px; }
 @media (min-width: 768px) { .mainAction { max-width: 340px; } }
 @media (min-width: 1024px) { .bottomNav { display: none; } }
 @media (max-width: 359px) { .bookingCard { padding: 20px; } }
 
-.shortcuts a:nth-child(3n + 1) > svg:first-child { color: #47758c; background: #e8f1f5; }
+.shortcuts a:nth-child(3n + 1) > svg:first-child { color: #47758c; background: var(--accent-soft); }
 .shortcuts a:nth-child(3n + 2) > svg:first-child { color: #376987; background: #eaf2f8; }
 .shortcuts a:nth-child(3n) > svg:first-child { color: #4f7042; background: var(--surface-green); }
 .shortcuts a > svg:first-child { box-sizing: content-box; padding: 10px; border-radius: 12px; }
+
+.bottomNav > :is(a,button):focus-visible { outline-offset: -2px; }
+@media (max-width: 359px) { .navIcon { width: 42px; } .bottomNav { padding-inline: 4px; } .bottomNav > :is(a,button) { font-size: 10px; } }

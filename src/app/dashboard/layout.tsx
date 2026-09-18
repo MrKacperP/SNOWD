@@ -107,7 +107,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
       <div className={`dashboard-shell ${inConversation ? "conversation-shell" : "min-h-screen"} bg-[var(--bg-primary)] transition-colors`}>
         <a href="#dashboard-content" className="skip-link">Skip to main content</a>
         <div className={inConversation ? "hidden lg:contents" : "contents"}><Navbar key={pathname} /></div>
-        <main id="dashboard-content" tabIndex={-1} className={inConversation ? "conversation-main flex h-dvh min-w-0 flex-col lg:ml-[248px]" : "min-h-screen min-w-0 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-20 lg:ml-[248px] lg:pb-10 lg:pt-8"}>
+        <main id="dashboard-content" tabIndex={-1} className={inConversation ? "conversation-main flex h-dvh min-w-0 flex-col lg:ml-[248px]" : "dashboard-main min-h-screen min-w-0 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-20 lg:ml-[248px] lg:pb-10 lg:pt-8"}>
           {!inConversation && isAdmin && (
             <div className="container-app mt-2 md:mt-0">
               <div className="flex items-center gap-3 rounded-[1.4rem] border border-red-200 bg-red-50 px-4 py-3">
@@ -162,7 +162,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
             </section>
           )}
 
-          {!inConversation && pathname !== "/dashboard" && profile.role === "operator" && !canAcceptPlatformPayments(profile) && (
+          {pathname === "/dashboard/transactions" && profile.role === "operator" && !canAcceptPlatformPayments(profile) && (
             <div className="container-app mb-4">
               <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
                 <p className="font-semibold">{profile.idVerified ? "ID verified · Available for cash jobs" : "Verify your ID to go live for cash jobs"}</p>

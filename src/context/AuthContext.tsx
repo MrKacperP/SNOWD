@@ -31,12 +31,14 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | ClientProfile | OperatorProfile | null>(null);
+  const [profileError, setProfileError] = useState(false);
   const [loading, setLoading] = useState(isFirebaseConfigured);
 
   const fetchProfile = useCallback(async (uid: string) => {
     try {
       const docRef = doc(db, "users", uid);
       const docSnap = await getDoc(docRef);
+      setProfileError(false);
       if (docSnap.exists()) {
         setProfile(docSnap.data() as UserProfile);
       } else {
@@ -44,6 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error("Error fetching profile:", error);
+      setProfileError(true);
       setProfile(null);
     }
   }, []);
@@ -57,6 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
+      setProfileError(false);
       
       // Clean up previous profile listener
       if (profileUnsubscribe) {
@@ -70,6 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // watch-stream permission errors when Firestore rules are stale/deployed incorrectly.
         try {
           const initialSnap = await getDoc(docRef);
+          setProfileError(false);
           if (initialSnap.exists()) {
             setProfile(initialSnap.data() as UserProfile);
             if (initialSnap.data().isOnline !== true) {
@@ -106,6 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } else {
             console.error("Error fetching initial profile:", error);
           }
+          setProfileError(true);
           setProfile(null);
           setLoading(false);
         }
@@ -208,7 +214,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{ user, profile, loading, signInWithGoogle, signInWithEmailPassword, signOut, refreshProfile, deleteAccount }}
     >
-      {children}
+      {user && profileError && !profile ? <main className="grid min-h-dvh place-items-center p-6">
+        <section role="alert" className="empty-state w-full max-w-md">
+          <h1 className="text-2xl font-semibold">Let’s reconnect</h1>
+          <p>Your account couldn’t load. Check your connection, then try again.</p>
+          <button type="button" className="btn-primary mt-5" onClick={() => window.location.reload()}>Try again</button>
+        </section>
+      </main> : children}
     </AuthContext.Provider>
   );
 }

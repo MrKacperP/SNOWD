@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Check, ChevronRight } from "lucide-react";
+import { Check, ChevronRight, Snowflake } from "lucide-react";
 
 export function AppPage({ eyebrow, title, description, action, children, className = "" }: {
   eyebrow?: string; title: string; description?: string; action?: ReactNode; children: ReactNode; className?: string;
@@ -30,6 +30,6 @@ export function ResultState({ title, description, children, actionHref, actionLa
 export function EmptyState({ title, description, actionHref, actionLabel }: {
   title: string; description: string; actionHref?: string; actionLabel?: string;
 }) {
-  return <section className="empty-state"><span className="empty-mark" aria-hidden="true">✦</span><h2>{title}</h2><p>{description}</p>{actionHref && actionLabel && <Link className="btn-primary" href={actionHref}>{actionLabel}</Link>}</section>;
+  return <section className="empty-state"><span className="empty-mark" aria-hidden="true"><Snowflake size={22} strokeWidth={1.6} /></span><h2>{title}</h2><p>{description}</p>{actionHref && actionLabel && <Link className="btn-primary" href={actionHref}>{actionLabel}</Link>}</section>;
 }
 

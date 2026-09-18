@@ -7,7 +7,7 @@ import { db } from "@/lib/firebase";
 import { format } from "date-fns";
 import { addDoc,collection,doc,onSnapshot,orderBy,query,setDoc,updateDoc } from "firebase/firestore";
 import { AnimatePresence,motion } from "framer-motion";
-import { AlertTriangle,ChevronRight,Headphones,MessageSquare,Phone,Send,X } from "lucide-react";
+import { AlertTriangle,ChevronRight,Headphones,MessageSquare,Phone,Send,X,CreditCard,Shovel,User,ClipboardList,Shield } from "lucide-react";
 import { useEffect,useRef,useState } from "react";
 import { createPortal } from "react-dom";
 import { useDialogFocus } from "@/hooks/useDialogFocus";
@@ -27,12 +27,12 @@ interface SupportMessage {
 }
 
 const PROBLEM_CATEGORIES = [
-  { id: "payment", emoji: "💳", label: "Payment Issue", desc: "Charge, refund, or billing problem" },
-  { id: "operator", emoji: "🚜", label: "Operator Problem", desc: "Operator didn't show, bad service" },
-  { id: "account", emoji: "👤", label: "Account Help", desc: "Can't login, update info, or verify" },
-  { id: "job", emoji: "📋", label: "Job Issue", desc: "Job status, scheduling, or cancellation" },
-  { id: "safety", emoji: "🚨", label: "Safety Concern", desc: "Report unsafe behavior or property damage" },
-  { id: "other", emoji: "💬", label: "Other", desc: "Something else" },
+  { id: "payment", icon: CreditCard, label: "Payment Issue", desc: "Charge, refund, or billing problem" },
+  { id: "operator", icon: Shovel, label: "Operator Problem", desc: "Operator didn't show, bad service" },
+  { id: "account", icon: User, label: "Account Help", desc: "Can't login, update info, or verify" },
+  { id: "job", icon: ClipboardList, label: "Job Issue", desc: "Job status, scheduling, or cancellation" },
+  { id: "safety", icon: Shield, label: "Safety Concern", desc: "Report unsafe behavior or property damage" },
+  { id: "other", icon: MessageSquare, label: "Other", desc: "Something else" },
 ];
 
 export default function SupportChatButton({ inline = false }: { inline?: boolean }) {
@@ -219,7 +219,7 @@ export default function SupportChatButton({ inline = false }: { inline?: boolean
             onClick={() => { setIsOpen(true); if (messages.length === 0) setChatPhase("select"); }}
             data-tour="support-chat"
             aria-label="Contact support"
-            className={`${inline ? "relative h-11 w-11 shrink-0" : "fixed bottom-24 lg:bottom-6 right-4 md:right-6 w-14 h-14"} z-[100] bg-[var(--accent)] hover:bg-[var(--accent-dark)] text-white rounded-full shadow-[var(--surface-shadow)] flex items-center justify-center transition-all duration-200 hover:scale-105 group`}
+            className={`${inline ? "relative h-11 w-11 shrink-0" : "fixed bottom-24 lg:bottom-6 right-4 md:right-6 w-14 h-14"} ${inline ? "border border-[var(--border-color)] bg-[var(--card)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]" : "bg-[var(--accent)] hover:bg-[var(--accent-dark)] text-white shadow-[var(--surface-shadow)]"} z-[100] rounded-full flex items-center justify-center transition-all duration-200 hover:scale-105 group`}
           >
             <Headphones className={inline ? "w-4 h-4" : "w-6 h-6"} />
             {unreadCount > 0 && (
@@ -291,11 +291,11 @@ export default function SupportChatButton({ inline = false }: { inline?: boolean
                     {PROBLEM_CATEGORIES.map((cat, i) => (
                       <motion.button key={cat.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
                         onClick={() => handleSelectProblem(cat.id)}
-                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-white hover:bg-[var(--accent-soft)] border-[3px] border-[var(--ink)] hover:border-[var(--ink)] transition text-left group shadow-[var(--surface-shadow)]">
-                        <span className="text-lg shrink-0 leading-none">{cat.emoji}</span>
+                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-white hover:bg-[var(--accent-soft)] border border-[var(--border-color)] hover:border-[var(--accent)] transition text-left group shadow-[var(--surface-shadow)]">
+                        <span className="text-lg shrink-0 leading-none"><cat.icon className="h-5 w-5 text-[var(--accent)]" aria-hidden="true" /></span>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-gray-900 group-hover:text-[var(--accent)] transition">{cat.label}</p>
-                          <p className="text-xs text-gray-500 truncate">{cat.desc}</p>
+                          <p className="text-xs leading-relaxed text-gray-500">{cat.desc}</p>
                         </div>
                         <ChevronRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-[var(--accent)] shrink-0 transition" />
                       </motion.button>
@@ -349,8 +349,8 @@ export default function SupportChatButton({ inline = false }: { inline?: boolean
                         <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-[var(--surface-shadow)] mb-2">
                           <MessageSquare className="w-5 h-5 text-[var(--accent)]" />
                         </div>
-                        <p className="text-sm font-semibold text-gray-600">Support is online</p>
-                        <p className="text-xs text-gray-400 mt-0.5">Describe your issue and we&apos;ll help ASAP.</p>
+                        <p className="text-sm font-semibold text-gray-600">Message our team</p>
+                        <p className="text-xs text-gray-400 mt-0.5">Tell us what happened so we can help.</p>
                       </div>
                     )}
                     {messages.map((msg, i) => {

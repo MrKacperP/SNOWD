@@ -30,7 +30,7 @@ export default function AdminAnalyticsPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <select value={range} onChange={(e) => setRange(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-white text-sm">
+        <select aria-label="Analytics date range" value={range} onChange={(e) => setRange(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-white text-sm">
           <option>Last 7 days</option>
           <option>Last 30 days</option>
           <option>Last 90 days</option>

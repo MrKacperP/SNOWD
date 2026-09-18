@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { CheckCircle2, CircleAlert, Info, X } from 'lucide-react';
 
 interface NotificationProps {
@@ -17,18 +17,21 @@ const appearances = {
 
 export default function Notification({ message, type, onClose }: NotificationProps) {
   const { icon: Icon, color } = appearances[type];
+  const reduceMotion = useReducedMotion();
   return (
     <motion.div
       role={type === 'error' ? 'alert' : 'status'}
-      initial={{ opacity: 0, y: -12 }}
+      aria-atomic="true"
+      data-type={type}
+      initial={reduceMotion ? false : { opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -12 }}
+      exit={{ opacity: 0 }}
       transition={{ duration: 0.18 }}
-      className="fixed top-5 right-4 z-[10000] flex w-[calc(100%-2rem)] max-w-sm items-start gap-3 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card-solid)] p-4 text-[var(--text-primary)] shadow-[var(--surface-shadow-strong)]"
+      className="app-toast fixed z-[10000] flex items-start gap-3 text-[var(--text-primary)]"
     >
-      <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${color}`} aria-hidden="true" />
-      <p className="flex-1 text-sm leading-relaxed">{message}</p>
-      <button type="button" onClick={onClose} aria-label="Dismiss notification" className="-m-2 ml-0 rounded-lg p-3 text-[var(--text-muted)] hover:bg-[var(--bg-secondary)]"><X className="h-4 w-4" /></button>
+      <span className={`app-toast-icon ${color}`}><Icon className="h-5 w-5" aria-hidden="true" /></span>
+      <p className="min-w-0 flex-1 break-words text-sm leading-relaxed">{message}</p>
+      <button type="button" onClick={onClose} aria-label="Dismiss notification" className="-mr-1 -mt-1 grid h-11 w-11 shrink-0 place-items-center rounded-xl text-[var(--text-muted)] hover:bg-[var(--bg-secondary)]"><X className="h-4 w-4" /></button>
     </motion.div>
   );
 }

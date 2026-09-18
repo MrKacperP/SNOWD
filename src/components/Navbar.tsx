@@ -69,6 +69,7 @@ export default function Navbar() {
   const statusLock = useRef(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [pendingJobCount, setPendingJobCount] = useState(0);
   const [notificationError, setNotificationError] = useState("");
@@ -77,15 +78,10 @@ export default function Navbar() {
   const menuRef = useRef<HTMLDivElement>(null);
   const mobileNotifRef = useRef<HTMLDivElement>(null);
   const mobileNotifButtonRef = useRef<HTMLButtonElement>(null);
+  useDialogFocus(notifOpen && isMobile, mobileNotifRef);
   const drawerRef = useRef<HTMLDivElement>(null);
   useDialogFocus(drawerOpen, drawerRef);
   const notifRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!notifOpen || !window.matchMedia("(max-width: 1023px)").matches) return;
-    const overflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = overflow; };
-  }, [notifOpen]);
   useEffect(() => {
     if (!window.matchMedia("(min-width: 1024px)").matches) return;
     const target = profileMenuOpen ? menuRef.current : notifOpen ? notifRef.current : null;
@@ -112,7 +108,8 @@ export default function Navbar() {
 
   useEffect(() => {
     const desktop = window.matchMedia("(min-width: 1024px)");
-    const closeDrawer = () => { if (desktop.matches) setDrawerOpen(false); };
+    const closeDrawer = () => { setIsMobile(!desktop.matches); if (desktop.matches) setDrawerOpen(false); };
+    closeDrawer();
     desktop.addEventListener("change", closeDrawer);
     return () => desktop.removeEventListener("change", closeDrawer);
   }, []);
@@ -245,7 +242,7 @@ export default function Navbar() {
 
   return (
     <>
-      <aside className="fixed left-0 top-0 z-30 hidden h-dvh w-[248px] overflow-y-auto border-r-[3px] border-[var(--border-color)] bg-[var(--card)] px-5 py-5  lg:flex lg:flex-col">
+      <aside className="fixed left-0 top-0 z-30 hidden h-dvh w-[248px] overflow-y-auto border-r border-[var(--border-color)] bg-[var(--card)] px-5 py-5  lg:flex lg:flex-col">
         <Link href="/dashboard" className="flex items-center gap-3 rounded-[1.5rem] bg-[var(--ink)] px-4 py-4 text-white">
           <Image src="/logo.png" alt="snowd logo" width={34} height={34} />
           <div>
@@ -292,7 +289,7 @@ export default function Navbar() {
           <button
             aria-expanded={notifOpen}
             onClick={() => { setProfileMenuOpen(false); setNotifOpen((value) => !value); }}
-            className="flex w-full items-center gap-3 rounded-[1.2rem] border-[3px] border-[var(--border-color)] bg-[var(--card)] px-4 py-3 text-left"
+            className="flex w-full items-center gap-3 rounded-[1.2rem] border border-[var(--border-color)] bg-[var(--card)] px-4 py-3 text-left"
           >
             <Bell className="h-4 w-4" />
             <span className="flex-1 text-sm font-bold">Notifications</span>
@@ -300,7 +297,7 @@ export default function Navbar() {
           </button>
           {notifOpen ? (
             <div className="joined-menu-panel">
-              <div className="flex items-center justify-between border-b-[3px] border-[var(--border-color)] px-4 py-3">
+              <div className="flex items-center justify-between border-b border-[var(--border-color)] px-4 py-3">
                 <div className="text-sm font-bold">Notifications</div>
                 {unreadNotifications > 0 ? (
                   <button onClick={markAllNotificationsRead} className="inline-flex min-h-11 items-center gap-1 text-xs font-bold text-[var(--text-muted)]">
@@ -322,7 +319,7 @@ export default function Navbar() {
                       <span className="flex items-start gap-3 text-sm leading-5 text-[var(--text-primary)]">
                         <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${notification.read ? "bg-[var(--border-color)]" : "bg-[var(--accent)]"}`} aria-hidden="true" />
                         <span className="min-w-0 flex-1">
-                          <span className={`block break-words ${notification.read ? "font-semibold" : "font-extrabold"}`}>{notificationTitle(notification)}</span>
+                          <span className="block break-words font-semibold">{notificationTitle(notification)}</span>
                           {(notification.preview || notification.message) && <span className="mt-1 block line-clamp-2 text-xs font-normal leading-4 text-[var(--text-secondary)]">{notification.preview || notification.message}</span>}
                           <span className="mt-1 block text-[11px] font-normal text-[var(--text-muted)]">{formatNotificationTime(notification.createdAt)}</span>
                         </span>
@@ -342,7 +339,7 @@ export default function Navbar() {
             data-tour="profile-menu"
             aria-expanded={profileMenuOpen}
             onClick={() => { setNotifOpen(false); setProfileMenuOpen((value) => !value); }}
-            className="flex w-full items-center gap-3 rounded-[1.2rem] border-[3px] border-[var(--ink)] bg-[var(--card)] px-4 py-3 shadow-[var(--surface-shadow)]"
+            className="flex w-full items-center gap-3 rounded-[1.2rem] border border-[var(--ink)] bg-[var(--card)] px-4 py-3 shadow-[var(--surface-shadow)]"
           >
             <div className="relative">
               <UserAvatar
@@ -379,7 +376,7 @@ export default function Navbar() {
         </div>
       </aside>
 
-      <header className="fixed left-0 right-0 top-0 z-30 border-b-[3px] border-[var(--border-color)] bg-[var(--card)] px-4 py-3  lg:hidden">
+      <header className="dashboard-topbar fixed left-0 right-0 top-0 z-30 border-b border-[var(--border-color)] bg-[var(--card)] px-4 py-3  lg:hidden">
         <div className="flex items-center justify-between gap-3">
           <Link href="/dashboard" className="flex items-center gap-3">
             <Image src="/logo.png" alt="snowd logo" width={30} height={30} />
@@ -390,7 +387,7 @@ export default function Navbar() {
           </Link>
           <div className="flex items-center gap-1">
             <SupportChatButton inline />
-            <button ref={mobileNotifButtonRef} aria-label="Notifications" aria-expanded={notifOpen} onClick={() => { setDrawerOpen(false); setNotifOpen((value) => !value); }} className="relative rounded-full border-[3px] border-[var(--border-color)] bg-[var(--card)] p-2">
+            <button ref={mobileNotifButtonRef} aria-label="Notifications" aria-expanded={notifOpen} onClick={() => { setDrawerOpen(false); setNotifOpen((value) => !value); }} className="relative rounded-full border border-[var(--border-color)] bg-[var(--card)] p-2">
               <Bell className="h-4 w-4" />
               {unreadNotifications > 0 ? <span className="absolute -right-1 -top-1 unread-badge">{unreadNotifications > 9 ? "9+" : unreadNotifications}</span> : null}
             </button>
@@ -399,10 +396,11 @@ export default function Navbar() {
         </div>
       </header>
 
-      {notifOpen ? (
-        <div className="fixed left-0 right-0 top-[69px] z-40 w-full overflow-hidden rounded-b-3xl border border-t-0 border-[var(--border-color)] bg-[var(--card)] shadow-[var(--surface-shadow)] lg:hidden" ref={mobileNotifRef}>
-          <div className="flex items-center justify-between border-b-[3px] border-[var(--border-color)] px-4 py-3">
-            <div className="text-sm font-bold">Notifications</div>
+      {notifOpen && isMobile ? (
+        <><button type="button" aria-label="Close notifications" tabIndex={-1} onClick={() => setNotifOpen(false)} className="fixed inset-0 z-30 bg-black/20 lg:hidden" /><div className="fixed left-0 right-0 top-[var(--app-header-height)] z-40 w-full overflow-hidden rounded-b-3xl border border-t-0 border-[var(--border-color)] bg-[var(--card)] shadow-[var(--surface-shadow)] lg:hidden" ref={mobileNotifRef} role="dialog" aria-modal="true" aria-label="Notifications" tabIndex={-1}>
+          <div className="flex items-center justify-between border-b border-[var(--border-color)] px-4 py-3">
+            <div className="text-sm font-semibold">Notifications</div>
+            <button type="button" aria-label="Close notifications" onClick={() => setNotifOpen(false)} className="ml-auto grid h-11 w-11 place-items-center rounded-xl hover:bg-[var(--bg-secondary)]"><X size={18} /></button>
             {unreadNotifications > 0 ? (
               <button onClick={markAllNotificationsRead} className="min-h-11 text-xs font-bold text-[var(--text-muted)]">
                 Mark all read
@@ -428,7 +426,7 @@ export default function Navbar() {
               <div className="px-4 py-8 text-center text-sm text-[var(--text-muted)]">{notificationError || "No notifications yet. Job and payment updates will appear here."}</div>
             )}
           </div>
-        </div>
+        </div></>
       ) : null}
 
       <MobileNavigation role={profile?.role} pathname={pathname} unreadMessages={unreadCount} pendingJobs={pendingJobCount} menuOpen={drawerOpen} onOpenMenu={() => { setNotifOpen(false); setDrawerOpen(true); }} />
@@ -449,7 +447,7 @@ export default function Navbar() {
                   <div className="text-xs capitalize text-[var(--text-muted)]">{profile?.role || "user"}</div>
                 </div>
               </div>
-              <button aria-label="Close account menu" onClick={() => setDrawerOpen(false)} className="rounded-full border-[3px] border-[var(--border-color)] p-2">
+              <button aria-label="Close account menu" onClick={() => setDrawerOpen(false)} className="rounded-full border border-[var(--border-color)] p-2">
                 <X className="h-4 w-4" />
               </button>
             </div>

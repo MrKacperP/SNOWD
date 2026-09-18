@@ -7,5 +7,5 @@ export default function CompanyIdentity({ person, name }: { person?: UserProfile
   const client = profile as ClientProfile | null;
   const favorite = person && (client?.savedOperators?.includes(person.uid) || client?.favoriteOperatorId === person.uid);
   const logoUrl = person?.role === "operator" ? (person as OperatorProfile).logoUrl : undefined;
-  return <span className="inline-flex min-w-0 items-center gap-3"><UserAvatar photoURL={person?.avatar} logoURL={logoUrl} role={person?.role} displayName={name} /><span>{name}{favorite && <span className="ml-2 text-amber-600" aria-label="Favorite operator">★</span>}</span></span>;
+  return <span className="inline-flex min-w-0 items-center gap-3"><span aria-hidden="true" className="shrink-0"><UserAvatar photoURL={person?.avatar} logoURL={logoUrl} role={person?.role} displayName={name} /></span><span>{name}{favorite && <span className="ml-2 text-amber-600" aria-label="Favorite operator">★</span>}</span></span>;
 }

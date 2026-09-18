@@ -1,7 +1,7 @@
 // Firebase Configuration
 import { initializeApp, getApps, FirebaseApp } from "firebase/app";
 import { getAuth, Auth, connectAuthEmulator } from "firebase/auth";
-import { getFirestore, Firestore, connectFirestoreEmulator } from "firebase/firestore";
+import { getFirestore, initializeFirestore, Firestore, connectFirestoreEmulator } from "firebase/firestore";
 import { getStorage, FirebaseStorage } from "firebase/storage";
 import { getAnalytics, Analytics, isSupported } from "firebase/analytics";
 
@@ -70,10 +70,15 @@ if (typeof window !== 'undefined' && isFirebaseConfigured) {
   // Only initialize on client side where environment variables are available
   app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
   authInstance = getAuth(app);
-  dbInstance = getFirestore(app);
+  const usingEmulators = process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === "true" && ["localhost", "127.0.0.1"].includes(window.location.hostname);
+  // Use short-lived response streams for the local emulator, which serves
+  // Firestore over HTTP/1.1 rather than the production HTTP/2 transport.
+  dbInstance = usingEmulators
+    ? initializeFirestore(app, { experimentalForceLongPolling: true })
+    : getFirestore(app);
   storageInstance = getStorage(app);
   // Explicit local-only QA mode. Never connect a hosted application to emulators.
-  if (process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === "true" && ["localhost", "127.0.0.1"].includes(window.location.hostname)) {
+  if (usingEmulators) {
     const marker = window as Window & { snowdEmulatorsConnected?: boolean };
     if (!marker.snowdEmulatorsConnected) {
       connectAuthEmulator(authInstance, "http://127.0.0.1:9099", { disableWarnings: true });

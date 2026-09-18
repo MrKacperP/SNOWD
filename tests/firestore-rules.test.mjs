@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import fs from 'node:fs';
 import { initializeTestEnvironment, assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
-import { doc, setDoc, getDoc, updateDoc, writeBatch } from 'firebase/firestore';
+import { doc, setDoc, getDoc, getDocs, collection, query, where, updateDoc, writeBatch } from 'firebase/firestore';
 
 test('Firestore enforces verified cash listings, chat access, and server-owned payments and cash completion', { skip: !process.env.FIRESTORE_EMULATOR_HOST }, async () => {
   const [host, port] = process.env.FIRESTORE_EMULATOR_HOST.split(':');
@@ -26,9 +26,15 @@ test('Firestore enforces verified cash listings, chat access, and server-owned p
     booking.set(doc(client, 'messages/batch-message'), { chatId: 'batch-chat', senderId: 'client', content: 'Cash booking requested' });
     await assertFails(booking.commit());
     await assertFails(setDoc(doc(client, 'jobs/cash'), job));
-    await env.withSecurityRulesDisabled(async context => { await setDoc(doc(context.firestore(), 'jobs/cash'), job); });
+    await env.withSecurityRulesDisabled(async context => { await setDoc(doc(context.firestore(), 'jobs/cash'), { ...job, chatId: 'chat' }); });
     await assertFails(updateDoc(doc(client, 'jobs/cash'), { status: 'cancelled' }));
     await assertSucceeds(getDoc(doc(operator, 'jobs/cash')));
+    // Chat-scoped queries must also carry the participant constraint.
+    await assertFails(getDocs(query(collection(client, 'jobs'), where('chatId', '==', 'chat'))));
+    for (const [database, field, uid] of [[client, 'clientId', 'client'], [operator, 'operatorId', 'operator']]) {
+      const result = await assertSucceeds(getDocs(query(collection(database, 'jobs'), where(field, '==', uid), where('chatId', '==', 'chat'))));
+      assert.equal(result.docs[0].id, 'cash');
+    }
     await assertFails(setDoc(doc(client, 'jobs/forged-cash'), { ...job, cashConfirmedBy: 'operator' }));
     await assertFails(updateDoc(doc(operator, 'jobs/cash'), { paymentStatus: 'paid' }));
     await assertFails(setDoc(doc(operator, 'transactions/cash-cash'), { ...job, status: 'paid' }));

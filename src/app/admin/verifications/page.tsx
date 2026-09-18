@@ -171,8 +171,8 @@ export default function AdminVerificationsPage() {
             <p className="text-sm text-[var(--text-muted)] mt-1">Provide structured reason and guidance for resubmission.</p>
 
             <div className="mt-4">
-              <label className="text-sm font-medium text-[var(--ink)]">Reason category</label>
-              <select
+              <label htmlFor="rejection-category" className="text-sm font-medium text-[var(--ink)]">Reason category</label>
+              <select id="rejection-category"
                 value={rejectCategory}
                 onChange={(e) => setRejectCategory(e.target.value as RejectionReasonCategory)}
                 className="mt-1 w-full h-10 rounded-lg border-[3px] border-[var(--border)] px-3 text-sm"
@@ -186,8 +186,8 @@ export default function AdminVerificationsPage() {
             </div>
 
             <div className="mt-3">
-              <label className="text-sm font-medium text-[var(--ink)]">Admin note</label>
-              <textarea
+              <label htmlFor="rejection-note" className="text-sm font-medium text-[var(--ink)]">Admin note</label>
+              <textarea id="rejection-note"
                 value={rejectNote}
                 onChange={(e) => setRejectNote(e.target.value)}
                 placeholder="Explain exactly what to fix for the next submission."

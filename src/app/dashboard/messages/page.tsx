@@ -3,6 +3,7 @@ import styles from "@/components/work-orders/work-orders.module.css";
 import CompanyIdentity from "@/components/CompanyIdentity";
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { Search, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useUserChats } from "@/hooks/useUserChats";
 import { useWorkOrders } from "@/hooks/useWorkOrders";
@@ -50,14 +51,14 @@ export default function MessagesPage() {
       });
   }, [chats, jobs, names, search, user?.uid]);
   return (
-    <AppPage eyebrow="Stay connected" title="Messages" description="Chat directly with your clients and operators.">
-      <input
+    <AppPage eyebrow="Stay connected" title="Messages" description="Your visits and conversations, in one place.">
+      <div className="app-search"><Search size={19} aria-hidden="true" /><input
+        type="search"
         aria-label="Search company, order, address, or message"
         placeholder="Search conversations"
-        className="min-h-12 w-full rounded-xl border p-3"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-      />
+      />{search && <button type="button" aria-label="Clear search" onClick={() => setSearch("")}><X size={18} /></button>}</div>
       {(error || jobsError) && (
         <p role="alert">
           Some conversations or order details could not load. Please reload to
@@ -91,7 +92,7 @@ export default function MessagesPage() {
                       ? `Order #${orderNumber(job)}`
                       : "Work order · details unavailable"}
                 </strong>
-                {open && <span className={styles.activeJobBadge}>Job in progress</span>}
+                {open && <span className={styles.activeJobBadge}>Active visit</span>}
                 {count > 0 && <span className={styles.unreadBadge}>{count} new</span>}
               </div>
               {job && !chat.legacyHistory && <p className={styles.conversationStatus}>{orderLabel(job)}{orderActionNeeded(job, user?.uid || "") ? ` · ${orderActionNeeded(job, user?.uid || "")}` : ""}</p>}
@@ -102,19 +103,24 @@ export default function MessagesPage() {
             </Link>
           );
         };
+        const expanded = expandedGroups[other] ?? !!search.trim();
+        const latest = [...conversations].sort((a, b) => dateMillis(b.lastMessageTime) - dateMillis(a.lastMessageTime))[0];
+        const summary = <>
+          <span className={styles.companyInfo}>
+            <CompanyIdentity person={people[other]} name={names[other] || "Company / customer"} />
+            <span className={styles.inboxPreview}>{latest.lastMessage || "Start a conversation"}</span>
+            <span className={styles.companyMeta}>{hasOpenOrder ? "Active visit" : `${conversations.length} conversation${conversations.length === 1 ? "" : "s"}`}</span>
+          </span>
+          <span className={styles.inboxMeta}>
+            {dateMillis(latest.lastMessageTime) > 0 && <time dateTime={new Date(dateMillis(latest.lastMessageTime)).toISOString()}>{new Date(dateMillis(latest.lastMessageTime)).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}</time>}
+            {unread(conversations) > 0 && <span className={styles.unreadBadge}>{unread(conversations)} unread</span>}
+          </span>
+          <span className={styles.companyChevron} aria-hidden="true">›</span>
+        </>;
         return (
           <section key={other} className={styles.companyGroup} data-active-job={hasOpenOrder}>
-            <button type="button" className={`${styles.companySummary} w-full text-left`} aria-expanded={!!expandedGroups[other]} onClick={() => setExpandedGroups(current => ({ ...current, [other]: !current[other] }))}>
-              <span className={styles.companyInfo}>
-                <CompanyIdentity person={people[other]} name={names[other] || "Company / customer"} />
-                <span className={styles.companyMeta}>
-                  {hasOpenOrder ? "Job in progress" : `${conversations.length} conversation${conversations.length === 1 ? "" : "s"}`}
-                </span>
-              </span>
-              {unread(conversations) > 0 && <span className={styles.unreadBadge}>{unread(conversations)} unread</span>}
-              <span className={styles.companyChevron} aria-hidden="true">›</span>
-            </button>
-            {!!expandedGroups[other] && <ul className={styles.companyList}>
+            {conversations.length === 1 ? <Link href={`/dashboard/messages/${conversations[0].id}`} className={styles.companySummary}>{summary}</Link> : <button type="button" className={`${styles.companySummary} w-full text-left`} aria-expanded={expanded} onClick={() => setExpandedGroups(current => ({ ...current, [other]: !expanded }))}>{summary}</button>}
+            {conversations.length > 1 && expanded && <ul className={styles.companyList}>
               {conversations.map(chat => <li key={chat.id}>{row(chat)}</li>)}
             </ul>}
           </section>

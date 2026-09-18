@@ -104,7 +104,7 @@ function Choice({
       {children}
       <span
         aria-hidden="true"
-        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--ink)] ${selected ? "bg-[var(--accent-sun)]" : "bg-white"}`}
+        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--ink)] ${selected ? "bg-[var(--accent)] text-white" : "bg-white"}`}
       >
         {selected && <Check size={15} strokeWidth={3} />}
       </span>
@@ -311,7 +311,7 @@ export default function OnboardingFlow({
             height={44}
             className="h-auto w-10"
           />
-          <span className="font-headline text-3xl font-black">
+          <span className="font-headline text-3xl font-semibold">
             snowd<span className="text-[#ff820e]">.</span>
           </span>
         </Link>
@@ -326,7 +326,7 @@ export default function OnboardingFlow({
             initial={reduceMotion ? false : { scale: 0.97, y: 5 }}
             animate={{ scale: 1, y: 0 }}
             transition={{ type: "spring", stiffness: 220, damping: 15 }}
-            className="w-20 shrink-0 lg:w-full lg:max-w-64"
+            className="w-12 shrink-0 lg:w-full lg:max-w-64"
           >
             <Image
               src="/logo.png"
@@ -349,7 +349,7 @@ export default function OnboardingFlow({
         </aside>
         <section className="min-w-0 p-5 sm:p-8">
           <div className="mb-6">
-            <div className="mb-2 flex justify-between text-xs font-black uppercase tracking-wider">
+            <div className="mb-2 flex justify-between text-xs font-semibold uppercase tracking-wider">
               <span>
                 {["Your role", "Your address", "Your services"][step - 1]}
               </span>
@@ -364,7 +364,7 @@ export default function OnboardingFlow({
               className="h-2 overflow-hidden rounded-full bg-[var(--bg-secondary)]"
             >
               <div
-                className="h-full bg-[var(--accent-sun)] motion-safe:transition-all motion-safe:duration-300"
+                className="h-full bg-[var(--accent)] text-white motion-safe:transition-all motion-safe:duration-300"
                 style={{ width: `${(step / 3) * 100}%` }}
               />
             </div>
@@ -372,7 +372,7 @@ export default function OnboardingFlow({
           <h1
             ref={heading}
             tabIndex={-1}
-            className="font-headline text-3xl font-black leading-tight outline-none sm:text-4xl"
+            className="font-headline text-2xl font-semibold leading-tight outline-none sm:text-3xl"
           >
             {title}
           </h1>
@@ -415,7 +415,7 @@ export default function OnboardingFlow({
                     <span className="flex items-center gap-3">
                       <Icon size={30} strokeWidth={2.5} />
                       <span>
-                        <span className="block text-lg font-black">
+                        <span className="block text-lg font-semibold">
                           {label}
                         </span>
                         <span className="mt-1 block text-sm font-medium text-[#061321]/65">
@@ -437,7 +437,7 @@ export default function OnboardingFlow({
               <>
                 {role === "client" && (
                   <div>
-                    <h2 className="mb-2 text-sm font-black">Property size</h2>
+                    <h2 className="mb-2 text-sm font-semibold">Property size</h2>
                     <div className="grid grid-cols-1 min-[400px]:grid-cols-2 gap-3">
                       {propertySizes.map(([size, label, description]) => (
                         <Choice
@@ -454,7 +454,7 @@ export default function OnboardingFlow({
                           }
                         >
                           <span>
-                            <span className="block font-black">{label}</span>
+                            <span className="block font-semibold">{label}</span>
                             <span className="text-xs font-semibold">
                               {description}
                             </span>
@@ -465,7 +465,7 @@ export default function OnboardingFlow({
                   </div>
                 )}
                 <div>
-                  <h2 className="mb-2 text-sm font-black">
+                  <h2 className="mb-2 text-sm font-semibold">
                     {role === "client"
                       ? "Areas to clear"
                       : "What do you offer?"}
@@ -509,7 +509,7 @@ export default function OnboardingFlow({
                 {role === "operator" && (
                   <>
                     <div className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
-                      <h2 className="flex items-center gap-2 text-sm font-black">
+                      <h2 className="flex items-center gap-2 text-sm font-semibold">
                         <Sparkles size={18} className="text-[#ff820e]" />
                         Starter prices · CAD / visit
                       </h2>
@@ -575,7 +575,7 @@ export default function OnboardingFlow({
                         Use suggested prices
                       </button>
                     </div>
-                    <label className="block text-sm font-black">
+                    <label className="block text-sm font-semibold">
                       How far will you travel?{" "}
                       <span className="float-right rounded-full bg-[#dfeef8] px-3 py-1">
                         {draft.serviceRadius} km
@@ -602,7 +602,7 @@ export default function OnboardingFlow({
                     </p>
                   </>
                 )}
-                <section className="rounded-2xl border-2 border-[#061321]/20 p-3">
+                <section className="rounded-2xl border border-[var(--border-color)] p-3">
                   <h3 className="py-2 text-sm font-bold">
                     {role === "operator"
                       ? "Your equipment & optional details"

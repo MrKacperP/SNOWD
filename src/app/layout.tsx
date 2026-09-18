@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import BrowserSupport from "@/components/support/BrowserSupport";
@@ -16,6 +16,8 @@ const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
   display: "swap",
 });
+
+export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#f6f8fb" };
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://snowd.ca"),
@@ -50,7 +52,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${instrumentSans.variable} ${spaceGrotesk.variable}`}>
+    <html lang="en" data-scroll-behavior="smooth" className={`${instrumentSans.variable} ${spaceGrotesk.variable}`}>
       <head>
         <link rel="icon" href="/icon.png" sizes="any" />
         <link rel="icon" type="image/png" href="/icon.png" />

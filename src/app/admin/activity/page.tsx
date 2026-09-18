@@ -61,7 +61,7 @@ export default function AdminActivityPage() {
     <div className="space-y-4">
       <AdminCard className="p-4">
         <div className="flex flex-wrap items-center gap-2">
-          <select value={eventType} onChange={(e) => setEventType(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-white text-sm">
+          <select aria-label="Filter event type" value={eventType} onChange={(e) => setEventType(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-white text-sm">
             <option>All</option>
             <option>Job</option>
             <option>Chat</option>
@@ -70,13 +70,13 @@ export default function AdminActivityPage() {
             <option>Support</option>
             <option>User</option>
           </select>
-          <input value={userQuery} onChange={(e) => setUserQuery(e.target.value)} placeholder="Filter by user" className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-[var(--bg-primary)] text-sm min-w-[220px]" />
-          <select value={actorQuery} onChange={(e) => setActorQuery(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-white text-sm">
+          <input aria-label="Filter by user" value={userQuery} onChange={(e) => setUserQuery(e.target.value)} placeholder="Filter by user" className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-[var(--bg-primary)] text-sm min-w-[220px]" />
+          <select aria-label="Filter actor" value={actorQuery} onChange={(e) => setActorQuery(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-white text-sm">
             {actorOptions.map((option) => (
               <option key={option}>{option}</option>
             ))}
           </select>
-          <select value={dateRange} onChange={(e) => setDateRange(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-white text-sm">
+          <select aria-label="Filter activity date" value={dateRange} onChange={(e) => setDateRange(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-white text-sm">
             <option>Last 7 days</option>
             <option>Last 30 days</option>
             <option>Last 90 days</option>

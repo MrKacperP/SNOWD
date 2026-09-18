@@ -65,13 +65,13 @@ export default function AdminJobsPage() {
       <AdminCard className="p-4">
         <div className="flex flex-wrap items-center gap-2">
           <input aria-label="Search jobs by work order number, date, client, or operator" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search work order #, date, client, or operator" className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-[var(--bg-primary)] text-sm min-w-[280px]" />
-          <select value={category} onChange={(e) => setCategory(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-white text-sm">
+          <select aria-label="Filter service" value={category} onChange={(e) => setCategory(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-white text-sm">
             <option>All</option>
             <option>Snow Removal</option>
             <option>Salting</option>
             <option>Shoveling</option>
           </select>
-          <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-white text-sm">
+          <select aria-label="Filter job status" value={status} onChange={(e) => setStatus(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-white text-sm">
             <option>All</option>
             <option>Open</option>
             <option>Scheduled</option>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useDialogFocus } from "@/hooks/useDialogFocus";
-import { AnimatePresence,motion } from "framer-motion";
+import { AnimatePresence,motion,useReducedMotion } from "framer-motion";
 import { X } from "lucide-react";
 import React,{ useEffect,useId,useRef } from "react";
 
@@ -57,6 +57,7 @@ export default function Modal({
   showClose = true,
   variant = "default",
 }: ModalProps) {
+  const reduceMotion = useReducedMotion();
   const overlayRef = useRef<HTMLDivElement>(null);
   const style = variantStyles[variant];
 
@@ -123,9 +124,9 @@ export default function Modal({
             aria-describedby={subtitle ? subtitleId : undefined}
             tabIndex={-1}
             className={`app-modal-panel relative max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto w-full ${sizeStyles[size]} bg-[var(--bg-card-solid)] rounded-t-3xl sm:rounded-3xl shadow-[var(--surface-shadow-strong)] border border-[var(--border-color)]`}
-            initial={{ scale: 0.98, opacity: 0, y: 12 }}
+            initial={reduceMotion ? false : { scale: 0.98, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.98, opacity: 0, y: 12 }}
+            exit={reduceMotion ? { opacity: 0 } : { scale: 0.98, opacity: 0, y: 20 }}
             transition={{ duration: 0.18, ease: "easeOut" }}
             onClick={(e) => e.stopPropagation()}
           >

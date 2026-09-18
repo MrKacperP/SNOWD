@@ -9,7 +9,7 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { sendPasswordResetEmail, setPersistence, browserLocalPersistence, browserSessionPersistence } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import AuthPageShell from "@/components/AuthPageShell";
-import { ArrowRight, Mail } from "lucide-react";
+import { ArrowRight, Mail, Eye, EyeOff } from "lucide-react";
 import { motion } from "framer-motion";
 
 const ADMIN_EMAILS = ["kacperprymicz@gmail.com"];
@@ -29,6 +29,7 @@ function LoginPageInner() {
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
 
@@ -150,7 +151,7 @@ function LoginPageInner() {
             Sign in
           </div>
           <h2 className="login-title mt-3 font-headline text-[clamp(2rem,7vw,3rem)] font-black lowercase leading-none">
-            Access your account<span className="text-[#ff820e]">.</span>
+            Welcome back<span className="text-[#ff820e]">.</span>
           </h2>
 
           <form onSubmit={handleEmailSignIn} className="mt-4 space-y-3">
@@ -169,16 +170,16 @@ function LoginPageInner() {
               </div>
               <div>
                 <label htmlFor="login-password" className="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-[#061321]/60">Password</label>
-                <input
+                <div className="relative"><input
                   id="login-password"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   required
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
-                  className="h-12 w-full rounded-2xl border-[3px] border-[#061321] bg-[#f3f8fb] px-4 text-base font-bold text-[#061321] outline-none transition placeholder:text-[#061321]/35 focus:bg-white sm:h-13"
-                />
+                  className="h-12 w-full rounded-2xl border-[3px] border-[#061321] bg-[#f3f8fb] pl-4 pr-14 text-base font-bold text-[#061321] outline-none transition placeholder:text-[#061321]/35 focus:bg-white sm:h-13"
+                /><button type="button" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword(value => !value)} className="absolute right-1 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center text-[var(--text-secondary)]">{showPassword ? <EyeOff size={19} /> : <Eye size={19} />}</button></div>
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold sm:text-sm">

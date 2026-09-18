@@ -71,7 +71,7 @@ export default function AdminSupportPage() {
                 <p className="font-semibold text-[var(--ink)]">{selected.subject}</p>
                 <p className="text-xs text-[var(--text-muted)]">From {selected.userName}</p>
               </div>
-              <select
+              <select aria-label="Support ticket status"
                 value={selected.status}
                 onChange={async (e) => { try { await setSupportTicketStatus(selected.id, e.target.value as "Open" | "Waiting" | "Resolved"); } catch { setError("Could not save ticket status."); } }}
                 className="h-9 px-2.5 rounded-lg border-[3px] border-[var(--border)] bg-white text-sm"
@@ -86,7 +86,7 @@ export default function AdminSupportPage() {
             </div>
             <div className="pt-3 border-t border-[var(--border)]">{error && <p role="alert" className="text-red-700">{error}</p>}
               <div className="flex items-end gap-2">
-                <textarea
+                <textarea aria-label="Reply to user"
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder="Reply to user"

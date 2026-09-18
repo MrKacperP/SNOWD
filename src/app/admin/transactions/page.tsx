@@ -65,24 +65,24 @@ export default function AdminTransactionsPage() {
 
       <AdminCard className="p-4">
         <div className="flex flex-wrap items-center gap-2">
-          <select value={dateRange} onChange={(e) => setDateRange(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] text-sm bg-white">
+          <select aria-label="Filter payment date" value={dateRange} onChange={(e) => setDateRange(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] text-sm bg-white">
             <option>Last 7 days</option>
             <option>Last 30 days</option>
             <option>Last 90 days</option>
           </select>
-          <select value={type} onChange={(e) => setType(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] text-sm bg-white">
+          <select aria-label="Filter payment type" value={type} onChange={(e) => setType(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] text-sm bg-white">
             <option>All</option>
             <option>Payment</option>
             <option>Refund</option><option>Released hold</option>
             <option>Fee</option>
           </select>
-          <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] text-sm bg-white">
+          <select aria-label="Filter payment status" value={status} onChange={(e) => setStatus(e.target.value)} className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] text-sm bg-white">
             <option>All</option>
             <option>Completed</option>
             <option>Pending</option>
             <option>Failed</option>
           </select>
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search transactions" className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-[var(--bg-primary)] text-sm min-w-[220px]" />
+          <input aria-label="Search transactions" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search transactions" className="h-10 px-3 rounded-lg border-[3px] border-[var(--border)] bg-[var(--bg-primary)] text-sm min-w-[220px]" />
         </div>
       </AdminCard>
 

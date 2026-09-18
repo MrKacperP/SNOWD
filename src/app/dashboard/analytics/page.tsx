@@ -194,7 +194,7 @@ export default function AnalyticsPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
               { label: "Profile Views", value: stats.profileViews, icon: Eye, color: "text-[var(--accent)]", bg: "bg-[var(--accent)]/10" },
-              { label: "Click Rate", value: `${stats.clickRate}%`, icon: MousePointer, color: "text-purple-600", bg: "bg-purple-50" },
+              { label: "Click Rate", value: `${stats.clickRate}%`, icon: MousePointer, color: "text-[var(--accent)]", bg: "bg-[var(--accent-soft)]" },
               { label: "Accept Rate", value: `${stats.acceptRate}%`, icon: CheckCircle, color: "text-green-600", bg: "bg-green-50" },
               { label: "Response Rate", value: `${stats.responseRate}%`, icon: MessageSquare, color: "text-[var(--accent)]", bg: "bg-[var(--accent)]/10" },
             ].map((stat, i) => (
@@ -203,7 +203,7 @@ export default function AnalyticsPage() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.1 }}
-                className="bg-white rounded-xl border border-gray-100 p-4 hover-lift"
+                className="app-card p-4"
               >
                 <div className={`w-8 h-8 ${stat.bg} rounded-lg flex items-center justify-center mb-2`}>
                   <stat.icon className={`w-4 h-4 ${stat.color}`} />
@@ -248,7 +248,7 @@ export default function AnalyticsPage() {
           {/* Charts Row */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Earnings Chart */}
-            <div className="min-w-0 lg:col-span-2 bg-white rounded-2xl border border-gray-100 p-6">
+            <div className="min-w-0 lg:col-span-2 app-card p-5 sm:p-6">
               <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                 <h3 className="font-bold text-gray-900 flex items-center gap-2">
                   <DollarSign className="w-5 h-5 text-green-600" />
@@ -269,7 +269,7 @@ export default function AnalyticsPage() {
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#94A3B8" />
                     <YAxis tick={{ fontSize: 11 }} stroke="#94A3B8" tickFormatter={(v) => `$${v}`} />
-                    <Tooltip contentStyle={{ borderRadius: 12, border: "3px solid #061321", boxShadow: "4px 4px 0 #061321" }} formatter={(value: number | undefined) => [`$${value ?? 0}`, "Earnings"]} />
+                    <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid var(--border-color)", boxShadow: "var(--surface-shadow-strong)", background: "var(--card)", color: "var(--text-primary)" }} formatter={(value: number | undefined) => [`$${value ?? 0}`, "Earnings"]} />
                     <Bar dataKey="earnings" fill="#061321" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 ) : chartType === "line" ? (
@@ -277,7 +277,7 @@ export default function AnalyticsPage() {
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#94A3B8" />
                     <YAxis tick={{ fontSize: 11 }} stroke="#94A3B8" tickFormatter={(v) => `$${v}`} />
-                    <Tooltip contentStyle={{ borderRadius: 12, border: "3px solid #061321", boxShadow: "4px 4px 0 #061321" }} formatter={(value: number | undefined) => [`$${value ?? 0}`, "Earnings"]} />
+                    <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid var(--border-color)", boxShadow: "var(--surface-shadow-strong)", background: "var(--card)", color: "var(--text-primary)" }} formatter={(value: number | undefined) => [`$${value ?? 0}`, "Earnings"]} />
                     <Line type="monotone" dataKey="earnings" stroke="#061321" strokeWidth={2} dot={{ r: 3, fill: "#061321" }} />
                   </LineChart>
                 ) : (
@@ -291,7 +291,7 @@ export default function AnalyticsPage() {
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#94A3B8" />
                     <YAxis tick={{ fontSize: 11 }} stroke="#94A3B8" tickFormatter={(v) => `$${v}`} />
-                    <Tooltip contentStyle={{ borderRadius: 12, border: "3px solid #061321", boxShadow: "4px 4px 0 #061321" }} formatter={(value: number | undefined) => [`$${value ?? 0}`, "Earnings"]} />
+                    <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid var(--border-color)", boxShadow: "var(--surface-shadow-strong)", background: "var(--card)", color: "var(--text-primary)" }} formatter={(value: number | undefined) => [`$${value ?? 0}`, "Earnings"]} />
                     <Area type="monotone" dataKey="earnings" stroke="#061321" strokeWidth={2} fill="url(#earningsGradient)" />
                   </AreaChart>
                 )}
@@ -299,7 +299,7 @@ export default function AnalyticsPage() {
             </div>
 
             {/* Job Status Pie */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-6">
+            <div className="app-card p-5 sm:p-6">
               <h3 className="font-bold text-gray-900 mb-4">Job Breakdown</h3>
               {statusDistribution.length > 0 ? (
                 <>
@@ -344,7 +344,7 @@ export default function AnalyticsPage() {
 
           {/* Performance Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white rounded-2xl border border-gray-100 p-6">
+            <div className="app-card p-5 sm:p-6">
               <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2 text-sm">
                 <Star className="w-4 h-4 text-yellow-500" />
                 Average Rating
@@ -356,7 +356,7 @@ export default function AnalyticsPage() {
                 from {operatorProfile?.reviewCount || 0} reviews
               </p>
             </div>
-            <div className="bg-white rounded-2xl border border-gray-100 p-6">
+            <div className="app-card p-5 sm:p-6">
               <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2 text-sm">
                 <DollarSign className="w-4 h-4 text-green-600" />
                 Avg Job Value
@@ -364,7 +364,7 @@ export default function AnalyticsPage() {
               <p className="text-4xl font-extrabold text-gray-900">${stats.avgJobValue}</p>
               <p className="text-xs text-gray-500 mt-1">per completed job</p>
             </div>
-            <div className="bg-white rounded-2xl border border-gray-100 p-6">
+            <div className="app-card p-5 sm:p-6">
               <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2 text-sm">
                 <Users className="w-4 h-4 text-[var(--accent)]" />
                 Total Jobs
@@ -377,7 +377,7 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Snow Day Comparison */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6">
+          <div className="app-card p-5 sm:p-6">
             <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
               <CloudSnow className="w-5 h-5 text-[var(--accent)]" />
               Booking Patterns
@@ -407,7 +407,7 @@ export default function AnalyticsPage() {
             </div>
           </div>
           {/* Job Hotspot Map */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6">
+          <div className="app-card p-5 sm:p-6">
             <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
               <MapPin className="w-5 h-5 text-red-500" />
               Job Hotspots

@@ -6,7 +6,7 @@ import StatusBadge from "@/components/StatusBadge";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
 import { Job,OperatorProfile } from "@/lib/types";
-import { orderActionNeeded, scheduleText } from "@/lib/workOrders";
+import { dateMillis, orderActionNeeded, scheduleText } from "@/lib/workOrders";
 import { workOrderPresentation } from "@/lib/workOrderPresentation";
 import { collection,doc,onSnapshot,query,updateDoc,where } from "firebase/firestore";
 import Link from "next/link";
@@ -45,7 +45,7 @@ export default function OperatorDashboard() {
   }
 
   const pending = jobs.filter(job => job.status === "pending");
-  const active = jobs.filter(job => ["accepted", "en-route", "in-progress"].includes(job.status));
+  const active = jobs.filter(job => ["accepted", "en-route", "in-progress"].includes(job.status)).sort((a, b) => (dateMillis(a.scheduledDate) || dateMillis(a.createdAt)) - (dateMillis(b.scheduledDate) || dateMillis(b.createdAt)));
   const nextJob = active.find(job => job.status === "in-progress") ?? active.find(job => job.status === "en-route") ?? active[0];
   const attentionJob = pending.find(job => orderActionNeeded(job, operator?.uid || "")) ?? (nextJob && orderActionNeeded(nextJob, operator?.uid || "") ? nextJob : undefined);
 
@@ -77,7 +77,7 @@ export default function OperatorDashboard() {
         {loadError ? <p role="alert" className="mt-3">Could not load jobs. <Link href="/dashboard/jobs" className="underline">Open jobs to try again.</Link></p> : loading ? <p role="status" className="mt-3">Loading jobs…</p> : <>
           {pending.length > 0 && <div className="mt-3 rounded-xl border border-[var(--surface-blue-border)] bg-[var(--surface-blue)] p-4">
             <div className="flex min-h-8 items-center justify-between gap-3"><span className="text-lg font-medium">{pending.length} new request{pending.length === 1 ? "" : "s"}</span>{pending.length > 1 && <Link href="/dashboard/jobs?view=attention" className="font-semibold underline">View all</Link>}</div>
-            {attentionJob?.status === "pending" && <OrderActions job={attentionJob} compact navigateOnUpdate={false} />}
+            {attentionJob?.status === "pending" && <><Link href={`/dashboard/jobs/${attentionJob.id}`} className="mt-2 block rounded-lg py-2"><p className="text-sm font-semibold">{attentionJob.address || "View request details"}</p><p className="mt-1 text-sm text-[var(--text-secondary)]">{scheduleText(attentionJob)} · ${attentionJob.price.toFixed(2)} CAD</p><span className="mt-2 inline-block text-sm font-medium underline underline-offset-4">Review request</span></Link><OrderActions job={attentionJob} compact navigateOnUpdate={false} /></>}
           </div>}
           {nextJob ? <Link href={`/dashboard/jobs/${nextJob.id}`} className={`job-widget job-widget--${nextJob.status} mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4`}>
             <div className="min-w-0 flex-1"><p className="app-eyebrow">Up next</p><p className="text-lg font-semibold break-words">{workOrderPresentation(nextJob, operator?.uid || "").title}</p><p className="mt-1 text-sm text-[var(--text-secondary)]">{nextJob.address || "Job address"} · {scheduleText(nextJob)}</p></div>

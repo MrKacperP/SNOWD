@@ -76,7 +76,7 @@ export default function AdminUsersPage() {
       {error && <p role="alert" className="text-red-700">{error}</p>}
       <AdminCard className="p-4">
         <div className="flex flex-wrap items-center gap-2">
-          <input
+          <input aria-label="Search users"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search users"

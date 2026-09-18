@@ -8,6 +8,7 @@ import ProgressTracker from "@/components/ProgressTracker";
 import StatusBadge from "@/components/StatusBadge";
 import StripeCheckout from "@/components/StripeCheckout";
 import SupportChatButton from "@/components/SupportChatButton";
+import Notification from "@/components/Notification";
 import Modal from "@/components/ui/Modal";
 import UserAvatar from "@/components/UserAvatar";
 import { useAuth } from "@/context/AuthContext";
@@ -94,6 +95,12 @@ export default function ChatPage() {
   const chatId = params.chatId as string;
   const router = useRouter();
   const { user, profile } = useAuth();
+  const [feedback, setFeedback] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
+  const notify = useCallback((message: string, type: "success" | "error" | "info" = "error") => setFeedback({ message, type }), []);
+  const [sendError, setSendError] = useState("");
+  const [chatLoadError, setChatLoadError] = useState("");
+  const [messageLoadError, setMessageLoadError] = useState("");
+  const sendingLock = useRef(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [job, setJob] = useState<Job | null>(null);
@@ -168,17 +175,15 @@ export default function ChatPage() {
     useState<QuickCommConfirmation | null>(null);
 
   const isOperator = profile?.role === "operator";
-  const clientName = isOperator ? otherUser?.displayName : profile?.displayName;
-  const operatorName = isOperator ? profile?.displayName : otherUser?.displayName;
   const mapAddress = [job?.address, job?.city, job?.province].filter(Boolean).join(", ");
   const mapQuery = encodeURIComponent(mapAddress || "Canada");
   const mapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   const mapStaticUrl = mapsApiKey
     ? `https://maps.googleapis.com/maps/api/staticmap?center=${mapQuery}&zoom=15&size=1200x600&scale=2&maptype=roadmap&markers=color:0x2F6FED|${mapQuery}&key=${mapsApiKey}`
     : null;
-  const guestUploadUrls = guestUploadPath
+  const guestUploadUrls = React.useMemo(() => guestUploadPath
     ? (mobileOrigins.length ? mobileOrigins : [mobileOrigin || ""]).filter(Boolean).map((origin) => `${origin}${guestUploadPath}`)
-    : [];
+    : [], [guestUploadPath, mobileOrigins, mobileOrigin]);
   const primaryGuestUploadUrl = selectedGuestUploadUrl || guestUploadUrls[0] || "";
 
   useEffect(() => {
@@ -234,43 +239,7 @@ export default function ChatPage() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!showCameraQrModal || !guestUploadSessionId) return;
 
-    let cancelled = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-
-    const pollForPhoto = async () => {
-      if (cancelled) return;
-
-      try {
-        const response = await fetch("/api/mobile-upload/session/consume", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId: guestUploadSessionId }),
-        });
-
-        const data = (await response.json()) as { imageDataUrl?: string; pending?: boolean };
-        if (data.imageDataUrl) {
-          await sendMessage("Sent a photo", "image", { imageUrl: data.imageDataUrl });
-          setShowCameraQrModal(false);
-          alert("Photo uploaded successfully.");
-          return;
-        }
-      } catch {
-        // Keep polling while modal is open.
-      }
-
-      timer = setTimeout(pollForPhoto, 1500);
-    };
-
-    timer = setTimeout(pollForPhoto, 800);
-
-    return () => {
-      cancelled = true;
-      if (timer) clearTimeout(timer);
-    };
-  }, [showCameraQrModal, guestUploadSessionId]);
 
   useEffect(() => {
     return () => {
@@ -322,7 +291,11 @@ export default function ChatPage() {
             }
           }
 
-          const jobsQuery = query(collection(db, "jobs"), where("chatId", "==", chatId));
+          // Rules need an ownership constraint; filtering by chat alone cannot
+          // prove that every possible result belongs to the signed-in user.
+          const jobsQuery = query(collection(db, "jobs"),
+            where(profile?.role === "operator" ? "operatorId" : "clientId", "==", user.uid),
+            where("chatId", "==", chatId));
           unsubscribeJobs = onSnapshot(jobsQuery, (snapshot) => {
             const jobs = snapshot.docs
               .map((jobDoc) => ({ id: jobDoc.id, ...jobDoc.data() } as Job))
@@ -331,14 +304,17 @@ export default function ChatPage() {
                 if (b.id === chatData.jobId) return 1;
                 return String(b.createdAt || "").localeCompare(String(a.createdAt || ""));
               });
+            setChatLoadError("");
             setLinkedJobs(jobs);
             setJob((currentJob) => jobs.find((linkedJob) => linkedJob.id === currentJob?.id) || jobs[0] || null);
           }, (error) => {
             console.error("Work orders listener error:", error);
+            setChatLoadError("Visit updates couldn’t load. Reload to try again.");
           });
         }
       } catch (error) {
         console.error("Error fetching chat data:", error);
+        if (!cancelled) setChatLoadError("This conversation couldn’t load. Reload to try again.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -349,7 +325,7 @@ export default function ChatPage() {
       cancelled = true;
       unsubscribeJobs?.();
     };
-  }, [chatId, user?.uid]);
+  }, [chatId, user?.uid, profile?.role]);
 
   const selectWorkOrder = (selectedJob: Job) => {
     setJob(selectedJob);
@@ -374,6 +350,7 @@ export default function ChatPage() {
           ...d.data(),
         })) as ChatMessage[];
         setMessages(msgs);
+        setMessageLoadError("");
       },
       (error) => {
         console.error("Messages listener error:", error);
@@ -399,7 +376,10 @@ export default function ChatPage() {
                 return aDate.getTime() - bDate.getTime();
               }) as ChatMessage[];
             setMessages(msgs);
-          });
+            setMessageLoadError("");
+          }, () => setMessageLoadError("Messages couldn’t load. Reload to try again."));
+        } else {
+          setMessageLoadError("Messages couldn’t load. Reload to try again.");
         }
       }
     );
@@ -474,7 +454,8 @@ export default function ChatPage() {
       if (!user?.uid || !chatId) return;
 
       const trackSendingState = type === "text";
-      if (trackSendingState) setSendingMessage(true);
+      if (trackSendingState && sendingLock.current) return;
+      if (trackSendingState) { sendingLock.current = true; setSendingMessage(true); setSendError(""); }
 
       try {
         const messageData: Record<string, unknown> = {
@@ -489,15 +470,31 @@ export default function ChatPage() {
         if (job?.id) messageData.jobId = job.id;
         if (metadata !== undefined) messageData.metadata = metadata;
 
-        await addDoc(collection(db, "messages"), messageData);
-
         const chatDocRef = doc(db, "chats", chatId);
         const chatSnap = await getDoc(chatDocRef);
         const chatData = chatSnap.data();
+        if (chatData?.jobId) messageData.jobId = chatData.jobId;
         const otherUid = chatData?.participants?.find(
           (p: string) => p !== user.uid
         );
 
+        const isPersonMessage = ["text", "image", "voice"].includes(type);
+        const updateData: Record<string, unknown> = { lastActivityTime: Timestamp.now() };
+
+        if (isPersonMessage) {
+          updateData.lastMessage = type === "text" ? content : `[${type.replace("-", " ")}]`;
+          updateData.lastMessageTime = Timestamp.now();
+        }
+
+        if (otherUid && isPersonMessage) {
+          updateData[`unreadCount.${otherUid}`] = increment(1);
+        }
+
+        const batch = writeBatch(db);
+        batch.set(doc(collection(db, "messages")), messageData);
+        batch.update(chatDocRef, updateData);
+        await batch.commit();
+        if (type === "text") setNewMessage(current => current === content ? "" : current);
         if (type === "text") {
           void sendAdminNotif({
             type: "system",
@@ -517,54 +514,81 @@ export default function ChatPage() {
           })).catch(() => {});
         }
 
-        const isPersonMessage = ["text", "image", "voice"].includes(type);
-        const updateData: Record<string, unknown> = { lastActivityTime: Timestamp.now() };
 
-        if (isPersonMessage) {
-          updateData.lastMessage = type === "text" ? content : `[${type.replace("-", " ")}]`;
-          updateData.lastMessageTime = Timestamp.now();
-        }
-
-        if (otherUid && isPersonMessage) {
-          updateData[`unreadCount.${otherUid}`] = increment(1);
-        }
-
-        await updateDoc(chatDocRef, updateData);
-        if (type === "text") setNewMessage("");
       } catch (error) {
         console.error("Error sending message:", error);
+        if (trackSendingState) setSendError("Message wasn’t sent. Your draft is safe. Try sending again.");
+        else notify("Could not send this update. Please try again.");
       } finally {
-        if (trackSendingState) setSendingMessage(false);
+        if (trackSendingState) { sendingLock.current = false; setSendingMessage(false); }
       }
     },
-    [user?.uid, chatId, profile?.displayName, job?.id]
+    [user, chatId, profile?.displayName, job?.id, notify]
   );
 
   // Operator actions
+  useEffect(() => {
+    if (!showCameraQrModal || !guestUploadSessionId) return;
+
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const pollForPhoto = async () => {
+      if (cancelled) return;
+
+      try {
+        const response = await fetch("/api/mobile-upload/session/consume", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId: guestUploadSessionId }),
+        });
+
+        const data = (await response.json()) as { imageDataUrl?: string; pending?: boolean };
+        if (data.imageDataUrl) {
+          await sendMessage("Sent a photo", "image", { imageUrl: data.imageDataUrl });
+          setShowCameraQrModal(false);
+          notify("Photo uploaded successfully.", "success");
+          return;
+        }
+      } catch {
+        // Keep polling while modal is open.
+      }
+
+      timer = setTimeout(pollForPhoto, 1500);
+    };
+
+    timer = setTimeout(pollForPhoto, 800);
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [showCameraQrModal, guestUploadSessionId, sendMessage, notify]);
+
   const updateJobStatus = async (newStatus: JobStatus) => {
     if (!job) return;
     try {
       // ── Guard: photo proof required before completing ──────────────────────
       if (newStatus === "completed" && !completionPhoto && !job.completionPhotoUrl) {
-        alert("You must submit photo proof before completing the job. Please upload a completion photo first.");
+        notify("You must submit photo proof before completing the job. Please upload a completion photo first.");
         return;
       }
 
       // ── Guard: one active job at a time on accept ──────────────────────────
       if (newStatus === "accepted") {
         if (!profile?.idVerified) {
-          alert("ID verification is required before accepting a job.");
+          notify("ID verification is required before accepting a job.");
           return;
         }
         if (job.paymentMethod !== "cash" && !(await isStripeAccountReady(profile.stripeConnectAccountId))) {
-          alert("Stripe setup is required for card-paid jobs. Cash jobs can be accepted without Stripe.");
+          notify("Stripe setup is required for card-paid jobs. Cash jobs can be accepted without Stripe.");
           return;
         }
         const { getDocs: gd, query: q2, collection: col2, where: w2 } = await import("firebase/firestore");
         const activeSnap = await gd(q2(col2(db, "jobs"), w2("operatorId", "==", user?.uid), w2("status", "in", ["accepted", "en-route", "in-progress"])));
         const otherActive = activeSnap.docs.filter(d => d.id !== job.id);
         if (otherActive.length > 0) {
-          alert("You already have an active job in progress. Please complete it before accepting another.");
+          notify("You already have an active job in progress. Please complete it before accepting another.");
           return;
         }
       }
@@ -588,7 +612,7 @@ export default function ChatPage() {
         if (job.stripePaymentIntentId) {
           const captureResult = await captureStripePaymentIfNeeded(job);
           if (captureResult.error) {
-            alert(`Payment verification failed. ${captureResult.error}`);
+            notify(`Payment verification failed. ${captureResult.error}`);
             return;
           }
           if (captureResult.captured || job.paymentStatus === "paid" || job.paymentCapturedAt) {
@@ -598,7 +622,7 @@ export default function ChatPage() {
           await cashPaymentAction("complete");
           return;
         } else {
-          alert("A confirmed platform payment is required before completing this job.");
+          notify("A confirmed platform payment is required before completing this job.");
           return;
         }
       }
@@ -640,7 +664,7 @@ export default function ChatPage() {
   const cancelJob = async () => {
     if (!job?.id) return;
     if (job.status === "in-progress") {
-      alert("This job cannot be cancelled after work has started.");
+      notify("This job cannot be cancelled after work has started.");
       return;
     }
     setShowCancelPopup(true);
@@ -677,7 +701,7 @@ export default function ChatPage() {
       setShowCancelPopup(false);
     } catch (error) {
       console.error("Error cancelling job:", error);
-      alert(error instanceof Error ? error.message : "Failed to cancel job. Please try again.");
+      notify(error instanceof Error ? error.message : "Failed to cancel job. Please try again.");
     } finally {
       setCancelling(false);
     }
@@ -753,7 +777,7 @@ export default function ChatPage() {
 
     } catch (error) {
       console.error("Error rehiring:", error);
-      alert("Failed to create new job. Please try again.");
+      notify("Failed to create new job. Please try again.");
     } finally {
       setRehiring(false);
     }
@@ -776,7 +800,7 @@ export default function ChatPage() {
       );
     } catch (error) {
       console.error("Error reopening job:", error);
-      alert("Failed to reopen job. Please try again.");
+      notify("Failed to reopen job. Please try again.");
     }
   };
 
@@ -913,7 +937,7 @@ export default function ChatPage() {
     } catch (error) {
       console.error("Payment initiation error:", error);
       const message = error instanceof Error ? error.message : "Failed to initiate payment. Please try again.";
-      alert(message);
+      notify(message);
     } finally {
       setProcessingPayment(false);
     }
@@ -966,7 +990,7 @@ export default function ChatPage() {
       );
     } catch (error) {
       console.error("Photo upload error:", error);
-      alert("Could not save photo proof. Please try again.");
+      notify("Could not save photo proof. Please try again.");
     } finally {
       setUploadingPhoto(false);
       e.target.value = "";
@@ -1000,7 +1024,7 @@ export default function ChatPage() {
   const startVoiceRecorder = async () => {
     try {
       if (typeof window === "undefined" || !("MediaRecorder" in window)) {
-        alert("Voice recording is not supported on this device.");
+        notify("Voice recording is not supported on this device.");
         return;
       }
 
@@ -1044,7 +1068,7 @@ export default function ChatPage() {
       setIsRecordingVoice(true);
     } catch (error) {
       console.error("Voice recorder start error:", error);
-      alert("Microphone access was denied or unavailable.");
+      notify("Microphone access was denied or unavailable.");
     }
   };
 
@@ -1074,7 +1098,7 @@ export default function ChatPage() {
 
     // Validation: if rating is lower than 3 stars, description is required
     if (reviewRating < 3 && !reviewComment.trim()) {
-      alert("Please add a description for ratings below 3 stars.");
+      notify("Please add a description for ratings below 3 stars.");
       return;
     }
 
@@ -1167,7 +1191,7 @@ export default function ChatPage() {
         return `${origin}${path}`;
       } catch (error) {
         const message = error instanceof Error ? error.message : "Failed to create temporary upload link";
-        alert(message);
+        notify(message);
         return "";
       } finally {
         setCreatingGuestUploadLink(false);
@@ -1343,7 +1367,7 @@ export default function ChatPage() {
               <span>{msg.metadata.durationMs ? `${Math.max(1, Math.round(msg.metadata.durationMs / 1000))}s` : "Voice"}</span>
               <span>{formatTimestamp(msg.createdAt)}</span>
               {showDeliveryState && (
-                <span className={`font-semibold ${isOwn && msg.read ? "text-emerald-600" : ""}`}>
+                <span className={`font-semibold ${isOwn && msg.read ? "text-white/85" : ""}`}>
                   {msg.read ? "Read" : "Sent"}
                 </span>
               )}
@@ -1466,7 +1490,7 @@ export default function ChatPage() {
         <div
           className={`max-w-[82%] px-4 py-3 rounded-[1.2rem] shadow-[var(--surface-shadow)] sm:max-w-[72%] ${
             isOwn
-              ? "bg-[var(--ink)] text-white rounded-br-sm border border-[var(--ink)]"
+              ? "bg-[var(--accent)] text-white rounded-br-sm border border-[var(--accent)]"
               : "bg-white text-[var(--text-primary)] rounded-bl-sm border-[3px] border-[var(--border-color)]"
           }`}
         >
@@ -1474,7 +1498,7 @@ export default function ChatPage() {
           <div className={`mt-1 flex items-center gap-1.5 text-[10px] ${isOwn ? "justify-end text-white/65" : "justify-end text-[var(--text-muted)]"}`}>
             <span>{formatTimestamp(msg.createdAt)}</span>
             {showDeliveryState && (
-              <span className={`font-semibold ${isOwn && msg.read ? "text-emerald-600" : ""}`}>
+              <span className={`font-semibold ${isOwn && msg.read ? "text-white/85" : ""}`}>
                 {msg.read ? "Read" : "Sent"}
               </span>
             )}
@@ -1498,13 +1522,14 @@ export default function ChatPage() {
 
   return (
     <div className="chat-workspace flex w-full min-h-0 gap-0">
+      {feedback && <Notification message={feedback.message} type={feedback.type} onClose={() => setFeedback(null)} />}
       {/* Chat Column */}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-y border-r border-[var(--border-color)] bg-[var(--bg-card-solid)] xl:border-l">
         {/* Chat Header */}
         <div className="flex shrink-0 items-center gap-3 border-b border-[var(--border-soft)] bg-white/95 px-3 py-3 backdrop-blur sm:px-4">
           <Link
             href="/dashboard/messages"
-            className="rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]"
             aria-label="Back to messages"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -1521,7 +1546,7 @@ export default function ChatPage() {
 
         {job && (
           <div className="shrink-0 border-b border-[var(--border-soft)] bg-[var(--bg-secondary)] px-3 py-2.5 sm:px-4">
-            <Link href={`/dashboard/jobs/${job.id}`} className="flex min-h-11 items-center justify-between gap-3 rounded-xl bg-white px-3 py-2">
+            <Link href={`/dashboard/jobs/${job.id}`} className="chat-order-link flex min-h-11 flex-wrap items-center justify-between gap-2 rounded-xl bg-white px-3 py-2">
               <span className="min-w-0"><span className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Work order</span><span className="block truncate text-sm font-semibold capitalize">{job.serviceTypes?.map(service => service.replaceAll("-", " ")).join(" + ") || "Snow clearing"} <strong className="ml-1 rounded-md bg-[var(--accent-sun-soft)] px-2 py-1 text-base font-extrabold text-[var(--ink)]">${job.price} CAD</strong></span></span>
               <span className="flex shrink-0 items-center gap-2"><StatusBadge status={job.status} /><ChevronRight className="h-4 w-4" /></span>
             </Link>
@@ -1529,6 +1554,7 @@ export default function ChatPage() {
           </div>
         )}
 
+        {(chatLoadError || messageLoadError) && <div role="alert" className="shrink-0 border-b border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{chatLoadError || messageLoadError} <button type="button" className="min-h-11 font-semibold underline" onClick={() => window.location.reload()}>Reload</button></div>}
         {/* Messages */}
         <div role="log" aria-label="Conversation" className="chat-history min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain bg-[var(--bg-primary)] p-3 sm:p-5">
           {messages.length === 0 && (
@@ -1589,6 +1615,7 @@ export default function ChatPage() {
 
           <div className="quick-replies" aria-label="Quick replies">{quickReplies.map(reply => <button key={reply} type="button" onClick={() => { setNewMessage(reply); composerRef.current?.focus(); }}>{reply}</button>)}</div>
           {isRecordingVoice && <p role="status" className="mb-2 text-sm font-semibold text-red-600">Recording… Tap stop to send your voice message.</p>}
+          {sendError && <p role="alert" className="mb-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{sendError}</p>}
           <form onSubmit={handleSubmit} className="flex items-end gap-1 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card-solid)] p-1.5">
             <button type="button" onClick={() => chatAttachInputRef.current?.click()} className="min-h-11 rounded-xl px-2.5 text-[var(--text-muted)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]" aria-label="Attach photo" title="Attach photo"><Paperclip className="h-5 w-5" /></button>
             <button type="button" onClick={handleOpenCameraUpload} disabled={creatingGuestUploadLink} className="min-h-11 rounded-xl px-2.5 text-[var(--text-muted)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] disabled:opacity-50" aria-label="Take photo" title="Take photo"><Camera className="h-5 w-5" /></button>
@@ -1607,7 +1634,7 @@ export default function ChatPage() {
                 type="submit"
                 disabled={sendingMessage}
                 aria-label={sendingMessage ? "Sending message" : "Send message"}
-                className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--ink)] px-4 py-2.5 text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-40"
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-white transition hover:bg-[var(--accent-dark)] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <Send className="w-5 h-5" />
                 <span className="hidden sm:inline text-sm font-semibold">
@@ -2342,9 +2369,9 @@ export default function ChatPage() {
                       onClick={async () => {
                         try {
                           await navigator.clipboard.writeText(url);
-                          alert(`Link ${index + 1} copied.`);
+                          notify(`Link ${index + 1} copied.`, "success");
                         } catch {
-                          alert("Could not copy link.");
+                          notify("Could not copy link.");
                         }
                       }}
                       className="px-2.5 py-2 rounded-lg border-[3px] border-[var(--border)] text-xs text-[var(--accent)] hover:bg-[#F3F8FF]"
@@ -2379,9 +2406,9 @@ export default function ChatPage() {
                 onClick={async () => {
                   try {
                     await navigator.clipboard.writeText(primaryGuestUploadUrl);
-                    alert("Mobile upload link copied.");
+                    notify("Mobile upload link copied.", "success");
                   } catch {
-                    alert("Could not copy link. Use Open Link instead.");
+                    notify("Could not copy link. Use Open Link instead.");
                   }
                 }}
                 disabled={!primaryGuestUploadUrl}
