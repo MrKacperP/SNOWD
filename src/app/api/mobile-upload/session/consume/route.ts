@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing sessionId" }, { status: 400 });
     }
 
-    const result = consumeSessionUpload(sessionId);
+    const result = await consumeSessionUpload(sessionId);
     return NextResponse.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal server error";

@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Image is too large" }, { status: 413 });
     }
 
-    uploadToSession(sessionId, imageDataUrl);
+    await uploadToSession(sessionId, imageDataUrl);
     return NextResponse.json({ ok: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal server error";
