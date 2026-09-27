@@ -39,7 +39,7 @@ export default function Button({
   return (
     <MotionButton
       whileTap={reduceMotion || disabled || isLoading ? undefined : { scale: 0.98 }}
-      className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
+      className={`glass-button ${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
       aria-busy={isLoading || undefined}
       disabled={disabled || isLoading}
       {...props}

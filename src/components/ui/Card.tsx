@@ -31,7 +31,7 @@ export default function Card({
   };
   
   return (
-    <MotionDiv className={`${baseStyles} ${variants[variant]} ${paddings[padding]} ${className}`}>
+    <MotionDiv className={`glass-surface ${baseStyles} ${variants[variant]} ${paddings[padding]} ${className}`}>
       {children}
     </MotionDiv>
   );

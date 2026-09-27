@@ -1,3 +1,4 @@
+import GlassRefraction from "@/components/ui/GlassRefraction";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, Shovel, Snowflake, Check, ArrowUpRight, House, CalendarDays, Coffee } from "lucide-react";
@@ -78,6 +79,7 @@ export default function HomePage() {
       </a>
       <header className={styles.header}>
         <nav className={styles.nav} aria-label="Main navigation">
+          <GlassRefraction />
           <Brand />
           <div className={styles.navLinks}>
             <a href="#how" className={styles.howLink}>

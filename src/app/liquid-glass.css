@@ -1,0 +1,150 @@
+/* Shared Liquid Glass material. Keep optics on surfaces, never on page roots:
+   backdrop-filter creates a containing block and would trap fixed dialogs. */
+body.snowd-glass {
+  --card: rgba(255, 255, 255, .68);
+  --card-soft: rgba(255, 255, 255, .54);
+  --bg-card: var(--card-soft);
+  --bg-card-solid: var(--card);
+  --bg-secondary: rgba(227, 237, 250, .6);
+  --surface-blue: rgba(222, 236, 255, .68);
+  --surface-green: rgba(225, 244, 234, .74);
+  --border: rgba(124, 155, 191, .28);
+  --border-soft: rgba(124, 155, 191, .18);
+  --border-color: var(--border);
+  --border-subtle: var(--border-soft);
+  --glass-bg: rgba(255, 255, 255, .62);
+  --glass-border: rgba(255, 255, 255, .86);
+  --glass-sheen: linear-gradient(145deg, rgba(255,255,255,.58), rgba(255,255,255,.06) 48%, rgba(194,221,255,.15));
+  --glass-shadow: inset 0 1px 0 rgba(255,255,255,.95), inset 0 -1px 0 rgba(255,255,255,.35), 0 8px 30px rgba(43,78,125,.08);
+  --surface-shadow: var(--glass-shadow);
+  --surface-shadow-strong: inset 0 1px 0 rgba(255,255,255,.95), 0 24px 70px rgba(43,78,125,.18);
+  --glass-backdrop: blur(20px) saturate(145%);
+  --glass-wallpaper: radial-gradient(ellipse at 8% 8%, #c7e4ff 0, transparent 46%), radial-gradient(ellipse at 95% 36%, #e1dafa 0, transparent 46%), radial-gradient(ellipse at 30% 92%, #cdece9 0, transparent 48%), linear-gradient(155deg, #f4f8ff, #e9f1fc 55%, #f6f9ff);
+  background: var(--glass-wallpaper);
+  background-attachment: fixed;
+  min-height: 100dvh;
+}
+
+.snowd-glass :is(.dashboard-shell, .admin-shell, .auth-page) { background: transparent; }
+.snowd-glass :is(.glass-surface, .glass-card, .surface-card, .surface-panel, .app-card, .dashboard-widget, .next-action, .empty-state, .action-group, .detail-list, .joined-menu, .app-toast, .conversation-widget, .admin-card, .admin-overview-heading) {
+  background-color: var(--glass-bg);
+  background-image: var(--glass-sheen);
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-backdrop);
+  backdrop-filter: var(--glass-backdrop);
+}
+
+/* Existing utility-based panels share the same material without changing their
+   structure, dimensions, or semantic status colors. */
+.snowd-glass :where([class*="rounded-"]:is([class~="bg-[var(--card)]"], [class~="bg-[var(--bg-card)]"], [class~="bg-[var(--bg-card-solid)]"], [class~="bg-white"])) {
+  background-color: var(--glass-bg);
+  background-image: var(--glass-sheen);
+  box-shadow: var(--glass-shadow);
+}
+.snowd-glass :is(.job-widget, .guided-review, .guided-success) {
+  background-image: var(--glass-sheen);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-backdrop);
+  backdrop-filter: var(--glass-backdrop);
+}
+.snowd-glass .job-widget--in-progress { background-image: linear-gradient(145deg, #ffffff20, transparent); }
+
+/* Native buttons retain their status tint, disabled state, and hit area. */
+.snowd-glass :where(button:not([role="switch"]), .btn-primary, .btn-secondary, .glass-button) {
+  background-image: linear-gradient(180deg, #ffffff24, #ffffff05 55%, #ffffff0d);
+}
+.snowd-glass :is(.btn-primary, .btn-secondary, .glass-button, .admin-primary, .admin-secondary) {
+  border-radius: 999px;
+  box-shadow: inset 0 1px 0 #ffffff65, inset 0 -1px 0 #0000000a, 0 4px 12px #2b4e7d12;
+  transition: background-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+.snowd-glass :is(.btn-secondary, .admin-secondary) { background-color: var(--glass-bg); }
+.snowd-glass :is(.btn-primary, .btn-secondary, .glass-button, .admin-primary, .admin-secondary):active:not(:disabled) { transform: scale(.98); }
+.snowd-glass :is(.btn-primary, .btn-secondary, .glass-button):disabled { box-shadow: none; transform: none; }
+
+.snowd-glass :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]), select, textarea) {
+  background-color: rgba(255,255,255,.72);
+  background-image: linear-gradient(160deg, #ffffff60, #ffffff00);
+  border-color: var(--border);
+  box-shadow: inset 0 1px 2px #2b4e7d08, 0 1px 0 #ffffffb3;
+}
+.snowd-glass :is(input, select, textarea):focus { border-color: var(--accent); background-color: rgba(255,255,255,.94); }
+.snowd-glass [aria-invalid="true"] { border-color: var(--danger); }
+.snowd-glass :is(.dashboard-topbar, .dashboard-sidebar, .admin-shell .admin-header, .admin-shell .admin-sidebar, .admin-sidebar-footer) {
+  background: var(--glass-bg);
+  border-color: var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-backdrop);
+  backdrop-filter: var(--glass-backdrop);
+}
+.snowd-glass :is(.desktop-navigation a[aria-current="page"], .admin-nav-link[data-active="true"]) {
+  background: linear-gradient(135deg, #ffffffcc, #d9e9ff99);
+  box-shadow: var(--glass-shadow);
+  border-radius: 16px;
+}
+.snowd-glass .app-modal-panel {
+  background: linear-gradient(145deg, #fffffff2, #edf4ffeb);
+  border-color: var(--glass-border);
+  box-shadow: var(--surface-shadow-strong);
+  -webkit-backdrop-filter: var(--glass-backdrop);
+  backdrop-filter: var(--glass-backdrop);
+}
+.snowd-glass .auth-frame {
+  border: 1px solid var(--glass-border);
+  border-radius: 32px;
+  background: linear-gradient(130deg, #ffffffb8, #ffffff57);
+  box-shadow: var(--surface-shadow-strong);
+}
+.snowd-glass .auth-welcome { background: radial-gradient(ellipse at top right, #d6cbfb80, transparent 60%), linear-gradient(145deg, #d9edff9c, #e0f3ee9c); }
+.snowd-glass .auth-page .auth-form-content button { border-radius: 999px; }
+
+/* The package adds refraction only to prominent navigation surfaces. The rest
+   uses the same CSS material, avoiding a renderer/listener per list row. */
+.glass-refraction { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; pointer-events: none; z-index: 0; }
+.glass-refraction-renderer > .glass { width: 100%; height: 100%; box-shadow: none !important; }
+.glass-refraction > span { pointer-events: none; }
+
+@media (hover: hover) {
+  .snowd-glass :is(.btn-primary, .btn-secondary, .glass-button):hover:not(:disabled) { box-shadow: inset 0 1px 0 #ffffff99, 0 7px 20px #2b4e7d22; }
+}
+/* Every surface resolves through these tokens, including CSS modules. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  body.snowd-glass { --glass-bg: #f4f8ff; --card: #f4f8ff; --card-soft: #f4f8ff; }
+  .glass-refraction { display: none; }
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  body.snowd-glass {
+    --glass-bg: #fff; --card: #fff; --card-soft: #fff;
+    --glass-sheen: none; --glass-border: #93a8c0; --glass-backdrop: none;
+    --glass-wallpaper: linear-gradient(#f1f5fa, #f1f5fa);
+    --bg-secondary: #e9eff7; --surface-blue: #e5efff; --surface-green: #e5f3ea;
+  }
+  .snowd-glass :is(.dashboard-topbar, .dashboard-sidebar, .admin-header, .admin-sidebar, .app-modal-panel, .auth-frame, .auth-welcome) { background: #fff; backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .glass-refraction { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .snowd-glass :is(.btn-primary, .btn-secondary, .glass-button):active:not(:disabled) { transform: none; }
+  .glass-refraction { display: none; }
+}
+@media print {
+  body.snowd-glass { --glass-bg: white; --glass-sheen: none; --glass-shadow: none; --glass-backdrop: none; background: white; }
+  .glass-refraction { display: none; }
+}
+@media (max-width: 767px) {
+  .snowd-glass .auth-form-section { padding: 16px; }
+}
+
+/* These containers own viewport-positioned menus/dialogs; filtering their
+   ancestors would make those overlays scroll with the card or sidebar. */
+.snowd-glass .dashboard-shell .dashboard-sidebar,
+.snowd-glass .admin-shell .admin-sidebar,
+.snowd-glass .joined-menu,
+.snowd-glass :is(.glass-surface, .surface-card, .surface-panel, .app-card, .action-group, .dashboard-widget, .next-action, .job-widget):has([class~="fixed"]) {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.snowd-glass :is(.onboarding-flow, [class~="min-h-dvh"][class~="bg-[var(--bg-primary)]"], [class~="min-h-screen"][class~="bg-[var(--bg-primary)]"]) { background: transparent; }
+.snowd-glass .onboarding-card { background: var(--glass-sheen), var(--glass-bg); border-color: var(--glass-border); border-radius: 28px; box-shadow: var(--surface-shadow-strong); }
+.snowd-glass .onboarding-aside { background: linear-gradient(145deg, #d8eaff99, #e1e3fa77); }

@@ -8,7 +8,7 @@
 .headingRow h1 { font-size: clamp(1.875rem, 3vw, 2.375rem); line-height: 1.05; letter-spacing: -.055em; margin-bottom: .75rem; }
 .headingRow p:last-child { color: var(--text-secondary); font-size: .95rem; }
 .headerIcon { display: grid; place-items: center; width: 76px; height: 76px; flex-shrink: 0; border: 1px solid var(--border-color); border-radius: 24px; background: var(--accent-soft); box-shadow: var(--surface-shadow); }
-.layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 2rem; align-items: start; }
+.layout { composes: glass-surface from global; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 2rem; align-items: start; }
 .sidebar { position: sticky; top: 6rem; padding: 1rem; border: 1px solid var(--border-color); border-radius: 24px; background: var(--sky); }
 .navLabel { margin: .25rem .5rem 1rem; }
 .navigation { display: grid; gap: .5rem; }

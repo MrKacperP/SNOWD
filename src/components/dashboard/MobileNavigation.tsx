@@ -5,6 +5,7 @@ import { Menu } from "lucide-react";
 import { primaryNavigation } from "@/lib/appNavigation";
 import type { UserRole } from "@/lib/types";
 import styles from "./mobile.module.css";
+import GlassRefraction from "@/components/ui/GlassRefraction";
 
 export default function MobileNavigation({ pathname, role, unreadMessages = 0, pendingJobs = 0, menuOpen, onOpenMenu }: {
   pathname: string;
@@ -19,6 +20,7 @@ export default function MobileNavigation({ pathname, role, unreadMessages = 0, p
     count: item.href.includes("messages") ? unreadMessages : item.href.includes("jobs") ? pendingJobs : 0,
   }));
   return <nav className={styles.bottomNav} aria-label="Primary navigation">
+    <GlassRefraction />
     {items.map(({ href, label, icon: Icon, count, tour }) => {
       const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(`${href}/`));
       return <Link data-tour={tour} key={href} href={href} aria-current={active ? "page" : undefined} aria-label={count ? `${label}, ${count} ${label === "Jobs" ? "awaiting attention" : "unread"}` : label}>

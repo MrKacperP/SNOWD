@@ -1,4 +1,4 @@
-.panel { position: fixed; bottom: 20px; right: 20px; z-index: 10000; width: min(390px, calc(100vw - 24px)); max-height: calc(100dvh - 40px); overflow: auto; padding: 18px; border: 1px solid #cbd5e1; border-radius: 18px; background: #fff; color: #172335; box-shadow: 0 12px 48px #10233530; font-size: 14px; }
+.panel { composes: glass-surface from global; position: fixed; bottom: 20px; right: 20px; z-index: 10000; width: min(390px, calc(100vw - 24px)); max-height: calc(100dvh - 40px); overflow: auto; padding: 18px; border: 1px solid #cbd5e1; border-radius: 18px; background: #fff; color: #172335; box-shadow: 0 12px 48px #10233530; font-size: 14px; }
 .wide { width: min(850px, calc(100vw - 24px)); }
 .panel header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .panel p { margin: 10px 0; }

@@ -7,3 +7,6 @@
 .welcome a:hover{background:#28553e}
 .panelTitle a{font-size:10px;font-weight:700;text-decoration:underline;text-underline-offset:3px}
 @media(max-width:650px){.welcome a{display:none}}
+
+.desktop,.phone { background: var(--glass-wallpaper); }
+.desktopBar,.panel,.select,.address { background: var(--glass-bg); background-image: var(--glass-sheen); border-color: var(--glass-border); box-shadow: var(--glass-shadow); }

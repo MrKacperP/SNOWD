@@ -5,7 +5,7 @@
 .bottomNav [aria-current="page"] .navIcon, .bottomNav [aria-expanded="true"] .navIcon { background: var(--accent-soft); }
 .badge { position: absolute; right: 0; top: -2px; background: #a83225; color: white; border: 2px solid var(--card); min-width: 18px; padding: 0 3px; border-radius: 12px; font-size: 10px; line-height: 16px; }
 .bottomNav .moreButton[aria-expanded="true"] { color: var(--accent); }
-.bookingCard { border: 1px solid var(--surface-blue-border); background: var(--surface-blue); border-radius: 22px; padding: 24px; color: var(--text-primary); box-shadow: none; }
+.bookingCard { composes: glass-surface from global; border: 1px solid var(--surface-blue-border); background: var(--surface-blue); border-radius: 22px; padding: 24px; color: var(--text-primary); box-shadow: none; }
 .location { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--text-secondary); overflow-wrap: anywhere; }
 .location svg { flex-shrink: 0; }
 .bookingCard h2 { font-size: 28px; line-height: 1.2; margin-top: 16px; }
@@ -14,7 +14,7 @@
 .mainAction:hover { background: var(--accent-dark); }
 .mainAction svg { flex-shrink: 0; }
 .actionNote { display: block; margin-top: 11px; color: var(--text-secondary); font-size: 12px; line-height: 1.5; }
-.shortcuts { border: 1px solid var(--border-color); border-radius: 16px; background: var(--card); overflow: hidden; box-shadow: none; }
+.shortcuts { composes: glass-surface from global; border: 1px solid var(--border-color); border-radius: 16px; background: var(--card); overflow: hidden; box-shadow: none; }
 .shortcuts a { display: flex; align-items: center; gap: 14px; min-height: 72px; padding: 16px; }
 .shortcuts a + a { border-top: 1px solid var(--border-soft); }
 .shortcuts a > svg { flex-shrink: 0; color: var(--text-secondary); }
@@ -34,3 +34,21 @@
 
 .bottomNav > :is(a,button):focus-visible { outline-offset: -2px; }
 @media (max-width: 359px) { .navIcon { width: 42px; } .bottomNav { padding-inline: 4px; } .bottomNav > :is(a,button) { font-size: 10px; } }
+
+/* Floating glass dock; content stays above the decorative optical layer. */
+.bottomNav {
+  left: max(10px, env(safe-area-inset-left));
+  right: max(10px, env(safe-area-inset-right));
+  bottom: max(10px, env(safe-area-inset-bottom));
+  padding: 6px;
+  border: 1px solid var(--glass-border);
+  border-radius: 28px;
+  background: var(--glass-bg);
+  box-shadow: var(--surface-shadow-strong);
+  -webkit-backdrop-filter: var(--glass-backdrop);
+  backdrop-filter: var(--glass-backdrop);
+}
+.bottomNav > :is(a,button) { position: relative; z-index: 1; border-radius: 22px; }
+.bottomNav [aria-current="page"] { background: var(--glass-sheen), var(--accent-soft); box-shadow: inset 0 1px 0 #ffffffbf; }
+.bottomNav [aria-current="page"] .navIcon { background: transparent; }
+.mainAction { border-radius: 999px; background-image: linear-gradient(#ffffff24, #ffffff00); box-shadow: inset 0 1px 0 #ffffff66, 0 6px 18px #285cce20; }

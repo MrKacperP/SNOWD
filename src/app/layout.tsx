@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import "./liquid-glass.css";
 import { AuthProvider } from "@/context/AuthContext";
 import BrowserSupport from "@/components/support/BrowserSupport";
 import PageVisitTracker from "@/components/PageVisitTracker";
@@ -58,7 +59,7 @@ export default function RootLayout({
         <link rel="icon" type="image/png" href="/icon.png" />
         <link rel="apple-touch-icon" href="/icon.png" />
       </head>
-      <body className="antialiased">
+      <body className="antialiased snowd-glass">
         <AuthProvider>
           <BrowserSupport>
             <PageVisitTracker />
