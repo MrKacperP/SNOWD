@@ -49,7 +49,11 @@ body.snowd-glass {
   -webkit-backdrop-filter: var(--glass-backdrop);
   backdrop-filter: var(--glass-backdrop);
 }
-.snowd-glass .job-widget--in-progress { background-image: linear-gradient(145deg, #ffffff20, transparent); }
+.snowd-glass .dashboard-shell .job-widget--in-progress {
+  background-color: #112b3b;
+  background-image: linear-gradient(145deg, #ffffff20, transparent);
+  border-color: #294653;
+}
 
 /* Native buttons retain their status tint, disabled state, and hit area. */
 .snowd-glass :where(button:not([role="switch"]), .btn-primary, .btn-secondary, .glass-button) {

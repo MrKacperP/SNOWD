@@ -177,7 +177,7 @@ export default function AnalyticsPage() {
               key={r}
               onClick={() => setTimeRange(r)}
               className={`px-3 py-1.5 rounded-md text-xs font-semibold transition ${
-                timeRange === r ? "bg-white text-[var(--accent)] shadow-[var(--surface-shadow)]" : "text-gray-500"
+                timeRange === r ? "bg-white text-[var(--accent)] shadow-[var(--surface-shadow)]" : "text-gray-600"
               }`}
             >
               {r === "7d" ? "7 Days" : r === "30d" ? "30 Days" : "90 Days"}
@@ -223,13 +223,13 @@ export default function AnalyticsPage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-lg font-bold">Your Ranking Score</h3>
-                <p className="text-white/70 text-sm mt-1">
+                <p className="text-white/90 text-sm mt-1">
                   Based on rating, completed jobs, and acceptance rate
                 </p>
               </div>
               <div className="text-right">
                 <p className="text-5xl font-extrabold">{rankScore}</p>
-                <p className="text-white/70 text-sm">/ 100</p>
+                <p className="text-white/90 text-sm">/ 100</p>
               </div>
             </div>
             <div className="mt-4 bg-white/20 rounded-full h-3 overflow-hidden">
@@ -240,7 +240,7 @@ export default function AnalyticsPage() {
                 className="h-full bg-white rounded-full"
               />
             </div>
-            <p className="text-xs text-white/70 mt-2">
+            <p className="text-xs text-white/90 mt-2">
               Higher scores rank you higher in search results. Complete more jobs and maintain a high rating to improve.
             </p>
           </motion.div>
@@ -257,7 +257,7 @@ export default function AnalyticsPage() {
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="flex bg-gray-100 rounded-lg p-0.5">
                     {(["area", "bar", "line"] as const).map((t) => (
-                      <button key={t} onClick={() => setChartType(t)} className={`px-2.5 py-1 text-xs rounded-md capitalize transition ${chartType === t ? "bg-white text-[var(--accent)] font-medium shadow-[var(--surface-shadow)]" : "text-gray-500"}`}>{t}</button>
+                      <button key={t} onClick={() => setChartType(t)} className={`px-2.5 py-1 text-xs rounded-md capitalize transition ${chartType === t ? "bg-white text-[var(--accent)] font-medium shadow-[var(--surface-shadow)]" : "text-gray-600"}`}>{t}</button>
                     ))}
                   </div>
                   <p className="text-xl font-bold text-green-600">${stats.totalEarnings}</p>
@@ -388,21 +388,21 @@ export default function AnalyticsPage() {
                   {Math.round(stats.totalRequests * 0.4)}
                 </p>
                 <p className="text-xs text-gray-600 mt-1">Before Snow Days</p>
-                <p className="text-[10px] text-gray-400">Advance bookings</p>
+                <p className="text-[10px] text-gray-600">Advance bookings</p>
               </div>
               <div className="text-center p-4 bg-[var(--accent)]/10 rounded-xl border border-[var(--accent)]/20">
                 <p className="text-2xl font-bold text-[var(--accent)]">
                   {Math.round(stats.totalRequests * 0.45)}
                 </p>
                 <p className="text-xs text-gray-600 mt-1">During Snow Days</p>
-                <p className="text-[10px] text-gray-400">Peak demand</p>
+                <p className="text-[10px] text-gray-600">Peak demand</p>
               </div>
               <div className="text-center p-4 bg-gray-50 rounded-xl">
                 <p className="text-2xl font-bold text-gray-700">
                   {Math.round(stats.totalRequests * 0.15)}
                 </p>
                 <p className="text-xs text-gray-600 mt-1">After Snow Days</p>
-                <p className="text-[10px] text-gray-400">Cleanup jobs</p>
+                <p className="text-[10px] text-gray-600">Cleanup jobs</p>
               </div>
             </div>
           </div>

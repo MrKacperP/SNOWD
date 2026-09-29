@@ -49,7 +49,7 @@
 .questions p { padding-bottom: 22px; font-size: 15px; color: var(--landing-muted); }
 .ready { background: #112b3b; color: #fff; border-radius: 20px; padding: 50px; display: flex; align-items: center; justify-content: space-between; gap: 36px; }
 .ready h2 { margin: 0; max-width: 620px; }
-.ready p { margin-top: 15px; color: #c5d6df; }
+.ready p { margin-top: 15px; color: #d4e2e8; }
 .ready .primary { flex-shrink: 0; }
 .earn { display: flex; align-items: center; gap: 24px; padding-block: 65px; }
 .earn > svg { width: 64px; height: 64px; padding: 17px; background: #e8f1f5; border-radius: 50%; flex-shrink: 0; }
@@ -125,7 +125,7 @@
 .nav > :is(a, div:not(:global(.glass-refraction))) { position: relative; z-index: 1; }
 .page :is(.login, .primary, .nearbyLabel, .visitPreview, .donePreview) { background-image: var(--glass-sheen); box-shadow: var(--glass-shadow); border: 1px solid var(--glass-border); }
 .page :is(.nearbyLabel, .visitPreview, .donePreview, .ready) { background-color: var(--glass-bg); -webkit-backdrop-filter: var(--glass-backdrop); backdrop-filter: var(--glass-backdrop); }
-.page .ready { background-image: var(--glass-sheen); border: 1px solid var(--glass-border); box-shadow: var(--glass-shadow); }
+.page .ready { background-color: rgba(17,43,59,.92); background-image: linear-gradient(145deg, rgba(255,255,255,.13), rgba(255,255,255,.02) 48%, rgba(71,117,140,.28)); border: 1px solid rgba(255,255,255,.48); box-shadow: var(--glass-shadow); }
 @media (max-width: 767px) { .nav { padding: 12px 16px; min-height: 72px; gap: 12px; } }
 @media (max-width: 700px) {
   .nav { padding-inline: 14px; }

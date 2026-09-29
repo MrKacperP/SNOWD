@@ -557,7 +557,7 @@ export default function ProfilePage() {
                   <CheckCircle className="w-5 h-5 text-green-600" />
                   <div className="flex-1">
                     <p className="text-sm font-medium text-green-700">Verified</p>
-                    <p className="text-xs text-green-600">Tap to view your uploaded ID</p>
+                    <p className="text-xs text-green-700">Tap to view your uploaded ID</p>
                   </div>
                   <ChevronRight className="w-4 h-4 text-green-500 shrink-0 group-hover:translate-x-0.5 transition-transform" />
                 </a>
@@ -566,7 +566,7 @@ export default function ProfilePage() {
                   <CheckCircle className="w-5 h-5 text-green-600" />
                   <div>
                     <p className="text-sm font-medium text-green-700">Verified</p>
-                    <p className="text-xs text-green-600">Your ID has been verified</p>
+                    <p className="text-xs text-green-700">Your ID has been verified</p>
                   </div>
                 </div>
               )
@@ -580,7 +580,7 @@ export default function ProfilePage() {
                 <Camera className="w-5 h-5 text-amber-600" />
                 <div className="flex-1">
                   <p className="text-sm font-medium text-amber-700">Pending Review</p>
-                  <p className="text-xs text-amber-600">Tap to view your uploaded ID</p>
+                  <p className="text-xs text-amber-800">Tap to view your uploaded ID</p>
                 </div>
                 <ChevronRight className="w-4 h-4 text-amber-500 shrink-0 group-hover:translate-x-0.5 transition-transform" />
               </a>
