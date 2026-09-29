@@ -187,7 +187,7 @@ export default function AnalyticsPage() {
       </div>
 
       {loading ? (
-        <div className="text-center py-12 text-gray-400">Loading analytics...</div>
+        <div className="text-center py-12 text-gray-600">Loading analytics...</div>
       ) : (
         <>
           {/* Stats Grid */}
@@ -267,16 +267,16 @@ export default function AnalyticsPage() {
                 {chartType === "bar" ? (
                   <BarChart data={earningsData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#94A3B8" />
-                    <YAxis tick={{ fontSize: 11 }} stroke="#94A3B8" tickFormatter={(v) => `$${v}`} />
+                    <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#475569" />
+                    <YAxis tick={{ fontSize: 11 }} stroke="#475569" tickFormatter={(v) => `$${v}`} />
                     <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid var(--border-color)", boxShadow: "var(--surface-shadow-strong)", background: "var(--card)", color: "var(--text-primary)" }} formatter={(value: number | undefined) => [`$${value ?? 0}`, "Earnings"]} />
                     <Bar dataKey="earnings" fill="#061321" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 ) : chartType === "line" ? (
                   <LineChart data={earningsData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#94A3B8" />
-                    <YAxis tick={{ fontSize: 11 }} stroke="#94A3B8" tickFormatter={(v) => `$${v}`} />
+                    <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#475569" />
+                    <YAxis tick={{ fontSize: 11 }} stroke="#475569" tickFormatter={(v) => `$${v}`} />
                     <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid var(--border-color)", boxShadow: "var(--surface-shadow-strong)", background: "var(--card)", color: "var(--text-primary)" }} formatter={(value: number | undefined) => [`$${value ?? 0}`, "Earnings"]} />
                     <Line type="monotone" dataKey="earnings" stroke="#061321" strokeWidth={2} dot={{ r: 3, fill: "#061321" }} />
                   </LineChart>
@@ -289,8 +289,8 @@ export default function AnalyticsPage() {
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#94A3B8" />
-                    <YAxis tick={{ fontSize: 11 }} stroke="#94A3B8" tickFormatter={(v) => `$${v}`} />
+                    <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#475569" />
+                    <YAxis tick={{ fontSize: 11 }} stroke="#475569" tickFormatter={(v) => `$${v}`} />
                     <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid var(--border-color)", boxShadow: "var(--surface-shadow-strong)", background: "var(--card)", color: "var(--text-primary)" }} formatter={(value: number | undefined) => [`$${value ?? 0}`, "Earnings"]} />
                     <Area type="monotone" dataKey="earnings" stroke="#061321" strokeWidth={2} fill="url(#earningsGradient)" />
                   </AreaChart>
@@ -334,7 +334,7 @@ export default function AnalyticsPage() {
                   </div>
                 </>
               ) : (
-                <div className="text-center py-8 text-gray-400">
+                <div className="text-center py-8 text-gray-600">
                   <BarChart3 className="w-8 h-8 mx-auto mb-2 opacity-50" />
                   <p className="text-sm">No job data yet</p>
                 </div>
@@ -438,7 +438,7 @@ function HotspotGrid({ jobs }: { jobs: Job[] }) {
   const maxCount = cityData.length > 0 ? cityData[0][1].count : 1;
 
   if (cityData.length === 0) {
-    return <p className="text-sm text-gray-400 text-center py-8">No job data available yet</p>;
+    return <p className="text-sm text-gray-600 text-center py-8">No job data available yet</p>;
   }
 
   return (
@@ -456,8 +456,8 @@ function HotspotGrid({ jobs }: { jobs: Job[] }) {
           >
             <MapPin className="w-5 h-5 mx-auto mb-1" style={{ color: `rgba(36, 110, 185, ${0.4 + intensity * 0.6})` }} />
             <p className="font-bold text-sm text-gray-900">{city}</p>
-            <p className="text-xs text-[var(--accent)] font-semibold">{data.count} jobs</p>
-            <p className="text-xs text-gray-500">${data.earnings}</p>
+            <p className="text-xs text-[#17438f] font-semibold">{data.count} jobs</p>
+            <p className="text-xs text-gray-700">${data.earnings}</p>
           </div>
         );
       })}
