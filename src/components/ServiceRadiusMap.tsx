@@ -19,6 +19,7 @@ interface ServiceRadiusMapProps {
   lat?: number;
   lng?: number;
   serviceAreas?: OperatorServiceArea[];
+  serviceAreaMode?: "radius" | "cities";
 }
 
 const mapContainerStyle = {
@@ -36,10 +37,12 @@ export default function ServiceRadiusMap({
   lat,
   lng,
   serviceAreas = [],
+  serviceAreaMode = serviceAreas.length ? "cities" : "radius",
 }: ServiceRadiusMapProps) {
   const fullAddress = `${address}, ${city}, ${province}, ${postalCode}, Canada`;
 
   if (!hasGoogleMapsApiKey) {
+    if (serviceAreaMode === "cities") return <p className="p-4 text-sm">Selected cities: {serviceAreas.map(area => `${area.city}, ${area.provinceCode}`).join("; ") || "None yet"}. The coverage map is unavailable.</p>;
     return (
       <div className="relative">
         <iframe
@@ -52,7 +55,7 @@ export default function ServiceRadiusMap({
           src={buildGoogleMapsEmbedUrl(fullAddress, 12)}
         />
         <div className="mt-2 text-xs text-gray-500 text-center">
-          Service area: {radiusKm} km radius
+          Service area: {radiusKm} km radius. Radius overlay unavailable in this map preview.
           {!address && " • Approximate service area"}
         </div>
       </div>
@@ -69,6 +72,7 @@ export default function ServiceRadiusMap({
       lng={lng}
       radiusKm={radiusKm}
       serviceAreas={serviceAreas}
+      serviceAreaMode={serviceAreaMode}
     />
   );
 }
@@ -82,6 +86,7 @@ function ServiceRadiusMapWithApi({
   lat,
   lng,
   serviceAreas = [],
+  serviceAreaMode = "radius",
 }: ServiceRadiusMapProps) {
   const fullAddress = `${address}, ${city}, ${province}, ${postalCode}, Canada`;
   const { isLoaded, loadError } = useJsApiLoader({
@@ -93,6 +98,16 @@ function ServiceRadiusMapWithApi({
   const [locationError, setLocationError] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const mapRef = useRef<google.maps.Map | null>(null);
+  const fitCoverage = useCallback((map: google.maps.Map) => {
+    if (serviceAreaMode === "cities") {
+      const bounds = new google.maps.LatLngBounds();
+      serviceAreas.forEach(area => area.bounds ? bounds.union(area.bounds) : bounds.extend({ lat: area.lat, lng: area.lng }));
+      if (!bounds.isEmpty()) map.fitBounds(bounds);
+    } else if (center) {
+      const bounds = new google.maps.Circle({ center, radius: radiusKm * 1000 }).getBounds();
+      if (bounds) map.fitBounds(bounds);
+    }
+  }, [center, radiusKm, serviceAreas, serviceAreaMode]);
 
   const geocodeAddress = useCallback(async () => {
     if (!isLoaded) return;
@@ -126,24 +141,11 @@ function ServiceRadiusMapWithApi({
     geocodeAddress();
   }, [geocodeAddress]);
 
-  // Keep the home radius and every selected city visible.
+  // Frame only the active coverage method.
   useEffect(() => {
     if (!mapRef.current || !isLoaded || !center) return;
-    
-    const radiusMeters = radiusKm * 1000;
-    const circle = new google.maps.Circle({
-      center: center,
-      radius: radiusMeters,
-    });
-    const bounds = circle.getBounds();
-    if (bounds) {
-      serviceAreas.forEach(area => {
-        if (area.bounds) bounds.union(area.bounds);
-        else bounds.extend({ lat: area.lat, lng: area.lng });
-      });
-      mapRef.current.fitBounds(bounds);
-    }
-  }, [center, radiusKm, isLoaded, serviceAreas]);
+    fitCoverage(mapRef.current);
+  }, [center, isLoaded, fitCoverage]);
 
   if (loadError) {
     return (
@@ -161,7 +163,7 @@ function ServiceRadiusMapWithApi({
     );
   }
 
-  if (!center) return <div className="flex h-[400px] items-center justify-center rounded-xl bg-gray-100 p-6 text-center text-sm text-gray-600">{locationError ? `Map unavailable. Service area: ${radiusKm} km around ${city}, ${province}.` : "Locating service area..."}</div>;
+  if (!center) return <div className="flex h-[400px] items-center justify-center rounded-xl bg-gray-100 p-6 text-center text-sm text-gray-600">{locationError ? serviceAreaMode === "cities" ? `Map unavailable. Selected cities: ${serviceAreas.map(area => area.city).join(", ") || "None yet"}.` : `Map unavailable. Service area: ${radiusKm} km around ${city}, ${province}.` : "Locating service area..."}</div>;
 
   const mapOptions: google.maps.MapOptions = {
     disableDefaultUI: false,
@@ -198,19 +200,15 @@ function ServiceRadiusMapWithApi({
         options={mapOptions}
         onLoad={(map) => {
           mapRef.current = map;
-          const bounds = new google.maps.Circle({ center, radius: radiusKm * 1000 }).getBounds();
-          if (bounds) {
-            serviceAreas.forEach(area => area.bounds ? bounds.union(area.bounds) : bounds.extend({ lat: area.lat, lng: area.lng }));
-            map.fitBounds(bounds);
-          }
+          fitCoverage(map);
         }}
       >
-        <Circle
+        {serviceAreaMode === "radius" && <Circle
           center={center}
           radius={radiusKm * 1000}
           options={circleOptions}
-        />
-        {serviceAreas.map(area => (
+        />}
+        {serviceAreaMode === "cities" && serviceAreas.map(area => (
           <React.Fragment key={area.placeId}>
             {area.bounds && <Rectangle bounds={area.bounds} options={{ strokeColor: "#ff7a00", strokeWeight: 2, fillColor: "#ff7a00", fillOpacity: 0.14 }} />}
             <Marker position={{ lat: area.lat, lng: area.lng }} label={{ text: area.city, color: "#061321", fontWeight: "700" }} title={`${area.city}, ${area.provinceCode}`} />
@@ -219,7 +217,7 @@ function ServiceRadiusMapWithApi({
       </GoogleMap>
 
       <div className="mt-2 text-xs text-gray-500 text-center">
-        Service area: {radiusKm} km home radius{serviceAreas.length ? ` plus ${serviceAreas.length} ${serviceAreas.length === 1 ? "city" : "cities"}` : ""}
+        {serviceAreaMode === "cities" ? `Selected cities: ${serviceAreas.map(area => area.city).join(", ") || "None yet"}. Shaded boxes show approximate city extents; coverage uses city names.` : `Service area: ${radiusKm} km home radius`}
         {!address && " • Approximate service area"}
       </div>
     </div>

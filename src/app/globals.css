@@ -1,7 +1,6 @@
 @import "tailwindcss" source("../");
 
-/* Dark styles are opt-in through the saved snowd display preference. */
-@custom-variant dark (&:where(.dark, .dark *));
+html { color-scheme: only light; }
 
 * {
   box-sizing: border-box;
@@ -28,7 +27,7 @@ h6,
 }
 
 :root {
-  color-scheme: light;
+  color-scheme: only light;
   --ink: #112b3b;
   --ink-2: #294653;
   --ink-3: #526873;
@@ -76,46 +75,8 @@ h6,
   --surface-shadow-strong: 0 12px 32px rgba(17, 43, 59, 0.09);
 }
 
-html.dark {
-  --ink: #f2f7fb;
-  --ink-2: #d8e4ec;
-  --ink-3: #9fb0be;
-  --sky: #172a38;
-  --ice: #09131c;
-  --card: #13212d;
-  --card-soft: #13212d;
-  --border: #304453;
-  --border-soft: #263a49;
-  --accent: #3269da;
-  --accent-dark: #4278e8;
-  --accent-soft: #1b3648;
-  --accent-glow: rgba(113, 176, 211, 0.18);
-  --surface-blue: #172f3f;
-  --surface-green: #142f29;
-  --surface-blue-border: #35556a;
-  --surface-green-border: #2c5246;
-  --text-primary: #f2f7fb;
-  --text-secondary: #c1ced8;
-  --text-muted: #9fb0be;
-  --bg-primary: #09131c;
-  --bg-secondary: #172a38;
-  --bg-card: #13212d;
-  --bg-card-solid: #13212d;
-  --glass-bg: #13212d;
-  --glass-border: #304453;
-  --glass-shadow: 0 2px 12px rgba(0, 0, 0, 0.24);
-  --surface-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-  --surface-shadow-strong: 0 8px 24px rgba(0, 0, 0, 0.3);
-}
 
-html.dark .dashboard-shell :is(input, select, textarea) {
-  background-color: var(--card);
-  color: var(--text-primary);
-}
 
-html.dark .dashboard-shell :is(.bg-white, .bg-white\/95, .bg-white\/90) {
-  background-color: var(--card) !important;
-}
 
 @theme inline {
   --color-accent: var(--accent);
@@ -803,6 +764,7 @@ html { scroll-padding-top: 6rem; }
 /* Menus float beside the sidebar without changing its layout. */
 @media (min-width: 1024px) {
   .joined-menu-panel { position: fixed; left: 260px; bottom: 24px; z-index: 60; width: min(360px, calc(100vw - 280px)); max-height: min(70dvh, 520px); border: 1px solid var(--border-color); border-radius: 18px; background: var(--bg-card-solid); box-shadow: var(--surface-shadow-strong); }
+  .notification-popover { bottom: auto; max-height: calc(100dvh - 32px); }
 }
 .visit-timing { display: inline-flex; flex-wrap: wrap; gap: 6px; padding: 8px 12px; border-radius: 10px; background: #eef2f8; color: #263b60; font-weight: 600; font-size: 13px; }
 .visit-timing[data-asap="true"] { background: #e7f5eb; color: #17663a; }
@@ -845,8 +807,6 @@ html { scroll-padding-top: 6rem; }
 .dashboard-shell .job-widget--in-progress :is(a, button):not(.btn-primary) { color: #fff; }
 .dashboard-shell .job-widget--in-progress .btn-primary { border-color: #fff; background: #fff; color: #112b3b; }
 
-html.dark .dashboard-shell { background: var(--bg-primary); }
-html.dark .dashboard-shell :is(.next-action, .dashboard-widget) { color: var(--text-primary); }
 
 /* Mobile product foundation: one type scale, safe areas and quiet feedback. */
 .dashboard-shell { --app-header-height: calc(64px + env(safe-area-inset-top)); }
@@ -877,10 +837,6 @@ html.dark .dashboard-shell :is(.next-action, .dashboard-widget) { color: var(--t
 .availability-track-glow, .availability-thumb-shine { display: none; }
 .availability-toggle[data-online="true"] .availability-track { background: #218365; box-shadow: none; }
 .availability-toggle[data-online="true"] .availability-thumb { box-shadow: 0 1px 4px #112b3b26; }
-html.dark { color-scheme: dark; --success: #70cbaa; }
-html.dark .dashboard-shell :is(.bg-gray-50, .bg-gray-100) { background: var(--bg-secondary); }
-html.dark .dashboard-shell :is(.text-gray-500, .text-gray-600, .text-gray-700, .text-gray-800) { color: var(--text-secondary); }
-html.dark .dashboard-shell [class~="bg-[var(--ink)]"] { background: #163547; }
 @media (min-width: 640px) { .app-modal-panel::before { display: none; } }
 @media (min-width: 1024px) { .dashboard-main { padding-top: 24px; } }
 @media (max-width: 639px) {

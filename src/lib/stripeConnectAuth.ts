@@ -15,7 +15,12 @@ export async function requireStripeOperator(req: NextRequest, accountId?: string
   if (profile?.role !== "operator") throw new Error("An operator account is required.");
   if (accountId) {
     if (profile.stripeConnectAccountId !== accountId) throw new Error("This Stripe account does not belong to you.");
-    const account = await getStripe().accounts.retrieve(accountId);
+    const account = await getStripe().accounts.retrieve(accountId).catch((error: { code?: string }) => {
+      if (error.code === "account_invalid" || error.code === "resource_missing") {
+        throw new Error("Your previous Stripe account is unavailable in this payment environment. Select Connect or Continue setup to connect a live payout account.");
+      }
+      throw error;
+    });
     if (account.metadata?.operatorId !== user.uid) throw new Error("This Stripe account does not belong to you.");
   }
   return { uid: user.uid, email: user.email, profile };

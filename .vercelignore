@@ -1,0 +1,12 @@
+node_modules
+.next
+.next-*
+.codex-artifacts
+.git
+.vscode
+snowd-app
+firebase-debug.log
+firestore-debug.log
+*.dst
+*.swift
+wordmark-paths.json

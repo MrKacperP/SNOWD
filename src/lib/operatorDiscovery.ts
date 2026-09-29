@@ -62,7 +62,8 @@ export function isClientWithinOperatorRadius(client: ClientProfile, operator: Op
     const sameProvince = clientProvince === normalizeAddress(area.province) || clientProvince === normalizeAddress(area.provinceCode);
     return sameCity && sameProvince;
   });
-  if (cityCovered) return true;
+  if (operator.serviceAreaMode === "cities") return Boolean(cityCovered);
+  if (operator.serviceAreaMode !== "radius" && cityCovered) return true;
   const radius = toFiniteNumber(operator.serviceRadius) ?? DEFAULT_SERVICE_RADIUS_KM;
   if (radius <= 0) return false;
 

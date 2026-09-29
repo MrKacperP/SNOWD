@@ -3,7 +3,7 @@ import { jobDisplayPrice } from "@/lib/marketplacePricing";
 import CompanyIdentity from "@/components/CompanyIdentity";
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, CalendarClock, MapPin, WalletCards } from "lucide-react";
+import { ArrowRight, CalendarClock, CheckCheck, ClipboardList, Hourglass, MapPin, WalletCards } from "lucide-react";
 import { useWorkOrders } from "@/hooks/useWorkOrders";
 import {
   dateMillis,
@@ -58,36 +58,41 @@ export default function WorkOrdersPage({
         const expanded = isOperator || !!expandedGroups[personId];
         if (!schedule) return (
           <section key={personId} className={styles.companyGroup}>
-            <button
-              type="button"
-              className={`${styles.companySummary} w-full text-left`}
-              aria-expanded={expanded}
-              onClick={() => {
-                if (!isOperator) setExpandedGroups(current => ({ ...current, [personId]: !current[personId] }));
-              }}
-            >
-              <span className={styles.companyInfo}>
-                <CompanyIdentity person={people[personId]} name={names[personId] || (isOperator ? "Customer" : "Company")} />
-                <span className={styles.companyMeta}>{personOrders.length} work order{personOrders.length === 1 ? "" : "s"}</span>
-              </span>
-              {!isOperator && <span className={styles.companyChevron} aria-hidden="true">›</span>}
-            </button>
-            {expanded && <><div className={styles.companyTools}>
-              <label className={styles.companyFilter}>
-                <span>View work orders</span>
-                <select
-                  aria-label={`Filter work orders for ${names[personId] || (isOperator ? "customer" : "operator")}`}
-                  value={groupFilter}
-                  onChange={(event) => setGroupFilters(current => ({ ...current, [personId]: event.target.value }))}
-                >
-                  {GROUP_FILTERS.map(([key, label]) => (
-                    <option key={key} value={key}>
-                      {label} ({personOrders.filter(job => key === "all" || job.status === key).length})
-                    </option>
-                  ))}
-                </select>
-              </label>
+            <div className={styles.companyHeader}>
+              <button
+                type="button"
+                className={`${styles.companySummary} text-left`}
+                aria-expanded={expanded}
+                aria-disabled={isOperator}
+                data-expandable={!isOperator}
+                onClick={() => {
+                  if (!isOperator) setExpandedGroups(current => ({ ...current, [personId]: !current[personId] }));
+                }}
+              >
+                <span className={styles.companyInfo}>
+                  <CompanyIdentity person={people[personId]} name={names[personId] || (isOperator ? "Customer" : "Company")} />
+                  <span className={styles.companyMeta}>{personOrders.length} work order{personOrders.length === 1 ? "" : "s"}</span>
+                </span>
+                {!isOperator && <span className={styles.companyChevron} aria-hidden="true">›</span>}
+              </button>
+              {expanded && <div className={styles.companyTools}>
+                <label className={styles.companyFilter}>
+                  <span>Show</span>
+                  <select
+                    aria-label={`Filter work orders for ${names[personId] || (isOperator ? "customer" : "operator")}`}
+                    value={groupFilter}
+                    onChange={(event) => setGroupFilters(current => ({ ...current, [personId]: event.target.value }))}
+                  >
+                    {GROUP_FILTERS.map(([key, label]) => (
+                      <option key={key} value={key}>
+                        {label} ({personOrders.filter(job => key === "all" || job.status === key).length})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>}
             </div>
+            {expanded && <>
             <ul className={styles.companyList}>
               {visibleOrders.map(job => (
                 <li key={job.id}>
@@ -98,14 +103,14 @@ export default function WorkOrdersPage({
                     </span>
                     <span className={styles.orderHighlights}>
                       <span className={styles.orderHighlight}>
-                        <CalendarClock aria-hidden="true" size={20} />
+                        <CalendarClock aria-hidden="true" size={18} strokeWidth={1.8} />
                         <span>
                           <span className={styles.orderHighlightLabel}>Date and time</span>
                           <strong>{scheduleText(job)}</strong>
                         </span>
                       </span>
                       <span className={styles.orderHighlight}>
-                        <WalletCards aria-hidden="true" size={20} />
+                        <WalletCards aria-hidden="true" size={18} strokeWidth={1.8} />
                         <span>
                           <span className={styles.orderHighlightLabel}>Payment amount</span>
                           <strong className={styles.orderPrice}>${jobDisplayPrice(job, isOperator).toFixed(2)} CAD</strong>
@@ -113,15 +118,13 @@ export default function WorkOrdersPage({
                         </span>
                       </span>
                     </span>
+                    {orderActionNeeded(job, uid) && <span className={styles.rowAction}>{orderActionNeeded(job, uid)}</span>}
                     <span className={styles.orderRowFooter}>
                       <span className={styles.orderAddress}>
                         <MapPin aria-hidden="true" size={16} />
                         {job.address || "Address to be confirmed"}
                       </span>
-                      <span className={styles.orderView}>View order <ArrowRight aria-hidden="true" size={16} /></span>
-                    </span>
-                    <span className={styles.orderRowMain}>
-                      {orderActionNeeded(job, uid) && <span className={styles.rowAction}>{orderActionNeeded(job, uid)}</span>}
+                      <span className={styles.orderView}>View order <ArrowRight aria-hidden="true" size={17} /></span>
                     </span>
                   </Link>
                 </li>
@@ -144,6 +147,7 @@ export default function WorkOrdersPage({
     <div className={styles.page}>
       <header className={styles.header}>
         <div>
+          <p className={styles.eyebrow}>{schedule ? "Your calendar" : history ? "Past activity" : "Your workspace"}</p>
           <h1 className="font-headline text-3xl font-bold">
             {schedule ? "Schedule" : history ? "Job history" : "Work orders"}
           </h1>
@@ -172,6 +176,21 @@ export default function WorkOrdersPage({
           {error}
         </p>
       )}
+      {!schedule && !history && <section className={styles.overview} aria-label="Work order summary">
+        <div className={styles.activeCard}>
+          <div className={styles.activeTopline}><span>Active work orders</span><ClipboardList aria-hidden="true" size={22} /></div>
+          <strong className={styles.activeCount}>{loading || error ? "—" : jobs.filter(job => ["accepted", "en-route", "in-progress"].includes(job.status)).length}</strong>
+          <div className={styles.activeFooter}><span>Accepted and underway</span><a href="#work-order-list">View work orders <ArrowRight aria-hidden="true" size={16} /></a></div>
+        </div>
+        <div className={styles.summaryCard}>
+          <span className={`${styles.summaryIcon} ${styles.amber}`}><Hourglass aria-hidden="true" size={21} /></span>
+          <div><span>Awaiting confirmation</span><strong>{loading || error ? "—" : jobs.filter(job => job.status === "pending").length}</strong><small>Requests to review</small></div>
+        </div>
+        <div className={styles.summaryCard}>
+          <span className={styles.summaryIcon}><CheckCheck aria-hidden="true" size={21} /></span>
+          <div><span>Completed</span><strong>{loading || error ? "—" : jobs.filter(job => job.status === "completed").length}</strong><small>Finished work orders</small></div>
+        </div>
+      </section>}
       {loading ? (
         <p role="status">Loading work orders…</p>
       ) : schedule ? (
@@ -263,7 +282,7 @@ export default function WorkOrdersPage({
               ? "Completed and cancelled work orders, with the most recent first."
               : `Choose ${isOperator ? "a customer" : "an operator"} to see their newest work orders and filter that list.`}
           </p>
-          <div className="space-y-4">
+          <div id="work-order-list" className="space-y-4">
             {cards(
               history ? matching.filter((job) => orderSection(job, uid) === "history") : matching,
               search.trim()

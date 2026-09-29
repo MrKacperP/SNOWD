@@ -13,6 +13,10 @@ body.snowd-glass {
   --border-color: var(--border);
   --border-subtle: var(--border-soft);
   --glass-bg: rgba(255, 255, 255, .62);
+  /* Chrome and transient UI need a firmer visual floor than ambient cards.
+     Keeping separate tokens prevents page copy from showing through controls. */
+  --glass-chrome-bg: rgba(248, 251, 255, .88);
+  --glass-overlay-bg: rgba(250, 252, 255, .96);
   --glass-border: rgba(255, 255, 255, .86);
   --glass-sheen: linear-gradient(145deg, rgba(255,255,255,.58), rgba(255,255,255,.06) 48%, rgba(194,221,255,.15));
   --glass-shadow: inset 0 1px 0 rgba(255,255,255,.95), inset 0 -1px 0 rgba(255,255,255,.35), 0 8px 30px rgba(43,78,125,.08);
@@ -73,11 +77,20 @@ body.snowd-glass {
 .snowd-glass :is(input, select, textarea):focus { border-color: var(--accent); background-color: rgba(255,255,255,.94); }
 .snowd-glass [aria-invalid="true"] { border-color: var(--danger); }
 .snowd-glass :is(.dashboard-topbar, .dashboard-sidebar, .admin-shell .admin-header, .admin-shell .admin-sidebar, .admin-sidebar-footer) {
-  background: var(--glass-bg);
+  background: var(--glass-chrome-bg);
   border-color: var(--glass-border);
   box-shadow: var(--glass-shadow);
   -webkit-backdrop-filter: var(--glass-backdrop);
   backdrop-filter: var(--glass-backdrop);
+}
+.snowd-glass .glass-readable-overlay {
+  background-color: var(--glass-overlay-bg);
+  background-image: linear-gradient(145deg, rgba(255,255,255,.72), rgba(235,243,255,.18));
+  border-color: rgba(255,255,255,.96);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.98), 0 24px 70px rgba(24,49,78,.24);
+  -webkit-backdrop-filter: blur(28px) saturate(120%);
+  backdrop-filter: blur(28px) saturate(120%);
+  isolation: isolate;
 }
 .snowd-glass :is(.desktop-navigation a[aria-current="page"], .admin-nav-link[data-active="true"]) {
   background: linear-gradient(135deg, #ffffffcc, #d9e9ff99);
@@ -116,12 +129,12 @@ body.snowd-glass {
 }
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
   body.snowd-glass {
-    --glass-bg: #fff; --card: #fff; --card-soft: #fff;
+    --glass-bg: #fff; --glass-chrome-bg: #fff; --glass-overlay-bg: #fff; --card: #fff; --card-soft: #fff;
     --glass-sheen: none; --glass-border: #93a8c0; --glass-backdrop: none;
     --glass-wallpaper: linear-gradient(#f1f5fa, #f1f5fa);
     --bg-secondary: #e9eff7; --surface-blue: #e5efff; --surface-green: #e5f3ea;
   }
-  .snowd-glass :is(.dashboard-topbar, .dashboard-sidebar, .admin-header, .admin-sidebar, .app-modal-panel, .auth-frame, .auth-welcome) { background: #fff; backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .snowd-glass :is(.dashboard-topbar, .dashboard-sidebar, .admin-header, .admin-sidebar, .app-modal-panel, .glass-readable-overlay, .auth-frame, .auth-welcome) { background: #fff; backdrop-filter: none; -webkit-backdrop-filter: none; }
   .glass-refraction { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {

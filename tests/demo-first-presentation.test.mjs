@@ -36,3 +36,8 @@ test("work order presentation exposes one next action and honest payment copy", 
   assert.equal(complete.title, "All clear.");
   assert.match(complete.paymentMessage, /successful/i);
 });
+
+test("the client dashboard keeps the work order accessible beside required actions", () => {
+  const source = fs.readFileSync("src/components/dashboard/ClientDashboard.tsx", "utf8");
+  assert.match(source, /orderActionNeeded\(nextJob, nextJob\.clientId\)[\s\S]*href=\{`\/dashboard\/jobs\/\$\{nextJob\.id\}`\}>View work order<\/Link>/);
+});

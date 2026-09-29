@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { googleSignInError } from "@/lib/authErrors";
@@ -17,19 +17,23 @@ const steps = [
   "Pick your services. You’re ready to go.",
 ];
 
-export default function SignUpPage() {
+function SignUpPageInner() {
   const { user, profile, loading: authLoading, signInWithGoogle } = useAuth();
   const router = useRouter();
+  const params = useSearchParams();
+  const role = params.get("role");
+  const selectedRole = role === "client" || role === "operator" ? role : null;
+  const onboardingPath = selectedRole ? `/onboarding?role=${selectedRole}` : "/onboarding";
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   useEffect(() => {
     if (!authLoading && user) {
       router.replace(
-        profile?.onboardingComplete ? "/dashboard" : "/onboarding",
+        profile?.onboardingComplete ? "/dashboard" : onboardingPath,
       );
     }
-  }, [authLoading, user, profile, router]);
+  }, [authLoading, user, profile, router, onboardingPath]);
 
   const checkExistingProfile = async (uid: string) => {
     try {
@@ -37,10 +41,10 @@ export default function SignUpPage() {
       if (docSnap.exists() && docSnap.data()?.onboardingComplete) {
         router.replace("/dashboard");
       } else {
-        router.push("/onboarding");
+        router.push(onboardingPath);
       }
     } catch {
-      router.push("/onboarding");
+      router.push(onboardingPath);
     }
   };
 
@@ -64,7 +68,7 @@ export default function SignUpPage() {
       eyebrow="guided setup"
       title="start clearing"
       body="Less setup. More snow days. A little help for your home, or your next opportunity to earn."
-      features={steps}
+      features={selectedRole ? [selectedRole === "operator" ? "Shoveler selected. Get ready to earn." : "Homeowner selected. Find snow help.", ...steps.slice(1)] : steps}
     >
       <motion.div
         initial={{ opacity: 0, y: 18 }}
@@ -80,7 +84,7 @@ export default function SignUpPage() {
             Create your account<span className="text-[#ff820e]">.</span>
           </h2>
           <p className="mt-2 text-sm font-bold leading-5 text-[#061321]/62 sm:text-base">
-            Sign up with Google, then choose homeowner or shoveler and add your details.
+            {selectedRole === "operator" ? "Sign up as a shoveler, then add your address and service area." : selectedRole === "client" ? "Sign up as a homeowner, then add the address you need cleared." : "Sign up with Google, then choose homeowner or shoveler and add your details."}
           </p>
 
           <div className="mt-4 space-y-3">
@@ -127,4 +131,8 @@ export default function SignUpPage() {
       </motion.div>
     </AuthPageShell>
   );
+}
+
+export default function SignUpPage() {
+  return <Suspense fallback={<main role="status">Loading signup…</main>}><SignUpPageInner /></Suspense>;
 }

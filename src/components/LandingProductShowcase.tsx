@@ -67,7 +67,7 @@ export default function LandingProductShowcase() {
               <div className={styles.snowTotal}><Snowflake size={17} /><strong>8 jobs</strong><span>cleared this winter</span></div>
             </aside>
             <div className={styles.dashboard}>
-              <div className={styles.welcome}><div><small>GOOD MORNING</small><h3>Your snow day</h3></div><Link href="/signup"><Shovel size={14} /> Book snow help</Link></div>
+              <div className={styles.welcome}><div><small>GOOD MORNING</small><h3>Your snow day</h3></div><Link href="/signup?role=client"><Shovel size={14} /> Book snow help</Link></div>
               <div className={styles.stats}>
                 <div><span><CalendarDays size={16} /> Next visit</span><strong>Today</strong><small>11:30 AM</small></div>
                 <div><span><CircleDollarSign size={16} /> Winter spend</span><strong>$218</strong><small>6 completed jobs</small></div>
@@ -75,7 +75,7 @@ export default function LandingProductShowcase() {
               </div>
               {view === "jobs" ? (
                 <div className={styles.panel}>
-                  <div className={styles.panelTitle}><div><h4>Upcoming help</h4><span>Live updates from your neighbourhood</span></div><Link href="/signup">View all</Link></div>
+                  <div className={styles.panelTitle}><div><h4>Upcoming help</h4><span>Live updates from your neighbourhood</span></div><Link href="/signup?role=client">View all</Link></div>
                   <div className={styles.jobHead}><span>SHOVELER</span><span>SERVICE</span><span>WHEN</span><span>STATUS</span><span>PRICE</span></div>
                   {jobs.map((job) => <div className={styles.job} key={job.person}><span><i>{job.person[0]}</i><b>{job.person}<small><MapPin size={9} /> {job.place}</small></b></span><span>{job.service}</span><span>{job.time}</span><em>{job.status}</em><strong>{job.price}</strong></div>)}
                 </div>

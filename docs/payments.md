@@ -55,3 +55,9 @@ Either participant can cancel pending, accepted, en-route or in-progress work. C
 New server-created bookings persist client `price` in CAD, `operatorAmount` and `platformFeeAmount` in cents, and `pricingVersion: 2`. The Stripe application fee is the saved client total minus the operator payout. SNOWD bears Stripe processing fees. The settings payment page discloses the 30% share; work orders and receipts show the participant’s corresponding amount. Legacy bookings retain their 15% allocation and original client price.
 
 Live deployment still requires the platform’s live Connect activation, live publishable/secret keys, and signed live webhook destinations. Test connected accounts cannot be reused with live keys. Canadian Express onboarding collects each operator’s own legal business type and banking details. Authorization expiry and bank settlement delays still apply.
+
+## Recovery when switching from sandbox to live
+
+Production uses live Stripe keys; a sandbox connected-account ID cannot be used with those keys. Payment settings now always resolve the saved account through the authenticated create/resume endpoint before opening embedded onboarding. An inaccessible account (`account_invalid` or `resource_missing`) can be replaced after checking platform activation. The replacement is an Express account associated with the authenticated operator; readiness resets until Stripe verifies the operator's live details. The old ID is retained as `stripePreviousConnectAccountId` for support. Ownership failures, transient API failures and concurrent profile changes do not overwrite the destination. Existing job and payment records remain unchanged.
+
+An operator encountering the previous account-access error should open Settings → Payment and select **Connect with Stripe**, then complete live identity and bank verification. Test identity/bank details do not migrate to live mode. No real card payment is created as a deployment test.

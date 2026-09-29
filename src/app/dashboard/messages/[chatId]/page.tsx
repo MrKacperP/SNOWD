@@ -1488,7 +1488,8 @@ export default function ChatPage() {
           </Link>
         )}
         <div
-          className={`max-w-[82%] px-4 py-3 rounded-[1.2rem] shadow-[var(--surface-shadow)] sm:max-w-[72%] ${
+          data-sender={isOwn ? "self" : "other"}
+          className={`message-surface max-w-[82%] px-4 py-3 rounded-[1.2rem] shadow-[var(--surface-shadow)] sm:max-w-[72%] ${
             isOwn
               ? "bg-[var(--accent)] text-white rounded-br-sm border border-[var(--accent)]"
               : "bg-white text-[var(--text-primary)] rounded-bl-sm border-[3px] border-[var(--border-color)]"
@@ -1524,9 +1525,9 @@ export default function ChatPage() {
     <div className="chat-workspace flex w-full min-h-0 gap-0">
       {feedback && <Notification message={feedback.message} type={feedback.type} onClose={() => setFeedback(null)} />}
       {/* Chat Column */}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-y border-r border-[var(--border-color)] bg-[var(--bg-card-solid)] xl:border-l">
+      <div className="conversation-panel flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-y border-r border-[var(--border-color)] bg-[var(--bg-card-solid)] xl:border-l">
         {/* Chat Header */}
-        <div className="flex shrink-0 items-center gap-3 border-b border-[var(--border-soft)] bg-white/95 px-3 py-3 backdrop-blur sm:px-4">
+        <div className="conversation-header flex shrink-0 items-center gap-3 border-b border-[var(--border-soft)] bg-white/95 px-3 py-3 backdrop-blur sm:px-4">
           <Link
             href="/dashboard/messages"
             className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]"
@@ -1588,7 +1589,7 @@ export default function ChatPage() {
         </div>
 
         {/* Message Input */}
-        <div className="sticky bottom-0 z-20 shrink-0 border-t border-[var(--border-soft)] bg-white/95 px-2.5 pb-[max(10px,env(safe-area-inset-bottom))] pt-2.5 shadow-[var(--surface-shadow)] backdrop-blur sm:px-4">
+        <div className="conversation-composer sticky bottom-0 z-20 shrink-0 border-t border-[var(--border-soft)] bg-white/95 px-2.5 pb-[max(10px,env(safe-area-inset-bottom))] pt-2.5 shadow-[var(--surface-shadow)] backdrop-blur sm:px-4">
           <input
             ref={fileInputRef}
             type="file"

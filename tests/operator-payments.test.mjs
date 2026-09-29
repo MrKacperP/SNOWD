@@ -17,6 +17,17 @@ function load(path, mocks = {}, env = {}) {
   return exports;
 }
 const discovery = load('src/lib/operatorDiscovery.ts');
+test('city-only coverage excludes nearby customers outside selected cities', () => {
+  const operator = { lat: 43.65, lng: -79.38, serviceRadius: 50, serviceAreaMode: 'cities', serviceAreas: [{ city: 'Ottawa', province: 'Ontario', provinceCode: 'ON' }] };
+  assert.equal(discovery.isClientWithinOperatorRadius({ lat: 43.65, lng: -79.38, city: 'Toronto', province: 'ON' }, operator), false);
+  assert.equal(discovery.isClientWithinOperatorRadius({ lat: 45.42, lng: -75.7, city: 'Ottawa', province: 'ON' }, operator), true);
+  assert.equal(discovery.isClientWithinOperatorRadius({ city: 'Ottawa', province: 'ON' }, { ...operator, serviceAreas: [] }), false);
+});
+test('radius-only coverage ignores cities left in an older saved profile', () => {
+  const operator = { lat: 43.65, lng: -79.38, serviceRadius: 10, serviceAreaMode: 'radius', serviceAreas: [{ city: 'Ottawa', provinceCode: 'ON' }] };
+  assert.equal(discovery.isClientWithinOperatorRadius({ lat: 45.42, lng: -75.7, city: 'Ottawa', province: 'ON' }, operator), false);
+  assert.equal(discovery.isClientWithinOperatorRadius({ lat: 43.65, lng: -79.38, city: 'Toronto', province: 'ON' }, operator), true);
+});
 test('ID verification makes an available operator public without Stripe or extra approval', () => {
   assert.equal(discovery.isOperatorPublic({ idVerified: true, accountApproved: false, onboardingComplete: false }), true);
   assert.equal(discovery.isOperatorPublic({ idVerified: false }), false);

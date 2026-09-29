@@ -1,6 +1,6 @@
 .bottomNav { position: fixed; z-index: 30; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 7px max(8px, env(safe-area-inset-left)) max(7px, env(safe-area-inset-bottom)); border-top: 1px solid var(--border-color); background: color-mix(in srgb,var(--card) 96%,transparent); backdrop-filter: blur(14px); }
-.bottomNav > :is(a,button) { display: flex; min-height: 58px; min-width: 0; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 11px; font-weight: 500; color: var(--text-secondary); cursor: pointer; border-radius: 8px; }
-.navIcon { position: relative; display: grid; place-items: center; width: 48px; height: 30px; border-radius: 10px; }
+.bottomNav > :is(a,button) { display: grid; min-height: 52px; min-width: 0; place-items: center; color: var(--text-secondary); cursor: pointer; border-radius: 8px; }
+.navIcon { position: relative; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; }
 .bottomNav [aria-current="page"] { color: var(--accent); font-weight: 600; }
 .bottomNav [aria-current="page"] .navIcon, .bottomNav [aria-expanded="true"] .navIcon { background: var(--accent-soft); }
 .badge { position: absolute; right: 0; top: -2px; background: #a83225; color: white; border: 2px solid var(--card); min-width: 18px; padding: 0 3px; border-radius: 12px; font-size: 10px; line-height: 16px; }
@@ -33,7 +33,7 @@
 .shortcuts a > svg:first-child { box-sizing: content-box; padding: 10px; border-radius: 12px; }
 
 .bottomNav > :is(a,button):focus-visible { outline-offset: -2px; }
-@media (max-width: 359px) { .navIcon { width: 42px; } .bottomNav { padding-inline: 4px; } .bottomNav > :is(a,button) { font-size: 10px; } }
+@media (max-width: 359px) { .navIcon { width: 42px; height: 42px; } .bottomNav { padding-inline: 4px; } }
 
 /* Floating glass dock; content stays above the decorative optical layer. */
 .bottomNav {
@@ -43,7 +43,7 @@
   padding: 6px;
   border: 1px solid var(--glass-border);
   border-radius: 28px;
-  background: var(--glass-bg);
+  background: var(--glass-chrome-bg);
   box-shadow: var(--surface-shadow-strong);
   -webkit-backdrop-filter: var(--glass-backdrop);
   backdrop-filter: var(--glass-backdrop);

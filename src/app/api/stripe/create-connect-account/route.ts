@@ -19,8 +19,17 @@ export async function POST(req: NextRequest) {
     const { uid: operatorId, email, profile } = await requireStripeOperator(req);
     const businessName = profile.businessName || profile.displayName;
     if (profile.stripeConnectAccountId) {
-      await requireStripeOperator(req, profile.stripeConnectAccountId);
-      return NextResponse.json({ accountId: profile.stripeConnectAccountId });
+      try {
+        const existing = await stripe.accounts.retrieve(profile.stripeConnectAccountId);
+        if (existing.metadata?.operatorId !== operatorId) throw new Error("This Stripe account does not belong to you.");
+        return NextResponse.json({ accountId: existing.id });
+      } catch (error) {
+        const code = (error as { code?: string }).code;
+        // Only an inaccessible account can be replaced; transient/auth failures must not create duplicates.
+        if (code !== "account_invalid" && code !== "resource_missing") throw error;
+        const platform = await stripe.accounts.retrieve();
+        if (!platform.charges_enabled) throw new Error("The platform must activate Stripe payments before reconnecting operators.");
+      }
     }
 
     if (!email || !operatorId) {
@@ -54,13 +63,21 @@ export async function POST(req: NextRequest) {
           url: "https://snowd.ca",
         },
       }),
-    }, { idempotencyKey: `operator-connect-${operatorId}` });
+    }, { idempotencyKey: `operator-connect-${operatorId}-${profile.stripeConnectAccountId || "initial"}` });
 
     // Persist before returning so refreshes and retries resume the same account.
-    await getAdminDb().doc(`users/${operatorId}`).update({
-      stripeConnectAccountId: account.id,
-      stripeAccountStatus: "pending",
-      stripeReady: false,
+    const ref = getAdminDb().doc(`users/${operatorId}`);
+    await getAdminDb().runTransaction(async (transaction) => {
+      const current = (await transaction.get(ref)).data();
+      if (current?.stripeConnectAccountId !== profile.stripeConnectAccountId && current?.stripeConnectAccountId !== account.id) {
+        throw new Error("Your payment account changed. Refresh and try again.");
+      }
+      transaction.update(ref, {
+        stripeConnectAccountId: account.id,
+        stripeAccountStatus: "pending",
+        stripeReady: false,
+        ...(profile.stripeConnectAccountId && { stripePreviousConnectAccountId: profile.stripeConnectAccountId }),
+      });
     });
     return NextResponse.json({ accountId: account.id });
   } catch (error: unknown) {

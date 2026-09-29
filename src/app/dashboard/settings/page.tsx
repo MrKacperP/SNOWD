@@ -11,8 +11,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import StripeOnboarding from "@/components/StripeOnboarding";
 import { stripeConnectFetch } from "@/lib/stripeConnectClient";
 
-import ServiceRadiusMap from "@/components/ServiceRadiusMap";
-import ServiceAreaCityPicker from "@/components/ServiceAreaCityPicker";
+import ServiceAreaEditor from "@/components/ServiceAreaEditor";
 import { useAuth } from "@/context/AuthContext";
 import { sendAdminNotif } from "@/lib/adminNotifications";
 import { db,storage } from "@/lib/firebase";
@@ -105,6 +104,7 @@ export default function SettingsPage() {
   const operatorProfile = profile as OperatorProfile;
   const [bio, setBio] = useState(operatorProfile?.bio || "");
   const [businessName, setBusinessName] = useState(operatorProfile?.businessName || "");
+  const [serviceAreaMode, setServiceAreaMode] = useState<"radius" | "cities">(operatorProfile?.serviceAreaMode || (operatorProfile?.serviceAreas?.length ? "cities" : "radius"));
   const [serviceRadius, setServiceRadius] = useState(operatorProfile?.serviceRadius || 10);
   const [serviceAreas, setServiceAreas] = useState<OperatorServiceArea[]>(operatorProfile?.serviceAreas || []);
   const [pricing, setPricing] = useState(() => ({
@@ -445,7 +445,8 @@ export default function SettingsPage() {
           if (profile?.stripeAccountStatus !== data.stripeAccountStatus) await refreshProfile();
         }
       } catch (e) {
-        console.error("Stripe status check error:", e);
+        setStripeStatus(null);
+        setStripeConfigError(e instanceof Error ? e.message : "Unable to check your payment account.");
       }
     };
     checkStripeStatus();
@@ -486,13 +487,7 @@ export default function SettingsPage() {
         setOnboardingAccountId(createData.accountId);
       };
 
-      const existingAccountId = (profile as OperatorProfile & { stripeConnectAccountId?: string })?.stripeConnectAccountId;
-
-      if (existingAccountId) {
-        setOnboardingAccountId(existingAccountId);
-      } else {
-        await startNewStripeOnboarding();
-      }
+      await startNewStripeOnboarding();
     } catch (error) {
       console.error("Stripe connect error:", error);
       const message = error instanceof Error ? error.message : "Failed to start Stripe setup. Please try again.";
@@ -519,6 +514,7 @@ export default function SettingsPage() {
         setBusinessName(op.businessName || "");
         setServiceRadius(op.serviceRadius || 10);
         setServiceAreas(op.serviceAreas || []);
+        setServiceAreaMode(op.serviceAreaMode || (op.serviceAreas?.length ? "cities" : "radius"));
         setPricing({
           small: op.pricing?.driveway?.small || 25,
           medium: op.pricing?.driveway?.medium || 40,
@@ -539,6 +535,10 @@ export default function SettingsPage() {
       setSaveError("Enter each service price from $0.01 to $10,000 CAD.");
       return;
     }
+    if (isOperator && serviceAreaMode === "cities" && !serviceAreas.length) {
+      setSaveError("Add at least one service city, or choose a travel radius.");
+      return;
+    }
     setSaved(false);
     setSaving(true);
     const startedAt = Date.now();
@@ -555,7 +555,8 @@ export default function SettingsPage() {
         updates.bio = bio;
         updates.businessName = businessName;
         updates.serviceRadius = serviceRadius;
-        updates.serviceAreas = serviceAreas;
+        updates.serviceAreaMode = serviceAreaMode;
+        updates.serviceAreas = serviceAreaMode === "cities" ? serviceAreas : [];
         updates.pricing = {
           driveway: { small: pricing.small, medium: pricing.medium, large: pricing.large },
           walkway: pricing.walkway,
@@ -898,42 +899,11 @@ export default function SettingsPage() {
             {/* Map Preview  */}
             {isOperator && (
               <div className="mt-4">
-                <label htmlFor="service-radius" className="text-sm font-medium text-[var(--text-muted)] mb-2 block">
-                  Service Radius: {serviceRadius} km
-                </label>
-                <input
-                  type="range"
-                  id="service-radius"
-                  aria-valuetext={`${serviceRadius} kilometres`}
-                  min={1}
-                  max={50}
-                  value={serviceRadius}
-                  onChange={(e) => setServiceRadius(parseInt(e.target.value))}
-                  className="w-full h-12 touch-pan-y accent-[var(--accent)] mb-3"
-                />
-                <div className="mb-4 flex items-center gap-3">
-                  <button type="button" aria-label="Decrease service radius" disabled={serviceRadius <= 1} onClick={() => setServiceRadius(value => Math.max(1, value - 1))} className="min-h-12 min-w-12 rounded-xl border disabled:opacity-40">−</button>
-                  <span className="flex-1 text-center" aria-live="polite">{serviceRadius} km</span>
-                  <button type="button" aria-label="Increase service radius" disabled={serviceRadius >= 50} onClick={() => setServiceRadius(value => Math.min(50, value + 1))} className="min-h-12 min-w-12 rounded-xl border disabled:opacity-40">+</button>
-                </div>
-                <p className="mb-3 text-sm text-[var(--text-muted)]">Choose 1–50 km, then tap Save Changes below.</p>
-                <div className="mb-5 rounded-2xl border border-[var(--border-color)] bg-[var(--sky)] p-4">
-                  <h4 className="font-semibold">Serve complete cities</h4>
-                  <p className="mb-3 mt-1 text-sm text-[var(--text-muted)]">Add every city where you accept work. Customers anywhere inside a selected city can find you, even outside your home radius.</p>
-                  <ServiceAreaCityPicker value={serviceAreas} onChange={setServiceAreas} />
-                </div>
-                {address && city ? <div>
-                <h4 className="mb-2 font-semibold">Coverage map</h4>
-                <div className="rounded-xl overflow-hidden border-[3px] border-[var(--border)]" aria-label="Operator coverage map">
-                  <ServiceRadiusMap
-                    address={address}
-                    city={city}
-                    province={province}
-                    postalCode={postalCode}
-                    radiusKm={serviceRadius}
-                    serviceAreas={serviceAreas}
-                  />
-                </div></div> : <p className="text-sm text-[var(--text-muted)]">Add your street address and city to preview coverage.</p>}
+                <ServiceAreaEditor location={{ address, city, province, postalCode }} mode={serviceAreaMode} radius={serviceRadius} cities={serviceAreas} onChange={patch => {
+                  if (patch.serviceAreaMode) setServiceAreaMode(patch.serviceAreaMode);
+                  if (patch.serviceRadius !== undefined) setServiceRadius(patch.serviceRadius);
+                  if (patch.serviceAreas) setServiceAreas(patch.serviceAreas);
+                }} />
               </div>
             )}
 
@@ -1397,7 +1367,7 @@ export default function SettingsPage() {
       )}
 
       {/* Branding Tab — Operators only */}
-      {(activeTab === "general" || activeTab === "branding") && isOperator && (
+      {activeTab === "branding" && isOperator && (
         <fieldset disabled={saving || brandingBusy} className="space-y-6">
           {/* Business Identity */}
           <div className={styles.card}>

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
@@ -11,13 +11,17 @@ import OnboardingFlow, {
   type OnboardingDraft,
 } from "@/components/OnboardingFlow";
 
-export default function OnboardingPage() {
+function OnboardingPageInner() {
   const { user, profile, loading, refreshProfile } = useAuth();
   const router = useRouter();
+  const params = useSearchParams();
+  const roleParam = params.get("role");
+  const initialRole = roleParam === "client" || roleParam === "operator" ? roleParam : null;
+  const signupPath = initialRole ? `/signup?role=${initialRole}` : "/signup";
   useEffect(() => {
-    if (!loading && !user) router.replace("/signup");
+    if (!loading && !user) router.replace(signupPath);
     else if (profile?.onboardingComplete) router.replace("/dashboard");
-  }, [loading, user, profile, router]);
+  }, [loading, user, profile, router, signupPath]);
 
   const complete = async (draft: OnboardingDraft) => {
     if (!user || !draft.role) throw new Error("Please sign in again.");
@@ -113,6 +117,8 @@ export default function OnboardingPage() {
         bio,
         equipment,
         serviceRadius,
+        serviceAreaMode: draft.serviceAreaMode,
+        serviceAreas: draft.serviceAreaMode === "cities" ? draft.serviceAreas : [],
         serviceTypes: operatorServiceTypes,
         pricing: {
           driveway: {
@@ -169,8 +175,13 @@ export default function OnboardingPage() {
   return (
     <OnboardingFlow
       key={user.uid}
+      initialRole={initialRole}
       draftKey={`snowd_onboarding_v2_${user.uid}`}
       onComplete={complete}
     />
   );
+}
+
+export default function OnboardingPage() {
+  return <Suspense fallback={<main role="status">Loading setup…</main>}><OnboardingPageInner /></Suspense>;
 }

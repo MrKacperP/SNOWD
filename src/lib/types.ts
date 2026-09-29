@@ -26,7 +26,7 @@ export type ServiceType =
 
 export type PropertySize = "small" | "medium" | "large" | "commercial";
 
-export type ThemePreference = "light" | "dark";
+export type ThemePreference = "light";
 
 export type ClaimStatus = "open" | "under-review" | "resolved" | "dismissed";
 export type ClaimType = "property-damage" | "incomplete-job" | "misconduct" | "other";
@@ -116,6 +116,7 @@ export interface OperatorProfile extends UserProfile {
   bio: string;
   equipment: string[];
   serviceRadius: number; // km
+  serviceAreaMode?: "radius" | "cities";
   serviceAreas?: OperatorServiceArea[];
   serviceTypes: ServiceType[];
   pricing: {

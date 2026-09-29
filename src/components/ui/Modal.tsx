@@ -24,12 +24,12 @@ const variantStyles = {
     accentGlow: "rgba(36, 110, 185, 0.15)",
   },
   danger: {
-    iconBg: "bg-red-50 dark:bg-red-500/10",
+    iconBg: "bg-red-50",
     iconColor: "text-red-500",
     accentGlow: "rgba(239, 68, 68, 0.15)",
   },
   success: {
-    iconBg: "bg-emerald-50 dark:bg-emerald-500/10",
+    iconBg: "bg-emerald-50",
     iconColor: "text-emerald-500",
     accentGlow: "rgba(16, 185, 129, 0.15)",
   },

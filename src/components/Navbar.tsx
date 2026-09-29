@@ -71,6 +71,7 @@ export default function Navbar() {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [desktopNotifPosition, setDesktopNotifPosition] = useState({ top: 16, left: 260 });
   const [pendingJobCount, setPendingJobCount] = useState(0);
   const [notificationError, setNotificationError] = useState("");
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -82,13 +83,29 @@ export default function Navbar() {
   const drawerRef = useRef<HTMLDivElement>(null);
   useDialogFocus(drawerOpen, drawerRef);
   const notifRef = useRef<HTMLDivElement>(null);
+  const desktopNotifButtonRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    if (!window.matchMedia("(min-width: 1024px)").matches) return;
-    const target = profileMenuOpen ? menuRef.current : notifOpen ? notifRef.current : null;
-    if (!target) return;
-    const frame = requestAnimationFrame(() => target.closest("aside")?.scrollTo({ top: target.offsetTop + target.offsetHeight - (target.closest("aside")?.clientHeight ?? 0), behavior: "instant" }));
-    return () => cancelAnimationFrame(frame);
-  }, [profileMenuOpen, notifOpen]);
+    if (!notifOpen || !window.matchMedia("(min-width: 1024px)").matches) return;
+
+    const updatePosition = () => {
+      const trigger = desktopNotifButtonRef.current;
+      if (!trigger) return;
+      const rect = trigger.getBoundingClientRect();
+      setDesktopNotifPosition({
+        left: rect.right + 12,
+        // Keep the panel aligned with its trigger while leaving room for its header and list.
+        top: Math.max(16, Math.min(rect.top, window.innerHeight - 400)),
+      });
+    };
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [notifOpen]);
 
   const isClient = profile?.role === "client";
   const isOnline = profile?.role === "operator"
@@ -149,7 +166,7 @@ export default function Navbar() {
           id: snap.id,
           ...(snap.data() as Omit<NotificationItem, "id">),
         }));
-        setNotifications(items.filter(item => !item.read).sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
+        setNotifications(items.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
         setNotificationError("");
       },
       (error) => {
@@ -287,6 +304,7 @@ export default function Navbar() {
 
         <div className="joined-menu relative mt-4 shrink-0" ref={notifRef}>
           <button
+            ref={desktopNotifButtonRef}
             aria-expanded={notifOpen}
             onClick={() => { setProfileMenuOpen(false); setNotifOpen((value) => !value); }}
             className="flex w-full items-center gap-3 rounded-[1.2rem] border border-[var(--border-color)] bg-[var(--card)] px-4 py-3 text-left"
@@ -296,7 +314,7 @@ export default function Navbar() {
             {unreadNotifications > 0 ? <span className="unread-badge">{unreadNotifications > 9 ? "9+" : unreadNotifications}</span> : null}
           </button>
           {notifOpen ? (
-            <div className="joined-menu-panel">
+            <div className="joined-menu-panel notification-popover glass-readable-overlay" style={desktopNotifPosition}>
               <div className="flex items-center justify-between border-b border-[var(--border-color)] px-4 py-3">
                 <div className="text-sm font-bold">Notifications</div>
                 {unreadNotifications > 0 ? (
@@ -358,7 +376,7 @@ export default function Navbar() {
           </button>
 
           {profileMenuOpen ? (
-            <div className="joined-menu-panel">
+            <div className="joined-menu-panel glass-readable-overlay">
               <Link href={`/dashboard/u/${profile?.uid}`} className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)]">
                 <User className="h-4 w-4" />
                 <span className="text-sm font-bold">View profile</span>
@@ -397,7 +415,7 @@ export default function Navbar() {
       </header>
 
       {notifOpen && isMobile ? (
-        <><button type="button" aria-label="Close notifications" tabIndex={-1} onClick={() => setNotifOpen(false)} className="fixed inset-0 z-30 bg-black/20 lg:hidden" /><div className="fixed left-0 right-0 top-[var(--app-header-height)] z-40 w-full overflow-hidden rounded-b-3xl border border-t-0 border-[var(--border-color)] bg-[var(--card)] shadow-[var(--surface-shadow)] lg:hidden" ref={mobileNotifRef} role="dialog" aria-modal="true" aria-label="Notifications" tabIndex={-1}>
+        <><button type="button" aria-label="Close notifications" tabIndex={-1} onClick={() => setNotifOpen(false)} className="fixed inset-0 z-30 bg-black/30 backdrop-blur-[2px] lg:hidden" /><div className="glass-readable-overlay fixed left-0 right-0 top-[var(--app-header-height)] z-40 w-full overflow-hidden rounded-b-3xl border border-t-0 border-[var(--border-color)] shadow-[var(--surface-shadow)] lg:hidden" ref={mobileNotifRef} role="dialog" aria-modal="true" aria-label="Notifications" tabIndex={-1}>
           <div className="flex items-center justify-between border-b border-[var(--border-color)] px-4 py-3">
             <div className="text-sm font-semibold">Notifications</div>
             <button type="button" aria-label="Close notifications" onClick={() => setNotifOpen(false)} className="ml-auto grid h-11 w-11 place-items-center rounded-xl hover:bg-[var(--bg-secondary)]"><X size={18} /></button>
@@ -433,7 +451,7 @@ export default function Navbar() {
 
       {drawerOpen ? (
         <div className="fixed inset-0 z-40 bg-black/35 lg:hidden" onClick={() => setDrawerOpen(false)}>
-          <div id="mobile-account-menu" ref={drawerRef} role="dialog" aria-modal="true" aria-label="Account menu" tabIndex={-1} className="absolute bottom-0 left-0 right-0 overflow-y-auto overscroll-contain max-h-[85dvh] w-full rounded-t-3xl bg-[var(--card)] px-5 pt-5 pb-[max(20px,env(safe-area-inset-bottom))] shadow-[var(--surface-shadow)]" onClick={(event) => event.stopPropagation()}>
+          <div id="mobile-account-menu" ref={drawerRef} role="dialog" aria-modal="true" aria-label="Account menu" tabIndex={-1} className="glass-readable-overlay absolute bottom-0 left-0 right-0 overflow-y-auto overscroll-contain max-h-[85dvh] w-full rounded-t-3xl px-5 pt-5 pb-[max(20px,env(safe-area-inset-bottom))] shadow-[var(--surface-shadow)]" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <UserAvatar

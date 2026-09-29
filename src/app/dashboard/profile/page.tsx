@@ -401,7 +401,7 @@ export default function ProfilePage() {
               )}
 
               {/* Service Radius */}
-              <div className="space-y-2">
+              {operatorProfile.serviceAreaMode === "cities" ? <p>Selected cities: {operatorProfile.serviceAreas?.map(area => area.city).join(", ")}. <Link href="/dashboard/settings">Edit service area</Link></p> : <div className="space-y-2">
                 <h3 className="font-semibold text-gray-700">
                   Service Radius: {editing ? serviceRadius : operatorProfile.serviceRadius} km
                 </h3>
@@ -424,9 +424,9 @@ export default function ProfilePage() {
                     />
                   </div>
                 )}
-              </div>
+              </div>}
 
-              <ServiceRadiusMap address={editing ? address : profile.address} city={editing ? city : profile.city} province={editing ? province : profile.province} postalCode={editing ? postalCode : profile.postalCode} radiusKm={editing ? serviceRadius : (operatorProfile.serviceRadius || 10)} />
+              <ServiceRadiusMap serviceAreaMode={operatorProfile.serviceAreaMode} serviceAreas={operatorProfile.serviceAreas} address={editing ? address : profile.address} city={editing ? city : profile.city} province={editing ? province : profile.province} postalCode={editing ? postalCode : profile.postalCode} radiusKm={editing ? serviceRadius : (operatorProfile.serviceRadius || 10)} />
               {/* Equipment */}
               <div className="space-y-3">
                 <h3 className="font-semibold text-gray-700 flex items-center gap-1">

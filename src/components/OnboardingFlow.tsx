@@ -16,6 +16,8 @@ import {
 import OnboardingAddress, {
   type OnboardingLocation,
 } from "./OnboardingAddress";
+import ServiceAreaEditor from "./ServiceAreaEditor";
+import type { OperatorServiceArea } from "@/lib/types";
 import {
   type PropertySize,
   type ServiceType,
@@ -31,6 +33,8 @@ export type OnboardingDraft = {
   specialInstructions: string;
   equipment: string[];
   serviceRadius: number;
+  serviceAreaMode: "radius" | "cities";
+  serviceAreas: OperatorServiceArea[];
   operatorServiceTypes: ServiceType[];
   pricingSmall: string;
   pricingMedium: string;
@@ -52,6 +56,8 @@ const defaults: OnboardingDraft = {
   specialInstructions: "",
   equipment: ["Snow Shovel"],
   serviceRadius: 10,
+  serviceAreaMode: "radius",
+  serviceAreas: [],
   operatorServiceTypes: ["driveway", "walkway"],
   pricingSmall: "25",
   pricingMedium: "40",
@@ -115,11 +121,13 @@ function Choice({
 export default function OnboardingFlow({
   draftKey,
   onComplete,
+  initialRole = null,
 }: {
+  initialRole?: "client" | "operator" | null;
   draftKey?: string;
   onComplete: (draft: OnboardingDraft) => Promise<void>;
 }) {
-  const [draft, setDraft] = useState(defaults);
+  const [draft, setDraft] = useState({ ...defaults, role: initialRole });
   const [ready, setReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -139,15 +147,20 @@ export default function OnboardingFlow({
         const parsed = JSON.parse(stored);
         // Only restore this version's complete draft shape; ignore obsolete or corrupt data.
         if (
-          parsed.version === 2 &&
+          (parsed.version === 2 || parsed.version === 3) &&
           parsed.data &&
           Object.entries(defaults)
-            .filter(([, value]) => typeof value === "string")
+            .filter(([key, value]) => typeof value === "string" && key !== "serviceAreaMode")
             .every(([key]) => typeof parsed.data[key] === "string") &&
           ["small", "medium", "large", "commercial"].includes(
             parsed.data.propertySize,
           ) &&
           typeof parsed.data.isStudent === "boolean" &&
+          (parsed.version === 2 || (
+            ["radius", "cities"].includes(parsed.data.serviceAreaMode) &&
+            Array.isArray(parsed.data.serviceAreas) &&
+            parsed.data.serviceAreas.every((area: OperatorServiceArea) => area && typeof area.placeId === "string" && typeof area.city === "string" && Number.isFinite(area.lat) && Number.isFinite(area.lng))
+          )) &&
           Number.isFinite(parsed.data.serviceRadius) &&
           parsed.data.serviceRadius >= 1 &&
           parsed.data.serviceRadius <= 50 &&
@@ -170,7 +183,8 @@ export default function OnboardingFlow({
           setDraft({
             ...defaults,
             ...parsed.data,
-            step: parsed.data.role ? parsed.data.step : 1,
+            role: initialRole || parsed.data.role,
+            step: initialRole && initialRole !== parsed.data.role ? 1 : parsed.data.role ? parsed.data.step : 1,
           });
         }
       }
@@ -178,14 +192,14 @@ export default function OnboardingFlow({
       /* Storage can be disabled; signup remains usable. */
     }
     setReady(true);
-  }, [draftKey]);
+  }, [draftKey, initialRole]);
 
   useEffect(() => {
     if (!ready || !draftKey) return;
     try {
       localStorage.setItem(
         draftKey,
-        JSON.stringify({ version: 2, data: draft }),
+        JSON.stringify({ version: 3, data: draft }),
       );
       setSaved(true);
     } catch {
@@ -227,7 +241,7 @@ export default function OnboardingFlow({
         draft.equipment.length > 0 &&
         validPrices);
   const canContinue =
-    step === 1 ? Boolean(role) : step === 2 ? validAddress : validDetails;
+    step === 1 ? Boolean(role) : step === 2 ? validAddress && (role !== "operator" || draft.serviceAreaMode === "radius" || draft.serviceAreas.length > 0) : validDetails;
   const title =
     step === 1
       ? "How can we help?"
@@ -264,7 +278,7 @@ export default function OnboardingFlow({
       move(1);
       return;
     }
-    if (!validAddress) {
+    if (!validAddress || (role === "operator" && draft.serviceAreaMode === "cities" && !draft.serviceAreas.length)) {
       move(2);
       return;
     }
@@ -428,10 +442,13 @@ export default function OnboardingFlow({
               </div>
             )}
             {step === 2 && (
+              <>
               <OnboardingAddress
                 value={location}
                 onChange={(location) => update({ location })}
               />
+              {role === "operator" && validAddress && <ServiceAreaEditor location={location} mode={draft.serviceAreaMode} radius={draft.serviceRadius} cities={draft.serviceAreas} onChange={update} />}
+              </>
             )}
             {step === 3 && (
               <>
@@ -575,27 +592,6 @@ export default function OnboardingFlow({
                         Use suggested prices
                       </button>
                     </div>
-                    <label className="block text-sm font-semibold">
-                      How far will you travel?{" "}
-                      <span className="float-right rounded-full bg-[#dfeef8] px-3 py-1">
-                        {draft.serviceRadius} km
-                      </span>
-                      <input
-                        aria-label="Service radius in kilometres"
-                        className="mt-4 h-8 w-full accent-[#ff820e]"
-                        type="range"
-                        min={1}
-                        max={50}
-                        value={draft.serviceRadius}
-                        onChange={(e) =>
-                          update({ serviceRadius: Number(e.target.value) })
-                        }
-                      />
-                      <span className="flex justify-between text-xs font-medium">
-                        <span>Close to home · 1 km</span>
-                        <span>50 km</span>
-                      </span>
-                    </label>
                     <p className="text-xs leading-5 text-[#061321]/65">
                       Your profile needs verification before you can accept
                       jobs. We’ll guide you from your dashboard.

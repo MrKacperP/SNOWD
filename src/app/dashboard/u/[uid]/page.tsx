@@ -265,8 +265,8 @@ export default function PublicProfilePage() {
                   <p className="text-xs text-[var(--text-muted)]">{operatorProfile.reviewCount || 0} reviews</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-lg font-bold text-[var(--text-primary)]">{operatorProfile.serviceRadius || 0}</p>
-                  <p className="text-xs text-[var(--text-muted)]">km radius</p>
+                  <p className="text-lg font-bold text-[var(--text-primary)]">{operatorProfile.serviceAreaMode === "cities" ? operatorProfile.serviceAreas?.length || 0 : operatorProfile.serviceRadius || 0}</p>
+                  <p className="text-xs text-[var(--text-muted)]">{operatorProfile.serviceAreaMode === "cities" ? "service cities" : "km radius"}</p>
                 </div>
               </>
             )}
@@ -458,12 +458,14 @@ export default function PublicProfilePage() {
                     postalCode={profileData.postalCode}
                     lat={profileData.lat == null ? undefined : Math.round(profileData.lat * 100) / 100}
                     lng={profileData.lng == null ? undefined : Math.round(profileData.lng * 100) / 100}
+                    serviceAreaMode={isOperator ? operatorProfile.serviceAreaMode : "radius"}
+                    serviceAreas={isOperator ? operatorProfile.serviceAreas : []}
                     radiusKm={isOperator ? (operatorProfile.serviceRadius || 10) : 5}
                   />
                 </div>
                 <p className="text-xs text-[var(--text-muted)] mt-2 text-center">
                   {isOperator
-                    ? `Serves within ${operatorProfile.serviceRadius || 10} km of ${profileData.city}`
+                    ? operatorProfile.serviceAreaMode === "cities" ? `Serves ${operatorProfile.serviceAreas?.map(area => area.city).join(", ")}` : `Serves within ${operatorProfile.serviceRadius || 10} km of ${profileData.city}`
                     : `Located in ${profileData.city}, ${profileData.province}`}
                 </p>
               </div>

@@ -66,7 +66,7 @@ function Brand() {
 }
 function FindHelp() {
   return (
-    <Link href="/signup" className={styles.primary}>
+    <Link href="/signup?role=client" className={styles.primary}>
       Find a shoveler <ArrowRight size={18} aria-hidden="true" />
     </Link>
   );
@@ -85,7 +85,7 @@ export default function HomePage() {
             <a href="#how" className={styles.howLink}>
               How it works
             </a>
-            <a href="#earn">Become a shoveler</a>
+            <Link href="/signup?role=operator">Become a shoveler</Link>
             <Link href="/login" className={styles.login}>
               Log in
             </Link>
@@ -130,7 +130,7 @@ export default function HomePage() {
               </li>
             ))}
           </ol>
-          <div className={styles.howAction}><Link href="/signup" className={styles.primary}>Get my snow day back <ArrowRight size={18} aria-hidden="true" /></Link><span>Find a shoveler close to home.</span></div>
+          <div className={styles.howAction}><Link href="/signup?role=client" className={styles.primary}>Get my snow day back <ArrowRight size={18} aria-hidden="true" /></Link><span>Find a shoveler close to home.</span></div>
         </section>
         <section id="faq" className={styles.faq} aria-labelledby="faq-title">
           <div><p className={styles.eyebrow}>GOOD QUESTIONS</p><h2 id="faq-title">Let’s clear<br />a few things up.</h2></div>
@@ -156,7 +156,7 @@ export default function HomePage() {
             <p className={styles.eyebrow}>FOR THE DOERS</p><h2 id="earn-title">Your shovel. Your neighbourhood. Your opportunity.</h2>
             <p>Offer snow clearing in your area and earn close to home.</p>
           </div>
-          <Link href="/signup" className={styles.earnAction}>
+          <Link href="/signup?role=operator" className={styles.earnAction}>
             Become a shoveler <ArrowRight size={16} aria-hidden="true" />
           </Link>
         </aside>

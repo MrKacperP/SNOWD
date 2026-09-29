@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./liquid-glass.css";
 import { AuthProvider } from "@/context/AuthContext";
+import { ThemeProvider } from "@/context/ThemeContext";
 import BrowserSupport from "@/components/support/BrowserSupport";
 import PageVisitTracker from "@/components/PageVisitTracker";
 import { Instrument_Sans, Space_Grotesk } from "next/font/google";
@@ -60,12 +61,12 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon.png" />
       </head>
       <body className="antialiased snowd-glass">
-        <AuthProvider>
+        <ThemeProvider><AuthProvider>
           <BrowserSupport>
             <PageVisitTracker />
             {children}
           </BrowserSupport>
-        </AuthProvider>
+        </AuthProvider></ThemeProvider>
       </body>
     </html>
   );
