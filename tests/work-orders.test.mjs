@@ -38,6 +38,26 @@ test("order labels separate approval, payment and work state", () => {
     "Cancelled",
   );
 });
+test("terminal work orders show their actual activity date instead of ASAP", () => {
+  assert.match(
+    exports.terminalOrderDateText({
+      ...job,
+      status: "completed",
+      completionTime: new Date("2026-01-15T18:00:00Z"),
+      updatedAt: new Date("2026-01-16T18:00:00Z"),
+    }),
+    /^Completed Jan 15, 2026$/,
+  );
+  assert.match(
+    exports.terminalOrderDateText({
+      ...job,
+      status: "cancelled",
+      cancelledAt: new Date("2026-01-14T18:00:00Z"),
+      updatedAt: new Date("2026-01-16T18:00:00Z"),
+    }),
+    /^Cancelled Jan 14, 2026$/,
+  );
+});
 test("schedule conflict uses duration, excludes pending and ASAP, and permits adjacent slots", () => {
   const confirmed = { ...job, id: "two", status: "accepted" };
   assert.equal(exports.hasScheduleConflict(job, [confirmed]), true);

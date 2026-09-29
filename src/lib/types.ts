@@ -202,6 +202,7 @@ export interface Job {
   paymentMethod: PaymentMethod;
   paymentStatus: "pending" | "held" | "paid" | "refunded";
   stripePaymentIntentId?: string;
+  stripePaymentAccountId?: string | null;
   requiresCardPayment?: boolean;
   cashPaymentAcknowledged?: boolean;
   cashPaymentDeferredAt?: Date;
@@ -298,6 +299,7 @@ export interface Transaction {
   paymentMethod?: PaymentMethod;
   status: "held" | "paid" | "refunded" | "cancelled";
   stripePaymentIntentId?: string;
+  stripePaymentAccountId?: string | null;
   description: string;
   serviceTypes: ServiceType[];
   address: string;

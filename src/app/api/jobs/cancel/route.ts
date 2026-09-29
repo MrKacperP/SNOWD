@@ -47,12 +47,13 @@ export async function POST(request: NextRequest) {
     if (result.job.stripePaymentIntentId) {
       try {
         const stripe = getStripe();
-        const payment = await stripe.paymentIntents.retrieve(result.job.stripePaymentIntentId);
+        const stripeAccount = result.job.stripePaymentAccountId || undefined;
+        const payment = await stripe.paymentIntents.retrieve(result.job.stripePaymentIntentId, {}, { stripeAccount });
         if (payment.metadata.jobId !== jobId || payment.metadata.clientId !== result.job.clientId || payment.metadata.operatorId !== result.job.operatorId) throw new Error("Payment mismatch");
         if (payment.status === "succeeded") warning = "Job cancelled. The card payment was already captured; contact support to arrange a refund.";
         else {
-          const released = payment.status === "canceled" ? payment : await stripe.paymentIntents.cancel(payment.id, {}, { idempotencyKey: `cancel-${payment.id}` });
-          await syncStripePayment(released);
+          const released = payment.status === "canceled" ? payment : await stripe.paymentIntents.cancel(payment.id, {}, { stripeAccount, idempotencyKey: `cancel-${payment.id}` });
+          await syncStripePayment(released, stripeAccount);
         }
       } catch {
         warning = "Job cancelled, but the card hold could not be released yet. Retry releasing the hold from this work order or contact support.";

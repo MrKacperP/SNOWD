@@ -19,7 +19,7 @@ initializeApp({ projectId });
 const db = getFirestore();
 const auth = getAuth();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-const account = (await stripe.accounts.list({ limit: 100 })).data.find(a => a.charges_enabled && a.payouts_enabled && a.details_submitted && !a.requirements?.currently_due?.length && a.metadata?.operatorId);
+const account = (await stripe.accounts.list({ limit: 100 })).data.find(a => (!process.env.STRIPE_QA_ACCOUNT || a.id === process.env.STRIPE_QA_ACCOUNT) && a.charges_enabled && a.payouts_enabled && a.details_submitted && !a.requirements?.currently_due?.length && a.metadata?.operatorId);
 assert(account, 'A ready sandbox connected account is required');
 const operatorId = account.metadata.operatorId;
 const clientId = `qa-client-${randomUUID()}`;
@@ -30,6 +30,7 @@ const server = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'star
   stdio: ['ignore', 'ignore', 'ignore'],
 });
 const intents = [];
+const stripeScope = account.controller?.losses?.payments === 'stripe' ? { stripeAccount: account.id } : {};
 try {
   for (let i = 0; i < 100; i++) {
     try { if ((await fetch(base)).ok) break; } catch {}
@@ -59,7 +60,7 @@ try {
   console.log('PASS: authenticated account readiness and embedded onboarding session');
   for (const action of ['capture', 'cancel']) {
     const jobId = `qa-${action}-${randomUUID()}`;
-    await db.doc(`jobs/${jobId}`).set({ clientId, operatorId, price: 10, status: 'accepted', paymentStatus: 'pending', address: 'Emulator QA fixture' });
+    await db.doc(`jobs/${jobId}`).set({ clientId, operatorId, price: 10, pricingVersion: 2, operatorAmount: 700, platformFeeAmount: 300, status: 'accepted', paymentStatus: 'pending', address: 'Emulator QA fixture' });
     const wrongUser = await api('create-payment-intent', { jobId }, operatorToken);
     assert.equal(wrongUser.status, 403);
     const checkout = await api('create-payment-intent', { jobId });
@@ -68,11 +69,13 @@ try {
     intents.push(id);
     const retry = await api('create-payment-intent', { jobId });
     assert.equal(retry.data.paymentIntentId, id);
-    const held = await stripe.paymentIntents.confirm(id, { payment_method: 'pm_card_visa', return_url: 'http://localhost:3002' });
+    const held = await stripe.paymentIntents.confirm(id, { payment_method: 'pm_card_visa', return_url: 'http://localhost:3002' }, stripeScope);
     assert.equal(held.status, 'requires_capture');
-    assert.equal(held.application_fee_amount, 150);
-    assert.equal(held.transfer_data.destination, account.id);
-    const event = { id: `evt_qa_${randomUUID()}`, object: 'event', type: 'payment_intent.amount_capturable_updated', data: { object: held } };
+    assert.equal(held.application_fee_amount, 300);
+    assert.equal(checkout.data.stripeAccount, stripeScope.stripeAccount || null);
+    if (!stripeScope.stripeAccount) assert.equal(held.transfer_data.destination, account.id);
+    else assert.equal(held.transfer_data, null);
+    const event = { id: `evt_qa_${randomUUID()}`, object: 'event', ...(stripeScope.stripeAccount ? {account: account.id} : {}), type: 'payment_intent.amount_capturable_updated', data: { object: held } };
     const payload = JSON.stringify(event);
     const signature = stripe.webhooks.generateTestHeaderString({ payload, secret });
     const response = await fetch(`${base}/api/stripe/webhook`, { method: 'POST', headers: { 'stripe-signature': signature, 'content-type': 'application/json' }, body: payload });
@@ -90,11 +93,26 @@ try {
     assert.equal((await db.doc(`transactions/${id}`).get()).data().status, expected);
     console.log(`PASS: sandbox ${action}, authorization, signed webhook, ownership, retry and transaction reconciliation`);
   }
+  const newUid = `qa-onboarding-${randomUUID()}`;
+  const newToken = await token(newUid);
+  await db.doc(`users/${newUid}`).set({ role: 'operator', displayName: 'Sandbox QA' });
+  const created = await api('create-connect-account', {}, newToken);
+  assert.equal(created.status, 200, JSON.stringify(created));
+  const resumed = await api('create-connect-account', {}, newToken);
+  assert.equal(resumed.data.accountId, created.data.accountId);
+  const createdAccount = await stripe.accounts.retrieve(created.data.accountId);
+  assert.equal(createdAccount.controller.losses.payments, 'stripe');
+  assert.equal(createdAccount.controller.fees.payer, 'application');
+  const newSession = await api('account-session', {accountId: created.data.accountId}, newToken);
+  assert.equal(newSession.status, 200, JSON.stringify(newSession));
+  assert(newSession.data.clientSecret);
+  assert.equal((await api('account-session', {accountId: created.data.accountId}, clientToken)).status, 400);
+  console.log('PASS: Accounts v2 creation, retry, managed risk, ownership and embedded onboarding');
   console.log('All sandbox integration checks passed. No real money or production Firebase records used.');
 } finally {
   for (const id of intents) {
-    const p = await stripe.paymentIntents.retrieve(id);
-    if (!['succeeded', 'canceled'].includes(p.status)) await stripe.paymentIntents.cancel(id);
+    const p = await stripe.paymentIntents.retrieve(id, {}, stripeScope);
+    if (!['succeeded', 'canceled'].includes(p.status)) await stripe.paymentIntents.cancel(id, {}, stripeScope);
   }
   server.kill('SIGTERM');
 }

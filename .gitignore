@@ -48,6 +48,10 @@ firestore-debug.log
 # Isolated local work-order verification build
 .next-workorders/
 
+# Other isolated local verification builds
+.next-messages-theme/
+.next-stripe-managed/
+
 # Isolated usability review builds
 .next-ux-review/
 .next-ux-build/

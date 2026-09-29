@@ -24,8 +24,8 @@ export async function POST(req: NextRequest) {
       if (account.metadata?.platform === "snowd.ca") await syncStripeAccount(account);
     }
     if (["payment_intent.amount_capturable_updated", "payment_intent.succeeded", "payment_intent.canceled", "payment_intent.payment_failed"].includes(event.type)) {
-      const payment = await getStripe().paymentIntents.retrieve((event.data.object as { id: string }).id);
-      if (payment.metadata.platform === "snowd.ca") await syncStripePayment(payment);
+      const payment = await getStripe().paymentIntents.retrieve((event.data.object as { id: string }).id, {}, { stripeAccount: event.account });
+      if (payment.metadata.platform === "snowd.ca") await syncStripePayment(payment, event.account);
     }
     return NextResponse.json({ received: true });
   } catch (error) {

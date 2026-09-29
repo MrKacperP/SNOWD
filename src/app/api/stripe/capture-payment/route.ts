@@ -13,10 +13,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Capture the held funds — releases payment to snowd.ca
-    const existing = await requireJobPaymentAccess(req, paymentIntentId, "capture");
-    const paymentIntent = existing.status === "succeeded" ? existing : await stripe.paymentIntents.capture(paymentIntentId, {}, { idempotencyKey: `capture-${paymentIntentId}` });
+    const { payment: existing, stripeAccount } = await requireJobPaymentAccess(req, paymentIntentId, "capture");
+    const paymentIntent = existing.status === "succeeded" ? existing : await stripe.paymentIntents.capture(paymentIntentId, {}, { stripeAccount, idempotencyKey: `capture-${paymentIntentId}` });
 
-    await syncStripePayment(paymentIntent);
+    await syncStripePayment(paymentIntent, stripeAccount);
 
     return NextResponse.json({
       status: paymentIntent.status,

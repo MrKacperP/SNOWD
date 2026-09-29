@@ -8,8 +8,8 @@ export async function POST(req: NextRequest) {
     if (typeof paymentIntentId !== "string" || !paymentIntentId.startsWith("pi_")) {
       return NextResponse.json({ error: "Invalid payment reference" }, { status: 400 });
     }
-    const payment = await requireJobPaymentAccess(req, paymentIntentId);
-    return NextResponse.json(await syncStripePayment(payment), { headers: { "Cache-Control": "no-store" } });
+    const { payment, stripeAccount } = await requireJobPaymentAccess(req, paymentIntentId);
+    return NextResponse.json(await syncStripePayment(payment, stripeAccount), { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to verify payment" }, { status: 400 });
   }

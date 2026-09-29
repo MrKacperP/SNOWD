@@ -13,10 +13,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Cancel the held payment — refunds the authorization
-    const existing = await requireJobPaymentAccess(req, paymentIntentId, "cancel");
-    const paymentIntent = existing.status === "canceled" ? existing : await stripe.paymentIntents.cancel(paymentIntentId, {}, { idempotencyKey: `cancel-${paymentIntentId}` });
+    const { payment: existing, stripeAccount } = await requireJobPaymentAccess(req, paymentIntentId, "cancel");
+    const paymentIntent = existing.status === "canceled" ? existing : await stripe.paymentIntents.cancel(paymentIntentId, {}, { stripeAccount, idempotencyKey: `cancel-${paymentIntentId}` });
 
-    await syncStripePayment(paymentIntent);
+    await syncStripePayment(paymentIntent, stripeAccount);
 
     return NextResponse.json({
       status: paymentIntent.status,

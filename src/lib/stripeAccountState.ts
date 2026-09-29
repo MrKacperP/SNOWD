@@ -1,6 +1,22 @@
 import type Stripe from "stripe";
 import { getAdminDb } from "@/lib/firebaseAdmin";
 
+export function isUnavailableStripeAccount(error: unknown): boolean {
+  const code = (error as { code?: string } | null)?.code;
+  return code === "account_invalid" || code === "resource_missing";
+}
+
+export async function markStripeAccountUnavailable(operatorId: string, accountId: string) {
+  const db = getAdminDb();
+  const ref = db.doc(`users/${operatorId}`);
+  await db.runTransaction(async (transaction) => {
+    const profile = (await transaction.get(ref)).data();
+    // A failed request for an old account must never disable a replacement.
+    if (profile?.stripeConnectAccountId !== accountId) return;
+    transaction.update(ref, { stripeReady: false, stripeAccountStatus: "disabled" });
+  });
+}
+
 export function stripeAccountState(account: Stripe.Account) {
   const fullyReady = !!(account.charges_enabled && account.payouts_enabled && account.details_submitted && !account.requirements?.currently_due?.length);
   return {

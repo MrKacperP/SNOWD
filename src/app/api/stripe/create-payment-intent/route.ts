@@ -3,6 +3,7 @@ import { requireStripeUser } from "@/lib/stripeConnectAuth";
 import { getAdminDb } from "@/lib/firebaseAdmin";
 import Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
+import { isUnavailableStripeAccount, markStripeAccountUnavailable } from "@/lib/stripeAccountState";
 
 export async function POST(req: NextRequest) {
   try {
@@ -34,7 +35,8 @@ export async function POST(req: NextRequest) {
     }
 
     const stripe = getStripe();
-    const user = await requireStripeUser(req);
+    const user = await requireStripeUser(req).catch(() => null);
+    if (!user) return NextResponse.json({ error: "Please sign in again." }, { status: 401 });
     const { jobId } = await req.json();
     if (typeof jobId !== "string" || !jobId || jobId.includes("/")) return NextResponse.json({ error: "Invalid job ID" }, { status: 400 });
     const jobRef = getAdminDb().doc(`jobs/${jobId}`);
@@ -51,10 +53,21 @@ export async function POST(req: NextRequest) {
     if (typeof amount !== "number" || !Number.isFinite(amount) || amount <= 0 || !operatorStripeAccountId || !operatorId) {
       return NextResponse.json({ error: "A valid amount and a payment-ready operator are required. This operator may accept cash jobs only." }, { status: 400 });
     }
-    const account = await stripe.accounts.retrieve(operatorStripeAccountId);
+    let account: Stripe.Account;
+    try {
+      account = await stripe.accounts.retrieve(operatorStripeAccountId);
+    } catch (error) {
+      if (!isUnavailableStripeAccount(error)) throw error;
+      await markStripeAccountUnavailable(operatorId, operatorStripeAccountId);
+      return NextResponse.json({
+        code: "operator_stripe_reconnect_required",
+        error: "This operator needs to reconnect Stripe before accepting card payments. Ask them to open Settings → Payment → Connect with Stripe and complete setup, then retry this payment.",
+      }, { status: 409 });
+    }
     if (account.metadata?.operatorId !== operatorId || !account.charges_enabled || !account.payouts_enabled || !account.details_submitted || account.requirements?.currently_due?.length) {
       return NextResponse.json({ error: "This operator accepts cash jobs only until Stripe setup is complete." }, { status: 400 });
     }
+    const stripeAccount = account.controller?.losses?.payments === "stripe" ? operatorStripeAccountId : undefined;
     const amountInCents = Math.round(amount * 100);
 
     // Build PaymentIntent params
@@ -81,26 +94,26 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Invalid saved payment allocation" }, { status: 409 });
       }
       params.application_fee_amount = platformFee;
-      params.transfer_data = {
-        destination: operatorStripeAccountId,
-      };
+      if (!stripeAccount) params.transfer_data = { destination: operatorStripeAccountId };
     }
 
     // Resume a previous checkout; a released authorization needs a fresh intent.
     let previousId = "initial";
     if (job.stripePaymentIntentId) {
-      const previous = await stripe.paymentIntents.retrieve(job.stripePaymentIntentId);
+      const previous = await stripe.paymentIntents.retrieve(job.stripePaymentIntentId, {}, job.stripePaymentAccountId ? { stripeAccount: job.stripePaymentAccountId } : {});
       if (previous.status !== "canceled") {
-        if (previous.amount !== amountInCents || previous.metadata.operatorId !== operatorId || previous.metadata.clientId !== clientId ||
+        const previousDestination = job.stripePaymentAccountId || (typeof previous.transfer_data?.destination === "string"
+          ? previous.transfer_data.destination : previous.transfer_data?.destination?.id);
+        if (previousDestination !== operatorStripeAccountId || previous.amount !== amountInCents || previous.metadata.operatorId !== operatorId || previous.metadata.clientId !== clientId ||
             (job.pricingVersion === 2 && previous.application_fee_amount !== params.application_fee_amount)) {
           return NextResponse.json({ error: "The job changed after checkout started. Cancel the previous payment first." }, { status: 409 });
         }
-        return NextResponse.json({ clientSecret: previous.client_secret, paymentIntentId: previous.id });
+        return NextResponse.json({ clientSecret: previous.client_secret, paymentIntentId: previous.id, stripeAccount: job.stripePaymentAccountId || null });
       }
       previousId = previous.id;
     }
-    const paymentIntent = await stripe.paymentIntents.create(params, { idempotencyKey: `job-payment-${jobId}-${amountInCents}-${operatorStripeAccountId}-${previousId}` });
-    await jobRef.update({ stripePaymentIntentId: paymentIntent.id, paymentStatus: "pending" });
+    const paymentIntent = await stripe.paymentIntents.create(params, { stripeAccount, idempotencyKey: `job-payment-${jobId}-${amountInCents}-${operatorStripeAccountId}-${previousId}` });
+    await jobRef.update({ stripePaymentIntentId: paymentIntent.id, stripePaymentAccountId: stripeAccount || null, paymentStatus: "pending" });
     const notificationDb = getAdminDb();
     if (typeof notificationDb.collection === "function") {
       await notificationDb.collection("adminNotifications").add({
@@ -118,10 +131,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       clientSecret: paymentIntent.client_secret,
       paymentIntentId: paymentIntent.id,
+      stripeAccount: stripeAccount || null,
     });
   } catch (error: unknown) {
-    console.error("Stripe error:", error);
-    const message = error instanceof Error ? error.message : "Internal server error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const stripeError = error as { code?: string; type?: string; requestId?: string };
+    console.error("Stripe checkout failed", { code: stripeError?.code, type: stripeError?.type, requestId: stripeError?.requestId });
+    return NextResponse.json({ error: "Unable to start card payment. Please try again shortly or contact support if this continues." }, { status: 500 });
   }
 }

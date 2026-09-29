@@ -1,12 +1,12 @@
 import type { UserRole } from "@/lib/types";
-import { Briefcase, ClipboardList, Home, MessageSquare, Shovel } from "lucide-react";
+import { CircleDollarSign, ClipboardList, Home, MessageSquare, Shovel } from "lucide-react";
 
 export const primaryNavigation = (role?: UserRole) => role === "operator"
   ? [
       { href: "/dashboard", label: "Home", icon: Home, tour: "nav-home" },
       { href: "/dashboard/jobs", label: "Jobs", icon: ClipboardList, tour: "nav-jobs" },
       { href: "/dashboard/messages", label: "Messages", icon: MessageSquare, tour: "nav-messages" },
-      { href: "/dashboard/transactions", label: "Payments", icon: Briefcase },
+      { href: "/dashboard/transactions", label: "Payments", icon: CircleDollarSign },
     ]
   : [
       { href: "/dashboard", label: "Home", icon: Home, tour: "nav-home" },
@@ -15,3 +15,9 @@ export const primaryNavigation = (role?: UserRole) => role === "operator"
       { href: "/dashboard/messages", label: "Messages", icon: MessageSquare, tour: "nav-messages" },
     ];
 
+export const desktopNavigation = (role?: UserRole) => {
+  const items = primaryNavigation(role);
+  return role === "operator"
+    ? items
+    : [...items, { href: "/dashboard/transactions", label: "Payments", icon: CircleDollarSign }];
+};

@@ -14,11 +14,14 @@ function load(path, stubs = {}) {
 }
 
 test("primary navigation keeps four role-specific tasks", () => {
-  const nav = load("src/lib/appNavigation.ts", {
+  const navigation = load("src/lib/appNavigation.ts", {
     "lucide-react": { Home: "home", Shovel: "shovel", ClipboardList: "jobs", MessageSquare: "messages", Briefcase: "payments" },
-  }).primaryNavigation;
+  });
+  const nav = navigation.primaryNavigation;
   assert.deepEqual(Array.from(nav("client"), item => item.label), ["Home", "Book help", "Jobs", "Messages"]);
   assert.deepEqual(Array.from(nav("operator"), item => item.label), ["Home", "Jobs", "Messages", "Payments"]);
+  assert.deepEqual(Array.from(navigation.desktopNavigation("client"), item => item.label), ["Home", "Book help", "Jobs", "Messages", "Payments"]);
+  assert.deepEqual(Array.from(navigation.desktopNavigation("operator"), item => item.label), ["Home", "Jobs", "Messages", "Payments"]);
 });
 
 test("work order presentation exposes one next action and honest payment copy", () => {

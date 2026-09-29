@@ -11,8 +11,10 @@
 .dot { color: #e97630; }
 .navLinks { display: flex; align-items: center; gap: 34px; font-size: 14px; font-weight: 600; }
 .navLinks a,.footer nav a { display: inline-flex; align-items: center; min-height: 44px; }
-.navLinks a:hover,.secondary:hover,.footer a:hover { text-decoration: underline; text-underline-offset: 5px; }
-.login { padding-inline: 23px; border: 1px solid #112b3b; border-radius: 100px; }
+.navLinks a { padding-inline: 13px; border: 1px solid rgba(17,43,59,.11); border-radius: 999px; background: rgba(255,255,255,.16); transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease; }
+.navLinks a:hover { border-color: rgba(17,43,59,.18); background: rgba(255,255,255,.42); text-decoration: none; box-shadow: 0 3px 10px rgba(17,43,59,.05); }
+.secondary:hover,.footer a:hover { text-decoration: underline; text-underline-offset: 5px; }
+.navLinks .login { padding-inline: 23px; border-color: rgba(17,43,59,.38); background-color: rgba(255,255,255,.32); box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 2px 7px rgba(17,43,59,.04); }
 .page main { background: #fbfcfa; }
 .hero { background: #e8f1f5; box-shadow: 0 0 0 100vmax #e8f1f5; clip-path: inset(0 -100vmax); display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 36px; padding-block: 64px 76px; }
 .eyebrow { display: flex; align-items: center; gap: 9px; font-size: 11px; font-weight: 700; letter-spacing: .13em; }

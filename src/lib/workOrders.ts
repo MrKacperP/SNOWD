@@ -74,6 +74,22 @@ export function scheduleText(
     }).format(time) + ` (${job.scheduleTimezone || "America/Toronto"})`
   );
 }
+export function terminalOrderDateText(
+  job: Pick<Job, "status" | "completionTime" | "cancelledAt" | "updatedAt">,
+) {
+  if (job.status !== "completed" && job.status !== "cancelled") return "";
+  const eventTime = dateMillis(
+    job.status === "completed"
+      ? job.completionTime || job.updatedAt
+      : job.cancelledAt || job.updatedAt,
+  );
+  const label = job.status === "completed" ? "Completed" : "Cancelled";
+  if (!Number.isFinite(eventTime) || eventTime <= 0) return label;
+  return `${label} ${new Intl.DateTimeFormat("en-CA", {
+    dateStyle: "medium",
+    timeZone: "America/Toronto",
+  }).format(eventTime)}`;
+}
 export function hasScheduleConflict(
   candidate: Pick<
     Job,

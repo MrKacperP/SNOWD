@@ -78,6 +78,7 @@ export default function OrderActions({
     [cash, setCash] = useState(false);
   const [secret, setSecret] = useState(""),
     [photo, setPhoto] = useState("");
+  const [stripeAccount, setStripeAccount] = useState<string | null>(null);
   const [preparingPhoto, setPreparingPhoto] = useState(false);
   const desktopPhotoFlow = typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(min-width: 768px)").matches;
   const pendingRequest = useRef<{ key: string; id: string } | null>(null);
@@ -146,6 +147,7 @@ export default function OrderActions({
       const data = await orderRequest("/api/stripe/create-payment-intent", {
         jobId: job.id,
       });
+      setStripeAccount(data.stripeAccount || null);
       setSecret(data.clientSecret);
     }, false);
   const complete = (cashReceived = false) =>
@@ -744,6 +746,7 @@ export default function OrderActions({
       {secret && (
         <StripeCheckout
           clientSecret={secret}
+          stripeAccount={stripeAccount}
           amount={job.price}
           onCancel={() => setSecret("")}
           onSuccess={async (paymentIntentId) => {

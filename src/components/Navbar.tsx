@@ -5,7 +5,7 @@ import { OperatorProfile } from "@/lib/types";
 import AvailabilityToggle from "@/components/dashboard/AvailabilityToggle";
 import MobileNavigation from "@/components/dashboard/MobileNavigation";
 import SupportChatButton from "@/components/SupportChatButton";
-import { primaryNavigation } from "@/lib/appNavigation";
+import { desktopNavigation } from "@/lib/appNavigation";
 
 import { useUserChats } from "@/hooks/useUserChats";
 
@@ -25,9 +25,9 @@ writeBatch,
 } from "firebase/firestore";
 import {
 Bell,
-Briefcase,
 CalendarDays,
 CheckCheck,
+CircleDollarSign,
 LogOut,
 Menu,
 Settings,
@@ -112,7 +112,7 @@ export default function Navbar() {
     ? (profile as unknown as Record<string, unknown>)?.isAvailable !== false
     : (profile as unknown as Record<string, unknown>)?.isOnline !== false;
 
-  const navItems = primaryNavigation(profile?.role);
+  const navItems = desktopNavigation(profile?.role);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -472,7 +472,7 @@ export default function Navbar() {
 
             <div className="mt-5 grid divide-y divide-[var(--border-color)] border-t border-[var(--border-color)]">
               <Link href="/dashboard/calendar" onClick={() => setDrawerOpen(false)} className="flex min-h-13 items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)]"><CalendarDays className="h-5 w-5" /><span>Schedule</span></Link>
-              <Link href="/dashboard/transactions" onClick={() => setDrawerOpen(false)} className="flex min-h-13 items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)]"><Briefcase className="h-5 w-5" /><span>Payments</span></Link>
+              <Link href="/dashboard/transactions" onClick={() => setDrawerOpen(false)} className="flex min-h-13 items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)]"><CircleDollarSign className="h-5 w-5" /><span>Payments</span></Link>
               {profile?.role === "operator" && <AvailabilityToggle online={isOnline} saving={statusSaving} error={statusError} onToggle={toggleOnlineStatus} />}
               <Link href={`/dashboard/u/${profile?.uid}`} onClick={() => setDrawerOpen(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)]">
                 <User className="h-4 w-4" />

@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useMemo } from "react";
 import {
   Elements,
   PaymentElement,
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
-import { stripePromise } from "@/lib/stripe";
+import { loadStripe } from "@stripe/stripe-js";
 import { Shield, Lock } from "lucide-react";
 import Image from "next/image";
 import Modal from "@/components/ui/Modal";
@@ -129,6 +129,7 @@ function CheckoutFormInner({ onSuccess, onCancel, amount, processing, onProcessi
 
 interface StripeCheckoutProps {
   clientSecret: string;
+  stripeAccount?: string | null;
   amount: number;
   onSuccess: (paymentIntentId: string) => void | Promise<void>;
   onCancel: () => void;
@@ -136,15 +137,21 @@ interface StripeCheckoutProps {
 
 export default function StripeCheckout({
   clientSecret,
+  stripeAccount,
   amount,
   onSuccess,
   onCancel,
 }: StripeCheckoutProps) {
+  const stripePromise = useMemo(() => loadStripe(
+    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!,
+    stripeAccount ? { stripeAccount } : undefined,
+  ), [stripeAccount]);
   const [processing, setProcessing] = useState(false);
   const cancel = () => { if (!processing) onCancel(); };
   return (
     <Modal isOpen onClose={cancel} showClose={!processing} title="Authorize your payment" subtitle="A temporary card hold. Charged after completion with photo proof.">
           <Elements
+            key={`${stripeAccount || "platform"}-${clientSecret}`}
             stripe={stripePromise}
             options={{
               clientSecret,

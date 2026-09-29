@@ -3,7 +3,7 @@ import { jobDisplayPrice } from "@/lib/marketplacePricing";
 import CompanyIdentity from "@/components/CompanyIdentity";
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, CalendarClock, CheckCheck, ClipboardList, Hourglass, MapPin, WalletCards } from "lucide-react";
+import { ArrowRight, CalendarClock, CheckCheck, Hourglass, MapPin, WalletCards } from "lucide-react";
 import { useWorkOrders } from "@/hooks/useWorkOrders";
 import {
   dateMillis,
@@ -14,6 +14,7 @@ import {
   orderLabel,
   orderActionNeeded,
   scheduleText,
+  terminalOrderDateText,
 } from "@/lib/workOrders";
 import OrderCard from "./OrderCard";
 import styles from "./work-orders.module.css";
@@ -94,8 +95,9 @@ export default function WorkOrdersPage({
             </div>
             {expanded && <>
             <ul className={styles.companyList}>
-              {visibleOrders.map(job => (
-                <li key={job.id}>
+              {visibleOrders.map(job => {
+                const terminal = job.status === "completed" || job.status === "cancelled";
+                return <li key={job.id}>
                   <Link className={styles.orderRow} href={`/dashboard/jobs/${job.id}`}>
                     <span className={styles.orderRowHeader}>
                       <span className={styles.orderReference}>Work order #{orderNumber(job)}</span>
@@ -103,10 +105,13 @@ export default function WorkOrdersPage({
                     </span>
                     <span className={styles.orderHighlights}>
                       <span className={styles.orderHighlight}>
-                        <CalendarClock aria-hidden="true" size={18} strokeWidth={1.8} />
+                        {terminal
+                          ? <MapPin aria-hidden="true" size={18} strokeWidth={1.8} />
+                          : <CalendarClock aria-hidden="true" size={18} strokeWidth={1.8} />}
                         <span>
-                          <span className={styles.orderHighlightLabel}>Date and time</span>
-                          <strong>{scheduleText(job)}</strong>
+                          <span className={styles.orderHighlightLabel}>{terminal ? "Service address" : "Date and time"}</span>
+                          <strong>{terminal ? job.address || "Address to be confirmed" : scheduleText(job)}</strong>
+                          {terminal && <span className={styles.orderActivityDate}>{terminalOrderDateText(job)}</span>}
                         </span>
                       </span>
                       <span className={styles.orderHighlight}>
@@ -120,15 +125,15 @@ export default function WorkOrdersPage({
                     </span>
                     {orderActionNeeded(job, uid) && <span className={styles.rowAction}>{orderActionNeeded(job, uid)}</span>}
                     <span className={styles.orderRowFooter}>
-                      <span className={styles.orderAddress}>
+                      {!terminal && <span className={styles.orderAddress}>
                         <MapPin aria-hidden="true" size={16} />
                         {job.address || "Address to be confirmed"}
-                      </span>
+                      </span>}
                       <span className={styles.orderView}>View order <ArrowRight aria-hidden="true" size={17} /></span>
                     </span>
                   </Link>
-                </li>
-              ))}
+                </li>;
+              })}
               {!visibleOrders.length && (
                 <li className={styles.groupEmpty}>No work orders match this filter.</li>
               )}
@@ -177,11 +182,6 @@ export default function WorkOrdersPage({
         </p>
       )}
       {!schedule && !history && <section className={styles.overview} aria-label="Work order summary">
-        <div className={styles.activeCard}>
-          <div className={styles.activeTopline}><span>Active work orders</span><ClipboardList aria-hidden="true" size={22} /></div>
-          <strong className={styles.activeCount}>{loading || error ? "—" : jobs.filter(job => ["accepted", "en-route", "in-progress"].includes(job.status)).length}</strong>
-          <div className={styles.activeFooter}><span>Accepted and underway</span><a href="#work-order-list">View work orders <ArrowRight aria-hidden="true" size={16} /></a></div>
-        </div>
         <div className={styles.summaryCard}>
           <span className={`${styles.summaryIcon} ${styles.amber}`}><Hourglass aria-hidden="true" size={21} /></span>
           <div><span>Awaiting confirmation</span><strong>{loading || error ? "—" : jobs.filter(job => job.status === "pending").length}</strong><small>Requests to review</small></div>

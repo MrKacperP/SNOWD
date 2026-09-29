@@ -4,7 +4,7 @@ import theme from "./messages.module.css";
 import CompanyIdentity from "@/components/CompanyIdentity";
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, X, MessageSquare, ArrowRight } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useUserChats } from "@/hooks/useUserChats";
 import { useWorkOrders } from "@/hooks/useWorkOrders";
@@ -53,10 +53,6 @@ export default function MessagesPage() {
   }, [chats, jobs, names, search, user?.uid]);
   return (
     <AppPage className={theme.page} eyebrow="Stay connected" title="Messages" description="Your visits and conversations, in one place.">
-      <section className={theme.hero} aria-label="Conversation overview">
-        <div><p className={theme.eyebrow}>Your conversations</p><h2>Every visit starts with a conversation.</h2><p>Keep arrival details, photos, and work updates together.</p><Link href="/dashboard/jobs">View work orders <ArrowRight size={16} aria-hidden="true" /></Link></div>
-        <div className={theme.unread}><MessageSquare size={24} aria-hidden="true" /><strong>{loading || error ? "—" : chats.reduce((total, chat) => total + (chat.unreadCount?.[user?.uid || ""] || 0), 0)}</strong><span>Unread messages</span></div>
-      </section>
       <div className="app-search"><Search size={19} aria-hidden="true" /><input
         type="search"
         aria-label="Search company, order, address, or message"

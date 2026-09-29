@@ -125,6 +125,7 @@ export default function ChatPage() {
 
   // Stripe state
   const [showCheckout, setShowCheckout] = useState(false);
+  const [stripeAccount, setStripeAccount] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [processingPayment, setProcessingPayment] = useState(false);
 
@@ -932,6 +933,7 @@ export default function ChatPage() {
         throw new Error(data?.error || "Failed to initiate payment");
       }
       if (data.error) throw new Error(data.error);
+      setStripeAccount(data.stripeAccount || null);
       setClientSecret(data.clientSecret);
       setShowCheckout(true);
     } catch (error) {
@@ -2426,6 +2428,7 @@ export default function ChatPage() {
       {showCheckout && clientSecret && job && (
         <StripeCheckout
           clientSecret={clientSecret}
+          stripeAccount={stripeAccount}
           amount={job.price}
           onSuccess={handlePaymentSuccess}
           onCancel={() => {

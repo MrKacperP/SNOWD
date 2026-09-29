@@ -36,34 +36,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Stripe onboarding collects the operator’s own legal entity and banking details.
-    const account = await stripe.accounts.create({
-      type: "express",
-      country: "CA",
-      email,
-      capabilities: {
-        card_payments: { requested: true },
-        transfers: { requested: true },
+    // Managed Risk requires Accounts v2 and direct charges. The preview version
+    // enables Express + Stripe loss liability while SNOWD continues paying fees.
+    const account = await stripe.v2.core.accounts.create({
+      dashboard: "express",
+      contact_email: email,
+      identity: { country: "CA" },
+      defaults: {
+        currency: "cad",
+        responsibilities: { fees_collector: "application", losses_collector: "stripe" },
       },
-      settings: {
-        payouts: {
-          schedule: {
-            interval: "daily",
-          },
-        },
-      },
-      metadata: {
-        operatorId,
-        platform: "snowd.ca",
-      },
-      ...(businessName && {
-        business_profile: {
-          name: businessName,
-          product_description: "Snow removal services via snowd.ca",
-          url: "https://snowd.ca",
-        },
-      }),
-    }, { idempotencyKey: `operator-connect-${operatorId}-${profile.stripeConnectAccountId || "initial"}` });
+      configuration: { merchant: { capabilities: { card_payments: { requested: true } } } },
+      metadata: { operatorId, platform: "snowd.ca" },
+      ...(businessName && { display_name: businessName }),
+    }, {
+      apiVersion: "2026-08-26.preview",
+      idempotencyKey: `operator-connect-v2-${operatorId}-${profile.stripeConnectAccountId || "initial"}`,
+    });
 
     // Persist before returning so refreshes and retries resume the same account.
     const ref = getAdminDb().doc(`users/${operatorId}`);
