@@ -124,8 +124,10 @@
 .nav { position: relative; margin-top: 16px; min-height: 78px; padding: 14px 24px; border: 1px solid var(--glass-border); border-radius: 28px; background: var(--glass-bg); box-shadow: var(--glass-shadow); }
 .nav > :is(a, div:not(:global(.glass-refraction))) { position: relative; z-index: 1; }
 .page :is(.login, .primary, .nearbyLabel, .visitPreview, .donePreview) { background-image: var(--glass-sheen); box-shadow: var(--glass-shadow); border: 1px solid var(--glass-border); }
-.page :is(.nearbyLabel, .visitPreview, .donePreview, .ready) { background-color: var(--glass-bg); -webkit-backdrop-filter: var(--glass-backdrop); backdrop-filter: var(--glass-backdrop); }
-.page .ready { background-image: var(--glass-sheen); border: 1px solid var(--glass-border); box-shadow: var(--glass-shadow); }
+.page :is(.nearbyLabel, .visitPreview, .donePreview) { background-color: var(--glass-bg); -webkit-backdrop-filter: var(--glass-backdrop); backdrop-filter: var(--glass-backdrop); }
+/* The closing call-to-action has white copy. It needs an opaque dark surface,
+   rather than the light translucent glass used by neutral content cards. */
+.page .ready { background: radial-gradient(circle at 90% 14%, rgba(72, 130, 180, .48), transparent 36%), linear-gradient(135deg, #102d3e, #174866); border: 1px solid rgba(255,255,255,.18); box-shadow: 0 18px 42px rgba(16,45,62,.22); }
 @media (max-width: 767px) { .nav { padding: 12px 16px; min-height: 72px; gap: 12px; } }
 @media (max-width: 700px) {
   .nav { padding-inline: 14px; }
