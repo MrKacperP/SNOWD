@@ -1397,7 +1397,7 @@ export default function SettingsPage() {
       )}
 
       {/* Branding Tab — Operators only */}
-      {(activeTab === "general" || activeTab === "branding") && isOperator && (
+      {activeTab === "branding" && isOperator && (
         <fieldset disabled={saving || brandingBusy} className="space-y-6">
           {/* Business Identity */}
           <div className={styles.card}>
