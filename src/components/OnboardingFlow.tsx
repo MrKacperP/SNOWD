@@ -250,12 +250,6 @@ export default function OnboardingFlow({
         : role === "client"
           ? "What needs clearing?"
           : "Your services. Your prices.";
-  const message =
-    step === 1
-      ? "Hi, I’m your snow-day sidekick. Let’s get you started!"
-      : step === 2
-        ? "Just one search. I’ll help with the rest!"
-        : "You’re nearly there. Let’s make this snow day a good one!";
   const move = (next: number) => {
     update({ step: next });
     requestAnimationFrame(() => {
@@ -333,8 +327,8 @@ export default function OnboardingFlow({
           {saved ? "Progress saved" : "A few steps. A fresh start."}
         </span>
       </header>
-      <div className="onboarding-card mx-auto mt-6 max-w-5xl overflow-hidden rounded-2xl border border-[var(--border-color)] bg-white shadow-[var(--surface-shadow-strong)] lg:grid lg:grid-cols-[0.64fr_1fr]">
-        <aside className="onboarding-aside relative flex items-center gap-3 border-b border-[var(--border-color)] bg-[var(--accent-soft)] p-4 lg:flex-col lg:justify-center lg:border-b-0 lg:border-r lg:p-8">
+      <div className="onboarding-card mx-auto mt-6 max-w-5xl rounded-2xl border border-[var(--border-color)] bg-white shadow-[var(--surface-shadow-strong)] lg:grid lg:grid-cols-[0.64fr_1fr]">
+        <aside className="onboarding-aside relative hidden items-center gap-3 rounded-l-2xl border-r border-[var(--border-color)] bg-[var(--accent-soft)] p-8 lg:flex lg:flex-col lg:justify-center">
           <motion.div
             key={step}
             initial={reduceMotion ? false : { scale: 0.97, y: 5 }}
@@ -351,17 +345,8 @@ export default function OnboardingFlow({
               className="h-auto w-full"
             />
           </motion.div>
-          <div
-            className="rounded-xl border border-[var(--border-color)] bg-white px-4 py-3 text-sm font-semibold leading-relaxed lg:text-center lg:text-base"
-            aria-live="polite"
-          >
-            {message}
-          </div>
-          <p className="mt-5 hidden text-sm font-bold text-[#061321]/60 lg:block">
-            A little setup. A lot less shoveling.
-          </p>
         </aside>
-        <section className="min-w-0 p-5 sm:p-8">
+        <section className="flex min-h-[calc(100dvh-10rem)] min-w-0 flex-col p-5 sm:p-8 lg:min-h-[620px]">
           <div className="mb-6">
             <div className="mb-2 flex justify-between text-xs font-semibold uppercase tracking-wider">
               <span>
@@ -723,18 +708,18 @@ export default function OnboardingFlow({
               {error}
             </p>
           )}
-          <div className="mt-6 flex items-center gap-3 border-t-2 border-[#061321]/10 pt-5">
-            {step > 1 && (
+          <div className="sticky bottom-0 z-10 mt-auto flex items-center gap-3 border-t border-[#061321]/10 bg-white py-4">
               <button
                 type="button"
                 aria-label="Previous step"
-                disabled={saving}
+                aria-hidden={step === 1}
+                tabIndex={step === 1 ? -1 : 0}
+                disabled={saving || step === 1}
                 onClick={() => move(step - 1)}
-                className="flex h-13 w-13 shrink-0 items-center justify-center rounded-xl border border-[var(--border-color)] bg-white disabled:opacity-50"
+                className={`flex h-13 w-13 shrink-0 items-center justify-center rounded-xl border border-[var(--border-color)] bg-white disabled:opacity-50 ${step === 1 ? "invisible" : ""}`}
               >
                 <ArrowLeft size={20} />
               </button>
-            )}
             <button
               type="button"
               disabled={!canContinue || saving}
@@ -751,11 +736,6 @@ export default function OnboardingFlow({
               {!saving && <ArrowRight size={20} />}
             </button>
           </div>
-          {step === 3 && (
-            <p className="mt-4 text-center text-xs font-semibold text-[#061321]/60">
-              You can update your preferences anytime.
-            </p>
-          )}
         </section>
       </div>
       <p className="mx-auto mt-6 max-w-5xl text-center text-xs font-semibold text-[#061321]/50">

@@ -95,7 +95,7 @@ export default function HomePage() {
       <main id="main">
         <section className={styles.hero} aria-labelledby="hero-title">
           <div className={styles.heroCopy}>
-            <p className={styles.eyebrow}><Snowflake size={15} aria-hidden="true" /> YOUR NEIGHBOURHOOD. LESS SNOW.</p>
+            <p className={styles.eyebrow}><Snowflake size={15} aria-hidden="true" /> Snow clearing, close to home</p>
             <h1 id="hero-title">
               Snow day.
               <br />
@@ -105,18 +105,15 @@ export default function HomePage() {
               A clear driveway. A little more time. Find someone local to take snow clearing off your hands.
             </p>
             <div className={styles.heroActions}><FindHelp /><a href="#how" className={styles.secondary}>See how it works <ArrowUpRight size={17} aria-hidden="true" /></a></div>
-            <p className={styles.signupNote}>
-              Create an account to see help near you.
-            </p>
           </div>
           <LandingPhone />
         </section>
-        <div className={styles.serviceStrip}><span>A fresh start, right outside.</span><p><Check size={16} aria-hidden="true" /> Driveways</p><p><Check size={16} aria-hidden="true" /> Walkways</p><p><Check size={16} aria-hidden="true" /> Steps & entrances</p></div>
+        <div className={styles.serviceStrip}><p><Check size={16} aria-hidden="true" /> Driveways</p><p><Check size={16} aria-hidden="true" /> Walkways</p><p><Check size={16} aria-hidden="true" /> Steps & entrances</p></div>
         <LandingProductShowcase />
         <section id="how" className={styles.how} aria-labelledby="how-title">
           <div className={styles.sectionHeading}>
-            <p className={styles.eyebrow}>HOW IT WORKS</p>
-            <h2 id="how-title">You make the cocoa.<br /><span>We’ll help with the snow.</span></h2><p className={styles.howIntro}>A little local help. Three simple steps. A whole lot of winter back.</p>
+            <p className={styles.eyebrow}>How it works</p>
+            <h2 id="how-title">You make the cocoa.<br /><span>We’ll help with the snow.</span></h2>
           </div>
           <ol className={styles.steps}>
             {steps.map(([title, description], index) => (
@@ -130,10 +127,10 @@ export default function HomePage() {
               </li>
             ))}
           </ol>
-          <div className={styles.howAction}><Link href="/signup?role=client" className={styles.primary}>Get my snow day back <ArrowRight size={18} aria-hidden="true" /></Link><span>Find a shoveler close to home.</span></div>
+          <div className={styles.howAction}><Link href="/signup?role=client" className={styles.primary}>Find a shoveler <ArrowRight size={18} aria-hidden="true" /></Link></div>
         </section>
         <section id="faq" className={styles.faq} aria-labelledby="faq-title">
-          <div><p className={styles.eyebrow}>GOOD QUESTIONS</p><h2 id="faq-title">Let’s clear<br />a few things up.</h2></div>
+          <div><h2 id="faq-title">Good questions.</h2></div>
           <div className={styles.questions}>
             {questions.map(([question, answer]) => (
               <article key={question}>
@@ -146,14 +143,13 @@ export default function HomePage() {
         <section className={styles.ready} aria-labelledby="ready-title">
           <div>
             <h2 id="ready-title">Your next snow day looks better already.</h2>
-            <p>Find a shoveler for your next snowfall.</p>
           </div>
           <FindHelp />
         </section>
         <aside id="earn" className={styles.earn} aria-labelledby="earn-title">
           <Shovel size={24} strokeWidth={1.5} aria-hidden="true" />
           <div>
-            <p className={styles.eyebrow}>FOR THE DOERS</p><h2 id="earn-title">Your shovel. Your neighbourhood. Your opportunity.</h2>
+            <h2 id="earn-title">Clear snow in your neighbourhood.</h2>
             <p>Offer snow clearing in your area and earn close to home.</p>
           </div>
           <Link href="/signup?role=operator" className={styles.earnAction}>

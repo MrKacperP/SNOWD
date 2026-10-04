@@ -47,9 +47,8 @@ export default function LandingProductShowcase() {
   return (
     <section ref={sectionRef} className={`${styles.showcase} ${visible ? styles.visible : ""}`} aria-labelledby="showcase-title">
       <div className={styles.copy}>
-        <p className={styles.eyebrow}>ONE SIMPLE PLACE</p>
         <h2 id="showcase-title">From first flake<br />to all clear.</h2>
-        <p>Book from your phone. Follow every visit from your desktop. SNOWD keeps the whole snow day in view.</p>
+        <p>Request help, check in with your shoveler, and see when the job is done.</p>
       </div>
 
       <div className={styles.stage}>
@@ -95,22 +94,20 @@ export default function LandingProductShowcase() {
           <div className={styles.phoneHeader}><Image src="/logo.png" alt="" width={19} height={21} /><b>snowd.</b><span>1 of 2</span></div>
           <div className={styles.phoneContent}>
             {booked ? (
-              <div className={styles.booked}><span><Check size={27} /></span><h3>Help requested.</h3><p>Jamie will confirm your visit shortly.</p><div><CalendarDays size={17} /><b>Today · 11:30 AM</b></div><button onClick={() => setBooked(false)}>Book another demo</button></div>
+              <div className={styles.booked}><span><Check size={27} /></span><h3>Help requested.</h3><p>Jamie will confirm your visit shortly.</p><div><CalendarDays size={17} /><b>Today · 11:30 AM</b></div></div>
             ) : (
               <>
                 <p className={styles.phoneKicker}>BOOK SNOW HELP</p><h3>What needs<br />clearing?</h3><p className={styles.phoneIntro}>Choose a service for your home.</p>
                 <button className={styles.select} onClick={() => setService(service === "Driveway + walkway" ? "Front steps" : "Driveway + walkway")}><span><Shovel size={18} /><b>{service}</b></span><ChevronDown size={17} /></button>
                 <div className={styles.address}><span><House size={16} /></span><div><small>YOUR HOME</small><b>18 Maple Avenue</b></div><Check size={15} /></div>
                 <div className={styles.phonePrice}><span>Estimated total<small>Includes service fees</small></span><strong>{service === "Front steps" ? "$24" : "$42"}<small> CAD</small></strong></div>
-                <button className={styles.bookButton} onClick={() => setBooked(true)}>Request snow help</button>
-                <p className={styles.safe}><Check size={12} /> You won’t be charged until a shoveler confirms.</p>
               </>
             )}
+            <button className={styles.bookButton} onClick={() => setBooked(!booked)}>{booked ? "Start again" : "Request snow help"}</button>
           </div>
           <div className={styles.phoneHome} />
         </div>
       </div>
-      <p className={styles.tryIt}><span /> Try it — switch the dashboard view or book the sample visit.</p>
     </section>
   );
 }
