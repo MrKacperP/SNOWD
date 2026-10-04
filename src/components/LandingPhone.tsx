@@ -65,10 +65,10 @@ export default function LandingPhone() {
               <p className={styles.note}>Sample payment · no charge</p>
             </>}
             {stage === 3 && <>
-              <h3>One last snapshot.</h3><p>Jamie takes a photo of the finished job.</p><div className={styles.camera}><Image src="/landing/snowd-neighborhood-hero-v2.png" alt="Demo view of a cleared path outside a snowy home" fill sizes="300px" /><span className={styles.viewfinder} /></div>
+              <h3>One last snapshot.</h3><p>Jamie takes a photo of the finished job.</p><div className={styles.camera}><Image src="/landing/snowd-cleared-driveway.png" alt="Freshly shoveled driveway with no people in view" fill sizes="300px" /><span className={styles.viewfinder} /></div>
             </>}
             {stage === 4 && <>
-              <div className={styles.completeHeading}><span className={styles.successIcon}><Check size={25} /></span><div><h3>All clear.</h3><p>Go enjoy your day.</p></div></div><div className={styles.finishedPhoto}><Image src="/landing/snowd-neighborhood-hero-v2.png" alt="Example completion photo showing a shoveled walkway" fill sizes="300px" /><span><Camera size={13} /> Completion photo</span></div><div className={styles.completion}><CheckCheck size={19} /><div><strong>Job complete</strong><small>Photo shared with you</small></div></div>
+              <div className={styles.completeHeading}><span className={styles.successIcon}><Check size={25} /></span><div><h3>All clear.</h3><p>Go enjoy your day.</p></div></div><div className={styles.finishedPhoto}><Image src="/landing/snowd-cleared-driveway.png" alt="Completion photo of a freshly shoveled driveway" fill sizes="300px" /><span><Camera size={13} /> Completion photo</span></div><div className={styles.completion}><CheckCheck size={19} /><div><strong>Job complete</strong><small>Photo shared with you</small></div></div>
             </>}
           </div>
           <button className={styles.primary} onClick={() => stage === 4 ? restart() : go(stage + 1)}>

@@ -4,30 +4,32 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
+  ArrowRight,
+  Bell,
   CalendarDays,
   Check,
   ChevronDown,
   CircleDollarSign,
-  Clock3,
+  ClipboardList,
+  CreditCard,
+  Home,
   House,
-  MapPin,
-  MessageCircle,
-  Search,
+  MessageSquare,
+  Settings,
   Shovel,
-  Snowflake,
+  User,
 } from "lucide-react";
 import styles from "./LandingProductShowcase.module.css";
 
 const jobs = [
-  { person: "Maya R.", place: "Cedarvale", service: "Driveway + steps", time: "Today, 11:30", price: "$42", status: "Confirmed" },
-  { person: "Robert K.", place: "Leaside", service: "Walkway", time: "Today, 1:00", price: "$28", status: "On the way" },
-  { person: "Ana P.", place: "Danforth", service: "Driveway", time: "Tomorrow, 9:00", price: "$35", status: "Requested" },
+  { person: "Robert K.", service: "Walkway", time: "Today, 1:00 PM", status: "Confirmed" },
+  { person: "Ana P.", service: "Driveway", time: "Tomorrow, 9:00 AM", status: "Requested" },
 ];
 
 export default function LandingProductShowcase() {
   const sectionRef = useRef<HTMLElement>(null);
   const [visible, setVisible] = useState(false);
-  const [view, setView] = useState<"jobs" | "messages">("jobs");
+  const [view, setView] = useState<"home" | "jobs" | "messages">("home");
   const [service, setService] = useState("Driveway + walkway");
   const [booked, setBooked] = useState(false);
 
@@ -53,32 +55,40 @@ export default function LandingProductShowcase() {
 
       <div className={styles.stage}>
         <div className={styles.desktop}>
-          <div className={styles.desktopBar}>
-            <span className={styles.miniBrand}><Image src="/logo.png" alt="" width={20} height={22} />snowd.</span>
-            <label className={styles.search}><Search size={14} /><span>Search jobs or neighbours</span></label>
-            <span className={styles.user}>MR</span>
-          </div>
           <div className={styles.desktopBody}>
             <aside className={styles.sidebar} aria-label="Demo dashboard navigation">
-              <button className={view === "jobs" ? styles.active : ""} onClick={() => setView("jobs")}><House size={15} /> Overview</button>
-              <button onClick={() => setView("jobs")}><CalendarDays size={15} /> Jobs</button>
-              <button className={view === "messages" ? styles.active : ""} onClick={() => setView("messages")}><MessageCircle size={15} /> Messages</button>
-              <div className={styles.snowTotal}><Snowflake size={17} /><strong>8 jobs</strong><span>cleared this winter</span></div>
+              <div className={styles.sidebarBrand}><Image src="/logo.png" alt="" width={29} height={29} /><span><strong>snowd.</strong><small>Snow service network</small></span></div>
+              <div className={styles.account}><small>ACCOUNT</small><strong>Morgan R.</strong><span>Client</span></div>
+              <nav className={styles.demoNav} aria-label="Preview navigation">
+                <button className={view === "home" ? styles.active : ""} onClick={() => setView("home")}><Home size={16} /> Home</button>
+                <Link href="/signup?role=client"><Shovel size={16} /> Book help</Link>
+                <button className={view === "jobs" ? styles.active : ""} onClick={() => setView("jobs")}><ClipboardList size={16} /> Jobs</button>
+                <button className={view === "messages" ? styles.active : ""} onClick={() => setView("messages")}><MessageSquare size={16} /> Messages</button>
+                <span><CircleDollarSign size={16} /> Payments</span>
+              </nav>
+              <div className={styles.sidebarFooter}><span><Bell size={16} /> Notifications</span><span><User size={16} /> Morgan R.</span></div>
             </aside>
             <div className={styles.dashboard}>
-              <div className={styles.welcome}><div><small>GOOD MORNING</small><h3>Your snow day</h3></div><Link href="/signup?role=client"><Shovel size={14} /> Book snow help</Link></div>
-              <div className={styles.stats}>
-                <div><span><CalendarDays size={16} /> Next visit</span><strong>Today</strong><small>11:30 AM</small></div>
-                <div><span><CircleDollarSign size={16} /> Winter spend</span><strong>$218</strong><small>6 completed jobs</small></div>
-                <div><span><Clock3 size={16} /> Time saved</span><strong>9.5 hrs</strong><small>More time indoors</small></div>
-              </div>
-              {view === "jobs" ? (
-                <div className={styles.panel}>
-                  <div className={styles.panelTitle}><div><h4>Upcoming help</h4><span>Live updates from your neighbourhood</span></div><Link href="/signup?role=client">View all</Link></div>
-                  <div className={styles.jobHead}><span>SHOVELER</span><span>SERVICE</span><span>WHEN</span><span>STATUS</span><span>PRICE</span></div>
-                  {jobs.map((job) => <div className={styles.job} key={job.person}><span><i>{job.person[0]}</i><b>{job.person}<small><MapPin size={9} /> {job.place}</small></b></span><span>{job.service}</span><span>{job.time}</span><em>{job.status}</em><strong>{job.price}</strong></div>)}
-                </div>
-              ) : (
+              <div className={styles.welcome}><small>Good morning</small><h3>{view === "home" ? "Your snow day" : view === "jobs" ? "Work orders" : "Messages"}</h3></div>
+              {view === "home" && <>
+                <section className={styles.nextAction}>
+                  <div className={styles.actionHeading}><div><small>Next step</small><h4>Visit confirmed.</h4></div><span>Confirmed</span></div>
+                  <p>Your shoveler will update you when they leave.</p>
+                  <div className={styles.visitSummary}>
+                    <div><span>Your shoveler</span><strong>Maya R.</strong></div>
+                    <div><span>When</span><strong>Today, 11:30 AM</strong></div>
+                    <div><span>Total</span><strong>$42.00 CAD</strong></div>
+                  </div>
+                  <div className={styles.actionLinks}><Link href="/signup?role=client">View visit <ArrowRight size={13} /></Link><Link href="/signup?role=client">Book another</Link></div>
+                </section>
+                <section className={styles.visits}>
+                  <div className={styles.visitsHeading}><h4>Other visits</h4><Link href="/signup?role=client">View all</Link></div>
+                  {jobs.map((job) => <div className={styles.visit} key={job.person}><div><strong><User size={13} /> {job.person}</strong><span>{job.service} · {job.time}</span></div><em>{job.status}</em></div>)}
+                </section>
+                <div className={styles.shortcuts}><span><CalendarDays size={17} /><b>Schedule</b><ArrowRight size={14} /></span><span><CreditCard size={17} /><b>Payments</b><ArrowRight size={14} /></span><span><Settings size={17} /><b>Your account &amp; property</b><ArrowRight size={14} /></span></div>
+              </>}
+              {view === "jobs" && <section className={styles.visits}><div className={styles.visitsHeading}><h4>Current work orders</h4><Link href="/signup?role=client">View all</Link></div>{jobs.map((job) => <div className={styles.visit} key={job.person}><div><strong><User size={13} /> {job.person}</strong><span>{job.service} · {job.time}</span></div><em>{job.status}</em></div>)}</section>}
+              {view === "messages" && (
                 <div className={`${styles.panel} ${styles.messages}`}>
                   <div className={styles.panelTitle}><div><h4>Messages</h4><span>Everything is ready for today</span></div></div>
                   <div className={styles.message}><span>J</span><div><b>Jamie</b><p>I’m on my way. I’ll send a photo when the driveway is clear.</p></div><small>9:42</small></div>

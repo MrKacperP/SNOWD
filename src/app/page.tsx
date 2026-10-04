@@ -1,15 +1,15 @@
 import GlassRefraction from "@/components/ui/GlassRefraction";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, Shovel, Snowflake, Check, ArrowUpRight, House, CalendarDays, Coffee } from "lucide-react";
+import { ArrowRight, Shovel, Check, ArrowUpRight, House, CalendarDays, Camera } from "lucide-react";
 import styles from "./landing.module.css";
 import LandingPhone from "@/components/LandingPhone";
 import LandingProductShowcase from "@/components/LandingProductShowcase";
 
 const steps = [
-  ["Find your helping hand.", "Sign up, add your address, and meet the shovelers near you."],
-  ["Make a little plan.", "Pick your shoveler, check the price, and request a time. They’ll confirm the visit."],
-  ["Go enjoy your snow day.", "We’ll keep you in the loop with updates and completion photos. You keep the warm socks on."],
+  ["Find help nearby.", "Add your address to see local shovelers who can clear your driveway, walkway, or steps."],
+  ["Choose a time and price.", "Pick a shoveler, review the price, and request a time that works for you. They’ll confirm the visit."],
+  ["Know when it’s done.", "Get updates and a completion photo, so you know when the snow has been cleared."],
 ];
 
 function StepPreview({ step }: { step: number }) {
@@ -33,7 +33,7 @@ function StepPreview({ step }: { step: number }) {
         </div>
       ) : (
         <>
-          <div className={styles.coffeeCircle}><Coffee size={58} strokeWidth={1.3} /><Snowflake size={24} className={styles.littleSnowflake} /></div>
+          <div className={styles.photoPreview}><Image src="/landing/snowd-cleared-driveway.png" alt="" fill sizes="180px" /><span><Camera size={17} /></span></div>
           <div className={styles.donePreview}><span><Check size={18} /></span><div>Snow cleared.<small>Time for something better.</small></div></div>
         </>
       )}
@@ -95,7 +95,6 @@ export default function HomePage() {
       <main id="main">
         <section className={styles.hero} aria-labelledby="hero-title">
           <div className={styles.heroCopy}>
-            <p className={styles.eyebrow}><Snowflake size={15} aria-hidden="true" /> Snow clearing, close to home</p>
             <h1 id="hero-title">
               Snow day.
               <br />
@@ -113,7 +112,7 @@ export default function HomePage() {
         <section id="how" className={styles.how} aria-labelledby="how-title">
           <div className={styles.sectionHeading}>
             <p className={styles.eyebrow}>How it works</p>
-            <h2 id="how-title">You make the cocoa.<br /><span>We’ll help with the snow.</span></h2>
+            <h2 id="how-title">Snow clearing made simple.<br /><span>Help from someone nearby.</span></h2>
           </div>
           <ol className={styles.steps}>
             {steps.map(([title, description], index) => (
