@@ -6,7 +6,7 @@ import Image from "next/image";
 import DeleteConfirmPopup from "@/components/DeleteConfirmPopup";
 import Modal from "@/components/ui/Modal";
 import Notification from "@/components/Notification";
-import PageHeader from "@/components/ui/PageHeader";
+
 
 import StripeOnboarding from "@/components/StripeOnboarding";
 import { stripeConnectFetch } from "@/lib/stripeConnectClient";
@@ -41,6 +41,10 @@ Loader2,
 LogOut,
 MapPin,
   Palette,
+ArrowUpRight,
+Circle,
+LockKeyhole,
+Snowflake,
 RefreshCw,
 Save,
 Shield,
@@ -49,13 +53,14 @@ Trash2,
 Upload,
 User
 } from "lucide-react";
-import { useRouter,useSearchParams } from "next/navigation";
+import { usePathname,useRouter,useSearchParams } from "next/navigation";
 import React,{ useEffect,useState,useRef } from "react";
 import styles from "./settings.module.css";
 
 export default function SettingsPage() {
   const { user, profile, signOut, refreshProfile, deleteAccount } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
 
   const [feedback, setFeedback] = useState("");
@@ -69,7 +74,10 @@ export default function SettingsPage() {
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [savingEmailPreferences, setSavingEmailPreferences] = useState(false);
   const [emailPreferences, setEmailPreferences] = useState({ account: true, workOrders: true });
-  const [activeTab, setActiveTab] = useState<"general" | "payment" | "notifications" | "verification" | "branding">("general");
+  const [activeTab, setActiveTab] = useState<"general" | "payment" | "notifications" | "verification" | "branding">(() => {
+    const section = pathname.split("/")[3];
+    return ["general", "payment", "notifications", "verification", "branding"].includes(section) ? section as "general" | "payment" | "notifications" | "verification" | "branding" : "general";
+  });
   const [onboardingAccountId, setOnboardingAccountId] = useState<string | null>(null);
   const [stripeCheckVersion, setStripeCheckVersion] = useState(0);
   const [stripeConnecting, setStripeConnecting] = useState(false);
@@ -210,6 +218,8 @@ export default function SettingsPage() {
   ];
   const missingGeneralFields = requiredGeneralFields.filter((field) => !field.value.trim());
   const missingGeneralFieldSet = new Set(missingGeneralFields.map((field) => field.key));
+  const savedRequiredFields = requiredGeneralFields.map(field => ({ ...field, value: String((profile as unknown as Record<string, unknown> | null)?.[field.key] || "") }));
+  const savedMissingFields = savedRequiredFields.filter(field => !field.value.trim());
 
 
   // Verification state
@@ -241,12 +251,13 @@ export default function SettingsPage() {
   }, [profile]);
   const brandingDirty = isOperator && (avatarUrl !== (profile?.avatar || "") || logoUrl !== (operatorProfile?.logoUrl || "") || brandingTagline !== (operatorProfile?.tagline || "") || brandingDescription !== (operatorProfile?.brandDescription || "") || JSON.stringify(portfolioPhotos) !== JSON.stringify(operatorProfile?.portfolioPhotos || []));
   const brandingBusy = uploadingLogo || uploadingPortfolio;
+  const generalDirty = Boolean(profile) && (requiredGeneralFields.some(field => field.value !== String((profile as unknown as Record<string, unknown>)?.[field.key] || "")) || (!isOperator && age !== (profile as ClientProfile)?.age) || (isOperator && (serviceRadius !== (operatorProfile.serviceRadius || 10) || serviceAreaMode !== (operatorProfile.serviceAreaMode || (operatorProfile.serviceAreas?.length ? "cities" : "radius")) || JSON.stringify(serviceAreas) !== JSON.stringify(operatorProfile.serviceAreas || []) || pricing.small !== (operatorProfile.pricing?.driveway?.small || 25) || pricing.medium !== (operatorProfile.pricing?.driveway?.medium || 40) || pricing.large !== (operatorProfile.pricing?.driveway?.large || 60) || pricing.walkway !== (operatorProfile.pricing?.walkway || 15) || pricing.sidewalk !== (operatorProfile.pricing?.sidewalk || 15))));
   useEffect(() => {
-    if (!brandingDirty && !brandingBusy) return;
+    if (!generalDirty && !brandingDirty && !brandingBusy) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
     const leave = (event: MouseEvent) => {
       const target = (event.target as Element).closest("a[href], button");
-      const leaving = target?.matches("a[href]") || /sign out/i.test(target?.textContent || "");
+      const leaving = (target?.matches("a[href]") && !target.getAttribute("href")?.startsWith("#")) || /sign out/i.test(target?.textContent || "");
       if (leaving && !allowLeave.current && target instanceof HTMLElement) {
         event.preventDefault(); event.stopPropagation();
         pendingLeave.current = () => {
@@ -260,7 +271,7 @@ export default function SettingsPage() {
     window.addEventListener("beforeunload", warn);
     document.addEventListener("click", leave, true);
     return () => { window.removeEventListener("beforeunload", warn); document.removeEventListener("click", leave, true); };
-  }, [brandingDirty, brandingBusy]);
+  }, [generalDirty, brandingDirty, brandingBusy]);
 
   const verificationStatus = (profile as UserProfile & { verificationStatus?: string })?.verificationStatus;
   const verificationNote = (profile as UserProfile & { verificationNote?: string })?.verificationNote;
@@ -409,15 +420,18 @@ export default function SettingsPage() {
     if (stripeParam === "success" || stripeParam === "refresh") {
       setActiveTab("payment");
       setStripeCheckVersion((value) => value + 1);
-      router.replace("/dashboard/settings?tab=payment");
+      router.replace("/dashboard/settings/payment");
     }
 
     // Handle tab query param (e.g. from transactions page)
     const tabParam = searchParams.get("tab");
-    if (tabParam && ["general", "payment", "notifications", "verification", "branding"].includes(tabParam)) {
-      setActiveTab(tabParam as typeof activeTab);
-    }
+    if (tabParam && ["general", "payment", "notifications", "verification", "branding"].includes(tabParam)) router.replace(`/dashboard/settings/${tabParam}`);
   }, [searchParams, profile?.uid, router, refreshProfile]);
+
+  useEffect(() => {
+    const section = pathname.split("/")[3];
+    setActiveTab(["general", "payment", "notifications", "verification", "branding"].includes(section) ? section as typeof activeTab : "general");
+  }, [pathname]);
 
   // Check Stripe Connect account status
   useEffect(() => {
@@ -644,68 +658,74 @@ export default function SettingsPage() {
   };
 
   const activeTabMeta = TABS.find((tab) => tab.key === activeTab);
+  const accountComplete = savedMissingFields.length === 0;
+  const completionPercent = Math.round((savedRequiredFields.length - savedMissingFields.length) / savedRequiredFields.length * 100);
+  const verificationLabel = profile?.idVerified ? "Verified" : verificationStatus === "rejected" ? "Action needed" : profile?.idPhotoUrl ? "In review" : "Not submitted";
+  const paymentLabel = isOperator ? stripeStatus?.fullyReady ? "Connected" : stripeConfigError ? "Check connection" : stripeStatus ? "Setup needed" : "Check status" : "At checkout";
+  const sectionStatus: Record<string, string> = { general: accountComplete ? "Complete" : `${savedMissingFields.length} missing`, payment: paymentLabel, verification: verificationLabel, notifications: "Preferences", branding: "Optional" };
+
+  const profileInitials = (profile?.displayName || "Your profile").split(" ").filter(Boolean).slice(0, 2).map(word => word[0]).join("").toUpperCase();
 
   return (
-    <div className={`${styles.settings} max-w-[1040px] mx-auto space-y-5`}>
-      <Modal isOpen={leaveOpen} onClose={() => setLeaveOpen(false)} title="Leave without saving?" subtitle={brandingBusy ? "Wait for the upload to finish, then save your profile before leaving." : "Your business profile has changes that haven’t been saved."} size="sm">
+    <div className={`${styles.settings} max-w-[1200px] mx-auto space-y-6`}>
+      <Modal isOpen={leaveOpen} onClose={() => setLeaveOpen(false)} title="Leave without saving?" subtitle={brandingBusy ? "Wait for the upload to finish, then save your profile before leaving." : "Your account has changes that haven’t been saved."} size="sm">
         <div className="grid gap-2">
           <button type="button" className="btn-primary w-full" onClick={() => setLeaveOpen(false)}>Keep editing</button>
           <button type="button" className="btn-secondary w-full" disabled={brandingBusy} onClick={() => { setLeaveOpen(false); pendingLeave.current?.(); pendingLeave.current = null; }}>Leave without saving</button>
         </div>
       </Modal>
-      <PageHeader title="Settings" description="Payments, verification, and account preferences." action={<Link className="btn-secondary min-h-11" href="/dashboard/profile">Edit profile</Link>} />
+      <header className={styles.pageHeader}>
+        <div><p className={styles.eyebrow}>YOUR WORKSPACE</p><h1>Settings</h1><p>A little about you. Everything in your control.</p></div>
+        <span className={styles.workspaceBadge}><Snowflake size={17} aria-hidden="true" /> snowd<span className={styles.badgeDivider} />{isOperator ? "Operator" : "Personal"} account</span>
+      </header>
+      <section className={styles.overview} aria-label="Saved profile overview">
+        <div className={styles.identity}>
+          <div className={styles.avatar}>{profile?.avatar ? <Image src={profile.avatar} alt="Saved profile photo" width={60} height={60} unoptimized /> : profileInitials}</div>
+          <div><span className={styles.eyebrow}>YOUR SAVED PROFILE</span><h2>{profile?.displayName || "Make yourself at home"}</h2><p>{profile?.email || user?.email}</p><span className={styles.visibility}><span />{isOperator ? isOperatorPublic(operatorProfile) ? "Visible to nearby clients" : "Not visible in nearby searches" : "Personal account"}</span></div>
+        </div>
+        <div className={styles.completion}>
+          <div><span>Account details</span><strong>{completionPercent}% complete</strong></div>
+          <div className={styles.progress} role="progressbar" aria-label="Saved account details completed" aria-valuenow={completionPercent} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${completionPercent}%` }} /></div>
+          <p>{accountComplete ? "Your essential details are all filled in." : `${savedMissingFields.length} details left. Save your changes to update progress.`}</p>
+        </div>
+      </section>
       <div className={styles.layout}>
         <aside className={styles.sidebar}>
-          <p className={styles.navLabel}>Settings</p>
+          <p className={styles.navLabel}>ACCOUNT SETTINGS</p>
           <label className={styles.mobileSelectLabel} htmlFor="settings-section">Settings section</label>
-          <select id="settings-section" className={styles.mobileSelect} value={activeTab} onChange={event => setActiveTab(event.target.value as typeof activeTab)}>{TABS.map(tab => <option key={tab.key} value={tab.key}>{tab.label}</option>)}</select>
+          <select id="settings-section" className={styles.mobileSelect} value={activeTab} onChange={event => router.push(`/dashboard/settings/${event.target.value}`)}>{TABS.map(tab => <option key={tab.key} value={tab.key}>{tab.label}</option>)}</select>
           <nav aria-label="Settings sections" className={styles.navigation}>
             {TABS.map((tab) => {
               const Icon = tab.icon;
-              return <button key={tab.key} type="button" aria-current={activeTab === tab.key ? "page" : undefined}
-                onClick={() => setActiveTab(tab.key)} className={styles.navButton}>
-                <Icon size={19} aria-hidden="true" /><span>{tab.label}</span><ChevronRight size={16} className={styles.chevron} aria-hidden="true" />
-              </button>;
+              return <Link key={tab.key} href={`/dashboard/settings/${tab.key}`} aria-current={activeTab === tab.key ? "page" : undefined} className={styles.navButton}>
+                <Icon size={18} aria-hidden="true" /><span>{tab.label}<small>{sectionStatus[tab.key]}</small></span><ChevronRight size={15} className={styles.chevron} aria-hidden="true" />
+              </Link>;
             })}
           </nav>
+          <div className={styles.sidebarNote}><LockKeyhole size={17} /><strong>You’re in control</strong><p>Review your saved details and choose how you hear from us.</p></div>
+          <button type="button" onClick={handleSignOut} className={styles.sidebarSignOut}><LogOut size={16} /> Sign out</button>
         </aside>
         <section className={styles.content} aria-labelledby="settings-section-title">
           <div className="space-y-6">
             <div className={styles.sectionHeading}>
               <div><h2 id="settings-section-title">{activeTabMeta?.label || "Settings"}</h2><p>{TAB_DESCRIPTIONS[activeTab]}</p></div>
-              {saved && <span role="status" className={styles.saved}><CheckCircle size={16} /> Saved</span>}
+              <span role="status" className={saved ? styles.saved : styles.sectionMeta}>{saved ? <><CheckCircle size={15} /> Saved</> : activeTab === "notifications" ? savingEmailPreferences ? "Saving…" : "Saves automatically" : (activeTab === "general" && generalDirty) || (activeTab === "branding" && brandingDirty) ? "Unsaved changes" : "Your account, at a glance"}</span>
             </div>
+            {savedMissingFields.length > 0 && activeTab !== "general" && <Link href="/dashboard/settings/general" className={styles.incompleteNotice}><AlertCircle size={17} /><span>Finish your account details</span><ChevronRight size={17} /></Link>}
 
       {/* General Settings */}
       {activeTab === "general" && (
         <div className="space-y-6">
-          {missingGeneralFields.length > 0 && <div className={`rounded-2xl border p-4 ${
-            missingGeneralFields.length === 0
-              ? "bg-green-50 border-green-200"
-              : "bg-amber-50 border-amber-200"
-          }`}>
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className={`text-sm font-semibold ${
-                  missingGeneralFields.length === 0 ? "text-green-800" : "text-amber-800"
-                }`}>
-                  Finish your profile
-                </p>
-                {missingGeneralFields.length === 0 ? (
-                  <p className="text-xs text-green-700 mt-1">Everything needed is complete.</p>
-                ) : (
-                  <p className="text-xs text-amber-700 mt-1">
-                    Complete these fields: {missingGeneralFields.map((field) => field.label).join(", ")}
-                  </p>
-                )}
-              </div>
-              {missingGeneralFields.length === 0 ? (
-                <CheckCircle className="w-5 h-5 text-green-600 shrink-0" />
-              ) : (
-                <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
-              )}
+          <section className={styles.setupPanel} aria-labelledby="setup-heading">
+            <div className={styles.setupHeading}><div><h3 id="setup-heading">Let’s get you set up</h3><p>Know what’s ready and what comes next.</p></div><span className={styles.softBadge}>Saved account status</span></div>
+            <div className={styles.setupGrid}>
+              <a href="#settings-display-name" className={styles.setupItem}>{accountComplete ? <CheckCircle size={19} className={styles.completeIcon} /> : <Circle size={19} />}<span><strong>Account details</strong><small>{accountComplete ? "Complete" : `${savedMissingFields.length} details to add`}</small></span><ArrowUpRight size={15} /></a>
+              <Link href="/dashboard/settings/verification" className={styles.setupItem}>{profile?.idVerified ? <CheckCircle size={19} className={styles.completeIcon} /> : <ShieldCheck size={19} />}<span><strong>Identity check</strong><small>{verificationLabel}{!isOperator && !profile?.idVerified ? " · Optional" : ""}</small></span><ArrowUpRight size={15} /></Link>
+              <Link href="/dashboard/settings/payment" className={styles.setupItem}><CreditCard size={19} /><span><strong>{isOperator ? "Payout account" : "Payment method"}</strong><small>{paymentLabel}</small></span><ArrowUpRight size={15} /></Link>
             </div>
-          </div>}
+            {!accountComplete && <p className={styles.nextStep}><span>Next step</span> Add {savedMissingFields.map(field => field.label.toLowerCase()).join(", ")}.</p>}
+          </section>
+          <div className={styles.formNote}><LockKeyhole size={14} /> {isOperator ? "Your name, business name and bio introduce you to clients. Review what you share below." : "Keep your contact and property details up to date for your next service."}</div>
 
           {/* Profile Info */}
           <section className={styles.card}>
@@ -713,9 +733,10 @@ export default function SettingsPage() {
               <User className="w-5 h-5 text-[var(--accent)]" />
               Your contact details
             </h3>
+            <p className={styles.sectionDescription}>How we address you and keep in touch. Fields marked “Required” complete your account.</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-display-name">Display Name</label>
+                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-display-name">Display Name <span className={styles.required}>Required</span></label>
                 <input
                   type="text"
                   id="settings-display-name"
@@ -737,7 +758,7 @@ export default function SettingsPage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-phone">Phone</label>
+                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-phone">Phone <span className={styles.required}>Required</span></label>
                 <input
                   type="tel"
                   id="settings-phone"
@@ -750,7 +771,7 @@ export default function SettingsPage() {
               </div>
               {!isOperator && (
                 <div>
-                  <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-age">Age</label>
+                  <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-age">Age <span className={styles.required}>Optional</span></label>
                   <input
                     type="number"
                     min={13}
@@ -768,7 +789,7 @@ export default function SettingsPage() {
               )}
               {isOperator && (
                 <div>
-                  <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-business-name">Business Name</label>
+                  <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-business-name">Business Name <span className={styles.required}>Required</span></label>
                   <input
                     type="text"
                     id="settings-business-name"
@@ -783,7 +804,7 @@ export default function SettingsPage() {
             </div>
             {isOperator && (
               <div className="mt-4">
-                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-bio">Bio</label>
+                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-bio">Bio <span className={styles.required}>Required</span></label>
                 <textarea
                   id="settings-bio"
                   value={bio}
@@ -843,7 +864,7 @@ export default function SettingsPage() {
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
               <div className="sm:col-span-2">
-                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-street-address">Street Address</label>
+                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-street-address">Street Address <span className={styles.required}>Required</span></label>
                 <input
                   type="text"
                   id="settings-street-address"
@@ -855,7 +876,7 @@ export default function SettingsPage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-city">City</label>
+                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-city">City <span className={styles.required}>Required</span></label>
                 <input
                   type="text"
                   id="settings-city"
@@ -867,7 +888,7 @@ export default function SettingsPage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-province">Province</label>
+                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-province">Province <span className={styles.required}>Required</span></label>
                 <select
                   id="settings-province"
                   value={province}
@@ -876,13 +897,14 @@ export default function SettingsPage() {
                     missingGeneralFieldSet.has("province") ? "border-amber-300 bg-amber-50" : "border-[var(--border)]"
                   }`}
                 >
+                  <option value="">Choose a province</option>
                   {CANADIAN_PROVINCES.map((p) => (
                     <option key={p.code} value={p.code}>{p.name}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-postal-code">Postal Code</label>
+                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-postal-code">Postal Code <span className={styles.required}>Required</span></label>
                 <input
                   type="text"
                   id="settings-postal-code"
@@ -916,6 +938,7 @@ export default function SettingsPage() {
                 </label>
                 <div className="rounded-xl overflow-hidden border-[3px] border-[var(--border)]">
                   <iframe
+                    title="Your service location"
                     width="100%"
                     height="250"
                     style={{ border: 0 }}
@@ -945,9 +968,10 @@ export default function SettingsPage() {
 
           {saveError && <p role="alert" className="text-sm text-red-700">{saveError}</p>}
           {/* Save */}
+          <div className={styles.saveBar}><div><strong>{generalDirty ? "You have unsaved changes" : "Your account details"}</strong><p>Save to update your profile and completion status.</p></div>
           <button
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || brandingBusy}
             className={`mobile-save-action btn-primary w-full flex items-center justify-center gap-2 px-6 py-3 text-white rounded-xl font-semibold text-sm transition disabled:opacity-50 ${
               saved ? "bg-green-600 hover:bg-green-700" : "bg-[var(--accent)] hover:bg-[var(--accent-dark)]"
             }`}
@@ -962,23 +986,15 @@ export default function SettingsPage() {
             {saving ? "Saving changes..." : saved ? "Saved" : "Save Changes"}
           </button>
 
-          {/* Sign Out */}
-          <button
-            onClick={handleSignOut}
-            className={styles.signOut}
-          >
-            <LogOut className="w-4 h-4" />
-            Sign Out
-          </button>
-
+          </div>
           {/* Delete Account */}
-          <section className="border-t border-red-100 pt-5">
+          <section className={styles.dangerZone}>
             <h3 className="min-h-11 text-sm font-semibold">Account removal</h3>
             <div className="rounded-xl border border-red-200 bg-red-50/60 p-4 mb-3">
               <div className="flex items-start gap-3">
                 <Trash2 className="w-5 h-5 text-red-600 mt-0.5 shrink-0" />
                 <div>
-                  <h3 className="text-sm font-semibold text-red-800">Start over with a new account</h3>
+                  <h3 className="text-sm font-semibold text-red-800">Delete your account</h3>
                   <p className="text-xs text-red-700 mt-1 leading-5">
                     This removes your profile and sign-in permanently. Shared job, payment, and support records may be retained for service and legal purposes.
                   </p>
@@ -991,7 +1007,7 @@ export default function SettingsPage() {
               className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm border border-red-200 text-red-600 hover:bg-red-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {deletingAccount ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-              {deletingAccount ? "Deleting account..." : "Delete account and start over"}
+              {deletingAccount ? "Deleting account..." : "Delete account"}
             </button>
             <p className="text-center text-xs text-[var(--text-muted)] mt-2">This cannot be undone.</p>
           </section>
@@ -1161,11 +1177,11 @@ export default function SettingsPage() {
             <div className="mt-5 divide-y divide-[var(--border-color)] rounded-2xl border border-[var(--border-color)]">
               <label className="flex min-h-20 cursor-pointer items-center justify-between gap-4 p-4">
                 <span><span className="block text-sm font-semibold">Work-order emails</span><span className="mt-1 block text-xs text-[var(--text-muted)]">New requests, approvals, scheduling, arrival, completion, cancellation, and payment updates.</span></span>
-                <input type="checkbox" checked={emailPreferences.workOrders} disabled={savingEmailPreferences} onChange={(event) => void updateEmailPreference("workOrders", event.target.checked)} className="h-5 w-5 shrink-0 accent-[var(--accent)]" />
+                <input type="checkbox" role="switch" checked={emailPreferences.workOrders} disabled={savingEmailPreferences} onChange={(event) => void updateEmailPreference("workOrders", event.target.checked)} className={styles.toggle} />
               </label>
               <label className="flex min-h-20 cursor-pointer items-center justify-between gap-4 p-4">
                 <span><span className="block text-sm font-semibold">Account emails</span><span className="mt-1 block text-xs text-[var(--text-muted)]">Welcome messages and important updates about your SNOWD account.</span></span>
-                <input type="checkbox" checked={emailPreferences.account} disabled={savingEmailPreferences} onChange={(event) => void updateEmailPreference("account", event.target.checked)} className="h-5 w-5 shrink-0 accent-[var(--accent)]" />
+                <input type="checkbox" role="switch" checked={emailPreferences.account} disabled={savingEmailPreferences} onChange={(event) => void updateEmailPreference("account", event.target.checked)} className={styles.toggle} />
               </label>
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -1290,7 +1306,7 @@ export default function SettingsPage() {
               <input
                 type="file"
                 accept="image/*"
-                className="hidden"
+                className="sr-only"
                 onChange={handleIdUpload}
                 disabled={uploadingId}
               />
@@ -1356,7 +1372,7 @@ export default function SettingsPage() {
                 <input
                   type="file"
                   accept="image/*,.pdf"
-                  className="hidden"
+                  className="sr-only"
                   onChange={handleTranscriptUpload}
                   disabled={uploadingTranscript}
                 />
@@ -1402,7 +1418,7 @@ export default function SettingsPage() {
                   ) : (
                     <><Upload className="w-3 h-3" /> {logoUrl ? "Change Logo" : "Upload Logo"}</>
                   )}
-                  <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} disabled={uploadingLogo} />
+                  <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={handleLogoUpload} disabled={uploadingLogo} />
                 </label>
               </div>
             </div>
@@ -1506,7 +1522,7 @@ export default function SettingsPage() {
                 type="file"
                 accept="image/*"
                 multiple
-                className="hidden"
+                className="sr-only"
                 onChange={handlePortfolioUpload}
                 disabled={uploadingPortfolio}
               />

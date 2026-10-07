@@ -1,10 +1,11 @@
 import GlassRefraction from "@/components/ui/GlassRefraction";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, Shovel, Check, ArrowUpRight, House, CalendarDays, Camera } from "lucide-react";
+import { ArrowRight, Shovel, Check, ArrowUpRight, House, CalendarDays, Camera, Plus } from "lucide-react";
 import styles from "./landing.module.css";
 import LandingPhone from "@/components/LandingPhone";
 import LandingProductShowcase from "@/components/LandingProductShowcase";
+import SnowRevealSubtitle from "@/components/SnowRevealSubtitle";
 
 const steps = [
   ["Find help nearby.", "Add your address to see local shovelers who can clear your driveway, walkway, or steps."],
@@ -101,7 +102,7 @@ export default function HomePage() {
               <span>Handled.</span>
             </h1>
             <p className={styles.intro}>
-              A clear driveway. A little more time. Find someone local to take snow clearing off your hands.
+              <SnowRevealSubtitle />
             </p>
             <div className={styles.heroActions}><FindHelp /><a href="#how" className={styles.secondary}>See how it works <ArrowUpRight size={17} aria-hidden="true" /></a></div>
           </div>
@@ -129,13 +130,18 @@ export default function HomePage() {
           <div className={styles.howAction}><Link href="/signup?role=client" className={styles.primary}>Find a shoveler <ArrowRight size={18} aria-hidden="true" /></Link></div>
         </section>
         <section id="faq" className={styles.faq} aria-labelledby="faq-title">
-          <div><h2 id="faq-title">Good questions.</h2></div>
+          <div className={styles.faqIntro}>
+            <p className={styles.eyebrow}>A little more clarity</p>
+            <h2 id="faq-title">Good questions.<br /><span>Clear answers.</span></h2>
+            <p className={styles.faqNote}>Everything you need to feel good about your next snow day.</p>
+            <a href="#ready-title" className={styles.faqCta}>Ready when you are <ArrowRight size={16} aria-hidden="true" /></a>
+          </div>
           <div className={styles.questions}>
-            {questions.map(([question, answer]) => (
-              <article key={question}>
-                <h3>{question}</h3>
+            {questions.map(([question, answer], index) => (
+              <details key={question} className={styles.question} open={index === 0}>
+                <summary><span className={styles.questionNumber}>0{index + 1}</span><span>{question}</span><Plus className={styles.questionIcon} size={20} aria-hidden="true" /></summary>
                 <p>{answer}</p>
-              </article>
+              </details>
             ))}
           </div>
         </section>
