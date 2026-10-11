@@ -40,6 +40,9 @@ export function ClientHomeView({ greeting, locationLabel, activeJobs, operatorNa
 }) {
   const nextJob = activeJobs[0];
   const next = nextJob ? workOrderPresentation(nextJob, nextJob.clientId) : null;
+  const nextActionNeeded = nextJob
+    ? orderActionNeeded(nextJob, nextJob.clientId)
+    : "";
   return (
     <div className="app-page text-[var(--text-primary)]">
       <header>
@@ -55,7 +58,19 @@ export function ClientHomeView({ greeting, locationLabel, activeJobs, operatorNa
           <div className="col-span-2 sm:col-span-1"><span className="text-xs text-[var(--text-muted)]">When</span><strong className="mt-1 block text-sm">{isAsap(nextJob) ? "As soon as possible" : scheduleText(nextJob)}</strong></div>
           <div><span className="text-xs text-[var(--text-muted)]">Total</span><strong className="mt-1 block">${nextJob.price.toFixed(2)} CAD</strong></div>
         </div>
-        <div className="mt-5 flex flex-wrap items-center gap-3">{orderActionNeeded(nextJob, nextJob.clientId) ? <OrderActions job={nextJob} compact navigateOnUpdate={false} /> : <Link className="btn-primary min-h-12" href={`/dashboard/jobs/${nextJob.id}`}>{next.nextAction || "View visit"}<ArrowRight size={18} /></Link>}<Link className="inline-flex min-h-11 items-center px-2 font-semibold text-[var(--text-secondary)]" href="/dashboard/find">Book another</Link></div>
+        {nextActionNeeded ? (
+          <OrderActions job={nextJob} compact navigateOnUpdate={false} />
+        ) : (
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <Link className="btn-primary min-h-12" href={`/dashboard/jobs/${nextJob.id}`}>
+              {next.nextAction || "View visit"}
+              <ArrowRight size={18} />
+            </Link>
+            <Link className="inline-flex min-h-12 items-center px-2 font-semibold text-[var(--text-secondary)]" href="/dashboard/find">
+              Book another
+            </Link>
+          </div>
+        )}
       </section> : <BookingAction location={locationLabel} />}
 
       {(loading || loadError || !nextJob || activeJobs.length > 1) && <section aria-labelledby="jobs-heading">
