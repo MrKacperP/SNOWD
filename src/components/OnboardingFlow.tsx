@@ -41,6 +41,8 @@ export type OnboardingDraft = {
   pricingLarge: string;
   pricingWalkway: string;
   pricingSidewalk: string;
+  pricingBackyardPatio: string;
+  pricingPorch: string;
   businessName: string;
   bio: string;
   isStudent: boolean;
@@ -64,6 +66,8 @@ const defaults: OnboardingDraft = {
   pricingLarge: "60",
   pricingWalkway: "15",
   pricingSidewalk: "15",
+  pricingBackyardPatio: "15",
+  pricingPorch: "10",
   businessName: "",
   bio: "",
   isStudent: false,
@@ -76,11 +80,13 @@ const services: [ServiceType, string][] = [
   ["driveway", "Driveway"],
   ["walkway", "Walkway"],
   ["sidewalk", "Sidewalk"],
+  ["backyard-patio", "Backyard patio"],
+  ["porch", "Porch"],
 ];
 const propertySizes: [PropertySize, string, string][] = [
-  ["small", "Small", "1-car driveway"],
-  ["medium", "Medium", "2-car driveway"],
-  ["large", "Large", "3+ cars / long"],
+  ["small", "1-car driveway", "Fits one car"],
+  ["medium", "2-car driveway", "Fits two cars"],
+  ["large", "3+ car driveway", "Fits three or more cars"],
   ["commercial", "Commercial", "Parking lot"],
 ];
 const priceFields = [
@@ -89,6 +95,8 @@ const priceFields = [
   ["pricingLarge", "Large driveway", "60"],
   ["pricingWalkway", "Walkway", "15"],
   ["pricingSidewalk", "Sidewalk", "15"],
+  ["pricingBackyardPatio", "Backyard patio", "15"],
+  ["pricingPorch", "Porch", "10"],
 ] as const;
 
 function Choice({
@@ -571,6 +579,8 @@ export default function OnboardingFlow({
                             pricingLarge: "60",
                             pricingWalkway: "15",
                             pricingSidewalk: "15",
+                            pricingBackyardPatio: "15",
+                            pricingPorch: "10",
                           })
                         }
                       >

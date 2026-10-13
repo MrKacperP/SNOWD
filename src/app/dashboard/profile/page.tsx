@@ -43,6 +43,8 @@ const SERVICE_LABELS: Record<ServiceType, string> = {
   sidewalk: "Sidewalk",
   "parking-lot": "Parking Lot",
   roof: "Roof",
+  "backyard-patio": "Backyard patio",
+  porch: "Porch",
   other: "Other",
 };
 
@@ -477,7 +479,7 @@ export default function ProfilePage() {
                 <p>
                   <span className="text-gray-500">Size:</span>{" "}
                   <span className="capitalize font-medium">
-                    {(profile as ClientProfile).propertyDetails?.propertySize || "Not set"}
+                    {(profile as ClientProfile).propertyDetails?.propertySize === "small" ? "1-car driveway" : (profile as ClientProfile).propertyDetails?.propertySize === "medium" ? "2-car driveway" : (profile as ClientProfile).propertyDetails?.propertySize === "large" ? "3+ car driveway" : (profile as ClientProfile).propertyDetails?.propertySize === "commercial" ? "Commercial property" : "Not set"}
                   </span>
                 </p>
                 <p>

@@ -22,31 +22,20 @@ export default function ClientDashboard() {
       return urgency(a) - urgency(b) || (dateMillis(a.scheduledDate) || dateMillis(a.createdAt)) - (dateMillis(b.scheduledDate) || dateMillis(b.createdAt));
     }).slice(0, 3);
   const loadError = !!error;
-  const greeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 17) return "Good afternoon";
-    return "Good evening";
-  };
   const locationLabel =
     [clientProfile?.city, clientProfile?.province].filter(Boolean).join(", ") || "Your service area";
 
-  return <ClientHomeView greeting={greeting()} locationLabel={locationLabel} activeJobs={activeJobs} operatorNames={operatorNames} loading={loading} loadError={loadError} />;
+  return <ClientHomeView locationLabel={locationLabel} activeJobs={activeJobs} operatorNames={operatorNames} loading={loading} loadError={loadError} />;
 }
 
-export function ClientHomeView({ greeting, locationLabel, activeJobs, operatorNames, loading, loadError }: {
-  greeting: string; locationLabel: string; activeJobs: Job[];
+export function ClientHomeView({ locationLabel, activeJobs, operatorNames, loading, loadError }: {
+  locationLabel: string; activeJobs: Job[];
   operatorNames: Record<string, string>; loading: boolean; loadError: boolean;
 }) {
   const nextJob = activeJobs[0];
   const next = nextJob ? workOrderPresentation(nextJob, nextJob.clientId) : null;
   return (
     <div className="app-page text-[var(--text-primary)]">
-      <header>
-        <p className="app-eyebrow">{greeting}</p>
-        <h1 className="text-3xl font-semibold tracking-[-.04em] sm:text-5xl">Your snow day</h1>
-      </header>
-
       {!loading && !loadError && nextJob && next ? <section className={`next-action job-widget job-widget--${nextJob.status}`}>
         <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="app-eyebrow">Next step</p><h2>{next.title}</h2></div><StatusBadge status={nextJob.status} /></div>
         <p>{next.description}</p>
@@ -67,12 +56,12 @@ export function ClientHomeView({ greeting, locationLabel, activeJobs, operatorNa
       {(loading || loadError || !nextJob || activeJobs.length > 1) && <section aria-labelledby="jobs-heading">
         <div className="mb-4 flex items-center justify-between gap-4">
           <h2 id="jobs-heading" className="text-xl font-semibold tracking-tight">{nextJob ? "Other visits" : "Current work orders"}</h2>
-          <Link href="/dashboard/jobs" className="inline-flex min-h-11 items-center text-sm font-medium underline decoration-[var(--border-color)] underline-offset-4 hover:decoration-current">View all</Link>
+          <Link href="/dashboard/jobs" className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]">View all</Link>
         </div>
         {loadError ? (<p role="alert">Could not load jobs. <Link className="underline" href="/dashboard/jobs">Open job log to try again</Link></p>) : loading ? (
           <p role="status" className="py-8 text-sm text-[var(--text-muted)]">Loading your work orders…</p>
         ) : activeJobs.length === 0 ? (
-          <div className="app-card flex items-center gap-3 p-5"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--accent-soft)]"><MapPin size={19} className="text-[var(--accent)]" /></span><div><p className="font-semibold">All clear for now</p><p className="mt-1 text-sm text-[var(--text-secondary)]">Your next visit will appear here.</p></div></div>
+          <div className="flex min-h-12 items-center rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 text-sm text-[var(--text-muted)]">None</div>
         ) : (
           <div className="divide-y divide-[var(--border-color)]">
             {activeJobs.filter(job => job.id !== nextJob?.id).map((job) => (

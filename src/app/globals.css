@@ -790,6 +790,11 @@ html { scroll-padding-top: 6rem; }
 .availability-label { min-width: 0; overflow-wrap: anywhere; font-weight: 600; }
 .availability-toggle:focus-visible { outline: 2px solid var(--accent, #367c50); outline-offset: 3px; }
 .availability-toggle:disabled { cursor: wait; opacity: .7; }
+.availability-control-compact .availability-toggle { width: auto; min-height: 30px; padding: 2px 4px; background: transparent; }
+.availability-control-compact .availability-label { display: none; }
+.availability-control-compact .availability-track { width: 42px; height: 26px; padding: 2px; }
+.availability-control-compact .availability-thumb { width: 20px; height: 20px; }
+.availability-control-compact .availability-toggle[data-online="true"] .availability-thumb { transform: translateX(16px); }
 @keyframes cancel-sweep { from { transform: translateX(-110%); } to { transform: translateX(220%); } }
 
 /* Landing-page colour theory carried into the signed-in product with semantic hierarchy. */
@@ -839,6 +844,10 @@ html { scroll-padding-top: 6rem; }
 .availability-toggle[data-online="true"] .availability-thumb { box-shadow: 0 1px 4px #112b3b26; }
 @media (min-width: 640px) { .app-modal-panel::before { display: none; } }
 @media (min-width: 1024px) { .dashboard-main { padding-top: 24px; } }
+@media (max-width: 1023px) {
+  .dashboard-shell { --app-header-height: 0px; }
+  .dashboard-main { padding-top: 0 !important; }
+}
 @media (max-width: 639px) {
   .app-toast { left: 16px; right: 16px; }
   .dashboard-main > .container-app:last-child { margin-top: 16px; }
@@ -861,3 +870,25 @@ html { scroll-padding-top: 6rem; }
 
 .dashboard-shell :is(a,button,input,select,textarea) { scroll-margin-block: 100px; }
 .conversation-shell :is(a,button,input,select,textarea) { scroll-margin-block: 12px; }
+
+.action-shine { position: relative; isolation: isolate; overflow: hidden; }
+.action-shine::after {
+  position: absolute;
+  top: -70%;
+  bottom: -70%;
+  left: -55%;
+  width: 34%;
+  content: "";
+  transform: skewX(-22deg);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 52%), transparent);
+  pointer-events: none;
+  animation: actionShine 3.2s ease-in-out infinite;
+}
+@keyframes actionShine {
+  0%, 35% { left: -55%; opacity: 0; }
+  45% { opacity: .9; }
+  70%, 100% { left: 125%; opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .action-shine::after { animation: none; }
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import { canAcceptPlatformPayments } from "@/lib/operatorDiscovery";
+import { jobDisplayPrice } from "@/lib/marketplacePricing";
 import { isStripeAccountReady,stripeConnectFetch } from "@/lib/stripeConnectClient";
 
 import CancellationPopup from "@/components/CancellationPopup";
@@ -39,6 +40,7 @@ writeBatch
 import {
 AlertTriangle,
 ArrowLeft,
+CheckCheck,
 Briefcase,
 Camera,
 CheckCircle,
@@ -66,6 +68,7 @@ import Link from "next/link";
 import { useParams,useRouter } from "next/navigation";
 import React,{ useCallback,useEffect,useRef,useState } from "react";
 import "./chat.css";
+import ConversationLoading from "@/components/ConversationLoading";
 
 type QuickCommConfirmation = {
   title: string;
@@ -1339,8 +1342,8 @@ export default function ChatPage() {
             <div className={`mt-1 flex items-center gap-1.5 text-[10px] ${isOwn ? "justify-end text-[var(--text-muted)]" : "text-[var(--text-muted)]"}`}>
               <span>{formatTimestamp(msg.createdAt)}</span>
               {showDeliveryState && (
-                <span className={`font-semibold ${msg.read ? "text-emerald-600" : "text-[var(--text-muted)]"}`}>
-                  {msg.read ? "Read" : "Sent"}
+                <span className={`inline-flex items-center gap-1 font-semibold ${msg.read ? "text-emerald-600" : "text-[var(--text-muted)]"}`} aria-label={msg.read ? "Read receipt" : "Sent receipt"}>
+                  <CheckCheck className="h-3.5 w-3.5" aria-hidden="true" />{msg.read ? "Read" : "Sent"}
                 </span>
               )}
             </div>
@@ -1369,8 +1372,8 @@ export default function ChatPage() {
               <span>{msg.metadata.durationMs ? `${Math.max(1, Math.round(msg.metadata.durationMs / 1000))}s` : "Voice"}</span>
               <span>{formatTimestamp(msg.createdAt)}</span>
               {showDeliveryState && (
-                <span className={`font-semibold ${isOwn && msg.read ? "text-white/85" : ""}`}>
-                  {msg.read ? "Read" : "Sent"}
+                <span className={`inline-flex items-center gap-1 font-semibold ${msg.read ? "text-emerald-300" : "text-white/65"}`} aria-label={msg.read ? "Read receipt" : "Sent receipt"}>
+                  <CheckCheck className="h-3.5 w-3.5" aria-hidden="true" />{msg.read ? "Read" : "Sent"}
                 </span>
               )}
             </div>
@@ -1501,8 +1504,8 @@ export default function ChatPage() {
           <div className={`mt-1 flex items-center gap-1.5 text-[10px] ${isOwn ? "justify-end text-white/65" : "justify-end text-[var(--text-muted)]"}`}>
             <span>{formatTimestamp(msg.createdAt)}</span>
             {showDeliveryState && (
-              <span className={`font-semibold ${isOwn && msg.read ? "text-white/85" : ""}`}>
-                {msg.read ? "Read" : "Sent"}
+              <span className={`inline-flex items-center gap-1 font-semibold ${msg.read ? "text-emerald-300" : "text-white/65"}`} aria-label={msg.read ? "Read receipt" : "Sent receipt"}>
+                <CheckCheck className="h-3.5 w-3.5" aria-hidden="true" />{msg.read ? "Read" : "Sent"}
               </span>
             )}
           </div>
@@ -1512,14 +1515,7 @@ export default function ChatPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-96 text-[var(--text-muted)] gap-3">
-        <div className="animate-spin-slow">
-          <Image src="/logo.png" alt="Loading" width={40} height={40} style={{ width: "auto", height: "auto" }} />
-        </div>
-        <p>Loading conversation...</p>
-      </div>
-    );
+    return <ConversationLoading />;
   }
 
 
@@ -1549,9 +1545,9 @@ export default function ChatPage() {
 
         {job && (
           <div className="shrink-0 border-b border-[var(--border-soft)] bg-[var(--bg-secondary)] px-3 py-2.5 sm:px-4">
-            <Link href={`/dashboard/jobs/${job.id}`} className="chat-order-link flex min-h-11 flex-wrap items-center justify-between gap-2 rounded-xl bg-white px-3 py-2">
-              <span className="min-w-0"><span className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Work order</span><span className="block truncate text-sm font-semibold capitalize">{job.serviceTypes?.map(service => service.replaceAll("-", " ")).join(" + ") || "Snow clearing"} <strong className="ml-1 rounded-md bg-[var(--accent-sun-soft)] px-2 py-1 text-base font-extrabold text-[var(--ink)]">${job.price} CAD</strong></span></span>
-              <span className="flex shrink-0 items-center gap-2"><StatusBadge status={job.status} /><ChevronRight className="h-4 w-4" /></span>
+            <Link href={`/dashboard/jobs/${job.id}?returnTo=${encodeURIComponent(`/dashboard/messages/${chatId}`)}`} className="chat-order-link block min-h-11 w-full rounded-xl bg-white px-3 py-2.5 text-left">
+              <span className="flex items-center justify-between gap-3"><span className="min-w-0"><span className="block truncate text-sm font-semibold capitalize">{job.serviceTypes?.map(service => service.replaceAll("-", " ")).join(" + ") || "Snow clearing"}</span><span className="mt-0.5 block text-[11px] capitalize text-[var(--text-muted)]">{job.propertySize === "small" ? "1-car driveway" : job.propertySize === "medium" ? "2-car driveway" : job.propertySize === "large" ? "3+ car driveway" : job.propertySize}</span></span><strong className="shrink-0 text-lg font-bold text-[var(--ink)]">${jobDisplayPrice(job, isOperator).toFixed(2)} <span className="text-xs font-medium text-[var(--text-muted)]">CAD</span></strong></span>
+              <span className="mt-2 flex items-center justify-between gap-2 border-t border-[var(--border-soft)] pt-2"><span className="inline-flex items-center rounded-full bg-[var(--accent-sun-soft)] px-3 py-1 text-xs font-semibold text-[var(--ink)]"><StatusBadge status={job.status} /></span><span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--text-secondary)]">{job.scheduleMode === "asap" || !job.scheduledDate ? "ASAP · time to confirm" : `${formatMessageDay(job.scheduledDate)}${job.scheduledTime ? ` · ${job.scheduledTime}` : ""}`}<ChevronRight className="h-4 w-4" /></span></span>
             </Link>
             {linkedJobs.length > 1 && <section className="mt-1"><button type="button" className="py-2 text-xs font-semibold text-[var(--text-secondary)]" aria-expanded={showEarlierOrders} onClick={() => setShowEarlierOrders(value => !value)}>Earlier work orders ({linkedJobs.length - 1}) <span aria-hidden="true">{showEarlierOrders ? "−" : "+"}</span></button>{showEarlierOrders && <div className="grid gap-1">{linkedJobs.filter(linkedJob => linkedJob.id !== job.id).map(linkedJob => <button key={linkedJob.id} type="button" onClick={() => selectWorkOrder(linkedJob)} className="rounded-lg px-3 py-2 text-left text-sm hover:bg-white">{linkedJob.serviceTypes?.[0]?.replaceAll("-", " ") || "Snow service"} · ${linkedJob.price} CAD</button>)}</div>}</section>}
           </div>

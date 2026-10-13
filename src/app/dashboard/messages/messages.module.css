@@ -2,12 +2,15 @@
 .page :global(.app-page-header) { padding: 4px 2px 8px; }
 .page :global(.app-page-header h1) { margin: 4px 0 6px; font-size: clamp(2rem,4vw,3.25rem); line-height: 1; letter-spacing: -.045em; }
 .page :global(.app-eyebrow) { color: #557080; font-size: .75rem; font-weight: 750; letter-spacing: .11em; }
-.page :global(.app-search) { min-height: 58px; border: 1px solid var(--border-soft); border-radius: 16px; background: #fff; box-shadow: 0 4px 16px rgba(17,43,59,.04); }
-.page :global(.app-search):focus-within { outline: 2px solid #285cce; outline-offset: 2px; }
+.page :global(.app-search) { min-height: 58px; border: 1px solid rgba(255,255,255,.8); border-radius: 18px; background: linear-gradient(145deg,rgba(255,255,255,.88),rgba(238,245,248,.68)); box-shadow: inset 0 1px 0 #fff, 0 8px 24px rgba(17,43,59,.07); backdrop-filter: blur(18px) saturate(1.35); transition: background .2s ease, box-shadow .2s ease, transform .2s ease; }
+.page :global(.app-search):focus-within { outline: none; background: rgba(255,255,255,.96); box-shadow: inset 0 1px 0 #fff, 0 10px 28px rgba(17,43,59,.1); transform: translateY(-1px); }
+.page :global(.app-search > svg) { transition: transform .28s cubic-bezier(.2,.9,.2,1), color .2s ease; }
+.page :global(.app-search:focus-within > svg) { transform: translateY(-50%) rotate(-12deg) scale(1.08); color: #315f79; }
+.page :global(.app-search input) { border: 0; outline: 0; background: transparent; box-shadow: none; }
 .page :global(.empty-state) { border: 1px solid var(--border-soft); border-radius: 22px; background: #fff; }
 .page .group { background: #fff; border: 1px solid var(--border-soft); border-radius: 22px; box-shadow: 0 8px 24px rgba(17,43,59,.045); }
 .page .group[data-active-job="true"] { border-color: #cfe0ff; box-shadow: 0 8px 24px rgba(17,43,59,.045); }
-.page .summary { width: 100%; padding: 22px; gap: 18px; }
+.page .summary { width: 100%; padding: 18px 22px; gap: 12px; }
 .page .summary:hover, .page .row:hover { background: #f8fafb; }
 .page .row { padding: 18px 22px; }
 .page .row[data-active-job="true"] { background: #f8faff; }
@@ -15,6 +18,8 @@
 .unreadBadge, .activeBadge { flex-shrink: 0; border-radius: 999px; padding: 5px 9px; font-size: .72rem; font-weight: 750; }
 .unreadBadge { color: #285cce; background: #eaf1ff; }
 .activeBadge { color: #14734f; background: #e9f7ef; }
+.page .companyInfo { gap: 5px; }
+.page .inboxMeta { color: #82909a; }
 @media (max-width: 640px) {
   .page { gap: 14px; }
   .page :global(.app-page-header h1) { font-size: 2.2rem; }

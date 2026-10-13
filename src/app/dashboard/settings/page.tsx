@@ -121,6 +121,8 @@ export default function SettingsPage() {
     large: operatorProfile?.pricing?.driveway?.large || 60,
     walkway: operatorProfile?.pricing?.walkway || 15,
     sidewalk: operatorProfile?.pricing?.sidewalk || 15,
+    backyardPatio: operatorProfile?.pricing?.backyardPatio || 15,
+    porch: operatorProfile?.pricing?.porch || 10,
   }));
 
   const isOperator = profile?.role === "operator";
@@ -535,6 +537,8 @@ export default function SettingsPage() {
           large: op.pricing?.driveway?.large || 60,
           walkway: op.pricing?.walkway || 15,
           sidewalk: op.pricing?.sidewalk || 15,
+          backyardPatio: op.pricing?.backyardPatio || 15,
+          porch: op.pricing?.porch || 10,
         });
       } else {
         setAge((profile as ClientProfile)?.age);
@@ -575,6 +579,8 @@ export default function SettingsPage() {
           driveway: { small: pricing.small, medium: pricing.medium, large: pricing.large },
           walkway: pricing.walkway,
           sidewalk: pricing.sidewalk,
+          backyardPatio: pricing.backyardPatio,
+          porch: pricing.porch,
         };
         updates.logoUrl = logoUrl;
         updates.avatar = avatarUrl;
@@ -824,11 +830,13 @@ export default function SettingsPage() {
               <p className="mb-4 text-sm text-[var(--text-muted)]">Set the amount you receive for each area. New work orders use these rates; existing orders keep their agreed price.</p>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {([
-                  ["small", "Small driveway", "1-car driveway"],
-                  ["medium", "Medium driveway", "2-car driveway"],
-                  ["large", "Large driveway", "3+ cars or double-wide"],
+                  ["small", "1-car driveway", "Fits one car"],
+                  ["medium", "2-car driveway", "Fits two cars"],
+                  ["large", "3+ car driveway", "Fits three or more cars"],
                   ["walkway", "Walkway", "Paths and front steps"],
                   ["sidewalk", "Sidewalk", "Public sidewalk frontage"],
+                  ["backyardPatio", "Backyard patio", "Rear patio area"],
+                  ["porch", "Porch", "Front porch and steps"],
                 ] as const).map(([key, label, description]) => (
                   <label key={key} className="flex min-h-20 items-center justify-between gap-4 rounded-2xl border border-[var(--border-color)] bg-[var(--sky)] p-4">
                     <span>

@@ -1,5 +1,5 @@
-import LoadingScreen from "@/components/LoadingScreen";
+import ConversationLoading from "@/components/ConversationLoading";
 
 export default function MessagesLoading() {
-  return <LoadingScreen embedded label="Loading messages…" />;
+  return <ConversationLoading />;
 }

@@ -22,6 +22,8 @@ export type ServiceType =
   | "sidewalk"
   | "parking-lot"
   | "roof"
+  | "backyard-patio"
+  | "porch"
   | "other";
 
 export type PropertySize = "small" | "medium" | "large" | "commercial";
@@ -123,6 +125,8 @@ export interface OperatorProfile extends UserProfile {
     driveway: { small: number; medium: number; large: number };
     walkway: number;
     sidewalk: number;
+    backyardPatio?: number;
+    porch?: number;
     hourlyRate?: number;
   };
   rating: number;

@@ -50,7 +50,9 @@ function OnboardingPageInner() {
       pricingMedium = price(draft.pricingMedium, 40),
       pricingLarge = price(draft.pricingLarge, 60),
       pricingWalkway = price(draft.pricingWalkway, 15),
-      pricingSidewalk = price(draft.pricingSidewalk, 15);
+      pricingSidewalk = price(draft.pricingSidewalk, 15),
+      pricingBackyardPatio = price(draft.pricingBackyardPatio, 15),
+      pricingPorch = price(draft.pricingPorch, 10);
     const displayName = user.displayName || "User";
     const normalizedEmail = (user.email || "").trim().toLowerCase();
     let deletedAccountIds: string[] = [];
@@ -128,6 +130,8 @@ function OnboardingPageInner() {
           },
           walkway: pricingWalkway,
           sidewalk: pricingSidewalk,
+          backyardPatio: pricingBackyardPatio,
+          porch: pricingPorch,
         },
         rating: 0,
         reviewCount: 0,

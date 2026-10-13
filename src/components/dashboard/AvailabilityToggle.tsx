@@ -1,12 +1,13 @@
 "use client";
 
-export default function AvailabilityToggle({ online, saving, error, onToggle }: {
+export default function AvailabilityToggle({ online, saving, error, onToggle, compact = false }: {
   online: boolean;
   saving: boolean;
   error: string;
   onToggle: () => void;
+  compact?: boolean;
 }) {
-  return <div className="availability-control">
+  return <div className={`availability-control ${compact ? "availability-control-compact" : ""}`}>
     <button type="button" role="switch" aria-label="Available for new jobs" aria-checked={online}
       aria-busy={saving} disabled={saving} onClick={onToggle}
       className="availability-toggle" data-online={online}>

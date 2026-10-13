@@ -42,6 +42,8 @@ const SERVICE_LABELS: Record<ServiceType, string> = {
   sidewalk: "Sidewalk",
   "parking-lot": "Parking Lot",
   roof: "Roof",
+  "backyard-patio": "Backyard patio",
+  porch: "Porch",
   other: "Other",
 };
 
@@ -51,6 +53,8 @@ const SERVICE_EMOJI: Record<ServiceType, string> = {
   sidewalk: "🛤️",
   "parking-lot": "🅿️",
   roof: "🏠",
+  "backyard-patio": "🌿",
+  porch: "🏡",
   other: "❄️",
 };
 
@@ -518,7 +522,7 @@ export default function PublicProfilePage() {
                 <div className="space-y-2 text-sm">
                   <p>
                     <span className="text-[var(--text-muted)]">Size:</span>{" "}
-                    <span className="font-medium text-[var(--ink)] capitalize">{clientProfile.propertyDetails?.propertySize || "Not set"}</span>
+                    <span className="font-medium text-[var(--ink)]">{clientProfile.propertyDetails?.propertySize === "small" ? "1-car driveway" : clientProfile.propertyDetails?.propertySize === "medium" ? "2-car driveway" : clientProfile.propertyDetails?.propertySize === "large" ? "3+ car driveway" : clientProfile.propertyDetails?.propertySize === "commercial" ? "Commercial property" : "Not set"}</span>
                   </p>
                   <p>
                     <span className="text-[var(--text-muted)]">Services:</span>{" "}

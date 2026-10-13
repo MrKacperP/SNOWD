@@ -1,15 +1,15 @@
 "use client";
 import { jobDisplayPrice } from "@/lib/marketplacePricing";
-import ProgressTracker from "@/components/ProgressTracker";
 import CompanyIdentity from "@/components/CompanyIdentity";
 import Link from "next/link";
 import { ClientProfile, Job, OperatorProfile } from "@/lib/types";
 import { isAsap, orderLabel, orderNumber, scheduleText } from "@/lib/workOrders";
 import { useAuth } from "@/context/AuthContext";
+import { MapPin, ArrowUpRight, Banknote, CreditCard, Clock3 } from "lucide-react";
 import styles from "./work-orders.module.css";
 import OrderGuide from "./OrderGuide";
 import OrderActions from "./OrderActions";
-const drivewayCapacity: Record<string, string> = { small: "Fits about 1–2 cars", medium: "Fits about 3–4 cars", large: "Fits about 5+ cars" };
+const drivewayCapacity: Record<string, string> = { small: "1-car driveway", medium: "2-car driveway", large: "3+ car driveway", commercial: "Commercial driveway" };
 export default function OrderCard({
   job,
   name,
@@ -45,35 +45,35 @@ export default function OrderCard({
         </div>
         <div className={styles.priorityFacts} aria-label="Visit time and payment">
           <div>
-            <span>Visit time</span>
-            <strong>{job.status === "en-route" && job.eta ? `Arriving in about ${job.eta} ${job.eta === 1 ? "minute" : "minutes"}` : isAsap(job) ? "As soon as possible" : scheduleText(job)}</strong>
+            <span><Clock3 size={13} /> {isAsap(job) ? "Arrival" : "Scheduled"}</span>
+            <strong className={isAsap(job) ? styles.arrivalChip : ""}>{job.status === "en-route" && job.eta ? `About ${job.eta} min away` : isAsap(job) ? "ASAP · time to confirm" : scheduleText(job)}</strong>
           </div>
           <div>
-            <span>Payment</span>
-            <strong>${jobDisplayPrice(job, operator).toFixed(2)} CAD · {job.paymentMethod === "cash" ? "Cash" : "Card"}</strong>
-            <small>{job.paymentStatus === "held" ? "Authorized" : job.paymentStatus === "paid" ? "Paid" : job.paymentStatus === "refunded" ? "Refunded / released" : "Pending"}</small>
+            <span>{job.paymentMethod === "cash" ? <Banknote size={13} /> : <CreditCard size={13} />} {job.paymentMethod === "cash" ? "Cash" : "Card"}</span>
+            <strong>${jobDisplayPrice(job, operator).toFixed(2)} <small>CAD</small></strong>
+            <small>{job.paymentStatus === "held" ? "Authorized" : job.paymentStatus === "paid" ? "Paid" : job.paymentStatus === "refunded" ? "Refunded" : "Pending"}</small>
           </div>
         </div>
-        {detail && job.status !== "cancelled" && <div className="mt-4 border-t border-[var(--border-color)] pt-4"><ProgressTracker status={job.status} compact /></div>}
-        <OrderGuide job={job} uid={user?.uid || ""} />
+        {detail && <a className={`${styles.locationWidget} ${styles.locationWidgetLink}`} aria-label="Open service location in Google Maps" href={job.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([job.address, job.city, job.province].filter(Boolean).join(", "))}` : undefined} target={job.address ? "_blank" : undefined} rel={job.address ? "noreferrer" : undefined}>
+          <span className={styles.locationMap} aria-hidden="true"><span className={styles.mapRoadOne} /><span className={styles.mapRoadTwo} /><span className={styles.mapRoadThree} /><span className={styles.mapMarker}><MapPin size={18} /></span></span>
+          <span className={styles.locationIcon}><MapPin size={19} /></span>
+          <span className={styles.locationCopy}><span>{operator ? "Customer location" : "Service location"}</span><strong>{job.address || "Address to be confirmed"}{job.city ? `, ${job.city}` : ""}</strong></span>
+          {job.address ? <span className={styles.locationOpen}><ArrowUpRight size={17} /></span> : null}
+        </a>}
+        {detail && <section className={styles.serviceSummary} aria-label="Requested service"><strong>{drivewayCapacity[job.propertySize] || "Driveway"}</strong><span>{job.serviceTypes?.map((service) => service.replaceAll("-", " ")).join(" · ") || "Snow clearing"}</span></section>}
+        {!detail && <OrderGuide job={job} uid={user?.uid || ""} />}
         {detail && job.chatId && (
           <Link className={styles.messageButton} href={`/dashboard/messages/${job.chatId}`}>
             Message {operator ? "customer" : "provider"}
           </Link>
         )}
         <OrderActions job={job} compact={!detail} onUpdated={onUpdated} />
-        {detail && <section className={styles.orderDetails} aria-labelledby={`visit-details-${job.id}`}>
-        <h3 id={`visit-details-${job.id}`} className={styles.detailSummary}>Visit details</h3>
+        {detail && <details className={styles.orderDetails} aria-labelledby={`visit-details-${job.id}`}>
+        <summary id={`visit-details-${job.id}`} className={styles.detailSummary}>Visit details</summary>
         <dl className={styles.facts}>
           <div>
-            <dt>Location</dt>
-            <dd>
-              {job.address ? <a className="font-semibold underline" href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(job.address)}&travelmode=driving&dir_action=navigate`} target="_blank" rel="noreferrer">{job.address} ↗</a> : <strong>Address to be confirmed</strong>}
-            </dd>
-          </div>
-          <div>
             <dt>Driveway size</dt>
-            <dd className="capitalize"><strong>{job.propertySize || "medium"} driveway</strong><small className="mt-1 block normal-case text-[var(--text-muted)]">{drivewayCapacity[job.propertySize || "medium"]}</small></dd>
+            <dd className="capitalize"><strong>{drivewayCapacity[job.propertySize || "medium"] || "Driveway"}</strong></dd>
           </div>
           <div>
             <dt>Expected clearing</dt>
@@ -89,7 +89,7 @@ export default function OrderCard({
           </div>
           {job.status === "en-route" && job.eta && <div><dt>Live arrival</dt><dd><strong>About {job.eta} {job.eta === 1 ? "minute" : "minutes"} away</strong>{Number.isFinite(job.operatorApproxLat) && Number.isFinite(job.operatorApproxLng) && <a className="mt-1 block font-semibold underline" href={`https://www.google.com/maps?q=${job.operatorApproxLat},${job.operatorApproxLng}`} target="_blank" rel="noreferrer">View approximate area ({job.operatorLocationRadiusKm || 1} km radius) ↗</a>}<p className={styles.secondary}>The operator’s exact location stays private.</p></dd></div>}
         </dl>
-        </section>}
+        </details>}
         {conflict && (
           <p
             role="status"

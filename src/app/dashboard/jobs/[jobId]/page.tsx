@@ -61,7 +61,7 @@ export default function WorkOrderPage() {
     };
   }, [job, user]);
   return (
-    <div className={styles.detailPage}>
+    <div className={`${styles.detailPage} ${styles.openWorkOrder}`}>
       <BackButton href="/dashboard/jobs" label="Back" />
       {error ? (
         <p role="alert">{error}</p>
@@ -75,8 +75,8 @@ export default function WorkOrderPage() {
             </p>
           )}
           <OrderCard job={job} name={name} person={person} detail onUpdated={setNotice} />
-          {(job.specialInstructions || job.completionPhotoUrl || job.legacyChatId) && <section className={styles.detailSection} aria-labelledby="visit-notes-heading">
-            <h2 id="visit-notes-heading" className={styles.detailSummary}>Notes & proof</h2>
+          {(job.specialInstructions || job.completionPhotoUrl || job.legacyChatId) && <details className={styles.detailSection} aria-labelledby="visit-notes-heading">
+            <summary id="visit-notes-heading" className={styles.detailSummary}>Notes & proof</summary>
             {job.specialInstructions && <p className="mt-3">{job.specialInstructions}</p>}
             {job.completionPhotoUrl && (
               <a
@@ -98,7 +98,7 @@ export default function WorkOrderPage() {
                 </Link>
               </p>
             )}
-          </section>}
+          </details>}
         </>
       )}
     </div>

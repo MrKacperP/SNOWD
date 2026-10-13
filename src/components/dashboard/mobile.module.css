@@ -52,3 +52,15 @@
 .bottomNav [aria-current="page"] { background: var(--glass-sheen), var(--accent-soft); box-shadow: inset 0 1px 0 #ffffffbf; }
 .bottomNav [aria-current="page"] .navIcon { background: transparent; }
 .mainAction { border-radius: 999px; background-image: linear-gradient(#ffffff24, #ffffff00); box-shadow: inset 0 1px 0 #ffffff66, 0 6px 18px #285cce20; }
+
+.badge { top: -4px; right: -4px; display: grid; min-width: 21px; height: 21px; padding: 0 4px; place-items: center; border: 2px solid var(--card); border-radius: 999px; background: #bd3027; color: #fff; font-size: 10px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+
+.shortcuts a { position:relative; min-height:68px; overflow:hidden; text-decoration:none; }
+.shortcutIcon { position:relative; z-index:1; display:grid; width:42px; height:42px; flex:none; place-items:center; border-radius:13px; background:var(--accent-soft); color:var(--accent); }
+.shortcutTitle { position:relative; z-index:1; min-width:0; flex:1; }
+.shortcutArrow { position:relative; z-index:1; flex:none; color:var(--text-secondary); }
+.shortcutHoverAsset { position:absolute; top:50%; left:48%; z-index:0; display:grid; place-items:center; color:var(--accent); opacity:0; transform:translate(-50%,-36%) scale(.55); transition:opacity .25s ease,transform .3s ease; pointer-events:none; }
+.shortcuts a:is(:hover,:focus-visible) .shortcutHoverAsset { opacity:.2; transform:translate(-50%,-50%) scale(1.55); }
+.shortcuts a:is(:hover,:focus-visible) .shortcutIcon { transform:scale(1.06); }
+.shortcutIcon { transition:transform .25s ease; }
+@media(prefers-reduced-motion:reduce) { .shortcutHoverAsset,.shortcutIcon { transition:none; } }

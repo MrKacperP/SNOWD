@@ -4,7 +4,6 @@ import CompanyIdentity from "@/components/CompanyIdentity";
 import { OperatorProfile } from "@/lib/types";
 import AvailabilityToggle from "@/components/dashboard/AvailabilityToggle";
 import MobileNavigation from "@/components/dashboard/MobileNavigation";
-import SupportChatButton from "@/components/SupportChatButton";
 import { desktopNavigation } from "@/lib/appNavigation";
 
 import { useUserChats } from "@/hooks/useUserChats";
@@ -69,7 +68,6 @@ export default function Navbar() {
   const statusLock = useRef(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [desktopNotifPosition, setDesktopNotifPosition] = useState({ top: 16, left: 260 });
   const [pendingJobCount, setPendingJobCount] = useState(0);
@@ -77,9 +75,6 @@ export default function Navbar() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
   const menuRef = useRef<HTMLDivElement>(null);
-  const mobileNotifRef = useRef<HTMLDivElement>(null);
-  const mobileNotifButtonRef = useRef<HTMLButtonElement>(null);
-  useDialogFocus(notifOpen && isMobile, mobileNotifRef);
   const drawerRef = useRef<HTMLDivElement>(null);
   useDialogFocus(drawerOpen, drawerRef);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -117,18 +112,10 @@ export default function Navbar() {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) setProfileMenuOpen(false);
-      if (![notifRef.current, mobileNotifRef.current, mobileNotifButtonRef.current].some((element) => element?.contains(event.target as Node))) setNotifOpen(false);
+      if (!notifRef.current?.contains(event.target as Node)) setNotifOpen(false);
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    const desktop = window.matchMedia("(min-width: 1024px)");
-    const closeDrawer = () => { setIsMobile(!desktop.matches); if (desktop.matches) setDrawerOpen(false); };
-    closeDrawer();
-    desktop.addEventListener("change", closeDrawer);
-    return () => desktop.removeEventListener("change", closeDrawer);
   }, []);
 
   useEffect(() => {
@@ -393,59 +380,6 @@ export default function Navbar() {
           ) : null}
         </div>
       </aside>
-
-      <header className="dashboard-topbar fixed left-0 right-0 top-0 z-30 border-b border-[var(--border-color)] bg-[var(--card)] px-4 py-3  lg:hidden">
-        <div className="flex items-center justify-between gap-3">
-          <Link href="/dashboard" className="flex items-center gap-3">
-            <Image src="/logo.png" alt="snowd logo" width={30} height={30} />
-            <div>
-              <div className="text-base font-headline font-bold leading-none">snowd<span className="text-[var(--accent-sun)]">.</span></div>
-              <div className="mt-1 hidden min-[360px]:block text-[10px] uppercase tracking-[0.18em] text-[var(--text-muted)]">marketplace</div>
-            </div>
-          </Link>
-          <div className="flex items-center gap-1">
-            <SupportChatButton inline />
-            <button ref={mobileNotifButtonRef} aria-label="Notifications" aria-expanded={notifOpen} onClick={() => { setDrawerOpen(false); setNotifOpen((value) => !value); }} className="relative rounded-full border border-[var(--border-color)] bg-[var(--card)] p-2">
-              <Bell className="h-4 w-4" />
-              {unreadNotifications > 0 ? <span className="absolute -right-1 -top-1 unread-badge">{unreadNotifications > 9 ? "9+" : unreadNotifications}</span> : null}
-            </button>
-
-          </div>
-        </div>
-      </header>
-
-      {notifOpen && isMobile ? (
-        <><button type="button" aria-label="Close notifications" tabIndex={-1} onClick={() => setNotifOpen(false)} className="fixed inset-0 z-30 bg-black/30 backdrop-blur-[2px] lg:hidden" /><div className="glass-readable-overlay fixed left-0 right-0 top-[var(--app-header-height)] z-40 w-full overflow-hidden rounded-b-3xl border border-t-0 border-[var(--border-color)] shadow-[var(--surface-shadow)] lg:hidden" ref={mobileNotifRef} role="dialog" aria-modal="true" aria-label="Notifications" tabIndex={-1}>
-          <div className="flex items-center justify-between border-b border-[var(--border-color)] px-4 py-3">
-            <div className="text-sm font-semibold">Notifications</div>
-            <button type="button" aria-label="Close notifications" onClick={() => setNotifOpen(false)} className="ml-auto grid h-11 w-11 place-items-center rounded-xl hover:bg-[var(--bg-secondary)]"><X size={18} /></button>
-            {unreadNotifications > 0 ? (
-              <button onClick={markAllNotificationsRead} className="min-h-11 text-xs font-bold text-[var(--text-muted)]">
-                Mark all read
-              </button>
-            ) : null}
-          </div>
-          <div className="max-h-[min(320px,calc(100dvh-160px))] overflow-y-auto overscroll-contain">
-            {notificationError && notifications.length > 0 && <p role="alert" className="p-4 text-sm text-red-700">{notificationError}</p>}
-                {notifications.length ? (
-              notifications.map((notification) => (
-                <button key={notification.id} onClick={() => { markNotificationRead(notification.id); if (notification.type === "booking-invite" && notification.operatorId) { setNotifOpen(false); router.push(`/dashboard/find?operator=${encodeURIComponent(notification.operatorId)}`); } else if (notification.jobId && notification.type !== "message") { setNotifOpen(false); router.push(`/dashboard/jobs/${encodeURIComponent(notification.jobId)}`); } else if (notification.chatId) { setNotifOpen(false); router.push(`/dashboard/messages/${encodeURIComponent(notification.chatId)}`); } }} className="w-full border-b border-[var(--border-soft)] px-4 py-3 text-left last:border-b-0">
-                  <span className="flex items-center gap-3 text-sm font-semibold leading-5">
-                    {!notification.read && <span aria-label="Unread" className="h-2 w-2 shrink-0 rounded-full bg-[var(--accent)]" />}
-                    <span className="min-w-0 break-words">
-                      <span className="block">{notificationTitle(notification)}</span>
-                      {(notification.preview || notification.message) && <span className="mt-1 block text-xs font-normal leading-5 text-[var(--text-secondary)]">{notification.preview || notification.message}</span>}
-                      <span className="mt-1 block text-xs font-normal text-[var(--text-muted)]">{formatNotificationTime(notification.createdAt)}</span>
-                    </span>
-                  </span>
-                </button>
-              ))
-            ) : (
-              <div className="px-4 py-8 text-center text-sm text-[var(--text-muted)]">{notificationError || "No notifications yet. Job and payment updates will appear here."}</div>
-            )}
-          </div>
-        </div></>
-      ) : null}
 
       <MobileNavigation role={profile?.role} pathname={pathname} unreadMessages={unreadCount} pendingJobs={pendingJobCount} menuOpen={drawerOpen} onOpenMenu={() => { setNotifOpen(false); setDrawerOpen(true); }} />
 

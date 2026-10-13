@@ -16,6 +16,7 @@ import {
   isOpenOrder,
 } from "@/lib/workOrders";
 import { AppPage, EmptyState } from "@/components/ui/AppPrimitives";
+import ConversationLoading from "@/components/ConversationLoading";
 export default function MessagesPage() {
   const { profile, user } = useAuth();
   const { chats, loading, error } = useUserChats(user?.uid, profile?.role);
@@ -51,12 +52,13 @@ export default function MessagesPage() {
         return Number(bActive) - Number(aActive) || dateMillis(b.conversations[0]?.lastMessageTime) - dateMillis(a.conversations[0]?.lastMessageTime);
       });
   }, [chats, jobs, names, search, user?.uid]);
+  if (loading) return <ConversationLoading />;
   return (
-    <AppPage className={theme.page} eyebrow="Stay connected" title="Messages" description="Your visits and conversations, in one place.">
+    <AppPage className={theme.page} title="Messages">
       <div className="app-search"><Search size={19} aria-hidden="true" /><input
         type="search"
-        aria-label="Search company, order, address, or message"
-        placeholder="Search conversations"
+        aria-label="Search conversations"
+        placeholder="Search conversation"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />{search && <button type="button" aria-label="Clear search" onClick={() => setSearch("")}><X size={18} /></button>}</div>
@@ -66,7 +68,6 @@ export default function MessagesPage() {
           try again.
         </p>
       )}
-      {loading && <p role="status">Loading conversations…</p>}
       {!loading && !error && !groups.length && (search.trim() ? <div className="empty-state"><h2>No matching conversations</h2><p>Try a name, address, or order number.</p><button className="btn-secondary mt-5" onClick={() => setSearch("")}>Clear search</button></div> : <EmptyState title="No messages yet" description="Your conversations will appear after a visit is requested." actionHref={profile?.role === "operator" ? "/dashboard/jobs" : "/dashboard/find"} actionLabel={profile?.role === "operator" ? "View jobs" : "Book snow help"} />)}
       {groups.map(({ other, conversations, jobMap }) => {
         const hasOpenOrder = conversations.some(chat => isOpenOrder(jobMap.get(chat.jobId)));
@@ -105,16 +106,13 @@ export default function MessagesPage() {
           );
         };
         const expanded = expandedGroups[other] ?? !!search.trim();
-        const latest = [...conversations].sort((a, b) => dateMillis(b.lastMessageTime) - dateMillis(a.lastMessageTime))[0];
         const summary = <>
           <span className={styles.companyInfo}>
             <CompanyIdentity person={people[other]} name={names[other] || "Company / customer"} />
-            <span className={styles.inboxPreview}>{latest.lastMessage || "Start a conversation"}</span>
             <span className={styles.companyMeta}>{hasOpenOrder ? "Active visit" : `${conversations.length} conversation${conversations.length === 1 ? "" : "s"}`}</span>
           </span>
           <span className={styles.inboxMeta}>
-            {dateMillis(latest.lastMessageTime) > 0 && <time dateTime={new Date(dateMillis(latest.lastMessageTime)).toISOString()}>{new Date(dateMillis(latest.lastMessageTime)).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}</time>}
-            {unread(conversations) > 0 && <span className={theme.unreadBadge}>{unread(conversations)} unread</span>}
+            {unread(conversations) > 0 && <span className={theme.unreadBadge}>{unread(conversations)}</span>}
           </span>
           <span className={styles.companyChevron} aria-hidden="true">›</span>
         </>;

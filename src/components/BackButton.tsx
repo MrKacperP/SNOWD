@@ -14,9 +14,10 @@ export default function BackButton({ href, label = "Back" }: BackButtonProps) {
 
   const handleClick = () => {
     const returnTo = new URLSearchParams(window.location.search).get("returnTo");
-    const destination = returnTo && (returnTo === "/dashboard" || returnTo.startsWith("/dashboard/") || returnTo.startsWith("/admin/")) && !returnTo.includes("\\")
-      ? returnTo : href || "/dashboard";
-    router.push(destination);
+    const safeReturnTo = returnTo && (returnTo === "/dashboard" || returnTo.startsWith("/dashboard/") || returnTo.startsWith("/admin/")) && !returnTo.includes("\\");
+    const destination = safeReturnTo ? returnTo : href || "/dashboard";
+    if (safeReturnTo) router.replace(destination);
+    else router.push(destination);
   };
 
   return (

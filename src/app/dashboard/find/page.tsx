@@ -19,7 +19,7 @@ isClientWithinOperatorRadius,
 isOperatorPublic,
 } from "@/lib/operatorDiscovery";
 import { ClientProfile,OperatorProfile,ServiceType } from "@/lib/types";
-import { addDays,format } from "date-fns";
+import { addDays,addMonths,eachDayOfInterval,endOfMonth,endOfWeek,format,isBefore,isSameMonth,startOfMonth,startOfWeek } from "date-fns";
 import {
 collection,
 doc,
@@ -49,6 +49,8 @@ const SERVICE_LABELS: Record<ServiceType, string> = {
   sidewalk: "Sidewalk",
   "parking-lot": "Parking Lot",
   roof: "Roof",
+  "backyard-patio": "Backyard patio",
+  porch: "Porch",
   other: "Other",
 };
 
@@ -78,8 +80,10 @@ export default function FindOperatorsPage() {
   // Scheduling modal state
   const [schedulingOperator, setSchedulingOperator] = useState<OperatorProfile | null>(null);
   const [scheduleType, setScheduleType] = useState<"asap" | "scheduled">("asap");
+  const [timingChosen, setTimingChosen] = useState(false);
   const [scheduledDate, setScheduledDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
   const [scheduledTime, setScheduledTime] = useState<string>("09:00");
+  const [calendarMonth, setCalendarMonth] = useState(startOfMonth(new Date()));
   const clientHasCoordinates =
     typeof clientProfile?.lat === "number" && Number.isFinite(clientProfile.lat) &&
     typeof clientProfile?.lng === "number" && Number.isFinite(clientProfile.lng);
@@ -217,6 +221,9 @@ export default function FindOperatorsPage() {
   const [cashAcknowledged, setCashAcknowledged] = useState(false);
   const [bookingError, setBookingError] = useState("");
   const [createdJobId, setCreatedJobId] = useState("");
+  const [bookingStep, setBookingStep] = useState(1);
+  const monthDays = eachDayOfInterval({ start: startOfWeek(startOfMonth(calendarMonth)), end: endOfWeek(endOfMonth(calendarMonth)) });
+  const timeOptions = Array.from({ length: 25 }, (_, index) => { const minutes = 7 * 60 + index * 30; return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`; });
 
   const [openedInvitation, setOpenedInvitation] = useState(false);
   useEffect(() => {
@@ -225,25 +232,47 @@ export default function FindOperatorsPage() {
     if (!operatorId) return;
     setOpenedInvitation(true);
     const operator = operators.find(item => item.uid === operatorId);
-    if (operator && isClientWithinOperatorRadius(clientProfile, operator)) setSchedulingOperator(operator);
+    if (operator && isClientWithinOperatorRadius(clientProfile, operator)) {
+      setSchedulingOperator(operator);
+      setBookingStep(1);
+      setTimingChosen(false);
+      setRequestedServices((clientProfile?.propertyDetails?.serviceTypes || ["driveway"]).filter(service => operator.serviceTypes.includes(service)).slice(0, 1).length
+        ? (clientProfile?.propertyDetails?.serviceTypes || ["driveway"]).filter(service => operator.serviceTypes.includes(service))
+        : operator.serviceTypes.slice(0, 1));
+      setCashAcknowledged(false);
+      setPaymentMethod("cash");
+    }
     else setBookingError("This operator is not currently available in your service area.");
   }, [loading, openedInvitation, profile, operators, clientProfile]);
 
   const bookOperator = async (operator: OperatorProfile) => {
     if (!user?.uid || !profile) return;
     setCreatedJobId("");
+    setBookingStep(1);
+    setTimingChosen(false);
     setSchedulingOperator(operator);
     setRequestedServices(selectedServices.filter(service => operator.serviceTypes.includes(service)).length
       ? selectedServices.filter(service => operator.serviceTypes.includes(service))
       : operator.serviceTypes.slice(0, 1));
     setPaymentMethod("cash");
     const requestedDate = new URLSearchParams(window.location.search).get("date");
-    const validDate = requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate) ? requestedDate : null;
+    const parsedRequestedDate = requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate)
+      ? new Date(`${requestedDate}T12:00:00`)
+      : null;
+    const validDate = parsedRequestedDate &&
+      Number.isFinite(parsedRequestedDate.getTime()) &&
+      format(parsedRequestedDate, "yyyy-MM-dd") === requestedDate &&
+      parsedRequestedDate > new Date(new Date().setHours(0, 0, 0, 0)) &&
+      parsedRequestedDate <= addDays(new Date(new Date().setHours(0, 0, 0, 0)), 30)
+      ? requestedDate
+      : null;
     setCashAcknowledged(false);
     setBookingError("");
     setScheduleType(validDate ? "scheduled" : "asap");
-    setScheduledDate(validDate || format(new Date(), "yyyy-MM-dd"));
-    setScheduledTime(validDate && validDate > format(new Date(), "yyyy-MM-dd") ? "09:00" : format(new Date(Date.now() + 60 * 60 * 1000), "HH:mm"));
+    setTimingChosen(Boolean(validDate));
+    setScheduledDate(validDate || format(addDays(new Date(), 1), "yyyy-MM-dd"));
+    setCalendarMonth(startOfMonth(validDate ? new Date(`${validDate}T12:00:00`) : addDays(new Date(), 1)));
+    setScheduledTime("09:00");
   };
 
   // Confirm booking after schedule selection
@@ -454,7 +483,7 @@ export default function FindOperatorsPage() {
                 <div className="min-w-0 flex-1"><h2 className="text-lg font-semibold break-words"><Link href={`/dashboard/u/${op.uid}?returnTo=${encodeURIComponent(`/dashboard/find`)}`} className="rounded underline-offset-4 hover:underline">{op.businessName || op.displayName}</Link></h2><p className="mt-1 text-sm text-[var(--text-secondary)]">{op.rating ? `${op.rating.toFixed(1)} ★` : "New operator"}{distance !== null ? ` · ${distance.toFixed(1)} km away` : ` · ${op.city}`}</p></div>
                 <button type="button" onClick={() => toggleFavorite(op.uid)} disabled={favoriteBusy} aria-pressed={favorites.includes(op.uid)} aria-label={favorites.includes(op.uid) ? `Unsave ${op.businessName || op.displayName}` : `Save ${op.businessName || op.displayName}`} className="-mr-1 -mt-1 grid h-11 w-11 shrink-0 place-items-center rounded-xl text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"><Star size={19} fill={favorites.includes(op.uid) ? "currentColor" : "none"} className={favorites.includes(op.uid) ? "text-amber-600" : ""} /></button>
               </div>
-              <p className="mt-4 text-sm capitalize text-[var(--text-secondary)]">{selectedServices.map(service => service.replaceAll("-", " ")).join(" · ")} · {propertySize} property</p>
+              <p className="mt-4 text-sm capitalize text-[var(--text-secondary)]">{selectedServices.map(service => service.replaceAll("-", " ")).join(" · ")} · {propertySize === "small" ? "1-car driveway" : propertySize === "medium" ? "2-car driveway" : propertySize === "large" ? "3+ car driveway" : "Commercial property"}</p>
               <div className={`mt-3 grid gap-2 ${cashOnly ? "" : "grid-cols-2"}`}>
                 {!cashOnly && <div className="rounded-xl bg-[var(--accent-soft)] p-3"><p className="flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)]"><CreditCard size={15} />Card</p><p className="mt-1 text-xl font-semibold">${quoteMarketplace(price, "credit").price.toFixed(2)} <span className="text-xs font-normal">CAD</span></p></div>}
                 <div className="rounded-xl bg-[var(--bg-secondary)] p-3"><p className="flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)]"><Banknote size={15} />Cash{cashOnly ? " only" : ""}</p><p className="mt-1 text-xl font-semibold">${price.toFixed(2)} <span className="text-xs font-normal">CAD</span></p></div>
@@ -468,25 +497,50 @@ export default function FindOperatorsPage() {
 
       {loadError && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4"><p>{loadError}</p><button type="button" className="mt-2 min-h-11 underline" onClick={() => setRetry(value => value + 1)}>Try again</button></div>}
       {bookingError && !schedulingOperator && <p role="alert" className="text-red-700">{bookingError}</p>}
-      <Modal isOpen={!!schedulingOperator} onClose={() => { if (!booking) { setSchedulingOperator(null); setCreatedJobId(""); } }} title={createdJobId ? undefined : "Review your request"} size="lg" showClose={!booking}>
+      <Modal isOpen={!!schedulingOperator} onClose={() => { if (!booking) { setSchedulingOperator(null); setCreatedJobId(""); setBookingStep(1); } }} title={createdJobId ? undefined : `Request snow help · ${bookingStep} of 4`} size="lg" showClose={!booking}>
         {schedulingOperator && createdJobId ? <ResultState title="Help requested." description={`${schedulingOperator.businessName || schedulingOperator.displayName} will review your request. We’ll let you know when they respond.`} actionHref={`/dashboard/jobs/${createdJobId}`} actionLabel="View work order">
           <div className="mt-6 flex items-center justify-center gap-2 rounded-xl bg-[var(--bg-secondary)] p-4 text-sm font-semibold"><CalendarDays size={18} />{scheduleType === "asap" ? "As soon as possible" : `${scheduledDate} · ${scheduledTime}`}</div>
+          <p className="mt-3 text-center text-sm text-[var(--text-secondary)]">{requestedServices.map(item => item.replaceAll("-", " ")).join(" · ")} · {clientProfile?.address} · {paymentMethod === "cash" ? "Cash" : "Card"}</p>
         </ResultState> : schedulingOperator && <div className="space-y-5">
+          <div className="h-1.5 overflow-hidden rounded-full bg-[var(--bg-secondary)]"><div className="h-full rounded-full bg-[var(--ink)] transition-all" style={{ width: `${bookingStep * 25}%` }} /></div>
+          {bookingStep > 1 && <button type="button" onClick={() => { setBookingError(""); setBookingStep(current => current - 1); }} className="inline-flex min-h-10 items-center gap-2 rounded-full px-2 text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]">← Back</button>}
+          {bookingStep === 1 && <>
+          <h3 className="text-lg font-semibold">Choose your service</h3>
           <div className="flex items-center justify-between gap-4 rounded-xl bg-[var(--bg-secondary)] p-4"><CompanyIdentity person={schedulingOperator} name={schedulingOperator.businessName || schedulingOperator.displayName} /><strong>${quoteMarketplace(calculateServicePrice(schedulingOperator.pricing, requestedServices, propertySize), paymentMethod).price.toFixed(2)} CAD</strong></div>
-          <div className="detail-list text-sm">
-            <div><span className="text-xs text-[var(--text-muted)]">Service</span><fieldset className="mt-2 flex flex-wrap gap-2"><legend className="sr-only">Choose services for this request</legend>{schedulingOperator.serviceTypes.map(service => <label key={service} className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 font-semibold capitalize ${requestedServices.includes(service) ? "border-[var(--ink)] bg-[var(--accent-soft)]" : "border-[var(--border-color)] bg-white"}`}><input type="checkbox" className="h-4 w-4" checked={requestedServices.includes(service)} onChange={() => setRequestedServices(current => current.includes(service) ? current.filter(item => item !== service) : [...current, service])} />{service.replaceAll("-", " ")}</label>)}</fieldset></div>
-            <div className="flex items-start justify-between gap-4"><div><span className="text-xs text-[var(--text-muted)]">Your home</span><p className="mt-1 font-semibold">{clientProfile?.address}, {clientProfile?.city}</p></div><MapPin size={18} /></div>
+          <fieldset className="rounded-xl bg-[var(--bg-secondary)] p-4"><legend className="text-sm font-semibold">Service</legend><div className="mt-2 flex flex-wrap gap-2">{schedulingOperator.serviceTypes.map(service => <label key={service} className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 font-semibold capitalize ${requestedServices.includes(service) ? "border-[var(--ink)] bg-[var(--accent-soft)]" : "border-[var(--border-color)] bg-white"}`}><input type="checkbox" className="h-4 w-4" checked={requestedServices.includes(service)} onChange={() => setRequestedServices(current => current.includes(service) ? current.filter(item => item !== service) : [...current, service])} />{service.replaceAll("-", " ")}</label>)}</div></fieldset>
+          <button type="button" onClick={() => setBookingStep(2)} disabled={!requestedServices.length} className="btn-primary w-full min-h-12">Continue with this shoveler</button>
+          </>}
+          {bookingStep === 2 && <>
+          <h3 className="text-lg font-semibold">Confirm your location</h3>
+          <div className="flex items-center gap-3 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4"><MapPin size={20} /><span><small className="block text-xs text-[var(--text-muted)]">SAVED PROPERTY</small><strong>{clientProfile?.address || "Add your service address"}</strong><small className="block text-[var(--text-secondary)]">{clientProfile?.city}</small></span></div>
+          {!clientProfile?.address && <Link href="/dashboard/settings" className="inline-flex min-h-11 items-center underline">Add your address</Link>}
+          <button type="button" onClick={() => setBookingStep(3)} disabled={!clientProfile?.address} className="btn-primary w-full min-h-12">Continue</button>
+          </>}
+          {bookingStep === 3 && <>
+          <h3 className="text-lg font-semibold">When do you need help?</h3>
+          <div className="grid grid-cols-2 gap-2" aria-label="Choose timing">
+            <button type="button" aria-pressed={timingChosen && scheduleType === "asap"} onClick={() => { setScheduleType("asap"); setTimingChosen(true); }} className={`min-h-14 rounded-xl border px-3 text-sm font-semibold ${timingChosen && scheduleType === "asap" ? "border-[var(--ink)] bg-[var(--accent-soft)]" : "border-[var(--border-color)] bg-white"}`}><Zap className="mr-2 inline h-4 w-4" />ASAP</button>
+            <button type="button" aria-pressed={timingChosen && scheduleType === "scheduled"} onClick={() => { setScheduleType("scheduled"); setTimingChosen(true); }} className={`min-h-14 rounded-xl border px-3 text-sm font-semibold ${timingChosen && scheduleType === "scheduled" ? "border-[var(--ink)] bg-[var(--accent-soft)]" : "border-[var(--border-color)] bg-white"}`}><CalendarDays className="mr-2 inline h-4 w-4" />Scheduled</button>
           </div>
-          <fieldset><legend className="mb-2 text-sm font-semibold">When?</legend><div className="grid grid-cols-2 gap-2">
-            <button type="button" aria-pressed={scheduleType === "asap"} onClick={() => setScheduleType("asap")} className={`min-h-12 rounded-xl border px-3 ${scheduleType === "asap" ? "border-[var(--ink)] bg-[var(--accent-soft)]" : "border-[var(--border-color)]"}`}><Zap className="mr-2 inline h-4 w-4" />ASAP</button>
-            <button type="button" aria-pressed={scheduleType === "scheduled"} onClick={() => setScheduleType("scheduled")} className={`min-h-12 rounded-xl border px-3 ${scheduleType === "scheduled" ? "border-[var(--ink)] bg-[var(--accent-soft)]" : "border-[var(--border-color)]"}`}><CalendarDays className="mr-2 inline h-4 w-4" />Schedule</button>
-          </div></fieldset>
-          {scheduleType === "scheduled" && <div className="grid grid-cols-2 gap-3"><label className="text-sm font-semibold">Date<input type="date" aria-label="Job date" value={scheduledDate} min={format(new Date(), "yyyy-MM-dd")} max={format(addDays(new Date(), 30), "yyyy-MM-dd")} onChange={event => setScheduledDate(event.target.value)} className="mt-2 min-h-12 w-full px-3" /></label><label className="text-sm font-semibold">Time<input aria-label="Preferred time" type="time" value={scheduledTime} onChange={event => setScheduledTime(event.target.value)} className="mt-2 min-h-12 w-full px-3" /></label></div>}
-          {canAcceptPlatformPayments(schedulingOperator) && <label className="block text-sm font-semibold">Payment<select aria-label="Payment method" value={paymentMethod} onChange={event => { setPaymentMethod(event.target.value as "cash" | "credit"); setCashAcknowledged(false); }} className="mt-2 min-h-12 w-full bg-white px-3"><option value="cash">Cash after the job</option><option value="credit">Card after photo proof</option></select></label>}
+          {timingChosen && scheduleType === "asap" && <div className="rounded-2xl bg-[var(--accent-soft)] p-5 text-center"><Zap className="mx-auto mb-2 h-6 w-6 text-[var(--accent)]" /><strong className="block text-lg">As soon as possible</strong><span className="mt-1 block text-xs text-[var(--text-secondary)]">Arrival confirmed after the operator accepts</span></div>}
+          {timingChosen && scheduleType === "scheduled" && <div className="space-y-4 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4"><div className="flex items-center justify-between"><button type="button" aria-label="Previous month" onClick={() => setCalendarMonth(addMonths(calendarMonth, -1))} className="grid h-9 w-9 place-items-center rounded-lg bg-white">‹</button><strong>{format(calendarMonth, "MMMM yyyy")}</strong><button type="button" aria-label="Next month" onClick={() => setCalendarMonth(addMonths(calendarMonth, 1))} className="grid h-9 w-9 place-items-center rounded-lg bg-white">›</button></div><div className="grid grid-cols-7 gap-1 text-center text-xs">{["S", "M", "T", "W", "T", "F", "S"].map((day, index) => <span key={`${day}${index}`} className="py-1 text-[var(--text-muted)]">{day}</span>)}{monthDays.map(day => { const value = format(day, "yyyy-MM-dd"); const disabled = isBefore(day, new Date(new Date().setHours(0, 0, 0, 0))) || isBefore(addDays(new Date(), 30), day); return <button key={value} type="button" disabled={disabled} aria-pressed={value === scheduledDate} onClick={() => setScheduledDate(value)} className={`grid h-9 place-items-center rounded-lg ${value === scheduledDate ? "bg-[var(--ink)] text-white" : isSameMonth(day, calendarMonth) ? "bg-white" : "text-[var(--text-muted)]"} disabled:opacity-30`}>{format(day, "d")}</button>; })}</div><div><div className="mb-2 flex items-center justify-between text-sm"><span>Time</span><strong>{format(new Date(`2000-01-01T${scheduledTime}:00`), "h:mm a")}</strong></div><div className="flex max-h-28 flex-col gap-1 overflow-y-auto" role="listbox" aria-label="Choose visit time">{timeOptions.map(time => <button key={time} type="button" role="option" aria-selected={scheduledTime === time} onClick={() => setScheduledTime(time)} className={`min-h-10 shrink-0 rounded-lg ${scheduledTime === time ? "bg-[var(--accent-soft)] font-semibold" : "bg-white"}`}>{format(new Date(`2000-01-01T${time}:00`), "h:mm a")}</button>)}</div></div></div>}
+          <button type="button" onClick={() => setBookingStep(4)} disabled={!timingChosen || (scheduleType === "scheduled" && (!scheduledDate || new Date(`${scheduledDate}T${scheduledTime}`).getTime() <= Date.now()))} className="btn-primary w-full min-h-12">Review choices</button>
+          </>}
+          {bookingStep === 4 && <>
+          <h3 className="text-lg font-semibold">Review and request</h3>
+          <div className="detail-list text-sm">
+            <div className="flex items-start justify-between gap-4"><span className="text-xs text-[var(--text-muted)]">Shoveler</span><strong>{schedulingOperator.businessName || schedulingOperator.displayName}</strong></div>
+            <div className="flex items-start justify-between gap-4"><span className="text-xs text-[var(--text-muted)]">Service</span><strong className="capitalize">{requestedServices.map(item => item.replaceAll("-", " ")).join(" · ")}</strong></div>
+            <div className="flex items-start justify-between gap-4"><span className="text-xs text-[var(--text-muted)]">Location</span><strong className="text-right">{clientProfile?.address}, {clientProfile?.city}</strong></div>
+            <div className="flex items-start justify-between gap-4"><span className="text-xs text-[var(--text-muted)]">When</span><strong>{scheduleType === "asap" ? "As soon as possible" : `${format(new Date(`${scheduledDate}T12:00:00`), "EEE, MMM d")} · ${scheduledTime}`}</strong></div>
+          </div>
+          <div className="flex items-center justify-between rounded-2xl bg-[var(--accent-soft)] p-4"><span className="text-sm font-semibold">Total</span><strong className="text-xl">${quoteMarketplace(calculateServicePrice(schedulingOperator.pricing, requestedServices, propertySize), paymentMethod).price.toFixed(2)} CAD</strong></div>
+          <fieldset><legend className="mb-2 text-sm font-semibold">Payment preference</legend><div className="grid grid-cols-2 gap-2"><button type="button" aria-pressed={paymentMethod === "cash"} onClick={() => { setPaymentMethod("cash"); setCashAcknowledged(false); }} className={`min-h-12 rounded-xl border px-3 ${paymentMethod === "cash" ? "border-[var(--ink)] bg-[var(--accent-soft)]" : "border-[var(--border-color)]"}`}><Banknote className="mr-2 inline h-4 w-4" />Cash</button>{canAcceptPlatformPayments(schedulingOperator) && <button type="button" aria-pressed={paymentMethod === "credit"} onClick={() => { setPaymentMethod("credit"); setCashAcknowledged(false); }} className={`min-h-12 rounded-xl border px-3 ${paymentMethod === "credit" ? "border-[var(--ink)] bg-[var(--accent-soft)]" : "border-[var(--border-color)]"}`}><CreditCard className="mr-2 inline h-4 w-4" />Card</button>}</div></fieldset>
           <div className="rounded-xl bg-[var(--bg-secondary)] p-4 text-sm text-[var(--text-secondary)]">{paymentMethod === "credit" ? "Authorize a card after acceptance. It is charged only after photo proof." : <label className="flex items-start gap-3"><input type="checkbox" checked={cashAcknowledged} onChange={event => setCashAcknowledged(event.target.checked)} className="mt-0.5 h-5 w-5 shrink-0" /><span>I’ll pay the operator in cash after the work is done.</span></label>}</div>
           {bookingError && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{bookingError}</p>}
           <button onClick={() => void confirmBooking()} disabled={booking || requestedServices.length === 0 || (paymentMethod === "cash" && !cashAcknowledged)} className="btn-primary w-full min-h-13">{booking ? "Sending request…" : "Request snow help"}</button>
           <p className="text-center text-xs text-[var(--text-muted)]">The visit is confirmed when the operator accepts.</p>
+          </>}
         </div>}
       </Modal>
     </div>

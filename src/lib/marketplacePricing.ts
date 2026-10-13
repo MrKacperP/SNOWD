@@ -10,6 +10,8 @@ type EditablePricing = {
   driveway?: { small?: number; medium?: number; large?: number };
   walkway?: number;
   sidewalk?: number;
+  backyardPatio?: number;
+  porch?: number;
 };
 
 export function calculateServicePrice(
@@ -22,6 +24,8 @@ export function calculateServicePrice(
     if (service === "driveway") return sum + (pricing?.driveway?.[size] || 0);
     if (service === "walkway") return sum + (pricing?.walkway || 0);
     if (service === "sidewalk") return sum + (pricing?.sidewalk || 0);
+    if (service === "backyard-patio") return sum + (pricing?.backyardPatio || 0);
+    if (service === "porch") return sum + (pricing?.porch || 0);
     return sum;
   }, 0);
   return total || pricing?.driveway?.[size] || 40;

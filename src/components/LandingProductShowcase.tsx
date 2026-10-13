@@ -32,6 +32,7 @@ export default function LandingProductShowcase() {
   const [view, setView] = useState<"home" | "jobs" | "messages">("home");
   const [service, setService] = useState("Driveway + walkway");
   const [booked, setBooked] = useState(false);
+  const [demoStep, setDemoStep] = useState(0);
 
   useEffect(() => {
     const node = sectionRef.current;
@@ -101,19 +102,19 @@ export default function LandingProductShowcase() {
 
         <div className={styles.phone}>
           <div className={styles.phoneTop}><span>9:41</span><i /><span>•••</span></div>
-          <div className={styles.phoneHeader}><Image src="/logo.png" alt="" width={19} height={21} /><b>snowd.</b><span>1 of 2</span></div>
+          <div className={styles.phoneHeader}><Image src="/logo.png" alt="" width={19} height={21} /><b>snowd.</b><span>{demoStep + 1} of 4</span></div>
           <div className={styles.phoneContent}>
             {booked ? (
-              <div className={styles.booked}><span><Check size={27} /></span><h3>Help requested.</h3><p>Jamie will confirm your visit shortly.</p><div><CalendarDays size={17} /><b>Today · 11:30 AM</b></div></div>
+              <div className={styles.booked}><span><Check size={27} /></span><h3>Sample complete.</h3><p>No request was sent. This walkthrough stays on this page.</p><div><CalendarDays size={17} /><b>Sample · Today · 11:30 AM</b></div></div>
             ) : (
-              <>
+              <>{demoStep === 0 ? <>
                 <p className={styles.phoneKicker}>BOOK SNOW HELP</p><h3>What needs<br />clearing?</h3><p className={styles.phoneIntro}>Choose a service for your home.</p>
                 <button className={styles.select} onClick={() => setService(service === "Driveway + walkway" ? "Front steps" : "Driveway + walkway")}><span><Shovel size={18} /><b>{service}</b></span><ChevronDown size={17} /></button>
-                <div className={styles.address}><span><House size={16} /></span><div><small>YOUR HOME</small><b>18 Maple Avenue</b></div><Check size={15} /></div>
+                <div className={styles.address}><span><User size={16} /></span><div><small>SELECTED SHOVELER</small><b>Jamie · Toronto</b></div><Check size={15} /></div>
                 <div className={styles.phonePrice}><span>Estimated total<small>Includes service fees</small></span><strong>{service === "Front steps" ? "$24" : "$42"}<small> CAD</small></strong></div>
-              </>
+              </> : demoStep === 1 ? <><p className={styles.phoneKicker}>SAMPLE LOCATION</p><h3>Where should Jamie go?</h3><p className={styles.phoneIntro}>This address is fictional. Your location is never used.</p><div className={styles.address}><span><House size={16} /></span><div><small>MADE-UP ADDRESS</small><b>18 Maple Avenue</b></div><Check size={15} /></div></> : demoStep === 2 ? <><p className={styles.phoneKicker}>SAMPLE TIMING</p><h3>When do you need help?</h3><p className={styles.phoneIntro}>As soon as possible · sample</p><div className={styles.address}><span><CalendarDays size={16} /></span><div><small>REQUESTED WINDOW</small><b>Today · 11:30 AM</b></div><Check size={15} /></div></> : <><p className={styles.phoneKicker}>SAMPLE REVIEW</p><h3>Your choices</h3><div className={styles.address}><span><User size={16} /></span><div><small>SHOVELER · SERVICE</small><b>Jamie · {service}</b></div></div><div className={styles.address}><span><House size={16} /></span><div><small>LOCATION · PAYMENT</small><b>18 Maple Avenue · Cash</b></div></div></> }</>
             )}
-            <button className={styles.bookButton} onClick={() => setBooked(!booked)}>{booked ? "Start again" : "Request snow help"}</button>
+            <button className={styles.bookButton} onClick={() => { if (booked) { setBooked(false); setDemoStep(0); } else if (demoStep < 3) setDemoStep(demoStep + 1); else setBooked(true); }}>{booked ? "Start again" : demoStep === 0 ? "Continue with Jamie" : demoStep === 1 ? "Confirm sample location" : demoStep === 2 ? "Review choices" : "Complete sample"}</button>
           </div>
           <div className={styles.phoneHome} />
         </div>
