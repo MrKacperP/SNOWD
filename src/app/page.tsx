@@ -1,7 +1,7 @@
 import GlassRefraction from "@/components/ui/GlassRefraction";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, Shovel, Check, ArrowUpRight, House, CalendarDays, Camera, Plus } from "lucide-react";
+import { ArrowRight, Shovel, Check, ArrowUpRight, House, CalendarDays, Camera, Plus, Users, CreditCard, BriefcaseBusiness } from "lucide-react";
 import styles from "./landing.module.css";
 import LandingPhone from "@/components/LandingPhone";
 import LandingProductShowcase from "@/components/LandingProductShowcase";
@@ -54,6 +54,12 @@ const questions = [
     "How do I pay?",
     "Available payment options are shown when you book. For card bookings, payment is authorized before work starts. For cash bookings, you pay the shoveler directly after the work.",
   ],
+];
+const landingFeatures = [
+  { title: "Nearby clients", icon: Users },
+  { title: "Scheduling", icon: CalendarDays },
+  { title: "Payments", icon: CreditCard },
+  { title: "Manage your portfolio", icon: BriefcaseBusiness },
 ];
 function Brand() {
   return (
@@ -109,6 +115,11 @@ export default function HomePage() {
           <LandingPhone />
         </section>
         <div className={styles.serviceStrip}><p><Check size={16} aria-hidden="true" /> Driveways</p><p><Check size={16} aria-hidden="true" /> Walkways</p><p><Check size={16} aria-hidden="true" /> Steps & entrances</p></div>
+        <section className={styles.featureBubbles} aria-label="SNOWD features">
+          {landingFeatures.map(({ title, icon: Icon }) => <div key={title} className={styles.featureBubble} tabIndex={0} role="img" aria-label={title}>
+            <span><Icon size={22} aria-hidden="true" /></span><strong>{title}</strong>
+          </div>)}
+        </section>
         <LandingProductShowcase />
         <section id="how" className={styles.how} aria-labelledby="how-title">
           <div className={styles.sectionHeading}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { addDays, addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isBefore, isSameMonth, startOfMonth, startOfWeek } from "date-fns";
 import Link from "next/link";
 import {
@@ -73,12 +73,29 @@ export default function LandingPhone() {
   const [demoDate, setDemoDate] = useState(format(addDays(new Date(), 1), "yyyy-MM-dd"));
   const [calendarMonth, setCalendarMonth] = useState(startOfMonth(addDays(new Date(), 1)));
   const [demoTime, setDemoTime] = useState("09:00");
+  const [currentTime, setCurrentTime] = useState<number | null>(null);
+  useEffect(() => {
+    const updateCurrentTime = () => setCurrentTime(Date.now());
+    updateCurrentTime();
+    const timer = window.setInterval(updateCurrentTime, 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
   const selectedOperator = operators.find((operator) => operator.id === selectedOperatorId) || operators[0];
   const activeTab = ["location", "timing", "review", "success"].includes(view) ? "find" : view;
   const walkthroughStep = view === "home" || view === "find" ? 1 : view === "location" ? 2 : view === "timing" ? 3 : view === "review" ? 4 : 5;
   const goBack = () => setView(view === "find" ? "home" : view === "location" ? "find" : view === "timing" ? "location" : view === "review" ? "timing" : "home");
   const sendRequest = () => { setRequested(true); setView("success"); };
-  const resetDemo = () => { setRequested(false); setSchedule(null); setPayment("cash"); setView("home"); };
+  const resetDemo = () => {
+    const tomorrow = addDays(new Date(), 1);
+    setRequested(false);
+    setSelectedOperatorId(operators[0].id);
+    setSchedule(null);
+    setPayment("cash");
+    setDemoDate(format(tomorrow, "yyyy-MM-dd"));
+    setCalendarMonth(startOfMonth(tomorrow));
+    setDemoTime("09:00");
+    setView("home");
+  };
   const showAction = view === "home" || view === "location" || view === "review" || view === "success" || (view === "timing" && schedule !== null);
   const actionLabel = view === "home" ? "Find a shoveler"
     : view === "location" ? "Confirm sample location"
@@ -90,6 +107,8 @@ export default function LandingPhone() {
     : view === "timing" ? () => setView("review")
     : view === "review" ? sendRequest : resetDemo;
   const scheduledDateLabel = format(new Date(`${demoDate}T12:00:00`), "EEE, MMM d");
+  const demoDateTime = new Date(`${demoDate}T${demoTime}:00`);
+  const scheduleTimeIsPast = schedule === "scheduled" && currentTime !== null && demoDateTime.getTime() <= currentTime;
   const monthDays = eachDayOfInterval({ start: startOfWeek(startOfMonth(calendarMonth)), end: endOfWeek(endOfMonth(calendarMonth)) });
   const timeOptions = Array.from({ length: 25 }, (_, index) => {
     const minutes = 7 * 60 + index * 30;
@@ -136,7 +155,6 @@ export default function LandingPhone() {
         </>}
 
         {view === "timing" && <>
-          {schedule !== null && <button type="button" onClick={() => setSchedule(null)} aria-label="Back to timing choices" className={styles.timingSelectedBack}><ArrowRight size={16} /></button>}
           {schedule === null && <div className={styles.timingIntro}><button type="button" onClick={goBack} aria-label="Back" className={styles.timingBack}><ArrowRight size={16} /></button><span className={styles.timingClock}><Clock3 size={56} strokeWidth={1.5} /></span><h3>When do you need help?</h3><div className={styles.timingOptions}><button type="button" onClick={() => setSchedule("asap")}><Sparkles size={19} /><span>ASAP</span></button><button type="button" onClick={() => setSchedule("scheduled")}><CalendarDays size={19} /><span>Scheduled</span></button></div></div>}
           {schedule === "asap" && <section className={styles.etaCard}>
             <SampleRouteMap compact operatorName={selectedOperator.name.split(" ")[0]} />
@@ -145,13 +163,18 @@ export default function LandingPhone() {
           {schedule === "scheduled" && <section className={styles.scheduleCard}>
             <div className={styles.calendarWidget}>
               <div className={styles.calendarHeader}><button type="button" onClick={() => setCalendarMonth(addMonths(calendarMonth, -1))} aria-label="Previous month">‹</button><strong>{format(calendarMonth, "MMMM yyyy")}</strong><button type="button" onClick={() => setCalendarMonth(addMonths(calendarMonth, 1))} aria-label="Next month">›</button></div>
+              <p className={styles.calendarOperator}>with {selectedOperator.name}</p>
               <div className={styles.calendarGrid}>{["S", "M", "T", "W", "T", "F", "S"].map((day, index) => <span key={`${day}${index}`} className={styles.weekday}>{day}</span>)}{monthDays.map(day => {
                 const value = format(day, "yyyy-MM-dd");
                 const isPast = isBefore(day, new Date(new Date().setHours(0, 0, 0, 0)));
-                return <button key={value} type="button" disabled={isPast} aria-pressed={value === demoDate} className={!isSameMonth(day, calendarMonth) ? styles.outsideMonth : ""} onClick={() => setDemoDate(value)}>{format(day, "d")}</button>;
+                return <button key={value} type="button" disabled={isPast || !isSameMonth(day, calendarMonth)} aria-pressed={value === demoDate} className={!isSameMonth(day, calendarMonth) ? styles.outsideMonth : ""} onClick={() => setDemoDate(value)}>{format(day, "d")}</button>;
               })}</div>
             </div>
-            <div className={styles.timePickerSection}><div className={styles.timePickerHeading}><span>Choose a time</span><strong>{format(new Date(`2000-01-01T${demoTime}:00`), "h:mm a")}</strong></div><div className={styles.timePicker} role="listbox" aria-label="Choose sample time">{timeOptions.map(time => <button key={time} type="button" role="option" aria-selected={demoTime === time} onClick={() => setDemoTime(time)}>{format(new Date(`2000-01-01T${time}:00`), "h:mm a")}</button>)}</div></div>
+            <div className={styles.timePickerSection}><div className={styles.timePickerHeading}><span>Choose a time</span><strong>{format(new Date(`2000-01-01T${demoTime}:00`), "h:mm a")}</strong></div><div className={styles.timePicker} role="listbox" aria-label="Choose sample time">{timeOptions.map(time => {
+              const optionDate = new Date(`${demoDate}T${time}:00`);
+              const isPastTime = currentTime !== null && optionDate.getTime() <= currentTime;
+              return <button key={time} type="button" role="option" disabled={isPastTime} aria-selected={demoTime === time} onClick={() => setDemoTime(time)}>{format(new Date(`2000-01-01T${time}:00`), "h:mm a")}</button>;
+            })}</div></div>
           </section>}
         </>}
 
@@ -161,7 +184,7 @@ export default function LandingPhone() {
             <div className={styles.reviewOperator}><span className={`${styles.companyLogo} ${styles[selectedOperator.tone]}`}><selectedOperator.icon size={20} /></span><span><small>SHOVELER</small><strong>{selectedOperator.name} · {selectedOperator.company}</strong></span></div>
             <div className={styles.reviewRow}><span>Service</span><strong>2-car driveway · Walkway</strong></div>
             <div className={styles.reviewLocation}><span className={styles.reviewLocationIcon}><MapPin size={16} /></span><span><small>LOCATION · SAMPLE</small><strong>18 Maple Avenue</strong></span><b className={schedule === "asap" ? styles.asapLabel : ""}>{schedule === "asap" ? "~12 min" : "Scheduled"}</b></div>
-            <div className={styles.reviewRow}><span>When</span><strong className={schedule === "asap" ? styles.asapLabel : ""}>{schedule === "asap" ? "ASAP · about 12 minutes after confirmation" : `${scheduledDateLabel} · ${demoTime}`}</strong></div>
+            <div className={styles.reviewRow}><span>When</span><strong className={schedule === "asap" ? styles.asapLabel : ""}>{schedule === "asap" ? "ASAP · about 12 minutes after confirmation" : `${scheduledDateLabel} · ${format(new Date(`2000-01-01T${demoTime}:00`), "h:mm a")}`}</strong></div>
           </div>
           <section className={styles.reviewMap} aria-label="Sample route along Toronto streets"><SampleRouteMap compact operatorName={selectedOperator.name.split(" ")[0]} /></section>
           <fieldset className={styles.paymentChoice}><legend>Payment</legend><div className={styles.choices}><button type="button" aria-pressed={payment === "cash"} onClick={() => setPayment("cash")}><span className={styles.paymentAsset}><Banknote size={25} /></span><span>Cash</span></button><button type="button" aria-pressed={payment === "credit"} onClick={() => setPayment("credit")}><span className={styles.paymentAsset}><CreditCard size={25} /></span><span>Card</span></button></div></fieldset>
@@ -180,7 +203,7 @@ export default function LandingPhone() {
         <button type="button" aria-pressed={schedule === "asap"} onClick={() => setSchedule("asap")}><Sparkles size={19} /><span>ASAP</span></button>
         <button type="button" aria-pressed={schedule === "scheduled"} onClick={() => setSchedule("scheduled")}><CalendarDays size={19} /><span>Scheduled</span></button>
       </div></div>}
-      {showAction && <div className={styles.actionArea}><button className={styles.primary} onClick={action}>{view === "success" && <RotateCcw size={17} />}{actionLabel}{view !== "success" && <ArrowRight size={18} />}</button></div>}
+      {showAction && <div className={styles.actionArea}><button className={styles.primary} disabled={scheduleTimeIsPast} onClick={action}>{view === "success" && <RotateCcw size={17} />}{actionLabel}{view !== "success" && <ArrowRight size={18} />}</button></div>}
       {showNav && <nav className={styles.bottomNav} aria-label="Demo navigation">{tabs.map(({ view: tab, label, icon: Icon }) => <button key={tab} aria-label={label} aria-current={activeTab === tab ? "page" : undefined} onClick={() => setView(tab)}><Icon size={20} /></button>)}</nav>}
       <div className={styles.homeIndicator} />
     </div>
