@@ -1,5 +1,13 @@
 import { Job } from "@/lib/types";
 
+export function propertySizeLabel(size?: string | null) {
+  if (size === "small") return "1-car driveway";
+  if (size === "medium") return "2-car driveway";
+  if (size === "large") return "3+ car driveway";
+  if (size === "commercial") return "Commercial property";
+  return "Driveway";
+}
+
 export function orderNumber(job: Pick<Job, "id" | "orderNumber">) {
   return job.orderNumber || `L-${job.id}`;
 }

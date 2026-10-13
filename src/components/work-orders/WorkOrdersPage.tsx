@@ -5,7 +5,7 @@ import { ArrowRight, MapPin, Search, CalendarDays, MessageSquare, Banknote, Cred
 import CompanyIdentity from "@/components/CompanyIdentity";
 import { useWorkOrders } from "@/hooks/useWorkOrders";
 import { jobDisplayPrice } from "@/lib/marketplacePricing";
-import { dateMillis, isAsap, orderNumber, orderLabel, orderActionNeeded, scheduleText, terminalOrderDateText } from "@/lib/workOrders";
+import { dateMillis, isAsap, orderNumber, orderLabel, orderActionNeeded, propertySizeLabel, scheduleText, terminalOrderDateText } from "@/lib/workOrders";
 import styles from "./work-orders.module.css";
 import ui from "./order-list.module.css";
 
@@ -51,7 +51,7 @@ export default function WorkOrdersPage({ history = false, schedule = false }: { 
             </div>
             <div className={ui.details}>
               <div className={ui.description}>
-                <h2>{job.serviceTypes?.map(service => service.replaceAll("-", " ")).join(" & ") || "Snow clearing"}</h2>
+                <h2>{[propertySizeLabel(job.propertySize), ...(job.serviceTypes?.filter(service => service !== "driveway").map(service => service.replaceAll("-", " ")) ?? [])].join(" + ")}</h2>
                 <p><MapPin size={15} aria-hidden="true" /><span>{job.address || "Address to be confirmed"}</span></p>
                 <p><CalendarDays size={15} aria-hidden="true" /><span>{timing}</span></p>
               </div>
@@ -77,8 +77,8 @@ export default function WorkOrdersPage({ history = false, schedule = false }: { 
   const sorted = [...jobs].sort((a, b) => (dateMillis(a.scheduledDate) || dateMillis(a.createdAt)) - (dateMillis(b.scheduledDate) || dateMillis(b.createdAt)));
   const cards = (items: typeof jobs, empty: string) => items.length ? <div className="grid gap-2">{items.map(job => {
     const timing = isAsap(job) ? (job.status === "en-route" && job.eta ? `About ${job.eta} min away` : "ASAP · time to confirm") : scheduleText(job);
-    const services = job.serviceTypes?.map(service => service.replaceAll("-", " ")).join(" · ") || "Snow clearing";
-    const capacity = job.propertySize === "small" ? "1-car driveway" : job.propertySize === "medium" ? "2-car driveway" : job.propertySize === "large" ? "3+ car driveway" : "Driveway";
+    const services = job.serviceTypes?.filter(service => service !== "driveway").map(service => service.replaceAll("-", " ")).join(" · ") || "Driveway clearing";
+    const capacity = propertySizeLabel(job.propertySize);
     return <Link key={job.id} href={`/dashboard/jobs/${job.id}`} className="flex min-h-[82px] items-center justify-between gap-3 rounded-2xl border border-[var(--border-soft)] bg-white px-4 py-3 text-inherit no-underline shadow-[0_5px_18px_rgba(17,43,59,.045)] transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]">
       <span className="grid min-w-0 gap-1"><span className="flex items-center gap-2 text-sm font-semibold"><CalendarDays size={15} className="shrink-0 text-blue-700" />{timing}</span><span className="truncate text-xs capitalize text-[var(--text-secondary)]">{names[isOperator ? job.clientId : job.operatorId] || (isOperator ? "Customer" : "Shoveler")} · {capacity} · {services}</span></span>
       <strong className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-emerald-50 px-3 py-2 text-base text-emerald-800">{job.paymentMethod === "cash" ? <Banknote size={15} /> : <CreditCard size={15} />}${jobDisplayPrice(job, isOperator).toFixed(2)}</strong>

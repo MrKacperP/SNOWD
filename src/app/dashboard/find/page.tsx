@@ -19,6 +19,7 @@ isClientWithinOperatorRadius,
 isOperatorPublic,
 } from "@/lib/operatorDiscovery";
 import { ClientProfile,OperatorProfile,ServiceType } from "@/lib/types";
+import { propertySizeLabel } from "@/lib/workOrders";
 import { addDays,addMonths,eachDayOfInterval,endOfMonth,endOfWeek,format,isBefore,isSameMonth,startOfMonth,startOfWeek } from "date-fns";
 import {
 collection,
@@ -483,7 +484,7 @@ export default function FindOperatorsPage() {
                 <div className="min-w-0 flex-1"><h2 className="text-lg font-semibold break-words"><Link href={`/dashboard/u/${op.uid}?returnTo=${encodeURIComponent(`/dashboard/find`)}`} className="rounded underline-offset-4 hover:underline">{op.businessName || op.displayName}</Link></h2><p className="mt-1 text-sm text-[var(--text-secondary)]">{op.rating ? `${op.rating.toFixed(1)} ★` : "New operator"}{distance !== null ? ` · ${distance.toFixed(1)} km away` : ` · ${op.city}`}</p></div>
                 <button type="button" onClick={() => toggleFavorite(op.uid)} disabled={favoriteBusy} aria-pressed={favorites.includes(op.uid)} aria-label={favorites.includes(op.uid) ? `Unsave ${op.businessName || op.displayName}` : `Save ${op.businessName || op.displayName}`} className="-mr-1 -mt-1 grid h-11 w-11 shrink-0 place-items-center rounded-xl text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"><Star size={19} fill={favorites.includes(op.uid) ? "currentColor" : "none"} className={favorites.includes(op.uid) ? "text-amber-600" : ""} /></button>
               </div>
-              <p className="mt-4 text-sm capitalize text-[var(--text-secondary)]">{selectedServices.map(service => service.replaceAll("-", " ")).join(" · ")} · {propertySize === "small" ? "1-car driveway" : propertySize === "medium" ? "2-car driveway" : propertySize === "large" ? "3+ car driveway" : "Commercial property"}</p>
+              <p className="mt-4 text-sm capitalize text-[var(--text-secondary)]">{[propertySizeLabel(propertySize), ...selectedServices.filter(service => service !== "driveway").map(service => service.replaceAll("-", " "))].join(" · ")}</p>
               <div className={`mt-3 grid gap-2 ${cashOnly ? "" : "grid-cols-2"}`}>
                 {!cashOnly && <div className="rounded-xl bg-[var(--accent-soft)] p-3"><p className="flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)]"><CreditCard size={15} />Card</p><p className="mt-1 text-xl font-semibold">${quoteMarketplace(price, "credit").price.toFixed(2)} <span className="text-xs font-normal">CAD</span></p></div>}
                 <div className="rounded-xl bg-[var(--bg-secondary)] p-3"><p className="flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)]"><Banknote size={15} />Cash{cashOnly ? " only" : ""}</p><p className="mt-1 text-xl font-semibold">${price.toFixed(2)} <span className="text-xs font-normal">CAD</span></p></div>

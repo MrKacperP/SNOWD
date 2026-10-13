@@ -10,6 +10,7 @@ import { useAuth } from "@/context/AuthContext";
 import { ClientProfile, Job, OperatorProfile } from "@/lib/types";
 import { canAcceptPlatformPayments } from "@/lib/operatorDiscovery";
 import { orderRequest } from "@/components/work-orders/OrderActions";
+import { propertySizeLabel } from "@/lib/workOrders";
 import Link from "next/link";
 export default function RepeatBookingPage() {
   const { profile, user } = useAuth(),
@@ -113,9 +114,9 @@ export default function RepeatBookingPage() {
           </h2>
           {isOperator && <p>For {client?.displayName}</p>}
           <p>{client?.address}</p>
-          <p className="capitalize">{previous.serviceTypes?.map((service) => service.replaceAll("-", " ")).join(" · ") || "Snow removal"}</p>
+          <p className="capitalize">{previous.serviceTypes?.filter((service) => service !== "driveway").map((service) => service.replaceAll("-", " ")).join(" · ") || "Driveway clearing"}</p>
           <p>{previous.specialInstructions}</p>
-          <p className="capitalize">{previous.propertySize || client?.propertyDetails?.propertySize || "medium"} driveway · company rate for this size</p>
+          <p>{propertySizeLabel(previous.propertySize || client?.propertyDetails?.propertySize)} · company rate</p>
           <p className="text-lg font-bold">
             Current price: ${shownPrice.toFixed(2)} CAD
           </p>

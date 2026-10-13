@@ -2,6 +2,7 @@
 
 import { canAcceptPlatformPayments } from "@/lib/operatorDiscovery";
 import { jobDisplayPrice } from "@/lib/marketplacePricing";
+import { propertySizeLabel } from "@/lib/workOrders";
 import { isStripeAccountReady,stripeConnectFetch } from "@/lib/stripeConnectClient";
 
 import CancellationPopup from "@/components/CancellationPopup";
@@ -1546,7 +1547,7 @@ export default function ChatPage() {
         {job && (
           <div className="shrink-0 border-b border-[var(--border-soft)] bg-[var(--bg-secondary)] px-3 py-2.5 sm:px-4">
             <Link href={`/dashboard/jobs/${job.id}?returnTo=${encodeURIComponent(`/dashboard/messages/${chatId}`)}`} className="chat-order-link block min-h-11 w-full rounded-xl bg-white px-3 py-2.5 text-left">
-              <span className="flex items-center justify-between gap-3"><span className="min-w-0"><span className="block truncate text-sm font-semibold capitalize">{job.serviceTypes?.map(service => service.replaceAll("-", " ")).join(" + ") || "Snow clearing"}</span><span className="mt-0.5 block text-[11px] capitalize text-[var(--text-muted)]">{job.propertySize === "small" ? "1-car driveway" : job.propertySize === "medium" ? "2-car driveway" : job.propertySize === "large" ? "3+ car driveway" : job.propertySize}</span></span><strong className="shrink-0 text-lg font-bold text-[var(--ink)]">${jobDisplayPrice(job, isOperator).toFixed(2)} <span className="text-xs font-medium text-[var(--text-muted)]">CAD</span></strong></span>
+              <span className="flex items-center justify-between gap-3"><span className="min-w-0"><span className="block truncate text-sm font-semibold capitalize">{[propertySizeLabel(job.propertySize), ...(job.serviceTypes?.filter(service => service !== "driveway").map(service => service.replaceAll("-", " ")) ?? [])].join(" + ")}</span></span><strong className="shrink-0 text-lg font-bold text-[var(--ink)]">${jobDisplayPrice(job, isOperator).toFixed(2)} <span className="text-xs font-medium text-[var(--text-muted)]">CAD</span></strong></span>
               <span className="mt-2 flex items-center justify-between gap-2 border-t border-[var(--border-soft)] pt-2"><span className="inline-flex items-center rounded-full bg-[var(--accent-sun-soft)] px-3 py-1 text-xs font-semibold text-[var(--ink)]"><StatusBadge status={job.status} /></span><span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--text-secondary)]">{job.scheduleMode === "asap" || !job.scheduledDate ? "ASAP · time to confirm" : `${formatMessageDay(job.scheduledDate)}${job.scheduledTime ? ` · ${job.scheduledTime}` : ""}`}<ChevronRight className="h-4 w-4" /></span></span>
             </Link>
             {linkedJobs.length > 1 && <section className="mt-1"><button type="button" className="py-2 text-xs font-semibold text-[var(--text-secondary)]" aria-expanded={showEarlierOrders} onClick={() => setShowEarlierOrders(value => !value)}>Earlier work orders ({linkedJobs.length - 1}) <span aria-hidden="true">{showEarlierOrders ? "−" : "+"}</span></button>{showEarlierOrders && <div className="grid gap-1">{linkedJobs.filter(linkedJob => linkedJob.id !== job.id).map(linkedJob => <button key={linkedJob.id} type="button" onClick={() => selectWorkOrder(linkedJob)} className="rounded-lg px-3 py-2 text-left text-sm hover:bg-white">{linkedJob.serviceTypes?.[0]?.replaceAll("-", " ") || "Snow service"} · ${linkedJob.price} CAD</button>)}</div>}</section>}
@@ -2046,7 +2047,7 @@ export default function ChatPage() {
             <dl className="mt-4 space-y-3 border-t border-[var(--border)] pt-4 text-sm">
               <div><dt className="font-semibold">Scheduled</dt><dd>{formatMessageDay(job.scheduledDate) || "Date to be confirmed"}{job.scheduledTime ? ` · ${job.scheduledTime}` : ""}</dd></div>
               {job.specialInstructions && <div><dt className="font-semibold">Special instructions</dt><dd className="whitespace-pre-wrap">{job.specialInstructions}</dd></div>}
-              <div><dt className="font-semibold">Property size</dt><dd className="capitalize">{job.propertySize?.replaceAll("-", " ") || "Not specified"}</dd></div>
+              <div><dt className="font-semibold">Property size</dt><dd>{propertySizeLabel(job.propertySize)}</dd></div>
             </dl>
 
             {/* Job summary */}
@@ -2069,7 +2070,7 @@ export default function ChatPage() {
                 <div className="rounded-xl border-[3px] border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2.5">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Service</p>
                   <p className="mt-1 break-words text-sm font-semibold capitalize text-[var(--ink)]">
-                    {job.serviceTypes?.map((s) => s.replace("-", " ")).join(", ") || "Service"}
+                    {job.serviceTypes?.filter((service) => service !== "driveway").map((s) => s.replace("-", " ")).join(", ") || "Driveway clearing"}
                   </p>
                 </div>
                 <div className="rounded-xl border-[3px] border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2.5">

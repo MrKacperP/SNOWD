@@ -3,13 +3,12 @@ import { jobDisplayPrice } from "@/lib/marketplacePricing";
 import CompanyIdentity from "@/components/CompanyIdentity";
 import Link from "next/link";
 import { ClientProfile, Job, OperatorProfile } from "@/lib/types";
-import { isAsap, orderLabel, orderNumber, scheduleText } from "@/lib/workOrders";
+import { isAsap, orderLabel, orderNumber, propertySizeLabel, scheduleText } from "@/lib/workOrders";
 import { useAuth } from "@/context/AuthContext";
 import { MapPin, ArrowUpRight, Banknote, CreditCard, Clock3 } from "lucide-react";
 import styles from "./work-orders.module.css";
 import OrderGuide from "./OrderGuide";
 import OrderActions from "./OrderActions";
-const drivewayCapacity: Record<string, string> = { small: "1-car driveway", medium: "2-car driveway", large: "3+ car driveway", commercial: "Commercial driveway" };
 export default function OrderCard({
   job,
   name,
@@ -60,7 +59,7 @@ export default function OrderCard({
           <span className={styles.locationCopy}><span>{operator ? "Customer location" : "Service location"}</span><strong>{job.address || "Address to be confirmed"}{job.city ? `, ${job.city}` : ""}</strong></span>
           {job.address ? <span className={styles.locationOpen}><ArrowUpRight size={17} /></span> : null}
         </a>}
-        {detail && <section className={styles.serviceSummary} aria-label="Requested service"><strong>{drivewayCapacity[job.propertySize] || "Driveway"}</strong><span>{job.serviceTypes?.map((service) => service.replaceAll("-", " ")).join(" · ") || "Snow clearing"}</span></section>}
+        {detail && <section className={styles.serviceSummary} aria-label="Requested service"><strong>{propertySizeLabel(job.propertySize)}</strong><span>{job.serviceTypes?.filter((service) => service !== "driveway").map((service) => service.replaceAll("-", " ")).join(" · ") || "Driveway clearing"}</span></section>}
         {!detail && <OrderGuide job={job} uid={user?.uid || ""} />}
         {detail && job.chatId && (
           <Link className={styles.messageButton} href={`/dashboard/messages/${job.chatId}`}>
@@ -69,24 +68,9 @@ export default function OrderCard({
         )}
         <OrderActions job={job} compact={!detail} onUpdated={onUpdated} />
         {detail && <details className={styles.orderDetails} aria-labelledby={`visit-details-${job.id}`}>
-        <summary id={`visit-details-${job.id}`} className={styles.detailSummary}>Visit details</summary>
+        <summary id={`visit-details-${job.id}`} className={styles.detailSummary}>Notes & photos</summary>
         <dl className={styles.facts}>
-          <div>
-            <dt>Driveway size</dt>
-            <dd className="capitalize"><strong>{drivewayCapacity[job.propertySize || "medium"] || "Driveway"}</strong></dd>
-          </div>
-          <div>
-            <dt>Expected clearing</dt>
-            <dd>
-              <strong className="capitalize">
-                {job.serviceTypes
-                  ?.map((s) => s.replaceAll("-", " "))
-                  .join(" · ") || "Snow removal"}
-              </strong>
-              <p className={styles.secondary}>{job.specialInstructions || "Clear the selected areas of snow."}</p>
-              {propertyPhotos.length > 0 && <p className={styles.photoLinks}>{propertyPhotos.map((url, index) => <a key={url} href={url} target="_blank" rel="noreferrer">View property photo {index + 1} ↗</a>)}</p>}
-            </dd>
-          </div>
+          {(job.specialInstructions || propertyPhotos.length > 0) && <div><dt>Visit notes</dt><dd>{job.specialInstructions && <p>{job.specialInstructions}</p>}{propertyPhotos.length > 0 && <p className={styles.photoLinks}>{propertyPhotos.map((url, index) => <a key={url} href={url} target="_blank" rel="noreferrer">Property photo {index + 1} ↗</a>)}</p>}</dd></div>}
           {job.status === "en-route" && job.eta && <div><dt>Live arrival</dt><dd><strong>About {job.eta} {job.eta === 1 ? "minute" : "minutes"} away</strong>{Number.isFinite(job.operatorApproxLat) && Number.isFinite(job.operatorApproxLng) && <a className="mt-1 block font-semibold underline" href={`https://www.google.com/maps?q=${job.operatorApproxLat},${job.operatorApproxLng}`} target="_blank" rel="noreferrer">View approximate area ({job.operatorLocationRadiusKm || 1} km radius) ↗</a>}<p className={styles.secondary}>The operator’s exact location stays private.</p></dd></div>}
         </dl>
         </details>}

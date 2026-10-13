@@ -128,10 +128,10 @@ export default function LandingPhone() {
         </>}
 
         {view === "location" && <>
-          <div className={styles.screenTitle}><button type="button" onClick={goBack} aria-label="Back"><ArrowRight size={16} /></button><h3>Confirm your location</h3></div>
+          <div className={styles.screenTitle}><button type="button" onClick={goBack} aria-label="Back"><ArrowRight size={16} /></button><h3>Where should {selectedOperator.name.split(" ")[0]} go?</h3></div>
           <section className={styles.savedLocationCard} aria-label="Saved sample property">
             <div className={styles.savedLocationMap} aria-hidden="true"><span className={styles.mapRoadPrimary} /><span className={styles.mapRoadSecondary} /><span className={`${styles.mapHome} ${styles.mapHomeOne}`}><House size={16} /></span><span className={`${styles.mapHome} ${styles.mapHomeTwo}`}><House size={16} /></span><span className={`${styles.mapHome} ${styles.mapHomeThree}`}><House size={16} /></span><span className={styles.mapDriveway} /><span className={styles.mapMarker}><MapPin size={24} fill="currentColor" /></span></div>
-            <div className={styles.savedLocationDetails}><span>Saved location</span><strong>Your property</strong><p>18 Maple Avenue · Toronto, Ontario <em>(Sample)</em></p></div>
+            <div className={styles.savedLocationDetails}><span>Your property</span><strong>18 Maple Avenue</strong><p>Toronto, Ontario <em>Sample address</em></p></div>
           </section>
         </>}
 
@@ -140,7 +140,7 @@ export default function LandingPhone() {
           {schedule === null && <div className={styles.timingIntro}><button type="button" onClick={goBack} aria-label="Back" className={styles.timingBack}><ArrowRight size={16} /></button><span className={styles.timingClock}><Clock3 size={56} strokeWidth={1.5} /></span><h3>When do you need help?</h3><div className={styles.timingOptions}><button type="button" onClick={() => setSchedule("asap")}><Sparkles size={19} /><span>ASAP</span></button><button type="button" onClick={() => setSchedule("scheduled")}><CalendarDays size={19} /><span>Scheduled</span></button></div></div>}
           {schedule === "asap" && <section className={styles.etaCard}>
             <SampleRouteMap compact operatorName={selectedOperator.name.split(" ")[0]} />
-            <div className={styles.etaDetails}><small>{selectedOperator.name.toUpperCase()} · SAMPLE ETA</small><strong>About 12 minutes</strong><span>{selectedOperator.name} → Your property</span><span>18 Maple Avenue · Toronto</span></div>
+            <div className={styles.etaDetails}><small>{selectedOperator.name.toUpperCase()} · SAMPLE ETA</small><strong>About 12 minutes after confirmation</strong><span>{selectedOperator.name} → Your property</span><span>18 Maple Avenue · Toronto</span></div>
           </section>}
           {schedule === "scheduled" && <section className={styles.scheduleCard}>
             <div className={styles.calendarWidget}>
@@ -159,10 +159,11 @@ export default function LandingPhone() {
           <div className={styles.screenTitle}><button type="button" onClick={goBack} aria-label="Back"><ArrowRight size={16} /></button><h3>Your sample request</h3></div>
           <div className={styles.reviewSummary}>
             <div className={styles.reviewOperator}><span className={`${styles.companyLogo} ${styles[selectedOperator.tone]}`}><selectedOperator.icon size={20} /></span><span><small>SHOVELER</small><strong>{selectedOperator.name} · {selectedOperator.company}</strong></span></div>
-            <div className={styles.reviewRow}><span>Service</span><strong>Driveway</strong></div>
+            <div className={styles.reviewRow}><span>Service</span><strong>2-car driveway · Walkway</strong></div>
             <div className={styles.reviewLocation}><span className={styles.reviewLocationIcon}><MapPin size={16} /></span><span><small>LOCATION · SAMPLE</small><strong>18 Maple Avenue</strong></span><b className={schedule === "asap" ? styles.asapLabel : ""}>{schedule === "asap" ? "~12 min" : "Scheduled"}</b></div>
-            <div className={styles.reviewRow}><span>When</span><strong className={schedule === "asap" ? styles.asapLabel : ""}>{schedule === "asap" ? "ASAP" : `${scheduledDateLabel} · ${demoTime}`}</strong></div>
+            <div className={styles.reviewRow}><span>When</span><strong className={schedule === "asap" ? styles.asapLabel : ""}>{schedule === "asap" ? "ASAP · about 12 minutes after confirmation" : `${scheduledDateLabel} · ${demoTime}`}</strong></div>
           </div>
+          <section className={styles.reviewMap} aria-label="Sample route along Toronto streets"><SampleRouteMap compact operatorName={selectedOperator.name.split(" ")[0]} /></section>
           <fieldset className={styles.paymentChoice}><legend>Payment</legend><div className={styles.choices}><button type="button" aria-pressed={payment === "cash"} onClick={() => setPayment("cash")}><span className={styles.paymentAsset}><Banknote size={25} /></span><span>Cash</span></button><button type="button" aria-pressed={payment === "credit"} onClick={() => setPayment("credit")}><span className={styles.paymentAsset}><CreditCard size={25} /></span><span>Card</span></button></div></fieldset>
         </>}
 

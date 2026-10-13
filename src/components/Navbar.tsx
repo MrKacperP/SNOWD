@@ -264,7 +264,6 @@ export default function Navbar() {
             </div>
             {profile?.role !== "operator" && <div className={`status-dot ${isOnline ? "online" : "offline"}`} />}
           </div>
-          {profile?.role === "operator" && <div className="mt-3"><AvailabilityToggle online={isOnline} saving={statusSaving} error={statusError} onToggle={toggleOnlineStatus} /></div>}
           {weather ? (
             <div className="mt-4 rounded-[1.2rem] bg-[var(--bg-secondary)] px-3 py-3">
               <div className="text-xs text-[var(--text-muted)]">Local weather</div>
@@ -364,6 +363,7 @@ export default function Navbar() {
 
           {profileMenuOpen ? (
             <div className="joined-menu-panel glass-readable-overlay">
+              {profile?.role === "operator" && <div className="border-b border-[var(--border-soft)] px-4 py-3"><AvailabilityToggle online={isOnline} saving={statusSaving} error={statusError} onToggle={toggleOnlineStatus} /></div>}
               <Link href={`/dashboard/u/${profile?.uid}`} className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)]">
                 <User className="h-4 w-4" />
                 <span className="text-sm font-bold">View profile</span>

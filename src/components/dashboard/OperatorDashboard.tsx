@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
 import { Job,OperatorProfile,Transaction } from "@/lib/types";
 import { jobDisplayPrice, transactionDisplayAmount } from "@/lib/marketplacePricing";
-import { dateMillis, orderActionNeeded, scheduleText } from "@/lib/workOrders";
+import { dateMillis, orderActionNeeded, propertySizeLabel, scheduleText } from "@/lib/workOrders";
 import { collection,onSnapshot,query,where } from "firebase/firestore";
 import { ArrowUpRight, Snowflake } from "lucide-react";
 import Link from "next/link";
@@ -49,11 +49,10 @@ export default function OperatorDashboard() {
   const seasonEnd = new Date(seasonYear + 1, 4, 1).getTime();
   const seasonEarnings = transactions.filter(item => item.status === "paid" && (() => { const when = dateMillis(item.completedAt || item.createdAt); return when >= seasonStart && when < seasonEnd; })()).reduce((sum, item) => sum + transactionDisplayAmount(item, true), 0);
   const seasonAmount = new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(seasonEarnings / 100);
-  const capacity: Record<string, string> = { small: "1-car driveway", medium: "2-car driveway", large: "3+ car driveway", commercial: "Commercial driveway" };
   const greeting = new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 18 ? "Good afternoon" : "Good evening";
   const serviceSummary = (job: Job) => {
     const extras = job.serviceTypes?.filter(service => service !== "driveway").map(service => service.replaceAll("-", " ")) ?? [];
-    return [capacity[job.propertySize] || "Driveway", ...extras].join(" + ");
+    return [propertySizeLabel(job.propertySize), ...extras].join(" + ");
   };
 
   return (

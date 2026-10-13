@@ -90,9 +90,9 @@ const propertySizes: [PropertySize, string, string][] = [
   ["commercial", "Commercial", "Parking lot"],
 ];
 const priceFields = [
-  ["pricingSmall", "Small driveway", "25"],
-  ["pricingMedium", "Medium driveway", "40"],
-  ["pricingLarge", "Large driveway", "60"],
+  ["pricingSmall", "1-car driveway", "25"],
+  ["pricingMedium", "2-car driveway", "40"],
+  ["pricingLarge", "3+ car driveway", "60"],
   ["pricingWalkway", "Walkway", "15"],
   ["pricingSidewalk", "Sidewalk", "15"],
   ["pricingBackyardPatio", "Backyard patio", "15"],
