@@ -19,7 +19,7 @@
     "@stripe/stripe-js": "^8.7.0",
     "@types/google.maps": "^3.58.1",
     "date-fns": "^4.1.0",
-    "firebase": "^12.9.0",
+    "firebase": "12.13.0",
     "firebase-admin": "^14.3.0",
     "framer-motion": "^12.35.0",
     "liquid-glass-react": "^1.1.1",
