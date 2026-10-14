@@ -94,7 +94,7 @@ export default function LandingPhone() {
   const activeTab = ["location", "timing", "review", "success"].includes(view) ? "find" : view;
   const walkthroughStep = view === "home" || view === "find" ? 1 : view === "location" ? 2 : view === "timing" ? 3 : view === "review" ? 4 : 5;
   const goBack = () => setView(view === "find" ? "home" : view === "location" ? "find" : view === "timing" ? "location" : view === "review" ? "timing" : "home");
-  const sendRequest = () => { setRequested(true); setView("success"); };
+  const sendRequest = () => { setRequested(false); setView("success"); };
   const resetDemo = () => {
     const tomorrow = addDays(new Date(), 1);
     setRequested(false);
@@ -111,7 +111,7 @@ export default function LandingPhone() {
     : view === "location" ? "Confirm sample location"
     : view === "timing" ? "Review choices"
     : view === "review" ? "Send sample request"
-    : "Back to dashboard";
+    : "Sign up to book help";
   const action = view === "home" ? () => setView("find")
     : view === "location" ? () => setView("timing")
     : view === "timing" ? () => setView("review")
@@ -190,8 +190,8 @@ export default function LandingPhone() {
         </>}
 
         {view === "success" && <div className={styles.success}>
-          <span className={styles.successIcon}><Check size={30} /></span><h3>Sample request sent</h3>
-          <p>Waiting for {selectedOperator.name.split(" ")[0]} to accept. Track it on your dashboard.</p>
+          <span className={styles.successIcon}><Check size={30} /></span><h3>You’re ready for a snow day.</h3>
+          <p>You’ve tried the demo. Create an account to book real snow clearing.</p>
         </div>}
 
         {view === "jobs" && <><div className={styles.screenTitle}><button type="button" onClick={() => setView("home")} aria-label="Back"><ArrowRight size={16} /></button><h3>Work orders</h3></div>{requested ? <button className={styles.job} onClick={() => setView("messages")}><b>{selectedOperator.name} · Driveway</b><small>Requested</small><span>Open messages <ArrowRight size={14} /></span></button> : <div className={styles.empty}><ClipboardList size={17} /><span><b>None</b></span></div>}</>}
@@ -202,7 +202,7 @@ export default function LandingPhone() {
         <button type="button" aria-pressed={schedule === "asap"} onClick={() => setSchedule("asap")}><Sparkles size={19} /><span>ASAP</span></button>
         <button type="button" aria-pressed={schedule === "scheduled"} onClick={() => setSchedule("scheduled")}><CalendarDays size={19} /><span>Scheduled</span></button>
       </div></div>}
-      {showAction && <div className={styles.actionArea}><button className={styles.primary} disabled={["timing", "review"].includes(view) && scheduleTimeIsPast} onClick={action}>{view === "success" && <RotateCcw size={17} />}{actionLabel}{view !== "success" && <ArrowRight size={18} />}</button></div>}
+      {showAction && <div className={styles.actionArea}>{view === "success" ? <Link className={styles.primary} href="/signup?role=client" onClick={resetDemo}>Sign up to book help <ArrowRight size={18} /></Link> : <button className={styles.primary} disabled={["timing", "review"].includes(view) && scheduleTimeIsPast} onClick={action}>{actionLabel}<ArrowRight size={18} /></button>}</div>}
       {showNav && <nav className={styles.bottomNav} aria-label="Demo navigation">{tabs.map(({ view: tab, label, icon: Icon }) => <button key={tab} aria-label={label} aria-current={activeTab === tab ? "page" : undefined} onClick={() => setView(tab)}><Icon size={20} /></button>)}</nav>}
       <div className={styles.homeIndicator} />
     </div>

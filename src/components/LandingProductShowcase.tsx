@@ -105,7 +105,7 @@ export default function LandingProductShowcase() {
           <div className={styles.phoneHeader}><Image src="/logo.png" alt="" width={19} height={21} /><b>snowd.</b><span>{demoStep + 1} of 4</span></div>
           <div className={styles.phoneContent}>
             {booked ? (
-              <div className={styles.booked}><span><Check size={27} /></span><h3>Sample complete.</h3><p>No request was sent. This walkthrough stays on this page.</p><div><CalendarDays size={17} /><b>Sample · Today · 11:30 AM</b></div></div>
+              <div className={styles.booked}><span><Check size={27} /></span><h3>Sample complete.</h3><p>Create an account to book real snow clearing.</p><div><CalendarDays size={17} /><b>Sample · Today · 11:30 AM</b></div></div>
             ) : (
               <>{demoStep === 0 ? <>
                 <p className={styles.phoneKicker}>BOOK SNOW HELP</p><h3>What needs<br />clearing?</h3><p className={styles.phoneIntro}>Choose a service for your home.</p>
@@ -114,7 +114,7 @@ export default function LandingProductShowcase() {
                 <div className={styles.phonePrice}><span>Estimated total<small>Includes service fees</small></span><strong>{service === "Front steps" ? "$24" : "$42"}<small> CAD</small></strong></div>
               </> : demoStep === 1 ? <><p className={styles.phoneKicker}>SAMPLE LOCATION</p><h3>Where should Jamie go?</h3><p className={styles.phoneIntro}>This address is fictional. Your location is never used.</p><div className={styles.address}><span><House size={16} /></span><div><small>MADE-UP ADDRESS</small><b>18 Snowdrop Lane</b></div><Check size={15} /></div></> : demoStep === 2 ? <><p className={styles.phoneKicker}>SAMPLE TIMING</p><h3>When do you need help?</h3><p className={styles.phoneIntro}>As soon as possible · sample</p><div className={styles.address}><span><CalendarDays size={16} /></span><div><small>REQUESTED WINDOW</small><b>Today · 11:30 AM</b></div><Check size={15} /></div></> : <><p className={styles.phoneKicker}>SAMPLE REVIEW</p><h3>Your choices</h3><div className={styles.address}><span><User size={16} /></span><div><small>SHOVELER · SERVICE</small><b>Jamie · {service}</b></div></div><div className={styles.address}><span><House size={16} /></span><div><small>LOCATION · PAYMENT</small><b>18 Snowdrop Lane · Cash</b></div></div></> }</>
             )}
-            <button className={styles.bookButton} onClick={() => { if (booked) { setBooked(false); setDemoStep(0); } else if (demoStep < 3) setDemoStep(demoStep + 1); else setBooked(true); }}>{booked ? "Start again" : demoStep === 0 ? "Continue with Jamie" : demoStep === 1 ? "Confirm sample location" : demoStep === 2 ? "Review choices" : "Complete sample"}</button>
+            {booked ? <Link className={styles.bookButton} href="/signup?role=client" onClick={() => { setBooked(false); setDemoStep(0); setService("Driveway + walkway"); setView("home"); }}>Sign up to book help</Link> : <button className={styles.bookButton} onClick={() => { if (demoStep < 3) setDemoStep(demoStep + 1); else setBooked(true); }}>{demoStep === 0 ? "Continue with Jamie" : demoStep === 1 ? "Confirm sample location" : demoStep === 2 ? "Review choices" : "Complete sample"}</button>}
           </div>
           <div className={styles.phoneHome} />
         </div>

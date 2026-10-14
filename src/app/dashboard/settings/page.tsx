@@ -1,4 +1,6 @@
 "use client";
+import IconSwap from "@/components/ui/IconSwap";
+
 
 import { isOperatorPublic } from "@/lib/operatorDiscovery";
 import Link from "next/link";
@@ -701,13 +703,13 @@ export default function SettingsPage() {
           <nav aria-label="Settings sections" className={styles.navigation}>
             {TABS.map((tab) => {
               const Icon = tab.icon;
-              return <Link key={tab.key} href={`/dashboard/settings/${tab.key}`} aria-current={activeTab === tab.key ? "page" : undefined} className={styles.navButton}>
+              return <Link key={tab.key} href={`/dashboard/settings/${tab.key}`} aria-current={activeTab === tab.key ? "page" : undefined} className={styles.navButton}><IconSwap icon={<Icon size={18} aria-hidden="true" />}>
                 <Icon size={18} aria-hidden="true" /><span>{tab.label}<small>{sectionStatus[tab.key]}</small></span><ChevronRight size={15} className={styles.chevron} aria-hidden="true" />
-              </Link>;
+              </IconSwap></Link>;
             })}
           </nav>
 
-          <button type="button" onClick={handleSignOut} className={styles.sidebarSignOut}><LogOut size={16} /> Sign out</button>
+          <button type="button" onClick={handleSignOut} className={styles.sidebarSignOut}><IconSwap icon={<LogOut size={16} />}><LogOut size={16} /> Sign out</IconSwap></button>
         </aside>
         <section className={styles.content} aria-labelledby="settings-section-title">
           <div className="space-y-6">
@@ -715,7 +717,7 @@ export default function SettingsPage() {
               <div><h2 id="settings-section-title">{activeTabMeta?.label || "Settings"}</h2><p>{TAB_DESCRIPTIONS[activeTab]}</p></div>
               <span role="status" className={saved ? styles.saved : styles.sectionMeta}>{saved ? <><CheckCircle size={15} /> Saved</> : activeTab === "notifications" ? savingEmailPreferences ? "Saving…" : "Saves automatically" : (activeTab === "general" && generalDirty) || (activeTab === "branding" && brandingDirty) ? "Unsaved changes" : ""}</span>
             </div>
-            {savedMissingFields.length > 0 && activeTab !== "general" && <Link href="/dashboard/settings/general" className={styles.incompleteNotice}><AlertCircle size={17} /><span>Finish your account details</span><ChevronRight size={17} /></Link>}
+            {savedMissingFields.length > 0 && activeTab !== "general" && <Link href="/dashboard/settings/general" className={styles.incompleteNotice}><IconSwap icon={<AlertCircle size={17} />}><AlertCircle size={17} /><span>Finish your account details</span><ChevronRight size={17} /></IconSwap></Link>}
 
       {/* General Settings */}
       {activeTab === "general" && (
@@ -927,10 +929,10 @@ export default function SettingsPage() {
             {/* Client location map */}
             {!isOperator && address && city && (
               <div className="mt-4">
-                <label className="text-sm font-medium text-[var(--text-muted)] mb-2 block flex items-center gap-2">
+                <label className="text-sm font-medium text-[var(--text-muted)] mb-2 block flex items-center gap-2"><IconSwap icon={<MapPin className="w-4 h-4 text-[var(--accent)]" />}>
                   <MapPin className="w-4 h-4 text-[var(--accent)]" />
                   Your Location on Map
-                </label>
+                </IconSwap></label>
                 <div className="rounded-xl overflow-hidden border-[3px] border-[var(--border)]">
                   <iframe
                     title="Your service location"
@@ -1094,10 +1096,10 @@ export default function SettingsPage() {
                     onClick={handleStripeConnect}
                     disabled={stripeConnecting}
                     className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border-[3px] border-[var(--border)] text-[var(--ink)] rounded-xl font-medium text-sm hover:bg-[var(--bg-primary)] transition"
-                  >
+                  ><IconSwap icon={<ExternalLink className="w-4 h-4" />}>
                     <ExternalLink className="w-4 h-4" />
                     Manage Stripe account
-                  </button>
+                  </IconSwap></button>
                 </div>
               ) : stripeStatus?.detailsSubmitted ? (
                 <div className="space-y-3">
@@ -1112,10 +1114,10 @@ export default function SettingsPage() {
                     onClick={handleStripeConnect}
                     disabled={stripeConnecting}
                     className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border-[3px] border-[var(--border)] text-[var(--ink)] rounded-xl font-medium text-sm hover:bg-[var(--bg-primary)] transition"
-                  >
+                  ><IconSwap icon={<ExternalLink className="w-4 h-4" />}>
                     <ExternalLink className="w-4 h-4" />
                     Check Status
-                  </button>
+                  </IconSwap></button>
                   <button
                     onClick={handleStripeConnect}
                     disabled={stripeConnecting}
@@ -1342,9 +1344,9 @@ export default function SettingsPage() {
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 text-sm text-[var(--accent)] hover:underline"
-                    >
+                    ><IconSwap icon={<ExternalLink className="w-4 h-4" />}>
                       <ExternalLink className="w-4 h-4" /> View uploaded transcript
-                    </a>
+                    </IconSwap></a>
                   ) : (
                     <div className="rounded-xl overflow-hidden border-[3px] border-[var(--border)] max-w-xs">
                       <img src={studentTranscriptUrl} alt="Transcript" className="w-full h-auto object-cover" />

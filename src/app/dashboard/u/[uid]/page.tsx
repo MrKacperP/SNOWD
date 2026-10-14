@@ -1,4 +1,6 @@
 "use client";
+import IconSwap from "@/components/ui/IconSwap";
+
 
 import BackButton from "@/components/BackButton";
 
@@ -312,10 +314,10 @@ export default function PublicProfilePage() {
                       router.push(`/dashboard/find?operator=${encodeURIComponent(uid)}`);
                     }}
                     className="btn-primary flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold"
-                  >
+                  ><IconSwap icon={<Briefcase className="w-4 h-4" />}>
                     <Briefcase className="w-4 h-4" />
                     Hire
-                  </button>
+                  </IconSwap></button>
                   <button
                     onClick={async () => {
                       if (!myProfile?.uid || togglingFavorite) return;
@@ -361,20 +363,20 @@ export default function PublicProfilePage() {
               <button
                 onClick={() => router.push("/dashboard/messages")}
                 className="btn-secondary flex items-center justify-center gap-2 rounded-xl border-[3px] border-[var(--border-color)] px-4 py-2.5 text-sm font-semibold"
-              >
+              ><IconSwap icon={<MessageSquare className="w-4 h-4" />}>
                 <MessageSquare className="w-4 h-4" />
                 Message
-              </button>
+              </IconSwap></button>
             </div>
           )}
           {isOwnProfile && (
             <Link
               href="/dashboard/settings"
               className="btn-secondary flex w-full items-center justify-center gap-2 rounded-xl border-[3px] border-[var(--border-color)] px-4 py-2.5 text-sm font-semibold"
-            >
+            ><IconSwap icon={<ChevronRight className="w-4 h-4" />}>
               Edit Profile
               <ChevronRight className="w-4 h-4" />
-            </Link>
+            </IconSwap></Link>
           )}
         </div>
       </div>

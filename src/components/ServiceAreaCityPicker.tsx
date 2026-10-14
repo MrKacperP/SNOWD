@@ -1,4 +1,6 @@
 "use client";
+import IconSwap from "@/components/ui/IconSwap";
+
 
 import { useJsApiLoader } from "@react-google-maps/api";
 import { MapPin, Plus, X } from "lucide-react";
@@ -93,9 +95,9 @@ function PickerWithMaps({ value, onChange }: Props) {
           disabled={!isLoaded || Boolean(loadError)}
           className="flex-1 border px-4"
         />
-        <button type="button" onClick={addCity} disabled={!isLoaded} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border px-5 font-semibold disabled:opacity-50">
+        <button type="button" onClick={addCity} disabled={!isLoaded} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border px-5 font-semibold disabled:opacity-50"><IconSwap icon={<Plus className="h-4 w-4" />}>
           <Plus className="h-4 w-4" /> Add city
-        </button>
+        </IconSwap></button>
       </div>
       {error && <p role="alert" className="mt-2 text-sm text-red-700">{error}</p>}
       {loadError && <p role="alert" className="mt-2 text-sm text-red-700">City search could not load. Refresh the page and try again.</p>}

@@ -1,4 +1,6 @@
 "use client";
+import IconSwap from "@/components/ui/IconSwap";
+
 
 import { useState } from "react";
 import Link from "next/link";
@@ -77,15 +79,15 @@ export function ServiceReport({ job }: { job: JobItem }) {
 
     <div className="flex flex-wrap gap-2">
       {[job.clientId, ...job.assignedUsers].filter(Boolean).map((uid) => <Link key={uid} className="admin-secondary" href={`/admin/users/${uid}`}>{users.find((user) => user.id === uid)?.name || uid} ↗</Link>)}
-      {job.chatId && <Link className="admin-secondary" href={`/admin/chats?id=${job.chatId}`}><MessageSquare className="h-4 w-4" /> Open conversation</Link>}
+      {job.chatId && <Link className="admin-secondary" href={`/admin/chats?id=${job.chatId}`}><IconSwap icon={<MessageSquare className="h-4 w-4" />}><MessageSquare className="h-4 w-4" /> Open conversation</IconSwap></Link>}
     </div>
 
     {!finalized && <section className="rounded-xl border border-[var(--border)] p-4">
       <h3>Progress controls</h3>
       <p className="mt-1 text-sm text-[var(--text-muted)]">Move this work order to its next stage or select a specific status below.</p>
       <div className="mt-3 flex flex-wrap gap-2">
-        {nextStatus && <button type="button" disabled={busy || !reason.trim()} onClick={() => void save(nextStatus).catch(() => undefined)} className="admin-primary">Progress to {statusLabels[nextStatus]} <ArrowRight className="h-4 w-4" /></button>}
-        <button type="button" disabled={busy || !reason.trim()} onClick={() => setConfirmCancel(true)} className="admin-secondary border-red-200 text-red-700"><AlertTriangle className="h-4 w-4" /> Cancel work order</button>
+        {nextStatus && <button type="button" disabled={busy || !reason.trim()} onClick={() => void save(nextStatus).catch(() => undefined)} className="admin-primary"><IconSwap icon={<ArrowRight className="h-4 w-4" />}>Progress to {statusLabels[nextStatus]} <ArrowRight className="h-4 w-4" /></IconSwap></button>}
+        <button type="button" disabled={busy || !reason.trim()} onClick={() => setConfirmCancel(true)} className="admin-secondary border-red-200 text-red-700"><IconSwap icon={<AlertTriangle className="h-4 w-4" />}><AlertTriangle className="h-4 w-4" /> Cancel work order</IconSwap></button>
       </div>
       {!reason.trim() && <p className="mt-2 text-xs text-amber-700">Enter an admin reason below before progressing or cancelling.</p>}
     </section>}
@@ -95,7 +97,7 @@ export function ServiceReport({ job }: { job: JobItem }) {
       <label className="block text-sm font-semibold">Service instructions<textarea className="mt-1 min-h-28 w-full p-3 font-normal" value={instructions} onChange={(event) => setInstructions(event.target.value)} /></label>
       <label className="block text-sm font-semibold">Service report / operator notes<textarea className="mt-1 min-h-32 w-full p-3 font-normal" value={notes} onChange={(event) => setNotes(event.target.value)} /></label>
       <label className="block text-sm font-semibold">Admin reason for this update<input required className="mt-1 w-full p-3 font-normal" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Explain the correction or status change" /></label>
-      <button disabled={busy || !reason.trim()} className="admin-primary"><Save className="h-4 w-4" />{busy ? "Saving…" : "Save all updates"}</button>
+      <button disabled={busy || !reason.trim()} className="admin-primary"><IconSwap icon={<Save className="h-4 w-4" />}><Save className="h-4 w-4" />{busy ? "Saving…" : "Save all updates"}</IconSwap></button>
     </form>
 
     <section className="space-y-2"><h3>Evidence & payments</h3>{job.completionPhotoUrl ? <a className="admin-secondary inline-flex" href={job.completionPhotoUrl} target="_blank" rel="noopener noreferrer">Reopen completion upload ↗</a> : <p className="text-sm text-[var(--text-muted)]">No completion photo recorded.</p>}{transactions.filter((transaction) => transaction.linkedJobId === job.id).map((transaction) => <Link key={transaction.id} href={`/admin/transactions?id=${transaction.id}`} className="block text-sm underline">${transaction.amount.toFixed(2)} CAD · {transaction.status} · {transaction.type}</Link>)}</section>

@@ -1,4 +1,6 @@
 "use client";
+import IconSwap from "@/components/ui/IconSwap";
+
 
 import { canAcceptPlatformPayments } from "@/lib/operatorDiscovery";
 
@@ -116,10 +118,10 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
               <Link
                 href="/admin"
                 className="shrink-0 flex items-center gap-1.5 rounded-xl bg-red-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-600"
-              >
+              ><IconSwap icon={<ArrowLeft className="w-3 h-3" />}>
                 <ArrowLeft className="w-3 h-3" />
                 Back to Admin
-              </Link>
+              </IconSwap></Link>
               </div>
             </div>
           )}

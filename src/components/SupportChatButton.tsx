@@ -1,4 +1,6 @@
 "use client";
+import IconSwap from "@/components/ui/IconSwap";
+
 
 import { useBrowserSupport } from "@/components/support/BrowserSupport";
 import { useAuth } from "@/context/AuthContext";
@@ -303,9 +305,9 @@ export default function SupportChatButton({ inline = false }: { inline?: boolean
                   </div>
                   <div className="px-3 pb-4">
                     <button onClick={() => setChatPhase("urgent")}
-                      className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-red-50 border border-red-100 text-red-600 hover:bg-red-100 transition font-semibold text-sm">
+                      className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-red-50 border border-red-100 text-red-600 hover:bg-red-100 transition font-semibold text-sm"><IconSwap icon={<AlertTriangle className="w-3.5 h-3.5" />}>
                       <AlertTriangle className="w-3.5 h-3.5" /> Call Support · Phone or Browser
-                    </button>
+                    </IconSwap></button>
                   </div>
                 </motion.div>
               )}
@@ -324,18 +326,18 @@ export default function SupportChatButton({ inline = false }: { inline?: boolean
                     </p>
                   </div>
                   <a href={`tel:${SUPPORT_PHONE.replace(/-/g, "")}`}
-                    className="w-full flex items-center justify-center gap-2 py-3.5 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold text-base shadow-[var(--surface-shadow)]  transition">
+                    className="w-full flex items-center justify-center gap-2 py-3.5 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold text-base shadow-[var(--surface-shadow)]  transition"><IconSwap icon={<Phone className="w-4.5 h-4.5" style={{ width: 18, height: 18 }} />}>
                     <Phone className="w-4.5 h-4.5" style={{ width: 18, height: 18 }} /> {SUPPORT_PHONE}
-                  </a>
+                  </IconSwap></a>
                   <button disabled={browserSupport.busy} onClick={() => { setIsOpen(false); browserSupport.start(); }}
                     className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 font-bold text-gray-900 disabled:opacity-50">
                     {browserSupport.busy ? "Browser call in progress" : "Call in browser"}
                   </button>
                   <p className="text-xs text-gray-500">Use your microphone, with optional camera and screen sharing.</p>
                   <button onClick={() => startChatWithProblem(selectedProblem || "other")}
-                    className="flex items-center gap-1.5 text-xs text-[var(--accent)] hover:underline transition">
+                    className="flex items-center gap-1.5 text-xs text-[var(--accent)] hover:underline transition"><IconSwap icon={<MessageSquare className="w-3.5 h-3.5" />}>
                     <MessageSquare className="w-3.5 h-3.5" /> Continue via chat instead
-                  </button>
+                  </IconSwap></button>
                 </motion.div>
               )}
 

@@ -1,4 +1,6 @@
 "use client";
+import IconSwap from "@/components/ui/IconSwap";
+
 
 import { BookingAction, HomeActions } from "./HomeActions";
 import PaymentSummary from "@/components/work-orders/PaymentSummary";
@@ -50,7 +52,7 @@ export function ClientHomeView({ locationLabel, activeJobs, operatorNames, loadi
           {orderActionNeeded(nextJob, nextJob.clientId) ? <>
             <OrderActions job={nextJob} compact navigateOnUpdate={false} />
             <Link className="inline-flex min-h-11 items-center px-2 font-semibold text-[var(--text-secondary)]" href={`/dashboard/jobs/${nextJob.id}`}>View work order</Link>
-          </> : <Link className="btn-primary min-h-12" href={`/dashboard/jobs/${nextJob.id}`}>{next.nextAction || "View visit"}<ArrowRight size={18} /></Link>}
+          </> : <Link className="btn-primary min-h-12" href={`/dashboard/jobs/${nextJob.id}`}><IconSwap icon={<ArrowRight size={18} />}>{next.nextAction || "View visit"}<ArrowRight size={18} /></IconSwap></Link>}
           <Link className="inline-flex min-h-11 items-center px-2 font-semibold text-[var(--text-secondary)]" href="/dashboard/find">Book another</Link>
         </div>
       </section> : <BookingAction location={locationLabel} />}

@@ -945,3 +945,15 @@ html { scroll-padding-top: 6rem; }
 .dashboard-shell .next-action h2 { font-size:clamp(26px,3vw,36px); }
 .dashboard-shell .next-action > p { font-size:18px; }
 @media(max-width:600px) { .client-orders-empty { padding:20px; } .dashboard-shell .visit-summary { grid-template-columns:1fr; } .dashboard-shell .visit-summary > div { grid-column:auto; } }
+
+/* Shared icon replacement: the original content reserves its space and accessible name. */
+.icon-swap { position:relative; display:inline-grid; grid-template-columns:minmax(0,1fr); align-items:center; justify-content:inherit; min-width:0; width:100%; gap:inherit; }
+.icon-swap-label { display:inline-flex; align-items:center; justify-content:inherit; gap:inherit; transition:opacity .18s ease,transform .2s ease; }
+.icon-swap-label > svg { flex-shrink:0; }
+.icon-swap-asset { position:absolute; inset:0; display:grid; place-items:center; pointer-events:none; opacity:0; transform:translateY(5px) scale(.8); transition:opacity .18s ease,transform .2s ease; }
+.icon-swap-asset > svg { width:26px; height:26px; margin:0; }
+@media(hover:hover) and (pointer:fine) {
+  :is(a,button,label):not(:disabled):hover > .icon-swap > .icon-swap-label { opacity:0; transform:translateY(-5px); }
+  :is(a,button,label):not(:disabled):hover > .icon-swap > .icon-swap-asset { opacity:1; transform:translateY(0) scale(1); }
+}
+@media(prefers-reduced-motion:reduce) { .icon-swap-label,.icon-swap-asset { transition:none; } }

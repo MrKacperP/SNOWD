@@ -1,4 +1,6 @@
 "use client";
+import IconSwap from "@/components/ui/IconSwap";
+
 import { notificationWasViewed } from "@/lib/notificationReadState";
 import CompanyIdentity from "@/components/CompanyIdentity";
 import { OperatorProfile } from "@/lib/types";
@@ -281,10 +283,10 @@ export default function Navbar() {
             const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(`${href}/`));
             const count = href.includes("messages") ? unreadCount : href.includes("jobs") ? pendingJobCount : 0;
             const tour = href === "/dashboard" ? "nav-home" : href.includes("jobs") ? "nav-jobs" : href.includes("messages") ? "nav-messages" : href.includes("calendar") ? "nav-calendar" : undefined;
-            return <Link data-tour={tour} key={href} href={href} aria-current={active ? "page" : undefined}>
+            return <Link data-tour={tour} key={href} href={href} aria-current={active ? "page" : undefined}><IconSwap icon={<Icon size={20} aria-hidden="true" />}>
               <Icon size={20} aria-hidden="true" /><span className="flex-1">{label}</span>
               {count > 0 && <span className="unread-badge">{count > 9 ? "9+" : count}</span>}
-            </Link>;
+            </IconSwap></Link>;
           })}
         </nav>
 
@@ -294,20 +296,20 @@ export default function Navbar() {
             aria-expanded={notifOpen}
             onClick={() => { setProfileMenuOpen(false); setNotifOpen((value) => !value); }}
             className="flex w-full items-center gap-3 rounded-[1.2rem] border border-[var(--border-color)] bg-[var(--card)] px-4 py-3 text-left"
-          >
+          ><IconSwap icon={<Bell className="h-4 w-4" />}>
             <Bell className="h-4 w-4" />
             <span className="flex-1 text-sm font-bold">Notifications</span>
             {unreadNotifications > 0 ? <span className="unread-badge">{unreadNotifications > 9 ? "9+" : unreadNotifications}</span> : null}
-          </button>
+          </IconSwap></button>
           {notifOpen ? (
             <div className="joined-menu-panel notification-popover glass-readable-overlay" style={desktopNotifPosition}>
               <div className="flex items-center justify-between border-b border-[var(--border-color)] px-4 py-3">
                 <div className="text-sm font-bold">Notifications</div>
                 {unreadNotifications > 0 ? (
-                  <button onClick={markAllNotificationsRead} className="inline-flex min-h-11 items-center gap-1 text-xs font-bold text-[var(--text-muted)]">
+                  <button onClick={markAllNotificationsRead} className="inline-flex min-h-11 items-center gap-1 text-xs font-bold text-[var(--text-muted)]"><IconSwap icon={<CheckCheck className="h-3.5 w-3.5" />}>
                     <CheckCheck className="h-3.5 w-3.5" />
                     Mark all read
-                  </button>
+                  </IconSwap></button>
                 ) : null}
               </div>
               <div className="max-h-[min(320px,calc(100dvh-160px))] overflow-y-auto overscroll-contain">
@@ -364,18 +366,18 @@ export default function Navbar() {
           {profileMenuOpen ? (
             <div className="joined-menu-panel glass-readable-overlay">
               {profile?.role === "operator" && <div className="border-b border-[var(--border-soft)] px-4 py-3"><AvailabilityToggle online={isOnline} saving={statusSaving} error={statusError} onToggle={toggleOnlineStatus} /></div>}
-              <Link href={`/dashboard/u/${profile?.uid}`} className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)]">
+              <Link href={`/dashboard/u/${profile?.uid}`} className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)]"><IconSwap icon={<User className="h-4 w-4" />}>
                 <User className="h-4 w-4" />
                 <span className="text-sm font-bold">View profile</span>
-              </Link>
-              <Link href="/dashboard/settings" className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)]">
+              </IconSwap></Link>
+              <Link href="/dashboard/settings" className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)]"><IconSwap icon={<Settings className="h-4 w-4" />}>
                 <Settings className="h-4 w-4" />
                 <span className="text-sm font-bold">Settings</span>
-              </Link>
-              <button onClick={handleSignOut} className="flex w-full items-center gap-3 px-4 py-3 text-left text-red-600 hover:bg-red-50">
+              </IconSwap></Link>
+              <button onClick={handleSignOut} className="flex w-full items-center gap-3 px-4 py-3 text-left text-red-600 hover:bg-red-50"><IconSwap icon={<LogOut className="h-4 w-4" />}>
                 <LogOut className="h-4 w-4" />
                 <span className="text-sm font-bold">Sign out</span>
-              </button>
+              </IconSwap></button>
             </div>
           ) : null}
         </div>
@@ -405,21 +407,21 @@ export default function Navbar() {
             </div>
 
             <div className="mt-5 grid divide-y divide-[var(--border-color)] border-t border-[var(--border-color)]">
-              <Link href="/dashboard/calendar" onClick={() => setDrawerOpen(false)} className="flex min-h-13 items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)]"><CalendarDays className="h-5 w-5" /><span>Schedule</span></Link>
-              <Link href="/dashboard/transactions" onClick={() => setDrawerOpen(false)} className="flex min-h-13 items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)]"><CircleDollarSign className="h-5 w-5" /><span>Payments</span></Link>
+              <Link href="/dashboard/calendar" onClick={() => setDrawerOpen(false)} className="flex min-h-13 items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)]"><IconSwap icon={<CalendarDays className="h-5 w-5" />}><CalendarDays className="h-5 w-5" /><span>Schedule</span></IconSwap></Link>
+              <Link href="/dashboard/transactions" onClick={() => setDrawerOpen(false)} className="flex min-h-13 items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)]"><IconSwap icon={<CircleDollarSign className="h-5 w-5" />}><CircleDollarSign className="h-5 w-5" /><span>Payments</span></IconSwap></Link>
               {profile?.role === "operator" && <AvailabilityToggle online={isOnline} saving={statusSaving} error={statusError} onToggle={toggleOnlineStatus} />}
-              <Link href={`/dashboard/u/${profile?.uid}`} onClick={() => setDrawerOpen(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)]">
+              <Link href={`/dashboard/u/${profile?.uid}`} onClick={() => setDrawerOpen(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)]"><IconSwap icon={<User className="h-4 w-4" />}>
                 <User className="h-4 w-4" />
                 <span className="text-sm font-bold">View profile</span>
-              </Link>
-              <Link href="/dashboard/settings" onClick={() => setDrawerOpen(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)]">
+              </IconSwap></Link>
+              <Link href="/dashboard/settings" onClick={() => setDrawerOpen(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)]"><IconSwap icon={<Settings className="h-4 w-4" />}>
                 <Settings className="h-4 w-4" />
                 <span className="text-sm font-bold">Settings</span>
-              </Link>
-              <button onClick={handleSignOut} className="flex items-center gap-3 rounded-[1.2rem] bg-red-50 px-4 py-3 text-left text-red-600">
+              </IconSwap></Link>
+              <button onClick={handleSignOut} className="flex items-center gap-3 rounded-[1.2rem] bg-red-50 px-4 py-3 text-left text-red-600"><IconSwap icon={<LogOut className="h-4 w-4" />}>
                 <LogOut className="h-4 w-4" />
                 <span className="text-sm font-bold">Sign out</span>
-              </button>
+              </IconSwap></button>
             </div>
           </div>
         </div>

@@ -1,4 +1,6 @@
 "use client";
+import IconSwap from "@/components/ui/IconSwap";
+
 
 import React from "react";
 import { useRouter } from "next/navigation";
@@ -25,9 +27,9 @@ export default function BackButton({ href, label = "Back" }: BackButtonProps) {
       type="button"
       onClick={handleClick}
       className="inline-flex min-h-11 min-w-11 items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-gray-500 hover:text-[var(--accent)] hover:bg-[var(--accent)]/5 transition-all duration-200"
-    >
+    ><IconSwap icon={<ArrowLeft className="w-4 h-4" />}>
       <ArrowLeft className="w-4 h-4" />
       {label}
-    </button>
+    </IconSwap></button>
   );
 }

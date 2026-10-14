@@ -1,3 +1,5 @@
+
+import IconSwap from "@/components/ui/IconSwap";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Check, ChevronRight, Snowflake } from "lucide-react";
@@ -23,7 +25,7 @@ export function ResultState({ title, description, children, actionHref, actionLa
     {description && <p>{description}</p>}
     {image}
     {children}
-    {actionHref && actionLabel && <Link className="btn-primary result-action" href={actionHref}>{actionLabel}<ChevronRight size={18} /></Link>}
+    {actionHref && actionLabel && <Link className="btn-primary result-action" href={actionHref}><IconSwap icon={<ChevronRight size={18} />}>{actionLabel}<ChevronRight size={18} /></IconSwap></Link>}
   </section>;
 }
 

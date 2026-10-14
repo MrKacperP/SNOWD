@@ -1,4 +1,6 @@
 "use client";
+import IconSwap from "@/components/ui/IconSwap";
+
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, MapPin, Search, CalendarDays, MessageSquare, Banknote, CreditCard } from "lucide-react";
@@ -29,7 +31,7 @@ export default function WorkOrdersPage({ history = false, schedule = false }: { 
   if (!schedule) return <div className={ui.page}>
     <header className={ui.heading}>
       <h1>Work orders</h1>
-      {!isOperator && <Link className={ui.primary} href="/dashboard/find">Book snow help <ArrowRight size={16} aria-hidden="true" /></Link>}
+      {!isOperator && <Link className={ui.primary} href="/dashboard/find"><IconSwap icon={<ArrowRight size={16} aria-hidden="true" />}>Book snow help <ArrowRight size={16} aria-hidden="true" /></IconSwap></Link>}
     </header>
     <section className={ui.panel} aria-label="Your work orders">
       <div className={ui.toolbar}>
@@ -61,8 +63,8 @@ export default function WorkOrdersPage({ history = false, schedule = false }: { 
             <footer className={ui.footer}>
               <span className={ui.reference}>Order #{orderNumber(job)}</span>
               <div className={ui.actions}>
-                {job.chatId && <Link className={ui.message} href={`/dashboard/messages/${job.chatId}`}><MessageSquare size={16} aria-hidden="true" />Message</Link>}
-                <Link className={action ? ui.primary : ui.secondary} href={`/dashboard/jobs/${job.id}`}>{actionLabel}<ArrowRight size={16} aria-hidden="true" /></Link>
+                {job.chatId && <Link className={ui.message} href={`/dashboard/messages/${job.chatId}`}><IconSwap icon={<MessageSquare size={16} aria-hidden="true" />}><MessageSquare size={16} aria-hidden="true" />Message</IconSwap></Link>}
+                <Link className={action ? ui.primary : ui.secondary} href={`/dashboard/jobs/${job.id}`}><IconSwap icon={<ArrowRight size={16} aria-hidden="true" />}>{actionLabel}<ArrowRight size={16} aria-hidden="true" /></IconSwap></Link>
               </div>
             </footer>
           </li>;

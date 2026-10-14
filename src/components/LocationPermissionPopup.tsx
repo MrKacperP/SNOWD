@@ -1,4 +1,6 @@
 "use client";
+import IconSwap from "@/components/ui/IconSwap";
+
 
 import { MapPin, Navigation, Shield } from "lucide-react";
 import Modal from "@/components/ui/Modal";
@@ -17,9 +19,9 @@ export default function LocationPermissionPopup({ isOpen, onAllow, onDeny }: Loc
         <p>You can skip this and enter your address when you post a job.</p>
       </div>
       <div className="mt-5 space-y-2">
-        <button type="button" onClick={onAllow} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[var(--accent-dark)]">
+        <button type="button" onClick={onAllow} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[var(--accent-dark)]"><IconSwap icon={<Navigation className="h-4 w-4" />}>
           <Navigation className="h-4 w-4" /> Use my location
-        </button>
+        </IconSwap></button>
         <button type="button" onClick={onDeny} className="min-h-12 w-full rounded-xl px-4 py-3 text-sm font-medium text-[var(--text-secondary)] transition hover:bg-[var(--bg-primary)]">Not right now</button>
       </div>
     </Modal>

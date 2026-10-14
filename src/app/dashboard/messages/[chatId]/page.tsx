@@ -1,4 +1,6 @@
 "use client";
+import IconSwap from "@/components/ui/IconSwap";
+
 
 import { canAcceptPlatformPayments } from "@/lib/operatorDiscovery";
 import { jobDisplayPrice } from "@/lib/marketplacePricing";
@@ -1635,12 +1637,12 @@ export default function ChatPage() {
                 disabled={sendingMessage}
                 aria-label={sendingMessage ? "Sending message" : "Send message"}
                 className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-white transition hover:bg-[var(--accent-dark)] disabled:cursor-not-allowed disabled:opacity-40"
-              >
+              ><IconSwap icon={<Send className="w-5 h-5" />}>
                 <Send className="w-5 h-5" />
                 <span className="hidden sm:inline text-sm font-semibold">
                   {sendingMessage ? "Sending" : "Send"}
                 </span>
-              </button>
+              </IconSwap></button>
             ) : (
               <button
                 type="button"
@@ -1809,10 +1811,10 @@ export default function ChatPage() {
               <button
                 onClick={cancelJob}
                 className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg font-semibold text-sm transition flex items-center gap-2"
-              >
+              ><IconSwap icon={<X className="w-4 h-4" />}>
                 <X className="w-4 h-4" />
                 Cancel Job
-              </button>
+              </IconSwap></button>
             </div>
           </div>
         )}
@@ -1861,10 +1863,10 @@ export default function ChatPage() {
                 onClick={() => rehireOperator()}
                 disabled={rehiring}
                 className="px-4 py-2 bg-[var(--accent)] text-white rounded-lg font-semibold text-sm hover:bg-[var(--accent-dark)] transition flex items-center gap-2 disabled:opacity-50"
-              >
+              ><IconSwap icon={<Briefcase className="w-4 h-4" />}>
                 <Briefcase className="w-4 h-4" />
                 {rehiring ? "Creating..." : "Rehire"}
-              </button>
+              </IconSwap></button>
             </div>
           </div>
         )}
@@ -1879,16 +1881,16 @@ export default function ChatPage() {
               </div>
               <div className="flex flex-wrap gap-2">
                 {!isOperator && reopenTimeLeft !== null && reopenTimeLeft > 0 && (
-                  <button onClick={reopenJob} className="px-4 py-2 bg-[var(--accent)] text-white rounded-lg font-semibold text-sm hover:bg-[var(--accent-dark)] transition flex items-center gap-2">
+                  <button onClick={reopenJob} className="px-4 py-2 bg-[var(--accent)] text-white rounded-lg font-semibold text-sm hover:bg-[var(--accent-dark)] transition flex items-center gap-2"><IconSwap icon={<Play className="w-4 h-4" />}>
                     <Play className="w-4 h-4" />
                     Reopen order ({Math.floor(reopenTimeLeft / 60000)}:{String(Math.floor((reopenTimeLeft % 60000) / 1000)).padStart(2, "0")})
-                  </button>
+                  </IconSwap></button>
                 )}
                 {!isOperator && !rehireSent && (
-                  <button onClick={() => rehireOperator()} disabled={rehiring} className="px-4 py-2 bg-[var(--accent)] text-white rounded-lg font-semibold text-sm hover:bg-[var(--accent-dark)] transition flex items-center gap-2 disabled:opacity-50">
+                  <button onClick={() => rehireOperator()} disabled={rehiring} className="px-4 py-2 bg-[var(--accent)] text-white rounded-lg font-semibold text-sm hover:bg-[var(--accent-dark)] transition flex items-center gap-2 disabled:opacity-50"><IconSwap icon={<Briefcase className="w-4 h-4" />}>
                     <Briefcase className="w-4 h-4" />
                     {rehiring ? "Creating..." : "New work order"}
-                  </button>
+                  </IconSwap></button>
                 )}
               </div>
             </div>
@@ -1912,39 +1914,39 @@ export default function ChatPage() {
                     <button
                       onClick={() => updateJobStatus("accepted")}
                       className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-green-500 text-white rounded-xl text-xs font-bold hover:bg-green-600 transition shadow-[var(--surface-shadow)]"
-                    >
+                    ><IconSwap icon={<CheckCircle className="w-3.5 h-3.5" />}>
                       <CheckCircle className="w-3.5 h-3.5" /> Accept
-                    </button>
+                    </IconSwap></button>
                     <button
                       onClick={() => updateJobStatus("cancelled")}
                       className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-red-50 text-red-600 rounded-xl text-xs font-bold hover:bg-red-100 transition"
-                    >
+                    ><IconSwap icon={<X className="w-3.5 h-3.5" />}>
                       <X className="w-3.5 h-3.5" /> Decline
-                    </button>
+                    </IconSwap></button>
                   </div>
                 )}
                 {job.status === "accepted" && (
                   <button
                     onClick={() => updateJobStatus("en-route")}
                     className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-[var(--accent)] text-white rounded-xl text-xs font-bold hover:bg-[var(--accent-dark)] transition shadow-[var(--surface-shadow)]"
-                  >
+                  ><IconSwap icon={<Navigation className="w-3.5 h-3.5" />}>
                     <Navigation className="w-3.5 h-3.5" /> Mark En Route
-                  </button>
+                  </IconSwap></button>
                 )}
                 {job.status === "en-route" && (
                   <>
                     <button
                       onClick={() => updateJobStatus("in-progress")}
                       className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-[var(--accent)] text-white rounded-xl text-xs font-bold hover:bg-[var(--accent-dark)] transition shadow-[var(--surface-shadow)]"
-                    >
+                    ><IconSwap icon={<Play className="w-3.5 h-3.5" />}>
                       <Play className="w-3.5 h-3.5" /> Start Job
-                    </button>
+                    </IconSwap></button>
                     <button
                       onClick={() => updateJobStatus("accepted")}
                       className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-100 text-gray-500 rounded-xl text-xs font-medium hover:bg-gray-200 transition"
-                    >
+                    ><IconSwap icon={<ArrowLeft className="w-3.5 h-3.5" />}>
                       <ArrowLeft className="w-3.5 h-3.5" /> Go Back
-                    </button>
+                    </IconSwap></button>
                   </>
                 )}
                 {job.status === "in-progress" && (
@@ -1953,24 +1955,24 @@ export default function ChatPage() {
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploadingPhoto}
                       className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-[var(--accent)] text-white rounded-xl text-xs font-bold hover:bg-[var(--accent-dark)] transition shadow-[var(--surface-shadow)] disabled:opacity-50"
-                    >
+                    ><IconSwap icon={<Camera className="w-3.5 h-3.5" />}>
                       <Camera className="w-3.5 h-3.5" /> {uploadingPhoto ? "Uploading..." : job.completionPhotoUrl || completionPhoto ? "Update Photo Proof" : "Submit Photo Proof"}
-                    </button>
+                    </IconSwap></button>
                     {(job.completionPhotoUrl || completionPhoto) && (
                       <button
                         disabled={cashActionBusy}
                         onClick={() => job.paymentMethod === "cash" && job.paymentStatus !== "paid" ? requestQuickCommConfirmation({ title: "Complete work with payment pending?", message: `The client will be notified to pay $${job.price} CAD in cash. You remain responsible for collecting it; no Stripe prepayment is held.`, confirmLabel: "Complete work · cash still due", onConfirm: () => updateJobStatus("completed") }) : updateJobStatus("completed")}
                         className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-green-600 text-white rounded-xl text-xs font-bold hover:bg-green-700 transition shadow-[var(--surface-shadow)]"
-                      >
+                      ><IconSwap icon={<CheckCircle className="w-3.5 h-3.5" />}>
                         <CheckCircle className="w-3.5 h-3.5" /> {job.paymentMethod === "cash" ? "Complete work order" : "Complete & release payment"}
-                      </button>
+                      </IconSwap></button>
                     )}
                     <button
                       onClick={() => updateJobStatus("en-route")}
                       className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-100 text-gray-500 rounded-xl text-xs font-medium hover:bg-gray-200 transition"
-                    >
+                    ><IconSwap icon={<ArrowLeft className="w-3.5 h-3.5" />}>
                       <ArrowLeft className="w-3.5 h-3.5" /> Go Back
-                    </button>
+                    </IconSwap></button>
                   </>
                 )}
               </div>
@@ -2037,9 +2039,9 @@ export default function ChatPage() {
                       });
                     }}
                     className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-amber-500 text-white rounded-xl text-xs font-bold hover:bg-amber-600 transition"
-                  >
+                  ><IconSwap icon={<CreditCard className="w-3.5 h-3.5" />}>
                     <CreditCard className="w-3.5 h-3.5" /> Request Payment
-                  </button>
+                  </IconSwap></button>
                 )}
               </div>
             )}
@@ -2085,11 +2087,11 @@ export default function ChatPage() {
                 type="button"
                 onClick={() => setShowMapModal(true)}
                 className="mt-2 flex w-full items-center gap-2 rounded-xl border-[3px] border-[var(--border)] bg-white px-3 py-2.5 text-left text-xs text-[var(--text-muted)] transition hover:text-[var(--accent)]"
-              >
+              ><IconSwap icon={<MapPin className="h-3.5 w-3.5 shrink-0" />}>
                 <MapPin className="h-3.5 w-3.5 shrink-0" />
                 <span className="min-w-0 flex-1 break-words">{job.address}, {job.city}</span>
                 <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-              </button>
+              </IconSwap></button>
             </div>
 
                 <div className="mt-4 border-t border-[var(--border)] pt-3">
@@ -2097,9 +2099,9 @@ export default function ChatPage() {
                     type="button"
                     onClick={() => { setRightPanelView("profile"); setShowMobileTasksSheet(true); }}
                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--bg-secondary)] px-3 py-2.5 text-xs font-semibold text-[var(--text-primary)] transition hover:bg-[var(--border)]"
-                  >
+                  ><IconSwap icon={<User className="w-3.5 h-3.5" />}>
                     <User className="w-3.5 h-3.5" /> View profile details
-                  </button>
+                  </IconSwap></button>
                 </div>
               </>
             )}
@@ -2140,9 +2142,9 @@ export default function ChatPage() {
                 <Link
                   href={`/dashboard/u/${otherUser.uid}`}
                   className="w-full inline-flex items-center justify-center gap-2 px-3 py-2.5 bg-[var(--accent)] text-white rounded-xl text-xs font-semibold hover:bg-[var(--accent-dark)] transition"
-                >
+                ><IconSwap icon={<ExternalLink className="w-3.5 h-3.5" />}>
                   Open Full Profile <ExternalLink className="w-3.5 h-3.5" />
-                </Link>
+                </IconSwap></Link>
               </div>
             )}
 
@@ -2265,9 +2267,9 @@ export default function ChatPage() {
                   });
                 }}
                 className="w-full py-3 bg-[var(--accent)] text-white rounded-xl font-semibold text-sm hover:bg-[var(--accent-dark)] transition flex items-center justify-center gap-2"
-              >
+              ><IconSwap icon={<CreditCard className="w-4 h-4" />}>
                 <CreditCard className="w-4 h-4" /> Send Payment Request to Client
-              </button>
+              </IconSwap></button>
               <button
                 onClick={() => setShowPaymentGateModal(false)}
                 className="w-full py-2.5 text-gray-500 text-sm font-medium hover:text-gray-700 transition"
@@ -2314,9 +2316,9 @@ export default function ChatPage() {
                 type="button"
                 onClick={() => window.open(`https://maps.google.com/?q=${mapQuery}`, "_blank", "noopener,noreferrer")}
                 className="px-3 py-2 rounded-lg bg-[var(--accent)] text-white text-sm font-semibold hover:bg-[var(--accent-dark)] inline-flex items-center gap-1.5"
-              >
+              ><IconSwap icon={<ExternalLink className="w-3.5 h-3.5" />}>
                 Open Full Map <ExternalLink className="w-3.5 h-3.5" />
-              </button>
+              </IconSwap></button>
             </div>
           </div>
         </div>

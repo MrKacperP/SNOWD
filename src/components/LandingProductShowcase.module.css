@@ -95,3 +95,4 @@
 .phoneContent .bookButton { margin-top:0; min-height:44px; }
 .phoneContent .booked { padding-top:0; flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; }
 @media(max-width:650px) { .phoneContent { padding:14px 14px 20px; gap:9px; } .phoneContent .address { padding:12px; } }
+.bookButton { display:flex; align-items:center; justify-content:center; text-decoration:none; }

@@ -1,3 +1,5 @@
+
+import IconSwap from "@/components/ui/IconSwap";
 import Link from "next/link";
 import { ArrowRight, CalendarDays, CreditCard, MapPin, Users, Settings, ClipboardList } from "lucide-react";
 import styles from "./mobile.module.css";
@@ -6,7 +8,7 @@ export function BookingAction({ location }: { location: string }) {
   return <section className={`dashboard-widget ${styles.bookingCard}`} aria-labelledby="booking-heading">
     <p className={styles.location}><MapPin size={16} aria-hidden="true" />{location}</p>
     <h2 id="booking-heading">Need snow cleared?</h2><p>Find a nearby shoveler for your driveway, walkway, or steps.</p>
-    <Link href="/dashboard/find" className={styles.mainAction}>Find a shoveler <ArrowRight size={20} aria-hidden="true" /></Link>
+    <Link href="/dashboard/find" className={styles.mainAction}><IconSwap icon={<ArrowRight size={20} aria-hidden="true" />}>Find a shoveler <ArrowRight size={20} aria-hidden="true" /></IconSwap></Link>
     <span className={styles.actionNote}>Choose a shoveler, then send a job request.</span>
   </section>;
 }
