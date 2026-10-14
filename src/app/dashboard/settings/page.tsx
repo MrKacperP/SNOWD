@@ -41,8 +41,6 @@ Loader2,
 LogOut,
 MapPin,
   Palette,
-ArrowUpRight,
-Circle,
 LockKeyhole,
 Snowflake,
 RefreshCw,
@@ -660,7 +658,7 @@ export default function SettingsPage() {
     payment: isOperator ? "Connect and manage your Stripe payout account" : "Review cards and secure payment details",
     verification: "Upload and manage your verification documents",
     notifications: "Where to find your updates and receipts",
-    branding: "Configure business identity and portfolio",
+    branding: "Your business name, photos and introduction",
   };
 
   const activeTabMeta = TABS.find((tab) => tab.key === activeTab);
@@ -681,7 +679,7 @@ export default function SettingsPage() {
         </div>
       </Modal>
       <header className={styles.pageHeader}>
-        <div><p className={styles.eyebrow}>YOUR WORKSPACE</p><h1>Settings</h1><p>A little about you. Everything in your control.</p></div>
+        <div><h1>Settings</h1><p>Manage your account.</p></div>
         <span className={styles.workspaceBadge}><Snowflake size={17} aria-hidden="true" /> snowd<span className={styles.badgeDivider} />{isOperator ? "Operator" : "Personal"} account</span>
       </header>
       <section className={styles.overview} aria-label="Saved profile overview">
@@ -708,31 +706,20 @@ export default function SettingsPage() {
               </Link>;
             })}
           </nav>
-          <div className={styles.sidebarNote}><LockKeyhole size={17} /><strong>You’re in control</strong><p>Review your saved details and choose how you hear from us.</p></div>
+
           <button type="button" onClick={handleSignOut} className={styles.sidebarSignOut}><LogOut size={16} /> Sign out</button>
         </aside>
         <section className={styles.content} aria-labelledby="settings-section-title">
           <div className="space-y-6">
             <div className={styles.sectionHeading}>
               <div><h2 id="settings-section-title">{activeTabMeta?.label || "Settings"}</h2><p>{TAB_DESCRIPTIONS[activeTab]}</p></div>
-              <span role="status" className={saved ? styles.saved : styles.sectionMeta}>{saved ? <><CheckCircle size={15} /> Saved</> : activeTab === "notifications" ? savingEmailPreferences ? "Saving…" : "Saves automatically" : (activeTab === "general" && generalDirty) || (activeTab === "branding" && brandingDirty) ? "Unsaved changes" : "Your account, at a glance"}</span>
+              <span role="status" className={saved ? styles.saved : styles.sectionMeta}>{saved ? <><CheckCircle size={15} /> Saved</> : activeTab === "notifications" ? savingEmailPreferences ? "Saving…" : "Saves automatically" : (activeTab === "general" && generalDirty) || (activeTab === "branding" && brandingDirty) ? "Unsaved changes" : ""}</span>
             </div>
             {savedMissingFields.length > 0 && activeTab !== "general" && <Link href="/dashboard/settings/general" className={styles.incompleteNotice}><AlertCircle size={17} /><span>Finish your account details</span><ChevronRight size={17} /></Link>}
 
       {/* General Settings */}
       {activeTab === "general" && (
         <div className="space-y-6">
-          <section className={styles.setupPanel} aria-labelledby="setup-heading">
-            <div className={styles.setupHeading}><div><h3 id="setup-heading">Let’s get you set up</h3><p>Know what’s ready and what comes next.</p></div><span className={styles.softBadge}>Saved account status</span></div>
-            <div className={styles.setupGrid}>
-              <a href="#settings-display-name" className={styles.setupItem}>{accountComplete ? <CheckCircle size={19} className={styles.completeIcon} /> : <Circle size={19} />}<span><strong>Account details</strong><small>{accountComplete ? "Complete" : `${savedMissingFields.length} details to add`}</small></span><ArrowUpRight size={15} /></a>
-              <Link href="/dashboard/settings/verification" className={styles.setupItem}>{profile?.idVerified ? <CheckCircle size={19} className={styles.completeIcon} /> : <ShieldCheck size={19} />}<span><strong>Identity check</strong><small>{verificationLabel}{!isOperator && !profile?.idVerified ? " · Optional" : ""}</small></span><ArrowUpRight size={15} /></Link>
-              <Link href="/dashboard/settings/payment" className={styles.setupItem}><CreditCard size={19} /><span><strong>{isOperator ? "Payout account" : "Payment method"}</strong><small>{paymentLabel}</small></span><ArrowUpRight size={15} /></Link>
-            </div>
-            {!accountComplete && <p className={styles.nextStep}><span>Next step</span> Add {savedMissingFields.map(field => field.label.toLowerCase()).join(", ")}.</p>}
-          </section>
-          <div className={styles.formNote}><LockKeyhole size={14} /> {isOperator ? "Your name, business name and bio introduce you to clients. Review what you share below." : "Keep your contact and property details up to date for your next service."}</div>
-
           {/* Profile Info */}
           <section className={styles.card}>
             <h3 className="min-h-11 text-lg font-semibold text-[var(--ink)] flex items-center gap-2">

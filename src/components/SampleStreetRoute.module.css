@@ -1,0 +1,14 @@
+.map { position:relative; width:100%; height:100%; overflow:hidden; border-radius:inherit; background:#edf3f1; }
+.map > svg { width:100%; height:100%; display:block; touch-action:pan-y; cursor:grab; }
+.map > svg:active { cursor:grabbing; }
+.cleared { stroke-dasharray:1; animation:clearPath 9s linear infinite; }
+.shovel { animation:walk .55s ease-in-out infinite alternate; }
+.halo { animation:breathe 3s ease-in-out infinite; transform-box:fill-box; transform-origin:center; }
+.zoom { position:absolute; bottom:10px; right:10px; display:grid; border:1px solid #d5e2e6; border-radius:9px; overflow:hidden; box-shadow:0 2px 7px #17394b0c; }
+.zoom button { display:grid; place-items:center; width:27px; height:25px; background:#fffffff0; color:#28516b; cursor:pointer; }
+.zoom button + button { border-top:1px solid #e2e9ed; }
+.zoom button:disabled { color:#a7b6bd; cursor:default; }
+@keyframes clearPath { 0% { stroke-dashoffset:1; } 82%,100% { stroke-dashoffset:0; } }
+@keyframes walk { from { transform:translateY(-1px) rotate(-8deg); } to { transform:translateY(1px) rotate(8deg); } }
+@keyframes breathe { 50% { scale:1.12; opacity:.65; } }
+@media(prefers-reduced-motion:reduce) { .cleared,.shovel,.halo { animation:none; } .walker { display:none; } }

@@ -56,3 +56,9 @@
   .footer { flex-wrap: wrap; margin-top: 18px; }
   .actions { margin-left: auto; flex-wrap: wrap; max-width: 100%; gap: 12px; }
 }
+
+.list { display:grid; gap:14px; padding:16px; }
+.order { border:1px solid var(--border-color); border-radius:18px; padding:20px; background:var(--bg-card-solid); }
+.order + .order { border-top:1px solid var(--border-color); }
+.footer { padding-top:16px; border-top:1px solid var(--border-soft); }
+@media(max-width:600px) { .list { padding:10px; } .order { padding:16px; } }

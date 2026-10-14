@@ -17,7 +17,7 @@ export function AppPage({ eyebrow, title, description, action, children, classNa
 export function ResultState({ title, description, children, actionHref, actionLabel, image }: {
   title: string; description?: string; children?: ReactNode; actionHref?: string; actionLabel?: string; image?: ReactNode;
 }) {
-  return <section className="result-state" aria-live="polite">
+  return <section className="result-state" aria-live="polite" role="status">
     <span className="result-icon"><Check aria-hidden="true" /></span>
     <h1>{title}</h1>
     {description && <p>{description}</p>}

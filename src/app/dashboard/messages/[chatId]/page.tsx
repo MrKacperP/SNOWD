@@ -1547,8 +1547,8 @@ export default function ChatPage() {
         {job && (
           <div className="shrink-0 border-b border-[var(--border-soft)] bg-[var(--bg-secondary)] px-3 py-2.5 sm:px-4">
             <Link href={`/dashboard/jobs/${job.id}?returnTo=${encodeURIComponent(`/dashboard/messages/${chatId}`)}`} className="chat-order-link block min-h-11 w-full rounded-xl bg-white px-3 py-2.5 text-left">
-              <span className="flex items-center justify-between gap-3"><span className="min-w-0"><span className="block truncate text-sm font-semibold capitalize">{[propertySizeLabel(job.propertySize), ...(job.serviceTypes?.filter(service => service !== "driveway").map(service => service.replaceAll("-", " ")) ?? [])].join(" + ")}</span></span><strong className="shrink-0 text-lg font-bold text-[var(--ink)]">${jobDisplayPrice(job, isOperator).toFixed(2)} <span className="text-xs font-medium text-[var(--text-muted)]">CAD</span></strong></span>
-              <span className="mt-2 flex items-center justify-between gap-2 border-t border-[var(--border-soft)] pt-2"><span className="inline-flex items-center rounded-full bg-[var(--accent-sun-soft)] px-3 py-1 text-xs font-semibold text-[var(--ink)]"><StatusBadge status={job.status} /></span><span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--text-secondary)]">{job.scheduleMode === "asap" || !job.scheduledDate ? "ASAP · time to confirm" : `${formatMessageDay(job.scheduledDate)}${job.scheduledTime ? ` · ${job.scheduledTime}` : ""}`}<ChevronRight className="h-4 w-4" /></span></span>
+              <span className="chat-order-main"><span><small>Work order</small><strong>{propertySizeLabel(job.propertySize)}{job.serviceTypes?.includes("walkway") ? " + Walkway" : ""} <span className="chat-order-price">${jobDisplayPrice(job, isOperator).toFixed(2)} CAD</span></strong></span></span>
+              <StatusBadge status={job.status} /><ChevronRight size={17} aria-hidden="true" />
             </Link>
             {linkedJobs.length > 1 && <section className="mt-1"><button type="button" className="py-2 text-xs font-semibold text-[var(--text-secondary)]" aria-expanded={showEarlierOrders} onClick={() => setShowEarlierOrders(value => !value)}>Earlier work orders ({linkedJobs.length - 1}) <span aria-hidden="true">{showEarlierOrders ? "−" : "+"}</span></button>{showEarlierOrders && <div className="grid gap-1">{linkedJobs.filter(linkedJob => linkedJob.id !== job.id).map(linkedJob => <button key={linkedJob.id} type="button" onClick={() => selectWorkOrder(linkedJob)} className="rounded-lg px-3 py-2 text-left text-sm hover:bg-white">{linkedJob.serviceTypes?.[0]?.replaceAll("-", " ") || "Snow service"} · ${linkedJob.price} CAD</button>)}</div>}</section>}
           </div>
@@ -1627,7 +1627,7 @@ export default function ChatPage() {
               aria-label="Message"
               placeholder="Type a message..."
               rows={1}
-              className="max-h-32 min-h-11 min-w-0 flex-1 resize-none rounded-xl bg-transparent px-3 py-3 text-base text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--text-primary)] focus:bg-white"
+              className="max-h-32 min-h-11 min-w-0 flex-1 resize-none rounded-xl bg-transparent px-3 py-3 text-base text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
             />
             {newMessage.trim() && !isRecordingVoice ? (
               <button

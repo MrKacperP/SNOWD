@@ -26,3 +26,10 @@
   .page .summary { padding: 16px; gap: 10px; }
   .page .row { padding: 16px; }
 }
+
+.page .group { overflow:hidden; border-radius:20px; box-shadow:none; }
+.page .summary { padding:20px; background:#f1f5f7; border-bottom:1px solid var(--border-soft); }
+.page .row { margin:8px 12px; padding:16px; border:1px solid var(--border-soft); border-radius:14px; background:#fff; }
+.page .row[data-active-job="true"] { background:#fff; }
+.page .row[data-unread="true"] { background:#f1f6fb; border-color:#b8cfe1; }
+.page :global(.app-search) { min-height:48px; border:1px solid var(--border-color); border-radius:14px; background:var(--card); box-shadow:none; }

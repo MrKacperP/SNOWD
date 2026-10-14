@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { addDays, addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isBefore, isSameMonth, startOfMonth, startOfWeek } from "date-fns";
 import Link from "next/link";
 import {
@@ -13,7 +13,6 @@ import {
   ClipboardList,
   CreditCard,
   Home,
-  House,
   MapPin,
   Menu,
   MessageSquare,
@@ -28,6 +27,7 @@ import {
   UserRound,
   Wifi,
 } from "lucide-react";
+import SampleStreetRoute from "./SampleStreetRoute";
 import styles from "./LandingPhone.module.css";
 
 type View = "home" | "find" | "location" | "timing" | "review" | "success" | "jobs" | "messages" | "menu";
@@ -44,27 +44,37 @@ const operators = [
   { id: "alex", name: "Alex Rivera", company: "Fresh Tracks Co.", payment: "Cash & card", icon: Sparkles, tone: "gold" },
   { id: "casey", name: "Casey Brooks", company: "ClearRoute Inc.", payment: "Cash & card", icon: Trees, tone: "violet" },
   { id: "taylor", name: "Taylor Chen", company: "WhitePine Property Care Co.", payment: "Cash & card", icon: Truck, tone: "mint" },
+  { id: "sam", name: "Sam Wilson", company: "North Snow Co.", payment: "Cash & card", icon: Shovel, tone: "blue" },
 ] as const;
 
 function SampleRouteMap({ compact = false, operatorName = "Jamie" }: { compact?: boolean; operatorName?: string }) {
-  return <div className={compact ? styles.routeMapSmall : styles.routeMap} aria-label="Sample route along Toronto streets">
-    <svg className={styles.streetMap} viewBox="0 0 320 160" preserveAspectRatio="none" aria-hidden="true">
-      <rect width="320" height="160" fill="#eaf2ed" />
-      <path d="M0 40H320M0 82H320M0 122H320M42 0V160M102 0V160M162 0V160M222 0V160M282 0V160" fill="none" stroke="#fff" strokeWidth="21" />
-      <path d="M0 40H320M0 82H320M0 122H320M42 0V160M102 0V160M162 0V160M222 0V160M282 0V160" fill="none" stroke="#c8d7dc" strokeWidth="14" />
-      <path d="M0 40H320M0 82H320M0 122H320M42 0V160M102 0V160M162 0V160M222 0V160M282 0V160" fill="none" stroke="#e9f0f2" strokeWidth="1" strokeDasharray="5 7" />
-      {[65,125,185,245].map(x => <g key={x} fill="#f9fcfa" stroke="#b9cfc4" strokeWidth="1.5"><rect x={x} y="12" width="24" height="16" rx="3" /><rect x={x} y="51" width="24" height="19" rx="3" /><rect x={x} y="94" width="24" height="16" rx="3" /><rect x={x} y="135" width="24" height="16" rx="3" /></g>)}
-      <path className={styles.animatedRoute} d="M42 40H102V82H162V122H282" fill="none" stroke="#387da2" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" pathLength="1" />
-      <circle cx="42" cy="40" r="7" fill="#315f79" stroke="white" strokeWidth="3" />
-      <circle cx="282" cy="122" r="7" fill="#fff" stroke="#315f79" strokeWidth="3" />
-    </svg>
-    <span className={`${styles.routePin} ${styles.routeStart}`}><MapPin size={compact ? 13 : 16} fill="currentColor" /></span>
-    <span className={`${styles.routePin} ${styles.routeEnd}`}><House size={compact ? 13 : 16} /></span>
-    <span className={styles.routeMapLabel}>{compact ? "ROUTE" : `${operatorName.toUpperCase()} · SAMPLE ROUTE`}</span>
-  </div>;
+  return <div className={compact ? styles.routeMapSmall : styles.routeMap} aria-label={`${operatorName} route through fictional Maple Hollow`}><SampleStreetRoute /></div>;
 }
 
 export default function LandingPhone() {
+  const stageRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const hero = stage.parentElement;
+    const update = () => {
+      if (!hero) return;
+      if (window.innerWidth <= 700) { stage.style.transform = "none"; hero.style.setProperty("--demo-focus", "0"); return; }
+      const bounds = hero.getBoundingClientRect();
+      const progress = Math.min(1, Math.max(0, (100 - bounds.top) / 150));
+      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const x = (hero.clientWidth / 2 - stage.offsetLeft - stage.offsetWidth / 2) * progress;
+      const scale = reduced ? 1 : 1 + .08 * progress;
+      const travel = Math.max(0, hero.offsetHeight - stage.offsetTop - stage.offsetHeight * scale + 35);
+      const y = Math.min(travel, Math.max(0, 22 - bounds.top - stage.offsetTop));
+      stage.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+      hero.style.setProperty("--demo-focus", String(progress));
+    };
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => { window.removeEventListener("scroll", update); window.removeEventListener("resize", update); hero?.style.removeProperty("--demo-focus"); };
+  }, []);
   const [view, setView] = useState<View>("home");
   const [requested, setRequested] = useState(false);
   const [selectedOperatorId, setSelectedOperatorId] = useState<string>(operators[0].id);
@@ -101,11 +111,11 @@ export default function LandingPhone() {
     : view === "location" ? "Confirm sample location"
     : view === "timing" ? "Review choices"
     : view === "review" ? "Send sample request"
-    : "Start again";
+    : "Back to dashboard";
   const action = view === "home" ? () => setView("find")
     : view === "location" ? () => setView("timing")
     : view === "timing" ? () => setView("review")
-    : view === "review" ? sendRequest : resetDemo;
+    : view === "review" ? sendRequest : () => setView("home");
   const scheduledDateLabel = format(new Date(`${demoDate}T12:00:00`), "EEE, MMM d");
   const demoDateTime = new Date(`${demoDate}T${demoTime}:00`);
   const scheduleTimeIsPast = schedule === "scheduled" && currentTime !== null && demoDateTime.getTime() <= currentTime;
@@ -116,22 +126,14 @@ export default function LandingPhone() {
   });
   const showNav = ["home", "jobs", "messages", "menu"].includes(view);
 
-  return <div className={styles.demo}>
+  return <div ref={stageRef} className={styles.demo}>
     <p className={styles.caption}>Step {walkthroughStep} of 5</p>
     <div className={styles.phone} aria-label="Interactive sample of the SNOWD client booking flow">
       <div className={styles.status}><span>9:41</span><span className={styles.island} /><span><Signal size={12} /><Wifi size={12} /><BatteryFull size={17} /></span></div>
-      <main className={`${styles.screen} ${view === "home" ? styles.homeScreen : ""} ${view === "success" ? styles.successScreen : ""} ${view === "timing" && schedule === null ? styles.timingIntroScreen : ""}`} key={view}>
+      <main data-view={view} className={`${styles.screen} ${view === "home" ? styles.homeScreen : ""} ${view === "success" ? styles.successScreen : ""} ${view === "timing" && schedule === null ? styles.timingIntroScreen : ""}`} key={view}>
         {view === "home" && <>
-          <section className={styles.locationMap} aria-label="Illustrated sample street in Toronto, Ontario">
-            <span className={styles.mapRoadPrimary} /><span className={styles.mapRoadSecondary} />
-            <span className={`${styles.mapHome} ${styles.mapHomeOne}`}><House size={16} /></span>
-            <span className={`${styles.mapHome} ${styles.mapHomeTwo}`}><House size={16} /></span>
-            <span className={`${styles.mapHome} ${styles.mapHomeThree}`}><House size={16} /></span>
-            <span className={styles.mapDriveway} />
-            <span className={styles.mapMarker}><MapPin size={24} fill="currentColor" /></span>
-            <span className={styles.mapLabel}><MapPin size={12} /> Toronto, Ontario</span>
-          </section>
-          <section className={styles.orderIntro}><h3>Need your driveway shoveled?</h3></section>
+          <div className={styles.demoWelcome}><small>Your snow day</small><h3>{requested ? "Your current work order" : "Snow help, close to home"}</h3></div>{!requested && <section className={styles.locationMap} aria-label="Fictional property in Maple Hollow"><SampleStreetRoute journey={false} /></section>}
+          {requested ? <section className={styles.pendingOrder}><small>REQUEST SENT</small><h3>Waiting for acceptance</h3><p>{selectedOperator.name} · 2-car driveway</p><p>{schedule === "asap" ? "ASAP · arrival after confirmation" : `${scheduledDateLabel} · ${demoTime}`}</p><p>{payment === "cash" ? "Cash" : "Card"} · $42.00 CAD · Pending</p><button onClick={() => setView("jobs")}>View work order <ArrowRight size={15} /></button></section> : <section className={styles.orderIntro}><h3>Need snow removal?</h3><p>18 Snowdrop Lane · Maple Hollow</p></section>}
         </>}
 
         {view === "find" && <>
@@ -149,16 +151,17 @@ export default function LandingPhone() {
         {view === "location" && <>
           <div className={styles.screenTitle}><button type="button" onClick={goBack} aria-label="Back"><ArrowRight size={16} /></button><h3>Where should {selectedOperator.name.split(" ")[0]} go?</h3></div>
           <section className={styles.savedLocationCard} aria-label="Saved sample property">
-            <div className={styles.savedLocationMap} aria-hidden="true"><span className={styles.mapRoadPrimary} /><span className={styles.mapRoadSecondary} /><span className={`${styles.mapHome} ${styles.mapHomeOne}`}><House size={16} /></span><span className={`${styles.mapHome} ${styles.mapHomeTwo}`}><House size={16} /></span><span className={`${styles.mapHome} ${styles.mapHomeThree}`}><House size={16} /></span><span className={styles.mapDriveway} /><span className={styles.mapMarker}><MapPin size={24} fill="currentColor" /></span></div>
-            <div className={styles.savedLocationDetails}><span>Your property</span><strong>18 Maple Avenue</strong><p>Toronto, Ontario <em>Sample address</em></p></div>
+            <div className={styles.savedLocationMap}><SampleStreetRoute journey={false} /></div>
+            <div className={styles.savedLocationDetails}><span>Your property</span><strong>18 Snowdrop Lane</strong><p>Maple Hollow <em>Fictional neighborhood</em></p></div>
           </section>
         </>}
 
         {view === "timing" && <>
+          {schedule !== null && <div className={styles.screenTitle}><button type="button" onClick={goBack} aria-label="Back"><ArrowRight size={16} /></button><h3>Choose your timing</h3></div>}
           {schedule === null && <div className={styles.timingIntro}><button type="button" onClick={goBack} aria-label="Back" className={styles.timingBack}><ArrowRight size={16} /></button><span className={styles.timingClock}><Clock3 size={56} strokeWidth={1.5} /></span><h3>When do you need help?</h3><div className={styles.timingOptions}><button type="button" onClick={() => setSchedule("asap")}><Sparkles size={19} /><span>ASAP</span></button><button type="button" onClick={() => setSchedule("scheduled")}><CalendarDays size={19} /><span>Scheduled</span></button></div></div>}
           {schedule === "asap" && <section className={styles.etaCard}>
             <SampleRouteMap compact operatorName={selectedOperator.name.split(" ")[0]} />
-            <div className={styles.etaDetails}><small>{selectedOperator.name.toUpperCase()} · SAMPLE ETA</small><strong>About 12 minutes after confirmation</strong><span>{selectedOperator.name} → Your property</span><span>18 Maple Avenue · Toronto</span></div>
+            <div className={styles.etaDetails}><small>{selectedOperator.name.toUpperCase()} · SAMPLE ETA</small><strong>About 12 minutes after confirmation</strong><span>{selectedOperator.name} → Your property</span><span>18 Snowdrop Lane · Maple Hollow</span></div>
           </section>}
           {schedule === "scheduled" && <section className={styles.scheduleCard}>
             <div className={styles.calendarWidget}>
@@ -170,29 +173,25 @@ export default function LandingPhone() {
                 return <button key={value} type="button" disabled={isPast || !isSameMonth(day, calendarMonth)} aria-pressed={value === demoDate} className={!isSameMonth(day, calendarMonth) ? styles.outsideMonth : ""} onClick={() => setDemoDate(value)}>{format(day, "d")}</button>;
               })}</div>
             </div>
-            <div className={styles.timePickerSection}><div className={styles.timePickerHeading}><span>Choose a time</span><strong>{format(new Date(`2000-01-01T${demoTime}:00`), "h:mm a")}</strong></div><div className={styles.timePicker} role="listbox" aria-label="Choose sample time">{timeOptions.map(time => {
-              const optionDate = new Date(`${demoDate}T${time}:00`);
-              const isPastTime = currentTime !== null && optionDate.getTime() <= currentTime;
-              return <button key={time} type="button" role="option" disabled={isPastTime} aria-selected={demoTime === time} onClick={() => setDemoTime(time)}>{format(new Date(`2000-01-01T${time}:00`), "h:mm a")}</button>;
-            })}</div></div>
+            <div className={styles.timePickerSection}><div className={styles.timePickerHeading}><span>Choose a time</span><strong>{format(new Date(`2000-01-01T${demoTime}:00`), "h:mm a")}</strong></div><select className={styles.demoTimeSelect} aria-label="Choose sample time" value={demoTime} onChange={event => setDemoTime(event.target.value)}>{timeOptions.map(time => <option key={time} value={time} disabled={currentTime !== null && new Date(`${demoDate}T${time}:00`).getTime() <= currentTime}>{format(new Date(`2000-01-01T${time}:00`), "h:mm a")}</option>)}</select></div>
           </section>}
         </>}
 
         {view === "review" && <>
           <div className={styles.screenTitle}><button type="button" onClick={goBack} aria-label="Back"><ArrowRight size={16} /></button><h3>Your sample request</h3></div>
           <div className={styles.reviewSummary}>
-            <div className={styles.reviewOperator}><span className={`${styles.companyLogo} ${styles[selectedOperator.tone]}`}><selectedOperator.icon size={20} /></span><span><small>SHOVELER</small><strong>{selectedOperator.name} · {selectedOperator.company}</strong></span></div>
+            <div className={styles.reviewOperator}><span className={`${styles.companyLogo} ${styles[selectedOperator.tone]}`}><selectedOperator.icon size={20} /></span><span><small>SHOVELER</small><strong>{selectedOperator.name}</strong></span></div>
             <div className={styles.reviewRow}><span>Service</span><strong>2-car driveway · Walkway</strong></div>
-            <div className={styles.reviewLocation}><span className={styles.reviewLocationIcon}><MapPin size={16} /></span><span><small>LOCATION · SAMPLE</small><strong>18 Maple Avenue</strong></span><b className={schedule === "asap" ? styles.asapLabel : ""}>{schedule === "asap" ? "~12 min" : "Scheduled"}</b></div>
-            <div className={styles.reviewRow}><span>When</span><strong className={schedule === "asap" ? styles.asapLabel : ""}>{schedule === "asap" ? "ASAP · about 12 minutes after confirmation" : `${scheduledDateLabel} · ${format(new Date(`2000-01-01T${demoTime}:00`), "h:mm a")}`}</strong></div>
+            <div className={styles.reviewLocation}><span className={styles.reviewLocationIcon}><MapPin size={16} /></span><span><small>LOCATION · SAMPLE</small><strong>18 Snowdrop Lane</strong></span><b className={schedule === "asap" ? styles.asapLabel : ""}>{schedule === "asap" ? "~12 min" : "Scheduled"}</b></div>
+            <div className={styles.reviewRow}><span>When</span><strong className={schedule === "asap" ? styles.asapLabel : ""}>{schedule === "asap" ? "ASAP · after acceptance" : `${scheduledDateLabel} · ${format(new Date(`2000-01-01T${demoTime}:00`), "h:mm a")}`}</strong></div>
           </div>
-          <section className={styles.reviewMap} aria-label="Sample route along Toronto streets"><SampleRouteMap compact operatorName={selectedOperator.name.split(" ")[0]} /></section>
+
           <fieldset className={styles.paymentChoice}><legend>Payment</legend><div className={styles.choices}><button type="button" aria-pressed={payment === "cash"} onClick={() => setPayment("cash")}><span className={styles.paymentAsset}><Banknote size={25} /></span><span>Cash</span></button><button type="button" aria-pressed={payment === "credit"} onClick={() => setPayment("credit")}><span className={styles.paymentAsset}><CreditCard size={25} /></span><span>Card</span></button></div></fieldset>
         </>}
 
         {view === "success" && <div className={styles.success}>
           <span className={styles.successIcon}><Check size={30} /></span><h3>Sample request sent</h3>
-          <section className={styles.successMapSummary}><SampleRouteMap compact operatorName={selectedOperator.name.split(" ")[0]} /><div className={styles.successFacts}><span><strong>Operator</strong>{selectedOperator.name}</span><span><strong>Payment</strong>{payment === "cash" ? "Cash" : "Card"}</span><span><strong>Date</strong><b className={schedule === "asap" ? styles.asapLabel : ""}>{schedule === "asap" ? "ASAP" : `${scheduledDateLabel} · ${format(new Date(`2000-01-01T${demoTime}:00`), "h:mm a")}`}</b>{schedule === "asap" && <small>~12 min ETA</small>}</span></div></section>
+          <p>Waiting for {selectedOperator.name.split(" ")[0]} to accept. Track it on your dashboard.</p>
         </div>}
 
         {view === "jobs" && <><div className={styles.screenTitle}><button type="button" onClick={() => setView("home")} aria-label="Back"><ArrowRight size={16} /></button><h3>Work orders</h3></div>{requested ? <button className={styles.job} onClick={() => setView("messages")}><b>{selectedOperator.name} · Driveway</b><small>Requested</small><span>Open messages <ArrowRight size={14} /></span></button> : <div className={styles.empty}><ClipboardList size={17} /><span><b>None</b></span></div>}</>}
@@ -203,7 +202,7 @@ export default function LandingPhone() {
         <button type="button" aria-pressed={schedule === "asap"} onClick={() => setSchedule("asap")}><Sparkles size={19} /><span>ASAP</span></button>
         <button type="button" aria-pressed={schedule === "scheduled"} onClick={() => setSchedule("scheduled")}><CalendarDays size={19} /><span>Scheduled</span></button>
       </div></div>}
-      {showAction && <div className={styles.actionArea}><button className={styles.primary} disabled={scheduleTimeIsPast} onClick={action}>{view === "success" && <RotateCcw size={17} />}{actionLabel}{view !== "success" && <ArrowRight size={18} />}</button></div>}
+      {showAction && <div className={styles.actionArea}><button className={styles.primary} disabled={["timing", "review"].includes(view) && scheduleTimeIsPast} onClick={action}>{view === "success" && <RotateCcw size={17} />}{actionLabel}{view !== "success" && <ArrowRight size={18} />}</button></div>}
       {showNav && <nav className={styles.bottomNav} aria-label="Demo navigation">{tabs.map(({ view: tab, label, icon: Icon }) => <button key={tab} aria-label={label} aria-current={activeTab === tab ? "page" : undefined} onClick={() => setView(tab)}><Icon size={20} /></button>)}</nav>}
       <div className={styles.homeIndicator} />
     </div>

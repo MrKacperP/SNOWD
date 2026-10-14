@@ -183,3 +183,10 @@
   .nav { flex-wrap: wrap; justify-content: center; gap: 6px; }
   .navLinks { justify-content: center; }
 }
+
+@media(min-width:701px) {
+  .hero { position:relative; align-items:center; }
+  .heroCopy { opacity:calc(1 - var(--demo-focus,0)); transform:translateX(calc(-65px * var(--demo-focus,0))); pointer-events:auto; }
+  .hero:has(> div:last-child:focus-within) .heroCopy { pointer-events:none; }
+  .hero > div:last-child { position:relative; z-index:3; transform-origin:top center; will-change:transform; }
+}

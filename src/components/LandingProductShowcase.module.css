@@ -86,3 +86,12 @@
   .visits { margin-top: 12px; }
   .shortcuts { display: none; }
 }
+
+/* The secondary phone uses the same balanced, full-height task layout. */
+.phoneContent { padding:18px 18px 24px; overflow:hidden; gap:12px; justify-content:space-evenly; }
+.phoneContent h3,.phoneIntro,.phoneKicker { text-align:center; }
+.phoneContent .select,.phoneContent .address,.phoneContent .phonePrice { margin-top:0; flex:none; }
+.phoneContent .address { padding:16px 12px; }
+.phoneContent .bookButton { margin-top:0; min-height:44px; }
+.phoneContent .booked { padding-top:0; flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+@media(max-width:650px) { .phoneContent { padding:14px 14px 20px; gap:9px; } .phoneContent .address { padding:12px; } }

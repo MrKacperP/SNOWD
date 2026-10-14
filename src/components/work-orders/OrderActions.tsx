@@ -1,4 +1,5 @@
 "use client";
+import PaymentSummary from "./PaymentSummary";
 import { completeWithPhoto } from "@/lib/completeWithPhoto";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -121,7 +122,7 @@ export default function OrderActions({
       setSuccess(successMessage);
       setDialog(nextDialog);
       if (navigate) {
-        openWorkOrder();
+        if (!nextDialog) openWorkOrder();
         onUpdated?.(`Order #${orderNumber(job)} updated.`);
       }
     } catch (e) {
@@ -524,8 +525,8 @@ export default function OrderActions({
         {dialog === "action-success" && (
           <div className="space-y-4 text-center">
             <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-100 text-emerald-800"><Check size={28} aria-hidden="true" /></span>
-            <p className="text-base font-semibold">{success}</p>
-            <button className={attentionButton} onClick={() => { setDialog(""); setSuccess(""); }}>Back to work order</button>
+            <p className="text-base font-semibold">{success}</p><p className="text-sm text-[var(--text-secondary)]">Your work order has been updated. Open it to see the current status and next step.</p><PaymentSummary job={job} operator={operator} />
+            <button className={attentionButton} onClick={() => { setDialog(""); setSuccess(""); if (navigateOnUpdate) openWorkOrder(); }}>View updated work order</button>
           </div>
         )}
         {dialog === "finish-after-cash" && <div className="space-y-4">
@@ -647,8 +648,8 @@ export default function OrderActions({
         {dialog === "completion-success" && (
           <div className="space-y-4 text-center">
             <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-100 text-emerald-800"><Check size={28} aria-hidden="true" /></span>
-            <div><p className="text-lg font-semibold">This work order is complete.</p><p className="mt-2 text-sm text-[var(--text-secondary)]">The completion photo has been saved{job.paymentMethod === "cash" && job.paymentStatus !== "paid" ? ". You can record the cash payment later from Needs attention." : " and payment is complete."}</p></div>
-            <button className={attentionButton} onClick={() => router.push("/dashboard")}>Close work order & return home</button>
+            <div><p className="text-lg font-semibold">This work order is complete.</p><p className="mt-2 text-sm text-[var(--text-secondary)]">The completion photo has been saved{job.paymentMethod === "cash" && job.paymentStatus !== "paid" ? ". You can record the cash payment later from Needs attention." : ". Check the payment summary for its current status."}</p></div>
+            <button className={attentionButton} onClick={() => router.push("/dashboard")}>Return to dashboard</button>
           </div>
         )}
         {dialog === "approve" && (

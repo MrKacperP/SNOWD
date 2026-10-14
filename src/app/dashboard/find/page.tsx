@@ -4,6 +4,7 @@ import { orderRequest } from "@/components/work-orders/OrderActions";
 
 import Modal from "@/components/ui/Modal";
 import PageHeader from "@/components/ui/PageHeader";
+import PropertyMap from "@/components/PropertyMap";
 import { ResultState } from "@/components/ui/AppPrimitives";
 
 import { canAcceptPlatformPayments } from "@/lib/operatorDiscovery";
@@ -500,7 +501,7 @@ export default function FindOperatorsPage() {
       {loadError && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4"><p>{loadError}</p><button type="button" className="mt-2 min-h-11 underline" onClick={() => setRetry(value => value + 1)}>Try again</button></div>}
       {bookingError && !schedulingOperator && <p role="alert" className="text-red-700">{bookingError}</p>}
       <Modal isOpen={!!schedulingOperator} onClose={() => { if (!booking) { setSchedulingOperator(null); setCreatedJobId(""); setBookingStep(1); } }} title={createdJobId ? undefined : `Request snow help · ${bookingStep} of 4`} size="lg" showClose={!booking}>
-        {schedulingOperator && createdJobId ? <ResultState title="Help requested." description={`${schedulingOperator.businessName || schedulingOperator.displayName} will review your request. We’ll let you know when they respond.`} actionHref={`/dashboard/jobs/${createdJobId}`} actionLabel="View work order">
+        {schedulingOperator && createdJobId ? <ResultState title="Request sent." description={`${schedulingOperator.businessName || schedulingOperator.displayName} will review your request. We’ll let you know when they respond.`} actionHref={`/dashboard/jobs/${createdJobId}`} actionLabel="Track your work order">
           <div className="mt-6 flex items-center justify-center gap-2 rounded-xl bg-[var(--bg-secondary)] p-4 text-sm font-semibold"><CalendarDays size={18} />{scheduleType === "asap" ? "As soon as possible" : `${format(new Date(`${scheduledDate}T12:00:00`), "EEE, MMM d")} · ${format(new Date(`${scheduledDate}T${scheduledTime}:00`), "h:mm a")}`}</div>
           <p className="mt-3 text-center text-sm text-[var(--text-secondary)]">{requestedServices.map(item => item.replaceAll("-", " ")).join(" · ")} · {clientProfile?.address} · {paymentMethod === "cash" ? "Cash" : "Card"}</p>
         </ResultState> : schedulingOperator && <div className="space-y-5">
@@ -513,7 +514,7 @@ export default function FindOperatorsPage() {
           <button type="button" onClick={() => setBookingStep(2)} disabled={!requestedServices.length} className="btn-primary w-full min-h-12">Continue with this shoveler</button>
           </>}
           {bookingStep === 2 && <>
-          <h3 className="text-lg font-semibold">Confirm your location</h3>
+          <h3 className="text-lg font-semibold">Confirm your location</h3>{clientProfile?.address && <div className="h-48"><PropertyMap address={[clientProfile.address, clientProfile.city, clientProfile.province].filter(Boolean).join(", ")} /></div>}
           <div className="flex items-center gap-3 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4"><MapPin size={20} /><span><small className="block text-xs text-[var(--text-muted)]">SAVED PROPERTY</small><strong>{clientProfile?.address || "Add your service address"}</strong><small className="block text-[var(--text-secondary)]">{clientProfile?.city}</small></span></div>
           {!clientProfile?.address && <Link href="/dashboard/settings" className="inline-flex min-h-11 items-center underline">Add your address</Link>}
           <button type="button" onClick={() => setBookingStep(3)} disabled={!clientProfile?.address} className="btn-primary w-full min-h-12">Continue</button>

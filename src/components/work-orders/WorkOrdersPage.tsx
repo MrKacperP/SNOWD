@@ -6,6 +6,7 @@ import CompanyIdentity from "@/components/CompanyIdentity";
 import { useWorkOrders } from "@/hooks/useWorkOrders";
 import { jobDisplayPrice } from "@/lib/marketplacePricing";
 import { dateMillis, isAsap, orderNumber, orderLabel, orderActionNeeded, propertySizeLabel, scheduleText, terminalOrderDateText } from "@/lib/workOrders";
+import PaymentSummary from "./PaymentSummary";
 import styles from "./work-orders.module.css";
 import ui from "./order-list.module.css";
 
@@ -55,7 +56,7 @@ export default function WorkOrdersPage({ history = false, schedule = false }: { 
                 <p><MapPin size={15} aria-hidden="true" /><span>{job.address || "Address to be confirmed"}</span></p>
                 <p><CalendarDays size={15} aria-hidden="true" /><span>{timing}</span></p>
               </div>
-              <p className={ui.price}>${jobDisplayPrice(job, isOperator).toFixed(2)} <span>CAD</span></p>
+              <PaymentSummary job={job} operator={isOperator} />
             </div>
             <footer className={ui.footer}>
               <span className={ui.reference}>Order #{orderNumber(job)}</span>

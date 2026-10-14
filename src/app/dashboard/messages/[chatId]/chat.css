@@ -181,3 +181,24 @@
   .chat-workspace .conversation-panel { border-radius: 22px; box-shadow: 0 8px 24px rgba(17,43,59,.045); }
   .chat-workspace .conversation-header { padding: 18px 20px; }
 }
+
+.conversation-order-summary { border-radius:16px; background:var(--bg-secondary); padding:14px; }
+
+.conversation-composer form:focus-within { outline:none; box-shadow:none; border-color:#dbe3e8; }
+.chat-workspace .conversation-composer textarea,.chat-workspace .conversation-composer textarea:focus { border:0; outline:none; box-shadow:none; background:transparent; }
+.chat-workspace .conversation-composer textarea:focus-visible { outline:1px solid #a7becb; outline-offset:-3px; }
+.chat-workspace .chat-order-link { display:flex; align-items:center; gap:14px; padding:15px; border:1px solid #dce6eb; border-radius:15px; background:#fff; color:#173443; }
+.chat-order-main { display:flex; align-items:center; gap:12px; min-width:0; flex:1; }
+.chat-order-main > span:last-child { min-width:0; }
+.chat-order-main strong { display:block; font-size:14px; font-weight:650; }
+.chat-order-main small { display:block; margin-top:4px; font-size:12px; color:#607784; }
+.chat-order-icon { display:grid; place-items:center; width:38px; height:38px; flex:none; background:#edf4f7; border-radius:11px; color:#47758c; }
+.chat-order-payment { display:grid; gap:4px; text-align:right; flex:none; }
+.chat-order-payment strong { font-size:18px; }
+.chat-order-payment small,.chat-order-payment > span { font-size:11px; font-weight:400; color:#607784; }
+@media(max-width:600px) { .chat-order-icon { display:none; } .chat-workspace .chat-order-link { gap:9px; padding:12px; } .chat-order-main strong { font-size:12px; } }
+
+.chat-order-main small { margin:0 0 4px; font-size:12px; text-transform:uppercase; letter-spacing:.08em; font-weight:600; }
+.chat-order-main strong { display:flex; align-items:center; flex-wrap:wrap; gap:8px; font-size:16px; }
+.chat-order-price { padding:3px 8px; border-radius:6px; background:#fff1e5; font-size:16px; white-space:nowrap; }
+@media(max-width:600px) { .chat-workspace .chat-order-link { flex-wrap:wrap; } .chat-order-main { flex-basis:60%; } .chat-order-main strong { font-size:14px; } }

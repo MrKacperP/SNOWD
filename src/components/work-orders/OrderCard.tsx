@@ -1,11 +1,12 @@
 "use client";
-import { jobDisplayPrice } from "@/lib/marketplacePricing";
+import PaymentSummary from "./PaymentSummary";
+import PropertyMap from "@/components/PropertyMap";
 import CompanyIdentity from "@/components/CompanyIdentity";
 import Link from "next/link";
 import { ClientProfile, Job, OperatorProfile } from "@/lib/types";
 import { isAsap, orderLabel, orderNumber, propertySizeLabel, scheduleText } from "@/lib/workOrders";
 import { useAuth } from "@/context/AuthContext";
-import { MapPin, ArrowUpRight, Banknote, CreditCard, Clock3 } from "lucide-react";
+import { Clock3 } from "lucide-react";
 import styles from "./work-orders.module.css";
 import OrderGuide from "./OrderGuide";
 import OrderActions from "./OrderActions";
@@ -32,6 +33,7 @@ export default function OrderCard({
   return (
     <article className={styles.card}>
       <div className={styles.body}>
+        {detail && <section className="order-property">{job.address ? <PropertyMap address={[job.address, job.city, job.province].filter(Boolean).join(", ")} origin={job.status === "en-route" && Number.isFinite(job.operatorApproxLat) && Number.isFinite(job.operatorApproxLng) ? `${job.operatorApproxLat},${job.operatorApproxLng}` : undefined} title={job.status === "en-route" ? "Route from the operator’s shared approximate location" : "Service location"} /> : null}{job.status === "en-route" && Number.isFinite(job.operatorApproxLat) && <small className="block mt-2 text-[var(--text-secondary)]">Route starts at the operator’s shared approximate location.</small>}<p>{job.address || "Address to be confirmed"}{job.city ? `, ${job.city}` : ""}</p></section>}
         <div className={styles.cardHeader}>
           <div className="min-w-0">
             <p className={styles.reference}>Work order #{orderNumber(job)}</p>
@@ -47,18 +49,8 @@ export default function OrderCard({
             <span><Clock3 size={13} /> {isAsap(job) ? "Arrival" : "Scheduled"}</span>
             <strong className={isAsap(job) ? styles.arrivalChip : ""}>{job.status === "en-route" && job.eta ? `About ${job.eta} min away` : isAsap(job) ? "ASAP · time to confirm" : scheduleText(job)}</strong>
           </div>
-          <div>
-            <span>{job.paymentMethod === "cash" ? <Banknote size={13} /> : <CreditCard size={13} />} {job.paymentMethod === "cash" ? "Cash" : "Card"}</span>
-            <strong>${jobDisplayPrice(job, operator).toFixed(2)} <small>CAD</small></strong>
-            <small>{job.paymentStatus === "held" ? "Authorized" : job.paymentStatus === "paid" ? "Paid" : job.paymentStatus === "refunded" ? "Refunded" : "Pending"}</small>
-          </div>
+          <PaymentSummary job={job} operator={operator} />
         </div>
-        {detail && <a className={`${styles.locationWidget} ${styles.locationWidgetLink}`} aria-label="Open service location in Google Maps" href={job.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([job.address, job.city, job.province].filter(Boolean).join(", "))}` : undefined} target={job.address ? "_blank" : undefined} rel={job.address ? "noreferrer" : undefined}>
-          <span className={styles.locationMap} aria-hidden="true"><span className={styles.mapRoadOne} /><span className={styles.mapRoadTwo} /><span className={styles.mapRoadThree} /><span className={styles.mapMarker}><MapPin size={18} /></span></span>
-          <span className={styles.locationIcon}><MapPin size={19} /></span>
-          <span className={styles.locationCopy}><span>{operator ? "Customer location" : "Service location"}</span><strong>{job.address || "Address to be confirmed"}{job.city ? `, ${job.city}` : ""}</strong></span>
-          {job.address ? <span className={styles.locationOpen}><ArrowUpRight size={17} /></span> : null}
-        </a>}
         {detail && <section className={styles.serviceSummary} aria-label="Requested service"><strong>{propertySizeLabel(job.propertySize)}</strong><span>{job.serviceTypes?.filter((service) => service !== "driveway").map((service) => service.replaceAll("-", " ")).join(" · ") || "Driveway clearing"}</span></section>}
         {!detail && <OrderGuide job={job} uid={user?.uid || ""} />}
         {detail && job.chatId && (

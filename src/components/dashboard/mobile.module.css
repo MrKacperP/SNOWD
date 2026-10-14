@@ -64,3 +64,21 @@
 .shortcuts a:is(:hover,:focus-visible) .shortcutIcon { transform:scale(1.06); }
 .shortcutIcon { transition:transform .25s ease; }
 @media(prefers-reduced-motion:reduce) { .shortcutHoverAsset,.shortcutIcon { transition:none; } }
+
+.shortcuts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; border:0; background:transparent; overflow:visible; }
+.shortcuts a { min-height:110px; justify-content:center; border:1px solid var(--border-color); border-radius:18px; background:var(--card); text-align:center; padding:20px 12px; }
+.shortcuts a + a { border-top:1px solid var(--border-color); }
+.shortcuts .shortcutIcon,.shortcuts .shortcutArrow { display:none; }
+.shortcuts .shortcutTitle { flex:none; transition:opacity .2s,transform .2s; font-size:14px; }
+.shortcuts .shortcutHoverAsset { left:50%; z-index:2; }
+.shortcuts a:is(:hover,:focus-visible) .shortcutHoverAsset { opacity:1; transform:translate(-50%,-50%) scale(1); }
+.shortcuts a:is(:hover,:focus-visible) .shortcutTitle { opacity:0; transform:translateY(-8px); }
+@media(min-width:900px) { .shortcuts { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+@media(prefers-reduced-motion:reduce) { .shortcutTitle { transition:none; } }
+
+.bookingCard { display:flex; flex-direction:column; align-items:flex-start; padding:clamp(24px,3vw,36px); border:1px solid var(--glass-border); border-radius:26px; background:var(--card); }
+.bookingCard h2 { color:var(--ink); font-size:clamp(26px,3vw,34px); line-height:1.2; letter-spacing:-.035em; margin-top:22px; }
+.bookingCard > p:not(.location) { font-size:18px; line-height:1.6; margin:16px 0 26px; color:var(--text-secondary); }
+.bookingCard .location,.bookingCard .actionNote { font-size:16px; }
+.bookingCard .mainAction { width:100%; max-width:380px; border-radius:999px; min-height:56px; font-size:18px; }
+.shortcuts .shortcutTitle { font-size:16px; }
