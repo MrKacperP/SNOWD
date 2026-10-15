@@ -1,5 +1,6 @@
 "use client";
 import IconSwap from "@/components/ui/IconSwap";
+import DashboardMap from "./DashboardMap";
 
 
 import { BookingAction, HomeActions } from "./HomeActions";
@@ -28,17 +29,18 @@ export default function ClientDashboard() {
   const locationLabel =
     [clientProfile?.city, clientProfile?.province].filter(Boolean).join(", ") || "Your service area";
 
-  return <ClientHomeView locationLabel={locationLabel} activeJobs={activeJobs} operatorNames={operatorNames} loading={loading} loadError={loadError} />;
+  return <ClientHomeView locationLabel={locationLabel} activeJobs={activeJobs} profile={clientProfile} operatorNames={operatorNames} loading={loading} loadError={loadError} />;
 }
 
-export function ClientHomeView({ locationLabel, activeJobs, operatorNames, loading, loadError }: {
-  locationLabel: string; activeJobs: Job[];
+export function ClientHomeView({ locationLabel, activeJobs, profile, operatorNames, loading, loadError }: {
+  locationLabel: string; activeJobs: Job[]; profile?: ClientProfile | null;
   operatorNames: Record<string, string>; loading: boolean; loadError: boolean;
 }) {
   const nextJob = activeJobs[0];
   const next = nextJob ? workOrderPresentation(nextJob, nextJob.clientId) : null;
   return (
     <div className="app-page client-home text-[var(--text-primary)]"><header className="dashboard-overview"><div><p className="app-eyebrow">Welcome back</p><h1>Your snow day</h1></div></header>
+      <DashboardMap profile={profile || null} job={activeJobs.find(job => ["accepted", "en-route", "in-progress"].includes(job.status))} role="client" />
       <div className={nextJob ? "client-home-current" : "client-home-grid"}>
       {!loading && !loadError && nextJob && next ? <section className={`next-action job-widget job-widget--${nextJob.status}`}>
         <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="app-eyebrow">Next step</p><h2>{next.title}</h2></div><StatusBadge status={nextJob.status} /></div>

@@ -5,6 +5,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import BrowserSupport from "@/components/support/BrowserSupport";
 import PageVisitTracker from "@/components/PageVisitTracker";
+import PrimaryActionShine from "@/components/ui/PrimaryActionShine";
 import { Instrument_Sans, Space_Grotesk } from "next/font/google";
 
 const instrumentSans = Instrument_Sans({
@@ -64,6 +65,7 @@ export default function RootLayout({
         <ThemeProvider><AuthProvider>
           <BrowserSupport>
             <PageVisitTracker />
+            <PrimaryActionShine />
             {children}
           </BrowserSupport>
         </AuthProvider></ThemeProvider>

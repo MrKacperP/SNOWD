@@ -47,11 +47,15 @@ export async function POST(request: NextRequest) {
         ...(await tx.get(db.doc(`users/${clientId}`))).data(),
         uid: clientId,
       } as ClientProfile;
+      const location = body.serviceLocation;
+      if (location && (fromOperator || typeof location.address !== "string" || location.address.trim().length < 5 || location.address.length > 250 || typeof location.city !== "string" || !location.city.trim() || location.city.length > 100 || typeof location.province !== "string" || !location.province.trim() || location.province.length > 40 || typeof location.postalCode !== "string" || !/^[A-Z]\d[A-Z]\s?\d[A-Z]\d$/i.test(location.postalCode.trim()) || (location.lat !== undefined && (typeof location.lat !== "number" || !Number.isFinite(location.lat) || Math.abs(location.lat) > 90)) || (location.lng !== undefined && (typeof location.lng !== "number" || !Number.isFinite(location.lng) || Math.abs(location.lng) > 180))))
+        throw new OrderError("Choose a valid service address.", 400);
+      const serviceClient = location ? { ...client, address: location.address.trim(), city: location.city.trim(), province: location.province.trim(), postalCode: location.postalCode.trim(), lat: location.lat, lng: location.lng } : client;
       if (
         operator.role !== "operator" ||
         client.role !== "client" ||
         !isOperatorPublic(operator) ||
-        !isClientWithinOperatorRadius(client, operator)
+        !isClientWithinOperatorRadius(serviceClient, operator)
       )
         throw new OrderError(
           "This company is no longer available for this property.",
@@ -139,12 +143,12 @@ export async function POST(request: NextRequest) {
         status: "pending",
         serviceTypes: services,
         propertySize: size,
-        address: client.address || "",
-        city: client.city || "",
-        province: client.province || "",
-        postalCode: client.postalCode || "",
-        clientLat: client.lat ?? null,
-        clientLng: client.lng ?? null,
+        address: serviceClient.address || "",
+        city: serviceClient.city || "",
+        province: serviceClient.province || "",
+        postalCode: serviceClient.postalCode || "",
+        clientLat: serviceClient.lat ?? null,
+        clientLng: serviceClient.lng ?? null,
         specialInstructions:
           previous?.specialInstructions ||
           client.propertyDetails?.specialInstructions ||

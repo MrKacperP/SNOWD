@@ -161,3 +161,8 @@ body.snowd-glass {
 .snowd-glass :is(.onboarding-flow, [class~="min-h-dvh"][class~="bg-[var(--bg-primary)]"], [class~="min-h-screen"][class~="bg-[var(--bg-primary)]"]) { background: transparent; }
 .snowd-glass .onboarding-card { background: var(--glass-sheen), var(--glass-bg); border-color: var(--glass-border); border-radius: 28px; box-shadow: var(--surface-shadow-strong); }
 .snowd-glass .onboarding-aside { background: linear-gradient(145deg, #d8eaff99, #e1e3fa77); }
+
+/* Dashboard cards and search controls keep a single, quiet surface. */
+.snowd-glass .dashboard-shell :is(.dashboard-location, .job-widget, .next-action, .dashboard-earnings) { background:#fff; background-image:none; border-color:#dce6eb; box-shadow:0 5px 24px #17344306; -webkit-backdrop-filter:none; backdrop-filter:none; }
+.snowd-glass .search { background:#fff; background-image:none; box-shadow:none; }
+.snowd-glass .search input, .snowd-glass .search input:focus { background:transparent; background-image:none; border:0; box-shadow:none; outline:0; }

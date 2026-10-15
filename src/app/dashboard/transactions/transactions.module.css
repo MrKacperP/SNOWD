@@ -3,3 +3,8 @@
 @media(max-width:440px){.balanceFooter{align-items:flex-start;flex-direction:column}.balanceFooter>a{display:none}.statCard{gap:10px}.statCard small{display:none}.iconBox{width:35px;height:35px}.iconBox svg{width:17px}.transactionIcon{width:39px;height:39px}.status{font-size:.68rem}.optionCopy>.optionIcon{display:none}}
 @media(prefers-reduced-motion:reduce){.settingsButton,.transactionRow{transition:none}}
 .growthSection{grid-template-columns:minmax(0,1fr)}
+
+/* Keep monetary figures in one right aligned column at every row width. */
+.transactionRow { grid-template-columns:44px minmax(0,1fr) 104px minmax(112px,auto) 17px; }
+.transactionAmount,.sourceList strong,.settleList strong,.monthTotal strong { font-variant-numeric:tabular-nums; text-align:right; white-space:nowrap; }
+@media(max-width:780px) { .transactionRow { grid-template-columns:39px minmax(0,1fr) minmax(96px,auto); }.transactionRow .status { grid-column:2; grid-row:2; justify-self:start; }.transactionAmount { grid-column:3; grid-row:1/3; min-width:96px; align-self:center; }.settleList>a { grid-template-columns:42px minmax(0,1fr) minmax(96px,auto); }.settleList>a>strong { grid-column:3; grid-row:1/3; }.settleList>a>svg:last-child { display:none; } }

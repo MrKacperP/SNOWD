@@ -734,7 +734,7 @@ export default function OnboardingFlow({
               type="button"
               disabled={!canContinue || saving}
               onClick={() => (step < 3 ? move(step + 1) : void submit())}
-              className="btn-primary flex min-h-13 flex-1 items-center justify-center gap-2 px-4 py-3 text-base disabled:opacity-45"
+              className={`btn-primary flex min-h-13 flex-1 items-center justify-center gap-2 px-4 py-3 text-base disabled:opacity-45 ${step === 3 ? "action-shine" : ""}`}
             >
               {saving
                 ? "Getting things ready…"

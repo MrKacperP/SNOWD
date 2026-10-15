@@ -1,7 +1,6 @@
 "use client";
 import IconSwap from "@/components/ui/IconSwap";
-
-
+import DashboardMap from "./DashboardMap";
 import { HomeActions } from "./HomeActions";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
@@ -10,9 +9,9 @@ import { jobDisplayPrice } from "@/lib/marketplacePricing";
 import { transactionDisplayAmount } from "@/lib/marketplacePricing";
 import { dateMillis, orderActionNeeded, propertySizeLabel, scheduleText } from "@/lib/workOrders";
 import { collection,onSnapshot,query,where } from "firebase/firestore";
-import { ArrowUpRight, Snowflake } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
-import { useEffect,useState } from "react";
+import { useEffect,useRef,useState } from "react";
 
 export default function OperatorDashboard() {
   const { profile } = useAuth();
@@ -23,6 +22,8 @@ export default function OperatorDashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [earningsLoading, setEarningsLoading] = useState(true);
   const [earningsError, setEarningsError] = useState(false);
+  const [selectedRouteJobId, setSelectedRouteJobId] = useState<string | null>(null);
+  const mapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!profile?.uid) return;
@@ -45,13 +46,19 @@ export default function OperatorDashboard() {
   const pending = jobs.filter(job => job.status === "pending" && orderActionNeeded(job, operator?.uid || ""));
   const active = jobs.filter(job => ["accepted", "en-route", "in-progress"].includes(job.status)).sort((a, b) => (dateMillis(a.scheduledDate) || dateMillis(a.createdAt)) - (dateMillis(b.scheduledDate) || dateMillis(b.createdAt)));
   const nextJob = active.find(job => job.status === "in-progress") ?? active.find(job => job.status === "en-route") ?? active[0];
+  const selectedRouteJob = jobs.find(job => job.id === selectedRouteJobId);
   const now = new Date();
   const seasonYear = now.getMonth() >= 10 ? now.getFullYear() : now.getFullYear() - 1;
   const seasonLabel = now.getMonth() >= 4 && now.getMonth() < 10 ? "Last snow season" : "Earned this snow season";
   const seasonStart = new Date(seasonYear, 10, 1).getTime();
   const seasonEnd = new Date(seasonYear + 1, 4, 1).getTime();
-  const seasonEarnings = transactions.filter(item => item.status === "paid" && (() => { const when = dateMillis(item.completedAt || item.createdAt); return when >= seasonStart && when < seasonEnd; })()).reduce((sum, item) => sum + transactionDisplayAmount(item, true), 0);
+  const paidThisSeason = transactions.filter(item => item.status === "paid" && (() => { const when = dateMillis(item.completedAt || item.createdAt); return when >= seasonStart && when < seasonEnd; })()).sort((a, b) => dateMillis(a.completedAt || a.createdAt) - dateMillis(b.completedAt || b.createdAt));
+  const seasonEarnings = paidThisSeason.reduce((sum, item) => sum + transactionDisplayAmount(item, true), 0);
   const seasonAmount = new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(seasonEarnings / 100);
+  const firstEarning = paidThisSeason[0] ? new Date(dateMillis(paidThisSeason[0].completedAt || paidThisSeason[0].createdAt)) : null;
+  const earningsPeriod = firstEarning ? `${new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", year: "numeric" }).format(firstEarning)} – ${new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", year: "numeric" }).format(new Date(Math.min(now.getTime(), seasonEnd - 1)))}` : "No paid work this season yet";
+  const trend = paidThisSeason.reduce<number[]>((points, item) => { points.push((points.at(-1) || 0) + transactionDisplayAmount(item, true)); return points; }, [0]);
+  const sparkline = trend.map((value, index) => `${10 + index * 100 / Math.max(1, trend.length - 1)},${42 - value * 32 / Math.max(1, seasonEarnings)}`).join(" ");
 
   const serviceSummary = (job: Job) => {
     const extras = job.serviceTypes?.filter(service => service !== "driveway").map(service => service.replaceAll("-", " ")) ?? [];
@@ -61,20 +68,22 @@ export default function OperatorDashboard() {
   return (
     <div className="app-page text-[var(--text-primary)]">
       <header className="dashboard-overview"><div><p className="app-eyebrow">Your snow day</p><h1>{loading ? "Work overview" : pending.length ? `${pending.length} work ${pending.length === 1 ? "order needs" : "orders need"} your reply` : nextJob ? "Your next visit" : "Ready for your next request"}</h1><p>{pending.length ? "Review the location, timing and payment, then accept or suggest a time." : "Your requests, upcoming visits and payments in one place."}</p></div><Link href="/dashboard/jobs" className="btn-primary"><IconSwap icon={<ArrowUpRight size={18} />}>{pending.length ? "Review requests" : "View work orders"}<ArrowUpRight size={18} /></IconSwap></Link></header>
+      <div ref={mapRef}><DashboardMap profile={operator} job={selectedRouteJob || nextJob} role="operator" /></div>
       {!operator?.idVerified && <Link href="/dashboard/settings?tab=verification" className="inline-flex min-h-9 items-center rounded-lg px-2 text-sm font-semibold hover:bg-[var(--bg-secondary)]">Verify your ID to receive jobs</Link>}
 
       <section aria-labelledby="work-heading" className="operator-work">
         <div className="flex items-center justify-between gap-3"><h2 id="work-heading" className="text-xl font-semibold">{pending.length ? "Waiting for your reply" : "Upcoming work"}</h2><Link href="/dashboard/jobs" className="min-h-11 content-center font-semibold">View all</Link></div>
         {loadError ? <p role="alert">Could not load work orders. <Link href="/dashboard/jobs">Try again</Link></p> : loading ? <p role="status">Loading work orders…</p> : <div className="operator-work-list">
-          {[...pending.slice(0, 3), ...(nextJob ? [nextJob] : [])].map(job => <Link key={job.id} href={`/dashboard/jobs/${job.id}`} className="operator-work-row">
-            <div><p className="operator-work-status">{job.status === "pending" ? "New request · Reply needed" : job.status === "in-progress" ? "Work in progress" : job.status === "en-route" ? "On the way" : "Visit confirmed"}</p><h3>{serviceSummary(job)}</h3><p>{job.address || "Address to be confirmed"}</p><p>{job.status === "en-route" && job.eta ? `About ${job.eta} min away` : scheduleText(job)}</p></div>
-            <div className="operator-work-amount"><strong>${jobDisplayPrice(job, true).toFixed(2)} <small>CAD</small></strong><span>Your earnings · {job.paymentMethod === "cash" ? "Cash" : "Card"}</span><span>{job.paymentStatus === "paid" ? "Paid" : job.paymentStatus === "held" ? "Authorized" : "Payment pending"}</span><ArrowUpRight size={20} aria-hidden="true" /></div>
-          </Link>)}
+          {[...pending.slice(0, 3), ...(nextJob ? [nextJob] : [])].map(job => <article key={job.id} className={`operator-work-row ${job.status === "pending" ? "operator-work-row--new" : ""}`}>
+            <Link href={`/dashboard/jobs/${job.id}`} className="operator-work-row-link" aria-label={`Open work order: ${serviceSummary(job)}`} />
+            <div className="operator-work-main"><p className="operator-work-status">{job.status === "pending" ? "New request" : job.status === "in-progress" ? "Work in progress" : job.status === "en-route" ? "On the way" : "Visit confirmed"}</p><h3>{serviceSummary(job)}</h3><p>{job.address ? <button type="button" className="operator-work-address" aria-label={`Show route to ${job.address} on the dashboard map`} aria-pressed={selectedRouteJobId === job.id} onClick={() => { setSelectedRouteJobId(job.id); mapRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); }}>{job.address} <span aria-hidden="true">↗</span></button> : "Address to be confirmed"}</p><p>{job.status === "en-route" && job.eta ? `Due in about ${job.eta} min` : job.scheduleMode === "asap" || job.scheduledTime === "ASAP" ? scheduleText(job) : `Due ${scheduleText(job)}`}</p></div>
+            <div className="operator-work-side"><strong>${jobDisplayPrice(job, true).toFixed(2)} <small>CAD</small></strong><span>{job.paymentMethod === "cash" ? job.paymentStatus === "paid" ? "Cash paid" : "Cash, payment pending" : job.paymentStatus === "paid" ? "Paid by card" : job.paymentStatus === "held" ? "Card authorized" : "Card payment pending"}</span></div>
+          </article>)}
           {!pending.length && !nextJob && <div className="client-orders-empty"><div><h3>All clear for now</h3><p>New requests and upcoming visits will appear here.</p></div></div>}
         </div>}
       </section>
 
-      <Link href="/dashboard/transactions" className="dashboard-earnings"><span><span>{seasonLabel}</span><strong>{earningsLoading || earningsError ? "—" : seasonAmount}<small> CAD</small></strong><small>{earningsError ? "Could not load earnings. Open payments to retry." : `Nov ${seasonYear} – Apr ${seasonYear + 1}`}</small></span><span><Snowflake size={24} /><span>View payments ↗</span></span></Link>
+      <Link href="/dashboard/transactions" className="dashboard-earnings" aria-label="Open payments"><span className="dashboard-earnings-content"><span>{seasonLabel}</span><span className="dashboard-earnings-value"><strong>{earningsLoading || earningsError ? "—" : seasonAmount}</strong><small> CAD</small></span><svg viewBox="0 0 120 52" role="img" aria-label="Cumulative earnings growth" preserveAspectRatio="none"><polyline points={sparkline} /></svg><small>{earningsError ? "Could not load earnings." : earningsPeriod}</small></span></Link>
       <HomeActions operator />
     </div>
   );

@@ -491,7 +491,7 @@ export default function OrderActions({
       {!operator && ["pending", "accepted"].includes(job.status) && job.paymentMethod === "credit" && !["held", "paid"].includes(job.paymentStatus) && <section className="rounded-xl border border-[var(--border-color)] p-4 space-y-3">
         <p>Card not working? You can pay in cash instead, or cancel this request and find another operator who accepts cards.</p>
         <label className="flex items-center gap-3"><input type="checkbox" checked={cash} onChange={event => setCash(event.target.checked)} disabled={busy} />I agree to pay ${(job.operatorAmount ? job.operatorAmount / 100 : job.price).toFixed(2)} CAD in cash after the work.</label>
-        <button className="btn-secondary action-shine" disabled={busy || !cash} onClick={() => run(() => orderRequest("/api/jobs/switch-to-cash", { jobId: job.id, cashPaymentAcknowledged: true }), true, "action-success", "Payment changed to cash.")}>Switch to cash</button>
+        <button className="btn-secondary" disabled={busy || !cash} onClick={() => run(() => orderRequest("/api/jobs/switch-to-cash", { jobId: job.id, cashPaymentAcknowledged: true }), true, "action-success", "Payment changed to cash.")}>Switch to cash</button>
         <a className="block font-semibold text-[var(--accent)]" href="/dashboard/find?payment=credit">Find an operator who accepts cards</a>
       </section>}
       {busy && <p role="status">Updating work order…</p>}
@@ -531,8 +531,8 @@ export default function OrderActions({
         {dialog === "action-success" && (
           <div className="space-y-4 text-center">
             <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-100 text-emerald-800"><Check size={28} aria-hidden="true" /></span>
-            <p className="text-base font-semibold">{success}</p><p className="text-sm text-[var(--text-secondary)]">Your work order has been updated. Open it to see the current status and next step.</p><PaymentSummary job={job} operator={operator} />
-            <button className={attentionButton} onClick={() => { setDialog(""); setSuccess(""); if (navigateOnUpdate) openWorkOrder(); }}>View updated work order</button>
+            <p className="text-base font-semibold">{success}</p><p className="text-sm text-[var(--text-secondary)]">Your work order has been updated. Continue to see its current status and next step.</p><PaymentSummary job={job} operator={operator} />
+            <button className={attentionButton} onClick={() => { setDialog(""); setSuccess(""); }}>Continue</button>
           </div>
         )}
         {dialog === "finish-after-cash" && <div className="space-y-4">
@@ -655,7 +655,7 @@ export default function OrderActions({
           <div className="space-y-4 text-center">
             <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-100 text-emerald-800"><Check size={28} aria-hidden="true" /></span>
             <div><p className="text-lg font-semibold">This work order is complete.</p><p className="mt-2 text-sm text-[var(--text-secondary)]">The completion photo has been saved{job.paymentMethod === "cash" && job.paymentStatus !== "paid" ? ". You can record the cash payment later from Needs attention." : ". Check the payment summary for its current status."}</p></div>
-            <button className={attentionButton} onClick={() => router.push("/dashboard")}>Return to dashboard</button>
+            <button className={attentionButton} onClick={() => { setDialog(""); setSuccess(""); }}>Continue</button>
           </div>
         )}
         {dialog === "approve" && (

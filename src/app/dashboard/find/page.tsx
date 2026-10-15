@@ -7,6 +7,7 @@ import { orderRequest } from "@/components/work-orders/OrderActions";
 import Modal from "@/components/ui/Modal";
 import PageHeader from "@/components/ui/PageHeader";
 import PropertyMap from "@/components/PropertyMap";
+import OnboardingAddress, { type OnboardingLocation } from "@/components/OnboardingAddress";
 import { ResultState } from "@/components/ui/AppPrimitives";
 
 import { canAcceptPlatformPayments } from "@/lib/operatorDiscovery";
@@ -231,6 +232,11 @@ export default function FindOperatorsPage() {
   const [bookingError, setBookingError] = useState("");
   const [createdJobId, setCreatedJobId] = useState("");
   const [bookingStep, setBookingStep] = useState(1);
+  const [editingLocation, setEditingLocation] = useState(false);
+  const [bookingLocation, setBookingLocation] = useState<OnboardingLocation | null>(null);
+  const serviceLocation = bookingLocation || clientProfile;
+  const locationReady = Boolean(serviceLocation?.address?.trim() && serviceLocation?.city?.trim() && serviceLocation?.province?.trim() && /^[A-Z]\d[A-Z]\s?\d[A-Z]\d$/i.test(serviceLocation?.postalCode?.trim() || ""));
+  const locationInRange = !bookingLocation || Boolean(schedulingOperator && isClientWithinOperatorRadius({ ...clientProfile, ...bookingLocation }, schedulingOperator));
   const monthDays = eachDayOfInterval({ start: startOfWeek(startOfMonth(calendarMonth)), end: endOfWeek(endOfMonth(calendarMonth)) });
   const timeOptions = Array.from({ length: 25 }, (_, index) => { const minutes = 7 * 60 + index * 30; return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`; });
   const isScheduledTimePast = (time: string) => new Date(`${scheduledDate}T${time}:00`).getTime() <= Date.now();
@@ -245,6 +251,8 @@ export default function FindOperatorsPage() {
     if (operator && isClientWithinOperatorRadius(clientProfile, operator)) {
       setSchedulingOperator(operator);
       setBookingStep(1);
+      setBookingLocation(null);
+      setEditingLocation(false);
       setTimingChosen(false);
       setRequestedServices((clientProfile?.propertyDetails?.serviceTypes || ["driveway"]).filter(service => operator.serviceTypes.includes(service)).slice(0, 1).length
         ? (clientProfile?.propertyDetails?.serviceTypes || ["driveway"]).filter(service => operator.serviceTypes.includes(service))
@@ -259,6 +267,8 @@ export default function FindOperatorsPage() {
     if (!user?.uid || !profile) return;
     setCreatedJobId("");
     setBookingStep(1);
+    setBookingLocation(null);
+    setEditingLocation(false);
     setTimingChosen(false);
     setSchedulingOperator(operator);
     setRequestedServices(selectedServices.filter(service => operator.serviceTypes.includes(service)).length
@@ -292,7 +302,7 @@ export default function FindOperatorsPage() {
     try {
       const operatorSnapshot = await getDoc(doc(db, "users", schedulingOperator.uid));
       const operator = { ...operatorSnapshot.data(), uid: schedulingOperator.uid } as OperatorProfile;
-      if (!operatorSnapshot.exists() || !isOperatorPublic(operator) || !isClientWithinOperatorRadius(clientProfile, operator)) {
+      if (!operatorSnapshot.exists() || !isOperatorPublic(operator) || !isClientWithinOperatorRadius({ ...clientProfile, ...(bookingLocation || {}) }, operator)) {
         setBookingError("This operator is no longer available in your service area.");
         return;
       }
@@ -341,6 +351,7 @@ export default function FindOperatorsPage() {
         cashPaymentAcknowledged: !operatorRequiresCard && cashAcknowledged,
         expectedPrice: quoteMarketplace(calculateServicePrice(operator.pricing, requestedServices, propertySize), paymentMethod).price,
         serviceTypes: requestedServices,
+        ...(bookingLocation ? { serviceLocation: bookingLocation } : {}),
       };
       const key = JSON.stringify(payload);
       if (bookingAttempt.current?.key !== key) bookingAttempt.current = { key, id: crypto.randomUUID() };
@@ -355,8 +366,8 @@ export default function FindOperatorsPage() {
           clientName: profile?.displayName || "",
           operatorName: operator.displayName || operator.businessName || "",
           jobId: jobRef.id,
-          address: clientProfile?.address || "",
-          city: clientProfile?.city || "",
+          address: serviceLocation?.address || "",
+          city: serviceLocation?.city || "",
         },
       });
       setCreatedJobId(jobRef.id);
@@ -511,7 +522,7 @@ export default function FindOperatorsPage() {
       <Modal isOpen={!!schedulingOperator} onClose={() => { if (!booking) { setSchedulingOperator(null); setCreatedJobId(""); setBookingStep(1); } }} title={createdJobId ? undefined : `Request snow help · ${bookingStep} of 4`} size="lg" showClose={!booking}>
         {schedulingOperator && createdJobId ? <ResultState title="Request sent." description={`${schedulingOperator.businessName || schedulingOperator.displayName} will review your request. We’ll let you know when they respond.`} actionHref={`/dashboard/jobs/${createdJobId}`} actionLabel="Track your work order">
           <div className="mt-6 flex items-center justify-center gap-2 rounded-xl bg-[var(--bg-secondary)] p-4 text-sm font-semibold"><CalendarDays size={18} />{scheduleType === "asap" ? "As soon as possible" : `${format(new Date(`${scheduledDate}T12:00:00`), "EEE, MMM d")} · ${format(new Date(`${scheduledDate}T${scheduledTime}:00`), "h:mm a")}`}</div>
-          <p className="mt-3 text-center text-sm text-[var(--text-secondary)]">{requestedServices.map(item => item.replaceAll("-", " ")).join(" · ")} · {clientProfile?.address} · {paymentMethod === "cash" ? "Cash" : "Card"}</p>
+          <p className="mt-3 text-center text-sm text-[var(--text-secondary)]">{requestedServices.map(item => item.replaceAll("-", " ")).join(" · ")} · {serviceLocation?.address} · {paymentMethod === "cash" ? "Cash" : "Card"}</p>
         </ResultState> : schedulingOperator && <div className="space-y-5">
           <div className="h-1.5 overflow-hidden rounded-full bg-[var(--bg-secondary)]"><div className="h-full rounded-full bg-[var(--ink)] transition-all" style={{ width: `${bookingStep * 25}%` }} /></div>
           {bookingStep > 1 && <button type="button" onClick={() => { setBookingError(""); setBookingStep(current => current - 1); }} className="inline-flex min-h-10 items-center gap-2 rounded-full px-2 text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]">← Back</button>}
@@ -522,10 +533,14 @@ export default function FindOperatorsPage() {
           <button type="button" onClick={() => setBookingStep(2)} disabled={!requestedServices.length} className="btn-primary w-full min-h-12">Continue with this shoveler</button>
           </>}
           {bookingStep === 2 && <>
-          <h3 className="text-lg font-semibold">Confirm your location</h3>{clientProfile?.address && <div className="h-48"><PropertyMap address={[clientProfile.address, clientProfile.city, clientProfile.province].filter(Boolean).join(", ")} /></div>}
-          <div className="flex items-center gap-3 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4"><MapPin size={20} /><span><small className="block text-xs text-[var(--text-muted)]">SAVED PROPERTY</small><strong>{clientProfile?.address || "Add your service address"}</strong><small className="block text-[var(--text-secondary)]">{clientProfile?.city}</small></span></div>
-          {!clientProfile?.address && <Link href="/dashboard/settings" className="inline-flex min-h-11 items-center underline">Add your address</Link>}
-          <button type="button" onClick={() => setBookingStep(3)} disabled={!clientProfile?.address} className="btn-primary w-full min-h-12">Continue</button>
+          <h3 className="text-lg font-semibold">Confirm your location</h3>
+          {editingLocation ? <OnboardingAddress value={bookingLocation || { address: "", city: "", province: "", postalCode: "" }} onChange={setBookingLocation} /> : <>
+            {serviceLocation?.address && <div className="h-48"><PropertyMap address={[serviceLocation.address, serviceLocation.city, serviceLocation.province].filter(Boolean).join(", ")} /></div>}
+            <div className="flex items-center gap-3 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4"><MapPin size={20} /><span><small className="block text-xs text-[var(--text-muted)]">{bookingLocation ? "THIS VISIT" : "SAVED PROPERTY"}</small><strong>{serviceLocation?.address || "Add a service address"}</strong><small className="block text-[var(--text-secondary)]">{serviceLocation?.city}</small></span></div>
+          </>}
+          <button type="button" className="min-h-11 text-sm font-semibold text-[var(--accent)]" onClick={() => setEditingLocation(value => !value)}>{editingLocation ? "Done changing location" : "Change location"}</button>
+          {!locationInRange && <p role="alert" className="text-sm text-red-700">This address is outside this shoveler’s service area.</p>}
+          <button type="button" onClick={() => { setEditingLocation(false); setBookingStep(3); }} disabled={!locationReady || !locationInRange} className="btn-primary w-full min-h-12">Continue</button>
           </>}
           {bookingStep === 3 && <>
           <h3 className="text-lg font-semibold">When do you need help?</h3>
@@ -549,7 +564,7 @@ export default function FindOperatorsPage() {
           <fieldset><legend className="mb-2 text-sm font-semibold">Payment preference</legend><div className="grid grid-cols-2 gap-2"><button type="button" aria-pressed={paymentMethod === "cash"} onClick={() => { setPaymentMethod("cash"); setCashAcknowledged(false); }} className={`min-h-12 rounded-xl border px-3 ${paymentMethod === "cash" ? "border-[var(--ink)] bg-[var(--accent-soft)]" : "border-[var(--border-color)]"}`}><IconSwap icon={<Banknote className="mr-2 inline h-4 w-4" />}><Banknote className="mr-2 inline h-4 w-4" />Cash</IconSwap></button>{canAcceptPlatformPayments(schedulingOperator) && <button type="button" aria-pressed={paymentMethod === "credit"} onClick={() => { setPaymentMethod("credit"); setCashAcknowledged(false); }} className={`min-h-12 rounded-xl border px-3 ${paymentMethod === "credit" ? "border-[var(--ink)] bg-[var(--accent-soft)]" : "border-[var(--border-color)]"}`}><IconSwap icon={<CreditCard className="mr-2 inline h-4 w-4" />}><CreditCard className="mr-2 inline h-4 w-4" />Card</IconSwap></button>}</div></fieldset>
           <div className="rounded-xl bg-[var(--bg-secondary)] p-4 text-sm text-[var(--text-secondary)]">{paymentMethod === "credit" ? "Authorize a card after acceptance. It is charged only after photo proof." : <label className="flex items-start gap-3"><input type="checkbox" checked={cashAcknowledged} onChange={event => setCashAcknowledged(event.target.checked)} className="mt-0.5 h-5 w-5 shrink-0" /><span>I’ll pay the operator in cash after the work is done.</span></label>}</div>
           {bookingError && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{bookingError}</p>}
-          <button onClick={() => void confirmBooking()} disabled={booking || requestedServices.length === 0 || (paymentMethod === "cash" && !cashAcknowledged)} className="btn-primary w-full min-h-13">{booking ? "Sending request…" : "Request snow help"}</button>
+          <button onClick={() => void confirmBooking()} disabled={booking || requestedServices.length === 0 || (paymentMethod === "cash" && !cashAcknowledged)} className="btn-primary action-shine w-full min-h-13">{booking ? "Sending request…" : "Request snow help"}</button>
           <p className="text-center text-xs text-[var(--text-muted)]">The visit is confirmed when the operator accepts.</p>
           </>}
         </div>}

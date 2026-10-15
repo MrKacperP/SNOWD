@@ -67,7 +67,7 @@ function Brand() {
 }
 function FindHelp() {
   return (
-    <Link href="/signup?role=client" className={styles.primary}>
+    <Link href="/signup?role=client" className={`${styles.primary} action-shine`}>
       Find a shoveler <ArrowRight size={18} aria-hidden="true" />
     </Link>
   );
@@ -126,7 +126,7 @@ export default function HomePage() {
               </li>
             ))}
           </ol>
-          <div className={styles.howAction}><Link href="/signup?role=client" className={styles.primary}>Find a shoveler <ArrowRight size={18} aria-hidden="true" /></Link></div>
+          <div className={styles.howAction}><Link href="/signup?role=client" className={`${styles.primary} action-shine`}>Find a shoveler <ArrowRight size={18} aria-hidden="true" /></Link></div>
         </section>
         <section id="faq" className={styles.faq} aria-labelledby="faq-title">
           <div className={styles.faqIntro}>

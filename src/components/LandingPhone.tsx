@@ -202,7 +202,7 @@ export default function LandingPhone() {
         <button type="button" aria-pressed={schedule === "asap"} onClick={() => setSchedule("asap")}><Sparkles size={19} /><span>ASAP</span></button>
         <button type="button" aria-pressed={schedule === "scheduled"} onClick={() => setSchedule("scheduled")}><CalendarDays size={19} /><span>Scheduled</span></button>
       </div></div>}
-      {showAction && <div className={styles.actionArea}>{view === "success" ? <Link className={styles.primary} href="/signup?role=client" onClick={resetDemo}>Sign up to book help <ArrowRight size={18} /></Link> : <button className={styles.primary} disabled={["timing", "review"].includes(view) && scheduleTimeIsPast} onClick={action}>{actionLabel}<ArrowRight size={18} /></button>}</div>}
+      {showAction && <div className={styles.actionArea}>{view === "success" ? <Link className={`${styles.primary} action-shine`} href="/signup?role=client" onClick={resetDemo}>Sign up to book help <ArrowRight size={18} /></Link> : <button className={`${styles.primary} action-shine`} disabled={["timing", "review"].includes(view) && scheduleTimeIsPast} onClick={action}>{actionLabel}<ArrowRight size={18} /></button>}</div>}
       {showNav && <nav className={styles.bottomNav} aria-label="Demo navigation">{tabs.map(({ view: tab, label, icon: Icon }) => <button key={tab} aria-label={label} aria-current={activeTab === tab ? "page" : undefined} onClick={() => setView(tab)}><Icon size={20} /></button>)}</nav>}
       <div className={styles.homeIndicator} />
     </div>
