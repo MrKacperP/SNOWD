@@ -3,12 +3,11 @@ import IconSwap from "@/components/ui/IconSwap";
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, MapPin, Search, CalendarDays, MessageSquare, Banknote, CreditCard } from "lucide-react";
+import { ArrowRight, MapPin, Search, CalendarDays, Banknote, CreditCard } from "lucide-react";
 import CompanyIdentity from "@/components/CompanyIdentity";
 import { useWorkOrders } from "@/hooks/useWorkOrders";
 import { jobDisplayPrice } from "@/lib/marketplacePricing";
 import { dateMillis, isAsap, orderNumber, orderLabel, orderActionNeeded, propertySizeLabel, scheduleText, terminalOrderDateText } from "@/lib/workOrders";
-import PaymentSummary from "./PaymentSummary";
 import styles from "./work-orders.module.css";
 import ui from "./order-list.module.css";
 
@@ -47,7 +46,7 @@ export default function WorkOrdersPage({ history = false, schedule = false }: { 
           const action = orderActionNeeded(job, uid);
           const actionLabel = action === "Accept or decline request" ? "Review request" : action === "Review proposed time" ? "Review new time" : action || (isOperator && job.status === "in-progress" ? "Continue job" : "View order");
           const timing = closed(job) ? terminalOrderDateText(job) : isAsap(job) ? "As soon as possible" : scheduleText(job);
-          return <li key={job.id} className={ui.order}>
+          return <li key={job.id}><Link href={`/dashboard/jobs/${job.id}`} className={ui.order} aria-label={`${actionLabel}: order ${orderNumber(job)}`} >
             <div className={ui.identity}>
               <CompanyIdentity person={people[personId]} name={names[personId] || (isOperator ? "Customer" : "Service provider")} />
               <span className={ui.status} data-status={job.status}>{orderLabel(job)}</span>
@@ -58,16 +57,13 @@ export default function WorkOrdersPage({ history = false, schedule = false }: { 
                 <p><MapPin size={15} aria-hidden="true" /><span>{job.address || "Address to be confirmed"}</span></p>
                 <p><CalendarDays size={15} aria-hidden="true" /><span>{timing}</span></p>
               </div>
-              <PaymentSummary job={job} operator={isOperator} />
+              <div className={ui.price}>${jobDisplayPrice(job, isOperator).toFixed(2)} <span>CAD</span><small>{isOperator ? "Your earnings" : "Total"} · {job.paymentMethod === "cash" ? "Cash" : "Card"}</small></div>
             </div>
             <footer className={ui.footer}>
               <span className={ui.reference}>Order #{orderNumber(job)}</span>
-              <div className={ui.actions}>
-                {job.chatId && <Link className={ui.message} href={`/dashboard/messages/${job.chatId}`}><IconSwap icon={<MessageSquare size={16} aria-hidden="true" />}><MessageSquare size={16} aria-hidden="true" />Message</IconSwap></Link>}
-                <Link className={action ? ui.primary : ui.secondary} href={`/dashboard/jobs/${job.id}`}><IconSwap icon={<ArrowRight size={16} aria-hidden="true" />}>{actionLabel}<ArrowRight size={16} aria-hidden="true" /></IconSwap></Link>
-              </div>
+              <span className={ui.openHint}>{actionLabel}<ArrowRight size={18} aria-hidden="true" /></span>
             </footer>
-          </li>;
+          </Link></li>;
         })}
       </ul> : <div className={ui.empty}>
         <h2>{query ? "No matching orders" : view === "history" ? "No past work orders" : "No current work orders"}</h2>

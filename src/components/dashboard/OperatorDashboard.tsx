@@ -6,7 +6,7 @@ import { HomeActions } from "./HomeActions";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
 import { Job,OperatorProfile,Transaction } from "@/lib/types";
-import PaymentSummary from "@/components/work-orders/PaymentSummary";
+import { jobDisplayPrice } from "@/lib/marketplacePricing";
 import { transactionDisplayAmount } from "@/lib/marketplacePricing";
 import { dateMillis, orderActionNeeded, propertySizeLabel, scheduleText } from "@/lib/workOrders";
 import { collection,onSnapshot,query,where } from "firebase/firestore";
@@ -63,27 +63,15 @@ export default function OperatorDashboard() {
       <header className="dashboard-overview"><div><p className="app-eyebrow">Your snow day</p><h1>{loading ? "Work overview" : pending.length ? `${pending.length} work ${pending.length === 1 ? "order needs" : "orders need"} your reply` : nextJob ? "Your next visit" : "Ready for your next request"}</h1><p>{pending.length ? "Review the location, timing and payment, then accept or suggest a time." : "Your requests, upcoming visits and payments in one place."}</p></div><Link href="/dashboard/jobs" className="btn-primary"><IconSwap icon={<ArrowUpRight size={18} />}>{pending.length ? "Review requests" : "View work orders"}<ArrowUpRight size={18} /></IconSwap></Link></header>
       {!operator?.idVerified && <Link href="/dashboard/settings?tab=verification" className="inline-flex min-h-9 items-center rounded-lg px-2 text-sm font-semibold hover:bg-[var(--bg-secondary)]">Verify your ID to receive jobs</Link>}
 
-      <section aria-labelledby="work-heading" className="app-card p-5 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="work-heading" className="text-xl font-semibold">{pending.length ? "Waiting for your reply" : "Upcoming work"}</h2>
-          <Link href="/dashboard/jobs" className="min-h-10 content-center rounded-lg px-3 text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] no-underline">View jobs</Link>
-        </div>
-        {loadError ? <p role="alert" className="mt-3">Could not load jobs. <Link href="/dashboard/jobs" className="font-semibold text-[var(--accent)] hover:underline">Open jobs to try again.</Link></p> : loading ? <p role="status" className="mt-3">Loading jobs…</p> : <>
-          {pending.length > 0 && <div className="mt-3 grid gap-3">{pending.map(job => {
-            const timing = job.status === "pending" ? (job.scheduleMode === "asap" || !job.scheduledDate ? "ASAP · arrival to confirm" : scheduleText(job)) : scheduleText(job);
-            return <Link key={job.id} href={`/dashboard/jobs/${job.id}`} className="block overflow-hidden rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card-solid)] no-underline shadow-sm transition hover:border-slate-300 hover:bg-[var(--bg-secondary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]">
-              <div className="p-4"><p className="mb-3 text-xs font-bold uppercase tracking-wide text-[var(--accent)]">New request · Reply needed</p>
-                <div className="grid grid-cols-[1fr_auto] items-center gap-3"><div className="min-w-0"><p className="text-base font-semibold capitalize">{serviceSummary(job)}</p><div className="mt-2 flex flex-wrap items-center gap-2"><span className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700">{timing}</span></div></div><PaymentSummary job={job} operator /></div>
-                <p className="mt-3 text-sm text-[var(--text-secondary)]">{job.address || "Address to be confirmed"}</p><span className="mt-4 flex items-center justify-between border-t border-[var(--border-color)] pt-3 font-semibold">Review request <ArrowUpRight size={17} /></span>
-              </div>
-            </Link>;
-          })}</div>}
-          {nextJob ? <Link href={`/dashboard/jobs/${nextJob.id}`} className={`job-widget job-widget--${nextJob.status} mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4 no-underline`}>
-            <div className="min-w-0 flex-1"><p className="text-base font-semibold break-words capitalize">{serviceSummary(nextJob)}</p><p className="mt-1 text-sm text-[var(--text-secondary)]">{nextJob.address || "Address to be confirmed"}</p><p className="mt-2"><span className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700">{nextJob.status === "in-progress" ? "Work in progress" : nextJob.status === "en-route" && nextJob.eta ? `On your way · ${nextJob.eta} min` : scheduleText(nextJob)}</span></p></div>
-            <PaymentSummary job={nextJob} operator />
-          </Link> : null}
-          {!pending.length && !nextJob && <p className="py-8 text-sm text-[var(--text-secondary)]">No visits waiting. New requests will appear here when a neighbor books you.</p>}
-        </>}
+      <section aria-labelledby="work-heading" className="operator-work">
+        <div className="flex items-center justify-between gap-3"><h2 id="work-heading" className="text-xl font-semibold">{pending.length ? "Waiting for your reply" : "Upcoming work"}</h2><Link href="/dashboard/jobs" className="min-h-11 content-center font-semibold">View all</Link></div>
+        {loadError ? <p role="alert">Could not load work orders. <Link href="/dashboard/jobs">Try again</Link></p> : loading ? <p role="status">Loading work orders…</p> : <div className="operator-work-list">
+          {[...pending.slice(0, 3), ...(nextJob ? [nextJob] : [])].map(job => <Link key={job.id} href={`/dashboard/jobs/${job.id}`} className="operator-work-row">
+            <div><p className="operator-work-status">{job.status === "pending" ? "New request · Reply needed" : job.status === "in-progress" ? "Work in progress" : job.status === "en-route" ? "On the way" : "Visit confirmed"}</p><h3>{serviceSummary(job)}</h3><p>{job.address || "Address to be confirmed"}</p><p>{job.status === "en-route" && job.eta ? `About ${job.eta} min away` : scheduleText(job)}</p></div>
+            <div className="operator-work-amount"><strong>${jobDisplayPrice(job, true).toFixed(2)} <small>CAD</small></strong><span>Your earnings · {job.paymentMethod === "cash" ? "Cash" : "Card"}</span><span>{job.paymentStatus === "paid" ? "Paid" : job.paymentStatus === "held" ? "Authorized" : "Payment pending"}</span><ArrowUpRight size={20} aria-hidden="true" /></div>
+          </Link>)}
+          {!pending.length && !nextJob && <div className="client-orders-empty"><div><h3>All clear for now</h3><p>New requests and upcoming visits will appear here.</p></div></div>}
+        </div>}
       </section>
 
       <Link href="/dashboard/transactions" className="dashboard-earnings"><span><span>{seasonLabel}</span><strong>{earningsLoading || earningsError ? "—" : seasonAmount}<small> CAD</small></strong><small>{earningsError ? "Could not load earnings. Open payments to retry." : `Nov ${seasonYear} – Apr ${seasonYear + 1}`}</small></span><span><Snowflake size={24} /><span>View payments ↗</span></span></Link>

@@ -23,6 +23,16 @@ export async function syncStripePayment(payment: Stripe.PaymentIntent, stripeAcc
       payment.currency !== "cad" || payment.amount !== Math.round(job.price * 100)) {
       throw new Error("Payment does not match the saved job.");
     }
+    if (payment.status === "requires_payment_method" && payment.last_payment_error && !["paid", "held", "refunded"].includes(job.paymentStatus)) {
+      const failureRef = db.doc(`notifications/${payment.id}-card-failed`);
+      const previousFailure = await transaction.get(failureRef);
+      if (!previousFailure.exists) transaction.set(failureRef, {
+        uid: job.clientId, jobId, chatId: job.chatId || "", type: "job",
+        title: "Card payment failed",
+        message: "Your card payment failed. Open your work order to retry, switch to cash, or cancel and find an operator who accepts cards.",
+        read: false, createdAt: FieldValue.serverTimestamp(),
+      });
+    }
     if (job.paymentStatus === status) return;
     // A delayed response from an earlier request cannot restore a released hold
     // or downgrade a captured payment. A new intent resets the job to pending.

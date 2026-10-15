@@ -5,7 +5,7 @@
 .bottomNav [aria-current="page"] .navIcon, .bottomNav [aria-expanded="true"] .navIcon { background: var(--accent-soft); }
 .badge { position: absolute; right: 0; top: -2px; background: #a83225; color: white; border: 2px solid var(--card); min-width: 18px; padding: 0 3px; border-radius: 12px; font-size: 10px; line-height: 16px; }
 .bottomNav .moreButton[aria-expanded="true"] { color: var(--accent); }
-.bookingCard { composes: glass-surface from global; border: 1px solid var(--surface-blue-border); background: var(--surface-blue); border-radius: 22px; padding: 24px; color: var(--text-primary); box-shadow: none; }
+.bookingCard { border: 1px solid var(--surface-blue-border); background: var(--surface-blue); border-radius: 22px; padding: 24px; color: var(--text-primary); box-shadow: none; }
 .location { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--text-secondary); overflow-wrap: anywhere; }
 .location svg { flex-shrink: 0; }
 .bookingCard h2 { font-size: 28px; line-height: 1.2; margin-top: 16px; }
@@ -14,7 +14,7 @@
 .mainAction:hover { background: var(--accent-dark); }
 .mainAction svg { flex-shrink: 0; }
 .actionNote { display: block; margin-top: 11px; color: var(--text-secondary); font-size: 12px; line-height: 1.5; }
-.shortcuts { composes: glass-surface from global; border: 1px solid var(--border-color); border-radius: 16px; background: var(--card); overflow: hidden; box-shadow: none; }
+.shortcuts { border: 1px solid var(--border-color); border-radius: 16px; background: var(--card); overflow: hidden; box-shadow: none; }
 .shortcuts a { display: flex; align-items: center; gap: 14px; min-height: 72px; padding: 16px; }
 .shortcuts a + a { border-top: 1px solid var(--border-soft); }
 .shortcuts a > svg { flex-shrink: 0; color: var(--text-secondary); }
@@ -82,3 +82,7 @@
 .bookingCard .location,.bookingCard .actionNote { font-size:16px; }
 .bookingCard .mainAction { width:100%; max-width:380px; border-radius:999px; min-height:56px; font-size:18px; }
 .shortcuts .shortcutTitle { font-size:16px; }
+
+.shortcuts { gap:18px; border:0; border-radius:0; box-shadow:none; background:none; backdrop-filter:none; }
+.shortcuts::before,.shortcuts::after { display:none; }
+.shortcuts a { box-shadow:0 5px 18px #17344309; }

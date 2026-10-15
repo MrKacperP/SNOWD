@@ -72,6 +72,8 @@ export default function FindOperatorsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+  const [cardsOnly, setCardsOnly] = useState(false);
+  useEffect(() => { setCardsOnly(new URLSearchParams(window.location.search).get("payment") === "credit"); }, []);
   const [filterService, setFilterService] = useState<ServiceType | "all">("all");
   const [filterStudents, setFilterStudents] = useState(false);
   const [filterVerified, setFilterVerified] = useState(false);
@@ -156,6 +158,8 @@ export default function FindOperatorsPage() {
       );
     }
 
+    if (cardsOnly) results = results.filter(canAcceptPlatformPayments);
+
     // Service filter
     if (filterService !== "all") {
       results = results.filter((op) => op.serviceTypes.includes(filterService));
@@ -212,6 +216,7 @@ export default function FindOperatorsPage() {
     clientProfile,
     searchTerm,
     filterService,
+    cardsOnly,
     filterStudents,
     filterVerified,
     filterEquipment,
@@ -412,6 +417,7 @@ export default function FindOperatorsPage() {
           </IconSwap></button>
         </div>
 
+        <label className="flex min-h-12 items-center gap-3"><input type="checkbox" checked={cardsOnly} onChange={event => setCardsOnly(event.target.checked)} />Operators who accept cards</label>
         {showFilters ? (
           <div id="operator-filters" className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-[1.2rem] bg-[var(--bg-secondary)] p-3">
@@ -473,7 +479,7 @@ export default function FindOperatorsPage() {
               ? "Try adjusting your search or filters, or check back later."
               : "Add your exact address in settings to unlock nearby operator matching."}
           </p>
-          <button type="button" className="mt-3 min-h-11 underline" onClick={() => { setSearchTerm(""); setFilterService("all"); setFilterEquipment("all"); setFilterStudents(false); setFilterVerified(false); }}>Clear search and filters</button>
+          <button type="button" className="mt-3 min-h-11 underline" onClick={() => { setSearchTerm(""); setFilterService("all"); setFilterEquipment("all"); setFilterStudents(false); setFilterVerified(false); setCardsOnly(false); }}>Clear search and filters</button>
           {!clientHasCoordinates && <Link className="ml-4 inline-flex min-h-11 items-center underline" href="/dashboard/settings">Update address</Link>}
         </div>
       ) : (

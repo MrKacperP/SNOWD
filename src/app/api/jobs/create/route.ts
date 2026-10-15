@@ -1,3 +1,4 @@
+import { verifyCardPaymentReadiness } from "@/lib/cardPaymentReadiness";
 import { calculateServicePrice, quoteMarketplace } from "@/lib/marketplacePricing";
 import { NextRequest, NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
@@ -81,10 +82,10 @@ export async function POST(request: NextRequest) {
         throw new OrderError("Choose cash or card.", 400);
       if (
         body.paymentMethod === "credit" &&
-        !canAcceptPlatformPayments(operator)
+        (!canAcceptPlatformPayments(operator) || !(await verifyCardPaymentReadiness(operator.uid, operator.stripeConnectAccountId).catch(() => false)))
       )
         throw new OrderError(
-          "This company cannot currently accept card payments.",
+          "This operator cannot accept card payments right now. Choose cash or find another operator who accepts cards.",
         );
       if (
         !fromOperator &&

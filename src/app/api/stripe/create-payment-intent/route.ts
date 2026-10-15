@@ -53,19 +53,27 @@ export async function POST(req: NextRequest) {
     if (typeof amount !== "number" || !Number.isFinite(amount) || amount <= 0 || !operatorStripeAccountId || !operatorId) {
       return NextResponse.json({ error: "A valid amount and a payment-ready operator are required. This operator may accept cash jobs only." }, { status: 400 });
     }
+    const notifyCardUnavailable = () => getAdminDb().doc(`notifications/${jobId}-card-unavailable`).set({
+      uid: clientId, jobId, chatId: job.chatId || "", type: "job", read: false,
+      title: "Card payment unavailable",
+      message: "This operator cannot accept your card payment. Open the work order to switch to cash, or cancel and find an operator who accepts cards.",
+      createdAt: new Date(),
+    });
     let account: Stripe.Account;
     try {
       account = await stripe.accounts.retrieve(operatorStripeAccountId);
     } catch (error) {
       if (!isUnavailableStripeAccount(error)) throw error;
       await markStripeAccountUnavailable(operatorId, operatorStripeAccountId);
+      await notifyCardUnavailable();
       return NextResponse.json({
         code: "operator_stripe_reconnect_required",
-        error: "This operator needs to reconnect Stripe before accepting card payments. Ask them to open Settings → Payment → Connect with Stripe and complete setup, then retry this payment.",
+        error: "This operator needs to reconnect Stripe before accepting card payments. Switch to cash in your work order, or cancel and find another operator who accepts cards.",
       }, { status: 409 });
     }
     if (account.metadata?.operatorId !== operatorId || !account.charges_enabled || !account.payouts_enabled || !account.details_submitted || account.requirements?.currently_due?.length) {
-      return NextResponse.json({ error: "This operator accepts cash jobs only until Stripe setup is complete." }, { status: 400 });
+      await notifyCardUnavailable();
+      return NextResponse.json({ error: "This operator cannot accept cards. Switch to cash in your work order, or cancel and find another operator who accepts cards." }, { status: 400 });
     }
     const stripeAccount = account.controller?.losses?.payments === "stripe" ? operatorStripeAccountId : undefined;
     const amountInCents = Math.round(amount * 100);
@@ -113,7 +121,17 @@ export async function POST(req: NextRequest) {
       previousId = previous.id;
     }
     const paymentIntent = await stripe.paymentIntents.create(params, { stripeAccount, idempotencyKey: `job-payment-${jobId}-${amountInCents}-${operatorStripeAccountId}-${previousId}` });
-    await jobRef.update({ stripePaymentIntentId: paymentIntent.id, stripePaymentAccountId: stripeAccount || null, paymentStatus: "pending" });
+    try {
+      await getAdminDb().runTransaction(async tx => {
+        const current = (await tx.get(jobRef)).data();
+        if (!current || current.paymentMethod === "cash" || current.status !== "accepted" || current.price !== amount || ["held", "paid"].includes(current.paymentStatus)) throw new Error("The work order changed during checkout.");
+        tx.update(jobRef, { stripePaymentIntentId: paymentIntent.id, stripePaymentAccountId: stripeAccount || null, paymentStatus: "pending" });
+      });
+    } catch (error) {
+      const latest = await stripe.paymentIntents.retrieve(paymentIntent.id, {}, { stripeAccount });
+      if (["requires_payment_method", "requires_confirmation", "requires_action"].includes(latest.status)) await stripe.paymentIntents.cancel(paymentIntent.id, {}, { stripeAccount });
+      throw error;
+    }
     const notificationDb = getAdminDb();
     if (typeof notificationDb.collection === "function") {
       await notificationDb.collection("adminNotifications").add({

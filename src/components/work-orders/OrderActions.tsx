@@ -488,6 +488,12 @@ export default function OrderActions({
             : "Your visit is confirmed. The provider will update this order when they are on the way."}
         </p>
       )}
+      {!operator && ["pending", "accepted"].includes(job.status) && job.paymentMethod === "credit" && !["held", "paid"].includes(job.paymentStatus) && <section className="rounded-xl border border-[var(--border-color)] p-4 space-y-3">
+        <p>Card not working? You can pay in cash instead, or cancel this request and find another operator who accepts cards.</p>
+        <label className="flex items-center gap-3"><input type="checkbox" checked={cash} onChange={event => setCash(event.target.checked)} disabled={busy} />I agree to pay ${(job.operatorAmount ? job.operatorAmount / 100 : job.price).toFixed(2)} CAD in cash after the work.</label>
+        <button className="btn-secondary action-shine" disabled={busy || !cash} onClick={() => run(() => orderRequest("/api/jobs/switch-to-cash", { jobId: job.id, cashPaymentAcknowledged: true }), true, "action-success", "Payment changed to cash.")}>Switch to cash</button>
+        <a className="block font-semibold text-[var(--accent)]" href="/dashboard/find?payment=credit">Find an operator who accepts cards</a>
+      </section>}
       {busy && <p role="status">Updating work order…</p>}
       {error && (
         <p role="alert" className="text-sm text-red-700">

@@ -72,7 +72,7 @@ function paymentRoute({ ready = true, uid = 'client', verified = true, jobOverri
     'next/server': { NextResponse: { json: (body, options) => ({ body, status: options?.status || 200 }) } },
     '@/lib/stripe': { getStripe: () => stripe },
     '@/lib/stripeConnectAuth': { requireStripeUser: async () => ({ uid }) },
-    '@/lib/firebaseAdmin': { getAdminDb: () => ({ runTransaction: async fn => fn({ get: async () => ({ data: () => concurrentAccount ? { ...operator, stripeConnectAccountId: concurrentAccount } : operator }), update: (_ref, data) => writes.push(data) }), doc: (path) => ({ get: async () => ({ data: () => path.startsWith('jobs/') ? job : operator }), update: async () => {} }) }) },
+    '@/lib/firebaseAdmin': { getAdminDb: () => ({ runTransaction: async fn => fn({ get: async ref => ({ data: () => ref.path?.startsWith("jobs/") ? job : concurrentAccount ? { ...operator, stripeConnectAccountId: concurrentAccount } : operator }), update: (_ref, data) => writes.push(data) }), doc: (path) => ({ path, set: async data => writes.push(data), get: async () => ({ data: () => path.startsWith('jobs/') ? job : operator }), update: async () => {} }) }) },
   });
   return { route, calls, writes };
 }
@@ -249,6 +249,7 @@ test('booking server rejects stale client totals and saves the server-calculated
     'firebase-admin/firestore':{FieldValue:{serverTimestamp:()=> 'now'}},
     '@/lib/firebaseAdmin':{getAdminDb:()=>db},
     '@/lib/marketplacePricing':pricing,
+    '@/lib/cardPaymentReadiness':{verifyCardPaymentReadiness:async()=>true},
     '@/lib/operatorDiscovery':{isOperatorPublic:()=>true,isClientWithinOperatorRadius:()=>true,canAcceptPlatformPayments:()=>true},
     '@/lib/workOrderServer':{orderUser:async()=> 'client',validId:x=>!!x,parseSchedule:()=>({}),OrderError:Error,orderFailure:e=>({status:409,error:e.message}),orderEvent:()=>({recipient:'operator',message:'Order created'})},
   });
@@ -266,7 +267,7 @@ for (const code of ['account_invalid', 'resource_missing']) {
     const result = await f.route.POST({ json: async () => ({ jobId: 'job' }) });
     assert.equal(result.status, 409);
     assert.equal(result.body.code, 'operator_stripe_reconnect_required');
-    assert.match(result.body.error, /Settings → Payment → Connect with Stripe/);
+    assert.match(result.body.error, /Switch to cash/);
     assert.doesNotMatch(result.body.error, /sk_live/);
     assert.equal(f.calls.length, 0);
     assert.equal(f.writes[0].stripeReady, false);
@@ -284,7 +285,8 @@ test('transient Stripe failures do not disable accounts or expose raw credential
 test('inaccessible old account never disables a concurrently reconnected account', async () => {
   const f = paymentRoute({ accountError: 'account_invalid', concurrentAccount: 'acct_replacement' });
   assert.equal((await f.route.POST({ json: async () => ({ jobId: 'job' }) })).status, 409);
-  assert.equal(f.writes.length, 0);
+  assert.equal(f.writes.filter(write => 'stripeReady' in write).length, 0);
+  assert.equal(f.writes[0].title, 'Card payment unavailable');
 });
 test('checkout resumes only an intent with the current payout destination', async () => {
   for (const destination of ['acct_operator', 'acct_previous']) {
@@ -384,4 +386,12 @@ test('connected-account webhooks retrieve and reconcile within the signed event 
   }, { STRIPE_CONNECT_WEBHOOK_SECRET: 'fixture' });
   assert.equal((await route.POST({ text: async () => 'body', headers: { get: () => 'signature' } })).status, 200);
   assert.deepEqual(scopes, ['acct_event', 'acct_event']);
+});
+
+test('a failed authorization notifies the customer even while payment remains pending', async () => {
+  const {sync,payment,writes}=paymentSyncFixture();
+  await sync({...payment,status:'requires_payment_method',last_payment_error:{code:'card_declined'}});
+  const notice=writes.find(w=>String(w.path).startsWith('notifications/'));
+  assert.equal(notice.data.uid,'client');
+  assert.match(notice.data.message,/switch to cash/);
 });

@@ -79,7 +79,7 @@ function CheckoutFormInner({ onSuccess, onCancel, amount, processing, onProcessi
 
       {error && (
         <div role="alert" className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-          {error}
+          {error}<p className="mt-2">Return to your work order to switch to cash, or cancel and choose another operator who accepts cards.</p><button type="button" className="btn-secondary mt-3" disabled={processing} onClick={onCancel}>Return to work order</button>
         </div>
       )}
 
