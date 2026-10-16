@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 
-function fixture({ code, owner = 'operator', concurrent = false, active = true } = {}) {
+function fixture({ code, owner = 'operator', concurrent = false, active = true, creationError } = {}) {
   const created = [], writes = [];
   const profile = { stripeConnectAccountId: 'acct_sandbox', displayName: 'Operator' };
   const stripe = { accounts: {
@@ -13,7 +13,7 @@ function fixture({ code, owner = 'operator', concurrent = false, active = true }
       if (code) throw Object.assign(new Error('Stripe retrieval failed'), { code });
       return { id, metadata: { operatorId: owner } };
     },
-    create: async (params, options) => { created.push({ params, options }); return { id: 'acct_live' }; },
+    create: async (params, options) => { created.push({ params, options }); if (creationError) throw creationError; return { id: 'acct_live' }; },
   } };
   stripe.v2 = { core: { accounts: { create: stripe.accounts.create } } };
   const db = { doc: () => ({}), runTransaction: async fn => fn({
@@ -64,5 +64,14 @@ test('network failures, ownership errors and inactive platforms never replace ac
 test('recovery never overwrites a concurrently changed payout destination', async () => {
   const f = fixture({ code: 'account_invalid', concurrent: true });
   assert.equal((await f.run()).status, 500);
+  assert.equal(f.writes.length, 0);
+});
+
+test('platform activation errors explain who must act and preserve the operator account', async () => {
+  const f = fixture({ code: 'account_invalid', creationError: Object.assign(new Error('Your account must be activated in order to create accounts.'), { code: 'account_create_activation_required' }) });
+  const response = await f.run();
+  assert.equal(response.status, 503);
+  assert.equal(response.body.code, 'connect_activation_required');
+  assert.match(response.body.error, /SNOWD.*platform setup/);
   assert.equal(f.writes.length, 0);
 });

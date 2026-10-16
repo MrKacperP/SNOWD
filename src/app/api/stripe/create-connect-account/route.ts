@@ -70,8 +70,15 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json({ accountId: account.id });
   } catch (error: unknown) {
-    console.error("Stripe Connect error:", error);
+    const stripeError = error as { code?: string; type?: string; requestId?: string };
+    console.error("Stripe Connect error", { code: stripeError?.code, type: stripeError?.type, requestId: stripeError?.requestId });
     const message = error instanceof Error ? error.message : "Internal server error";
+    if (stripeError?.code === "account_create_activation_required" || message.includes("must be activated in order to create accounts")) {
+      return NextResponse.json({
+        code: "connect_activation_required",
+        error: "SNOWD is finishing Stripe Connect activation. Card payout setup is temporarily unavailable. Please try again after SNOWD completes its platform setup; you do not need to change your own Stripe account.",
+      }, { status: 503 });
+    }
     if (message === "STRIPE_SECRET_KEY is not configured") {
       return NextResponse.json(
         {
