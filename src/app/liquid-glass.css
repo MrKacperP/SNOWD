@@ -166,3 +166,9 @@ body.snowd-glass {
 .snowd-glass .dashboard-shell :is(.dashboard-location, .job-widget, .next-action, .dashboard-earnings) { background:#fff; background-image:none; border-color:#dce6eb; box-shadow:0 5px 24px #17344306; -webkit-backdrop-filter:none; backdrop-filter:none; }
 .snowd-glass .search { background:#fff; background-image:none; box-shadow:none; }
 .snowd-glass .search input, .snowd-glass .search input:focus { background:transparent; background-image:none; border:0; box-shadow:none; outline:0; }
+
+/* Home dashboards use quiet solid surfaces rather than glass widgets. */
+.snowd-glass .dashboard-shell:has(.dashboard-home) { background:#f7f8f7; }
+.snowd-glass .dashboard-home :is(.dashboard-widget, .dashboard-location, .job-widget, .next-action, .dashboard-earnings, .client-orders-empty) { background:#fff; background-image:none; border:1px solid #e1e5e3; border-radius:18px; box-shadow:none; -webkit-backdrop-filter:none; backdrop-filter:none; }
+.snowd-glass .dashboard-home :is(.dashboard-widget, .next-action)::before,
+.snowd-glass .dashboard-home :is(.dashboard-widget, .next-action)::after { display:none; }

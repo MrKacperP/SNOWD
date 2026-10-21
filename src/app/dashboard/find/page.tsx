@@ -298,6 +298,7 @@ export default function FindOperatorsPage() {
   // Confirm booking after schedule selection
   const confirmBooking = async () => {
     if (!schedulingOperator || !user?.uid || !profile) return;
+    if (!locationReady || !locationInRange) { setBookingError("Choose a valid address within this operator’s service area."); setBookingStep(2); return; }
     setBooking(true);
     try {
       const operatorSnapshot = await getDoc(doc(db, "users", schedulingOperator.uid));
@@ -534,12 +535,15 @@ export default function FindOperatorsPage() {
           </>}
           {bookingStep === 2 && <>
           <h3 className="text-lg font-semibold">Confirm your location</h3>
-          {editingLocation ? <OnboardingAddress value={bookingLocation || { address: "", city: "", province: "", postalCode: "" }} onChange={setBookingLocation} /> : <>
+          {editingLocation ? <OnboardingAddress compact value={bookingLocation || { address: "", city: "", province: "", postalCode: "" }} onChange={setBookingLocation} /> : <>
             {serviceLocation?.address && <div className="h-48"><PropertyMap address={[serviceLocation.address, serviceLocation.city, serviceLocation.province].filter(Boolean).join(", ")} /></div>}
             <div className="flex items-center gap-3 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4"><MapPin size={20} /><span><small className="block text-xs text-[var(--text-muted)]">{bookingLocation ? "THIS VISIT" : "SAVED PROPERTY"}</small><strong>{serviceLocation?.address || "Add a service address"}</strong><small className="block text-[var(--text-secondary)]">{serviceLocation?.city}</small></span></div>
           </>}
-          <button type="button" className="min-h-11 text-sm font-semibold text-[var(--accent)]" onClick={() => setEditingLocation(value => !value)}>{editingLocation ? "Done changing location" : "Change location"}</button>
-          {!locationInRange && <p role="alert" className="text-sm text-red-700">This address is outside this shoveler’s service area.</p>}
+          <button type="button" className="min-h-11 text-sm font-semibold text-[var(--accent)]" onClick={() => {
+            if (editingLocation) { setBookingLocation(null); setEditingLocation(false); }
+            else { setBookingLocation({ address: serviceLocation?.address || "", city: serviceLocation?.city || "", province: serviceLocation?.province || "", postalCode: serviceLocation?.postalCode || "", lat: serviceLocation?.lat ?? undefined, lng: serviceLocation?.lng ?? undefined }); setEditingLocation(true); }
+          }}>{editingLocation ? "Use saved address" : "Change location"}</button>
+          {locationReady && !locationInRange && <p role="alert" className="text-sm text-red-700">This address is outside this shoveler’s service area.</p>}
           <button type="button" onClick={() => { setEditingLocation(false); setBookingStep(3); }} disabled={!locationReady || !locationInRange} className="btn-primary w-full min-h-12">Continue</button>
           </>}
           {bookingStep === 3 && <>
@@ -557,7 +561,7 @@ export default function FindOperatorsPage() {
           <div className="detail-list text-sm">
             <div className="flex items-start justify-between gap-4"><span className="text-xs text-[var(--text-muted)]">Shoveler</span><strong>{schedulingOperator.businessName || schedulingOperator.displayName}</strong></div>
             <div className="flex items-start justify-between gap-4"><span className="text-xs text-[var(--text-muted)]">Service</span><strong className="capitalize">{requestedServices.map(item => item.replaceAll("-", " ")).join(" · ")}</strong></div>
-            <div className="flex items-start justify-between gap-4"><span className="text-xs text-[var(--text-muted)]">Location</span><strong className="text-right">{clientProfile?.address}, {clientProfile?.city}</strong></div>
+            <div className="flex items-start justify-between gap-4"><span className="text-xs text-[var(--text-muted)]">Location</span><strong className="text-right">{serviceLocation?.address}, {serviceLocation?.city}</strong></div>
             <div className="flex items-start justify-between gap-4"><span className="text-xs text-[var(--text-muted)]">When</span><strong>{scheduleType === "asap" ? "As soon as possible" : `${format(new Date(`${scheduledDate}T12:00:00`), "EEE, MMM d")} · ${format(new Date(`${scheduledDate}T${scheduledTime}:00`), "h:mm a")}`}</strong></div>
           </div>
           <div className="flex items-center justify-between rounded-2xl bg-[var(--accent-soft)] p-4"><span className="text-sm font-semibold">Total</span><strong className="text-xl">${quoteMarketplace(calculateServicePrice(schedulingOperator.pricing, requestedServices, propertySize), paymentMethod).price.toFixed(2)} CAD</strong></div>

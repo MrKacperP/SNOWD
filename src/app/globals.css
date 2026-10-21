@@ -991,8 +991,6 @@ html { scroll-padding-top: 6rem; }
 .dashboard-earnings:hover { border-color:var(--accent); }
 .dashboard-earnings-content { display:grid; justify-items:center; gap:6px; }
 .dashboard-earnings-value { display:flex; align-items:center; justify-content:center; gap:4px; }
-.dashboard-earnings-value svg { width:84px; height:38px; margin-left:12px; overflow:visible; }
-.dashboard-earnings-value polyline { fill:none; stroke:var(--accent); stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }
 @media(max-width:600px) { .operator-work-row { padding:18px; }.operator-work-side { justify-items:start; }.operator-work-actions { margin-top:10px; } }
 @media(max-width:600px) { .operator-work-row { flex-direction:column; padding:22px; gap:16px; }.operator-work-amount { align-items:flex-start; }.operator-work-amount svg { align-self:flex-end; } }
 
@@ -1001,7 +999,6 @@ html { scroll-padding-top: 6rem; }
 .dashboard-location-map { position:relative; height:clamp(160px,18vw,220px); background:#edf3f1; }
 .dashboard-location-map iframe { display:block; width:100%; height:100%; border:0; }
 .dashboard-location-unset { display:grid; height:100%; place-items:center; padding:20px; color:var(--text-secondary); text-align:center; font-size:14px; }
-.dashboard-location-pin { position:absolute; bottom:16px; left:16px; display:grid; width:38px; height:38px; place-items:center; border:2px solid white; border-radius:50%; background:#28516b; color:white; box-shadow:0 3px 12px #17344330; pointer-events:none; }
 .dashboard-location-footer { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:16px 20px; }
 .dashboard-location-footer > div { display:grid; min-width:0; gap:3px; }
 .dashboard-location-footer strong { font-size:15px; }
@@ -1030,5 +1027,30 @@ html { scroll-padding-top: 6rem; }
 .dashboard-earnings { width:min(100%,680px); margin-inline:auto; }
 .dashboard-earnings-content { width:100%; text-align:center; }
 .dashboard-earnings-value { width:100%; }
-.dashboard-earnings-content > svg { display:block; width:96px; height:34px; margin:0 auto; overflow:visible; }
-.dashboard-earnings-content > svg polyline { fill:none; stroke:var(--accent); stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }
+
+/* Quiet, shared dashboard surfaces. */
+.dashboard-shell .dashboard-location,
+.dashboard-shell .job-widget,
+.dashboard-shell .next-action,
+.dashboard-shell .dashboard-earnings { box-shadow:none; border-radius:18px; }
+.dashboard-map-notice { position:absolute; bottom:12px; left:12px; right:52px; padding:8px 12px; border-radius:8px; background:#fff; color:var(--text-secondary); font-size:12px; }
+.dashboard-earnings { padding:26px 20px; }
+.dashboard-earnings-content { justify-items:center; gap:10px !important; }
+.dashboard-earnings-row { display:flex; align-items:center; justify-content:center; gap:24px; max-width:100%; }
+.dashboard-earnings-row .dashboard-earnings-value { width:auto; flex-wrap:wrap; gap:6px; }
+.dashboard-earnings-value strong { font-size:clamp(26px,4vw,36px); font-weight:500; font-variant-numeric:tabular-nums; }
+.dashboard-earnings-row > svg { width:110px; height:52px; flex:none; }
+.dashboard-earnings-row polyline { fill:none; stroke:#16805d; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.dashboard-earnings:focus-visible { outline:2px solid var(--accent); outline-offset:4px; }
+@media(max-width:380px) { .dashboard-earnings-row { gap:12px; }.dashboard-earnings-row > svg { width:76px; } }
+
+.dashboard-shell:has(.dashboard-home) { background:#f7f8f7; }
+
+/* Google Places renders its suggestions under body, outside the booking dialog. */
+.pac-container { z-index:10050 !important; border:1px solid #d9e3dc; border-radius:12px; box-shadow:0 8px 28px #17372b20; font-family:inherit; }
+.pac-item { min-height:44px; padding:8px 12px; line-height:26px; cursor:pointer; }
+.pac-item:hover,.pac-item-selected { background:#edf5f0; }
+.booking-address-editor :is(input,select) { border:1px solid var(--border-color); border-radius:12px; background:var(--bg-card-solid); color:var(--text-primary); font-weight:500; }
+.booking-address-editor label { font-weight:600; }
+
+.dashboard-location-client .dashboard-location-footer span { white-space:normal; line-height:1.5; }

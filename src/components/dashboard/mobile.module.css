@@ -86,3 +86,16 @@
 .shortcuts { gap:18px; border:0; border-radius:0; box-shadow:none; background:none; backdrop-filter:none; }
 .shortcuts::before,.shortcuts::after { display:none; }
 .shortcuts a { box-shadow:0 5px 18px #17344309; }
+
+/* Home widgets stay readable and still on hover. */
+.bookingCard { background:#fff; border:1px solid var(--border-color); border-radius:18px; padding:24px; }
+.bookingCard h2 { font-size:28px; margin-top:16px; }
+.bookingCard > p:not(.location) { font-size:15px; margin:10px 0 0; }
+.bookingCard .location,.bookingCard .actionNote { font-size:13px; }
+.bookingCard .mainAction { font-size:16px; min-height:48px; background-image:none; box-shadow:none; }
+.shortcuts { gap:10px; }
+.shortcuts a { min-height:64px; border-radius:14px; background:#fff; box-shadow:none; }
+.shortcuts .shortcutTitle { font-size:14px; }
+.shortcuts .shortcutHoverAsset { display:none; }
+.shortcuts a:is(:hover,:focus-visible) .shortcutTitle { opacity:1; transform:none; }
+.shortcuts a:hover { background:var(--bg-secondary); }

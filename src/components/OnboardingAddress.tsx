@@ -2,12 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import AddressAutocomplete from "./AddressAutocomplete";
-import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
-import {
-  hasGoogleMapsApiKey,
-  GOOGLE_MAPS_API_KEY,
-  GOOGLE_MAPS_LIBRARIES,
-} from "@/lib/googleMaps";
+import SnowdMap from "./SnowdMap";
+import { hasGoogleMapsApiKey } from "@/lib/googleMaps";
 import { CANADIAN_PROVINCES } from "@/lib/types";
 import { MapPin, CheckCircle2 } from "lucide-react";
 
@@ -36,48 +32,13 @@ type MapboxFeature = {
   };
 };
 
-function GoogleLocationMap({ lat, lng }: { lat: number; lng: number }) {
-  const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-    libraries: GOOGLE_MAPS_LIBRARIES,
-  });
-  if (loadError)
-    return (
-      <p className="p-4 text-sm font-semibold">
-        Your address is selected. The map preview couldn’t load.
-      </p>
-    );
-  if (!isLoaded)
-    return (
-      <div
-        className="flex h-[210px] items-center justify-center text-sm"
-        role="status"
-      >
-        Loading your map…
-      </div>
-    );
-  const center = { lat, lng };
-  return (
-    <GoogleMap
-      mapContainerStyle={{ width: "100%", height: "210px" }}
-      center={center}
-      zoom={16}
-      options={{
-        disableDefaultUI: true,
-        zoomControl: true,
-        gestureHandling: "cooperative",
-      }}
-    >
-      <Marker position={center} title="Your selected address" />
-    </GoogleMap>
-  );
-}
-
 export default function OnboardingAddress({
   value,
   onChange,
+  compact = false,
 }: {
   value: OnboardingLocation;
+  compact?: boolean;
   onChange: (value: OnboardingLocation) => void;
 }) {
   const [provider, setProvider] = useState<"google" | "mapbox">(
@@ -148,7 +109,7 @@ export default function OnboardingAddress({
     onChange({ address, city: "", province: "", postalCode: "" });
   };
   return (
-    <div className="space-y-4">
+    <div className={compact ? "booking-address-editor space-y-3" : "space-y-4"}>
       <label className="block text-sm font-black">
         {manual ? "Street address" : "Your address"}
         <div className="mt-2">
@@ -166,7 +127,7 @@ export default function OnboardingAddress({
                   return (short ? item?.short_name : item?.long_name) || "";
                 };
                 onChange({
-                  address: place.formatted_address || "",
+                  address: [component("street_number"), component("route")].filter(Boolean).join(" ") || place.formatted_address || "",
                   city:
                     component("locality") ||
                     component("postal_town") ||
@@ -242,7 +203,7 @@ export default function OnboardingAddress({
           Select a suggestion to fill in your city, province, and postal code.
         </p>
       )}
-      {selected && !manual ? (
+      {!compact && selected && !manual ? (
         <div className="overflow-hidden rounded-2xl border-[3px] border-[#061321] bg-[#dfeef8]">
           {value.provider === "mapbox" &&
           value.lat !== undefined &&
@@ -259,7 +220,7 @@ export default function OnboardingAddress({
           ) : value.provider === "google" &&
             value.lat !== undefined &&
             value.lng !== undefined ? (
-            <GoogleLocationMap lat={value.lat} lng={value.lng} />
+            <div className="h-[210px]"><SnowdMap location={`${value.lat},${value.lng}`} client label="Your selected address" /></div>
           ) : null}
           <p className="flex items-center gap-2 p-3 text-sm font-bold">
             <CheckCircle2 size={18} />
@@ -269,7 +230,7 @@ export default function OnboardingAddress({
           </p>
         </div>
       ) : (
-        !manual && (
+        !compact && !manual && (
           <div className="flex min-h-36 flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#061321]/25 bg-[#dfeef8]/50 px-4 text-center">
             <MapPin className="text-[#ff820e]" size={32} />
             <p className="text-sm font-bold">Your location will appear here</p>
@@ -370,7 +331,7 @@ export default function OnboardingAddress({
         {value.provider === "mapbox" || provider === "mapbox"
           ? "Search powered by Mapbox. "
           : ""}
-        We use your location to find nearby help and jobs.
+        {compact ? "This address is shared with your operator for this visit. Your saved home stays the same." : "We use your location to find nearby help and jobs."}
       </p>
     </div>
   );

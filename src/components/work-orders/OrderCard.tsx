@@ -1,5 +1,7 @@
 "use client";
+import { useArrivalLabel } from "@/hooks/useArrivalLabel";
 import PaymentSummary from "./PaymentSummary";
+import DashboardMap from "@/components/dashboard/DashboardMap";
 import PropertyMap from "@/components/PropertyMap";
 import CompanyIdentity from "@/components/CompanyIdentity";
 import Link from "next/link";
@@ -27,14 +29,16 @@ export default function OrderCard({
   onUpdated?: (message: string) => void;
 }) {
   const { user, profile } = useAuth();
+  const arrival = useArrivalLabel(job);
   const operator = user?.uid === job.operatorId;
   const [route, setRoute] = useState<{ minutes: number; distanceKm: number } | null>(null);
   const onRoute = useCallback((nextRoute: { minutes: number; distanceKm: number } | null) => setRoute(nextRoute), []);
   const operatorProfile = operator ? profile : person?.role === "operator" ? person : null;
   const operatorAddress = operatorProfile ? [operatorProfile.address, operatorProfile.city, operatorProfile.province, operatorProfile.postalCode].filter(Boolean).join(", ") : "";
-  const routeOrigin = job.status === "en-route" && Number.isFinite(job.operatorApproxLat) && Number.isFinite(job.operatorApproxLng)
+  const savedOrigin = operatorProfile && Number.isFinite(operatorProfile.lat) && Number.isFinite(operatorProfile.lng) ? `${operatorProfile.lat},${operatorProfile.lng}` : operatorAddress;
+  const routeOrigin = !["accepted", "en-route", "in-progress"].includes(job.status) ? "" : job.status === "en-route" && Number.isFinite(job.operatorApproxLat) && Number.isFinite(job.operatorApproxLng)
     ? `${job.operatorApproxLat},${job.operatorApproxLng}`
-    : operatorAddress;
+    : savedOrigin;
   const travelTime = job.status === "en-route" && job.etaSource === "route" ? job.eta : route?.minutes;
   const propertyPhotos = operator && person?.role === "client"
     ? (person as ClientProfile).propertyDetails?.photos || []
@@ -42,7 +46,8 @@ export default function OrderCard({
   return (
     <article className={styles.card}>
       <div className={styles.body}>
-        {detail && <section className="order-property">{job.address ? <PropertyMap address={[job.address, job.city, job.province, job.postalCode].filter(Boolean).join(", ")} origin={routeOrigin || undefined} title={routeOrigin ? "Driving route to the service location" : "Service location"} onRoute={onRoute} /> : null}{routeOrigin && <small className="block mt-2 text-[var(--text-secondary)]">{job.status === "en-route" && Number.isFinite(job.operatorApproxLat) ? "Route starts at the operator’s shared approximate location." : "Route starts at the operator’s saved address."}</small>}<p>{job.address || "Address to be confirmed"}{job.city ? `, ${job.city}` : ""}</p></section>}
+        {detail && !operator && <DashboardMap profile={profile} job={job} role="client" showVisitLink={false} />}
+        {detail && operator && <section className="order-property">{job.address ? <PropertyMap address={[job.address, job.city, job.province, job.postalCode].filter(Boolean).join(", ")} origin={routeOrigin || undefined} title={routeOrigin ? "Driving route to the service location" : "Service location"} onRoute={onRoute} /> : null}{routeOrigin && <small className="block mt-2 text-[var(--text-secondary)]">{job.status === "en-route" && Number.isFinite(job.operatorApproxLat) ? "Route starts at the operator’s shared approximate location." : "Route starts at the operator’s saved address."}</small>}<p>{job.address || "Address to be confirmed"}{job.city ? `, ${job.city}` : ""}</p></section>}
         <div className={styles.cardHeader}>
           <div className="min-w-0">
             <p className={styles.reference}>Work order #{orderNumber(job)}</p>
@@ -56,11 +61,11 @@ export default function OrderCard({
         <div className={styles.priorityFacts} aria-label="Visit time and payment">
           <div>
             <span><Clock3 size={13} /> {isAsap(job) ? "Arrival" : "Scheduled"}</span>
-            <strong className={isAsap(job) ? styles.arrivalChip : ""}>{detail && travelTime ? `About ${travelTime} min drive${route?.distanceKm ? ` · ${route.distanceKm} km` : ""}` : job.status === "en-route" && job.etaSource === "route" && job.eta ? `About ${job.eta} min away` : isAsap(job) ? "ASAP · time to confirm" : scheduleText(job)}</strong>
+            <strong className={isAsap(job) ? styles.arrivalChip : ""}>{detail && operator && travelTime ? `About ${travelTime} min drive${route?.distanceKm ? ` · ${route.distanceKm} km` : ""}` : job.status === "en-route" ? arrival : isAsap(job) ? "ASAP · time to confirm" : scheduleText(job)}</strong>
           </div>
           <PaymentSummary job={job} operator={operator} />
         </div>
-        {detail && <section className={styles.serviceSummary} aria-label="Requested service"><strong>{propertySizeLabel(job.propertySize)}</strong><span>{job.serviceTypes?.filter((service) => service !== "driveway").map((service) => service.replaceAll("-", " ")).join(" · ") || "Driveway clearing"}</span></section>}
+        {detail && <section className={styles.serviceSummary} aria-label="Requested service"><small>What’s included</small><strong>{propertySizeLabel(job.propertySize)}</strong><span>{job.serviceTypes?.filter((service) => service !== "driveway").map((service) => service.replaceAll("-", " ")).join(" · ") || "Driveway clearing"}</span></section>}
         {!detail && <OrderGuide job={job} uid={user?.uid || ""} />}
         {detail && job.chatId && (
           <Link className={styles.messageButton} href={`/dashboard/messages/${job.chatId}`}>

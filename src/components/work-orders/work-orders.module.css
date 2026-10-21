@@ -651,3 +651,13 @@ a.locationOpen:hover { color: var(--accent); }
   .page .orderRowHeader { align-items: flex-start; gap: 10px; }
   .page .orderReference { font-size: 15px; }
 }
+
+.priorityFacts { gap:14px; }
+.priorityFacts > div { min-height:116px; padding:18px 20px; align-content:center; gap:8px; }
+.priorityFacts > div > strong { font-size:24px; line-height:1.25; }
+.priorityFacts > div > strong.arrivalChip { font-size:16px; padding:8px 12px; white-space:normal; }
+.serviceSummary { margin-top:16px; padding:20px; gap:7px; border-color:#cdded2; border-left:4px solid #42745a; background:#eef5ef; }
+.serviceSummary small { color:#587363; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; }
+.serviceSummary strong { color:#294c3b; font-size:21px; }
+.serviceSummary span { color:#526b5b; font-size:14px; }
+@media(max-width:600px) { .priorityFacts > div { min-height:112px; padding:16px 13px; } .priorityFacts > div > strong { font-size:21px; } .priorityFacts > div > strong.arrivalChip { font-size:14px; } .serviceSummary { padding:17px; } }

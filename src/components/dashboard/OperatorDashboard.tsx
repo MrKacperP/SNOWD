@@ -46,7 +46,7 @@ export default function OperatorDashboard() {
   const pending = jobs.filter(job => job.status === "pending" && orderActionNeeded(job, operator?.uid || ""));
   const active = jobs.filter(job => ["accepted", "en-route", "in-progress"].includes(job.status)).sort((a, b) => (dateMillis(a.scheduledDate) || dateMillis(a.createdAt)) - (dateMillis(b.scheduledDate) || dateMillis(b.createdAt)));
   const nextJob = active.find(job => job.status === "in-progress") ?? active.find(job => job.status === "en-route") ?? active[0];
-  const selectedRouteJob = jobs.find(job => job.id === selectedRouteJobId);
+  const selectedRouteJob = jobs.find(job => job.id === selectedRouteJobId && ["pending", "accepted", "en-route", "in-progress"].includes(job.status));
   const now = new Date();
   const seasonYear = now.getMonth() >= 10 ? now.getFullYear() : now.getFullYear() - 1;
   const seasonLabel = now.getMonth() >= 4 && now.getMonth() < 10 ? "Last snow season" : "Earned this snow season";
@@ -58,6 +58,7 @@ export default function OperatorDashboard() {
   const firstEarning = paidThisSeason[0] ? new Date(dateMillis(paidThisSeason[0].completedAt || paidThisSeason[0].createdAt)) : null;
   const earningsPeriod = firstEarning ? `${new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", year: "numeric" }).format(firstEarning)} – ${new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", year: "numeric" }).format(new Date(Math.min(now.getTime(), seasonEnd - 1)))}` : "No paid work this season yet";
   const trend = paidThisSeason.reduce<number[]>((points, item) => { points.push((points.at(-1) || 0) + transactionDisplayAmount(item, true)); return points; }, [0]);
+  if (trend.length === 1) trend.push(0);
   const sparkline = trend.map((value, index) => `${10 + index * 100 / Math.max(1, trend.length - 1)},${42 - value * 32 / Math.max(1, seasonEarnings)}`).join(" ");
 
   const serviceSummary = (job: Job) => {
@@ -66,7 +67,7 @@ export default function OperatorDashboard() {
   };
 
   return (
-    <div className="app-page text-[var(--text-primary)]">
+    <div className="app-page dashboard-home text-[var(--text-primary)]">
       <header className="dashboard-overview"><div><p className="app-eyebrow">Your snow day</p><h1>{loading ? "Work overview" : pending.length ? `${pending.length} work ${pending.length === 1 ? "order needs" : "orders need"} your reply` : nextJob ? "Your next visit" : "Ready for your next request"}</h1><p>{pending.length ? "Review the location, timing and payment, then accept or suggest a time." : "Your requests, upcoming visits and payments in one place."}</p></div><Link href="/dashboard/jobs" className="btn-primary"><IconSwap icon={<ArrowUpRight size={18} />}>{pending.length ? "Review requests" : "View work orders"}<ArrowUpRight size={18} /></IconSwap></Link></header>
       <div ref={mapRef}><DashboardMap profile={operator} job={selectedRouteJob || nextJob} role="operator" /></div>
       {!operator?.idVerified && <Link href="/dashboard/settings?tab=verification" className="inline-flex min-h-9 items-center rounded-lg px-2 text-sm font-semibold hover:bg-[var(--bg-secondary)]">Verify your ID to receive jobs</Link>}
@@ -83,7 +84,16 @@ export default function OperatorDashboard() {
         </div>}
       </section>
 
-      <Link href="/dashboard/transactions" className="dashboard-earnings" aria-label="Open payments"><span className="dashboard-earnings-content"><span>{seasonLabel}</span><span className="dashboard-earnings-value"><strong>{earningsLoading || earningsError ? "—" : seasonAmount}</strong><small> CAD</small></span><svg viewBox="0 0 120 52" role="img" aria-label="Cumulative earnings growth" preserveAspectRatio="none"><polyline points={sparkline} /></svg><small>{earningsError ? "Could not load earnings." : earningsPeriod}</small></span></Link>
+      <Link href="/dashboard/transactions" className="dashboard-earnings" aria-label="Open payments">
+        <span className="dashboard-earnings-content">
+          <span>{seasonLabel}</span>
+          <span className="dashboard-earnings-row">
+            <span className="dashboard-earnings-value"><strong>{earningsLoading || earningsError ? "—" : seasonAmount}</strong><small>CAD</small></span>
+            {!earningsLoading && !earningsError && <svg viewBox="0 0 120 52" role="img" aria-label={paidThisSeason.length ? `Cumulative paid earnings: ${seasonAmount} Canadian dollars across ${paidThisSeason.length} payments` : "No paid earnings yet"}><polyline points={sparkline} /></svg>}
+          </span>
+          <small>{earningsLoading ? "Loading earnings…" : earningsError ? "Could not load earnings." : earningsPeriod}</small>
+        </span>
+      </Link>
       <HomeActions operator />
     </div>
   );
