@@ -338,3 +338,14 @@
 @media(min-width:701px) and (max-height:760px) { .phone .screen { padding:12px; gap:8px; } .phone .screen[data-view="home"] { gap:10px; } .phone .actionArea,.phone .timingDock { left:12px; right:12px; } .phone .etaCard .etaDetails { padding:10px; } .phone .pendingOrder { padding:12px; gap:5px; } }
 
 @media(prefers-reduced-motion:reduce) { .paymentAsset,.paymentChoice .choices button > span:last-child { transition:none; } }
+
+/* The landing walkthrough is stationary and readable within its own section. */
+.demo { width:100%; max-width:310px; }
+.caption,.disclaimer { color:#d1e1e7; }
+.phone { height:590px; min-height:590px; }
+@media(max-width:700px) { .phone { height:550px; min-height:550px; } }
+
+.screen h3:focus-visible { outline:2px solid #315f79; outline-offset:4px; border-radius:4px; }
+.reviewTotal { border-top:1px solid #dce7ea; }
+.reviewTotal > strong { color:#173c2c; font-size:13px; }
+.phone .reviewLocation strong { white-space:normal; overflow-wrap:anywhere; }

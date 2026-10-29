@@ -52,30 +52,17 @@ function SampleRouteMap({ compact = false, operatorName = "Jamie" }: { compact?:
 }
 
 export default function LandingPhone() {
-  const stageRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const stage = stageRef.current;
-    if (!stage) return;
-    const hero = stage.parentElement;
-    const update = () => {
-      if (!hero) return;
-      if (window.innerWidth <= 700) { stage.style.transform = "none"; hero.style.setProperty("--demo-focus", "0"); return; }
-      const bounds = hero.getBoundingClientRect();
-      const progress = Math.min(1, Math.max(0, (100 - bounds.top) / 150));
-      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      const x = (hero.clientWidth / 2 - stage.offsetLeft - stage.offsetWidth / 2) * progress;
-      const scale = reduced ? 1 : 1 + .08 * progress;
-      const travel = Math.max(0, hero.offsetHeight - stage.offsetTop - stage.offsetHeight * scale + 35);
-      const y = Math.min(travel, Math.max(0, 22 - bounds.top - stage.offsetTop));
-      stage.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
-      hero.style.setProperty("--demo-focus", String(progress));
-    };
-    update();
-    window.addEventListener("scroll", update, { passive: true });
-    window.addEventListener("resize", update);
-    return () => { window.removeEventListener("scroll", update); window.removeEventListener("resize", update); hero?.style.removeProperty("--demo-focus"); };
-  }, []);
   const [view, setView] = useState<View>("home");
+  const screenRef = useRef<HTMLDivElement>(null);
+  const previousView = useRef<View>("home");
+
+  useEffect(() => {
+    if (previousView.current === view) return;
+    previousView.current = view;
+    // Keep keyboard and screen-reader users at the start of each new demo step.
+    screenRef.current?.querySelector<HTMLHeadingElement>("h3")?.focus({ preventScroll: true });
+  }, [view]);
+
   const [requested, setRequested] = useState(false);
   const [selectedOperatorId, setSelectedOperatorId] = useState<string>(operators[0].id);
   const [schedule, setSchedule] = useState<"asap" | "scheduled" | null>(null);
@@ -126,18 +113,18 @@ export default function LandingPhone() {
   });
   const showNav = ["home", "jobs", "messages", "menu"].includes(view);
 
-  return <div ref={stageRef} className={styles.demo}>
+  return <div className={styles.demo}>
     <p className={styles.caption}>Step {walkthroughStep} of 5</p>
-    <div className={styles.phone} aria-label="Interactive sample of the SNOWD client booking flow">
+    <div className={styles.phone} role="region" aria-label="Interactive sample of the SNOWD client booking flow">
       <div className={styles.status}><span>9:41</span><span className={styles.island} /><span><Signal size={12} /><Wifi size={12} /><BatteryFull size={17} /></span></div>
-      <div data-view={view} className={`${styles.screen} ${view === "home" ? styles.homeScreen : ""} ${view === "success" ? styles.successScreen : ""} ${view === "timing" && schedule === null ? styles.timingIntroScreen : ""}`} key={view}>
+      <div ref={screenRef} data-view={view} className={`${styles.screen} ${view === "home" ? styles.homeScreen : ""} ${view === "success" ? styles.successScreen : ""} ${view === "timing" && schedule === null ? styles.timingIntroScreen : ""}`} key={view}>
         {view === "home" && <>
-          <div className={styles.demoWelcome}><small>Your snow day</small><h3>{requested ? "Your current work order" : "Snow help, close to home"}</h3></div>{!requested && <section className={styles.locationMap} aria-label="Fictional property in Maple Hollow"><SampleStreetRoute journey={false} /></section>}
-          {requested ? <section className={styles.pendingOrder}><small>REQUEST SENT</small><h3>Waiting for acceptance</h3><p>{selectedOperator.name} · 2-car driveway</p><p>{schedule === "asap" ? "ASAP · arrival after confirmation" : `${scheduledDateLabel} · ${demoTime}`}</p><p>{payment === "cash" ? "Cash" : "Card"} · $42.00 CAD · Pending</p><button onClick={() => setView("jobs")}>View work order <ArrowRight size={15} /></button></section> : <section className={styles.orderIntro}><h3>Need snow removal?</h3><p>18 Snowdrop Lane · Maple Hollow</p></section>}
+          <div className={styles.demoWelcome}><small>Your snow day</small><h3 tabIndex={-1}>{requested ? "Your current work order" : "Snow help, close to home"}</h3></div>{!requested && <section className={styles.locationMap} aria-label="Fictional property in Maple Hollow"><SampleStreetRoute journey={false} /></section>}
+          {requested ? <section className={styles.pendingOrder}><small>REQUEST SENT</small><h3 tabIndex={-1}>Waiting for acceptance</h3><p>{selectedOperator.name} · 2-car driveway</p><p>{schedule === "asap" ? "ASAP · arrival after confirmation" : `${scheduledDateLabel} · ${demoTime}`}</p><p>{payment === "cash" ? "Cash" : "Card"} · $42.00 CAD · Pending</p><button onClick={() => setView("jobs")}>View work order <ArrowRight size={15} /></button></section> : <section className={styles.orderIntro}><h3 tabIndex={-1}>Need snow removal?</h3><p>18 Snowdrop Lane · Maple Hollow</p></section>}
         </>}
 
         {view === "find" && <>
-          <div className={styles.screenTitle}><button type="button" onClick={goBack} aria-label="Back"><ArrowRight size={16} /></button><h3>Find a shoveler</h3></div>
+          <div className={styles.screenTitle}><button type="button" onClick={goBack} aria-label="Back"><ArrowRight size={16} /></button><h3 tabIndex={-1}>Find a shoveler</h3></div>
           <div className={styles.operatorList}>{operators.map((operator) => {
             const Logo = operator.icon;
             return <button key={operator.id} type="button" className={styles.operatorChoice} onClick={() => { setSelectedOperatorId(operator.id); setView("location"); }}>
@@ -149,7 +136,7 @@ export default function LandingPhone() {
         </>}
 
         {view === "location" && <>
-          <div className={styles.screenTitle}><button type="button" onClick={goBack} aria-label="Back"><ArrowRight size={16} /></button><h3>Where should {selectedOperator.name.split(" ")[0]} go?</h3></div>
+          <div className={styles.screenTitle}><button type="button" onClick={goBack} aria-label="Back"><ArrowRight size={16} /></button><h3 tabIndex={-1}>Where should {selectedOperator.name.split(" ")[0]} go?</h3></div>
           <section className={styles.savedLocationCard} aria-label="Saved sample property">
             <div className={styles.savedLocationMap}><SampleStreetRoute journey={false} /></div>
             <div className={styles.savedLocationDetails}><span>Your property</span><strong>18 Snowdrop Lane</strong><p>Maple Hollow <em>Fictional neighborhood</em></p></div>
@@ -157,8 +144,8 @@ export default function LandingPhone() {
         </>}
 
         {view === "timing" && <>
-          {schedule !== null && <div className={styles.screenTitle}><button type="button" onClick={goBack} aria-label="Back"><ArrowRight size={16} /></button><h3>Choose your timing</h3></div>}
-          {schedule === null && <div className={styles.timingIntro}><button type="button" onClick={goBack} aria-label="Back" className={styles.timingBack}><ArrowRight size={16} /></button><span className={styles.timingClock}><Clock3 size={56} strokeWidth={1.5} /></span><h3>When do you need help?</h3><div className={styles.timingOptions}><button type="button" onClick={() => setSchedule("asap")}><Sparkles size={19} /><span>ASAP</span></button><button type="button" onClick={() => setSchedule("scheduled")}><CalendarDays size={19} /><span>Scheduled</span></button></div></div>}
+          {schedule !== null && <div className={styles.screenTitle}><button type="button" onClick={goBack} aria-label="Back"><ArrowRight size={16} /></button><h3 tabIndex={-1}>Choose your timing</h3></div>}
+          {schedule === null && <div className={styles.timingIntro}><button type="button" onClick={goBack} aria-label="Back" className={styles.timingBack}><ArrowRight size={16} /></button><span className={styles.timingClock}><Clock3 size={56} strokeWidth={1.5} /></span><h3 tabIndex={-1}>When do you need help?</h3><div className={styles.timingOptions}><button type="button" onClick={() => setSchedule("asap")}><Sparkles size={19} /><span>ASAP</span></button><button type="button" onClick={() => setSchedule("scheduled")}><CalendarDays size={19} /><span>Scheduled</span></button></div></div>}
           {schedule === "asap" && <section className={styles.etaCard}>
             <SampleRouteMap compact operatorName={selectedOperator.name.split(" ")[0]} />
             <div className={styles.etaDetails}><small>{selectedOperator.name.toUpperCase()} · SAMPLE ETA</small><strong>About 12 minutes after confirmation</strong><span>{selectedOperator.name} → Your property</span><span>18 Snowdrop Lane · Maple Hollow</span></div>
@@ -170,7 +157,7 @@ export default function LandingPhone() {
               <div className={styles.calendarGrid}>{["S", "M", "T", "W", "T", "F", "S"].map((day, index) => <span key={`${day}${index}`} className={styles.weekday}>{day}</span>)}{monthDays.map(day => {
                 const value = format(day, "yyyy-MM-dd");
                 const isPast = isBefore(day, new Date(new Date().setHours(0, 0, 0, 0)));
-                return <button key={value} type="button" disabled={isPast || !isSameMonth(day, calendarMonth)} aria-pressed={value === demoDate} className={!isSameMonth(day, calendarMonth) ? styles.outsideMonth : ""} onClick={() => setDemoDate(value)}>{format(day, "d")}</button>;
+                return <button key={value} type="button" disabled={isPast || !isSameMonth(day, calendarMonth)} aria-pressed={value === demoDate} aria-label={format(day, "EEEE, MMMM do, yyyy")} className={!isSameMonth(day, calendarMonth) ? styles.outsideMonth : ""} onClick={() => setDemoDate(value)}>{format(day, "d")}</button>;
               })}</div>
             </div>
             <div className={styles.timePickerSection}><div className={styles.timePickerHeading}><span>Choose a time</span><strong>{format(new Date(`2000-01-01T${demoTime}:00`), "h:mm a")}</strong></div><select className={styles.demoTimeSelect} aria-label="Choose sample time" value={demoTime} onChange={event => setDemoTime(event.target.value)}>{timeOptions.map(time => <option key={time} value={time} disabled={currentTime !== null && new Date(`${demoDate}T${time}:00`).getTime() <= currentTime}>{format(new Date(`2000-01-01T${time}:00`), "h:mm a")}</option>)}</select></div>
@@ -178,26 +165,26 @@ export default function LandingPhone() {
         </>}
 
         {view === "review" && <>
-          <div className={styles.screenTitle}><button type="button" onClick={goBack} aria-label="Back"><ArrowRight size={16} /></button><h3>Your sample request</h3></div>
+          <div className={styles.screenTitle}><button type="button" onClick={goBack} aria-label="Back"><ArrowRight size={16} /></button><h3 tabIndex={-1}>Your sample request</h3></div>
           <div className={styles.reviewSummary}>
             <div className={styles.reviewOperator}><span className={`${styles.companyLogo} ${styles[selectedOperator.tone]}`}><selectedOperator.icon size={20} /></span><span><small>SHOVELER</small><strong>{selectedOperator.name}</strong></span></div>
             <div className={styles.reviewRow}><span>Service</span><strong>2-car driveway · Walkway</strong></div>
             <div className={styles.reviewLocation}><span className={styles.reviewLocationIcon}><MapPin size={16} /></span><span><small>LOCATION · SAMPLE</small><strong>18 Snowdrop Lane</strong></span><b className={schedule === "asap" ? styles.asapLabel : ""}>{schedule === "asap" ? "~12 min" : "Scheduled"}</b></div>
             <div className={styles.reviewRow}><span>When</span><strong className={schedule === "asap" ? styles.asapLabel : ""}>{schedule === "asap" ? "ASAP · after acceptance" : `${scheduledDateLabel} · ${format(new Date(`2000-01-01T${demoTime}:00`), "h:mm a")}`}</strong></div>
+            <div className={`${styles.reviewRow} ${styles.reviewTotal}`}><span>Sample total</span><strong>$42.00 CAD</strong></div>
           </div>
 
-          <div className={styles.reviewRow}><span>Sample total</span><strong>$42.00 CAD</strong></div>
           <fieldset className={styles.paymentChoice}><legend>Payment</legend><div className={styles.choices}><button type="button" aria-pressed={payment === "cash"} onClick={() => setPayment("cash")}><span className={styles.paymentAsset}><Banknote size={25} /></span><span>Cash</span></button><button type="button" aria-pressed={payment === "credit"} onClick={() => setPayment("credit")}><span className={styles.paymentAsset}><CreditCard size={25} /></span><span>Card</span></button></div></fieldset>
         </>}
 
         {view === "success" && <div className={styles.success}>
-          <span className={styles.successIcon}><Check size={30} /></span><h3>You’re ready for a snow day.</h3>
+          <span className={styles.successIcon}><Check size={30} /></span><h3 tabIndex={-1}>You’re ready for a snow day.</h3>
           <p>You’ve tried the demo. Create an account to book real snow clearing.</p>
         </div>}
 
-        {view === "jobs" && <><div className={styles.screenTitle}><button type="button" onClick={() => setView("home")} aria-label="Back"><ArrowRight size={16} /></button><h3>Work orders</h3></div>{requested ? <button className={styles.job} onClick={() => setView("messages")}><b>{selectedOperator.name} · Driveway</b><small>Requested</small><span>Open messages <ArrowRight size={14} /></span></button> : <div className={styles.empty}><ClipboardList size={17} /><span><b>None</b></span></div>}</>}
-        {view === "messages" && <><div className={styles.screenTitle}><button type="button" onClick={() => setView("home")} aria-label="Back"><ArrowRight size={16} /></button><h3>Messages</h3></div>{requested ? <button className={styles.job} onClick={() => setView("jobs")}><b>{selectedOperator.name}</b><span>View work order <ArrowRight size={14} /></span></button> : <div className={styles.empty}><MessageSquare size={17} /><span><b>None</b></span></div>}</>}
-        {view === "menu" && <><div className={styles.screenTitle}><button type="button" onClick={() => setView("home")} aria-label="Back"><ArrowRight size={16} /></button><h3>More</h3></div><button className={styles.menuItem} onClick={() => setView("home")}><UserRound size={16} /> Account <ArrowRight size={15} /></button></>}
+        {view === "jobs" && <><div className={styles.screenTitle}><button type="button" onClick={() => setView("home")} aria-label="Back"><ArrowRight size={16} /></button><h3 tabIndex={-1}>Work orders</h3></div>{requested ? <button className={styles.job} onClick={() => setView("messages")}><b>{selectedOperator.name} · Driveway</b><small>Requested</small><span>Open messages <ArrowRight size={14} /></span></button> : <div className={styles.empty}><ClipboardList size={17} /><span><b>None</b></span></div>}</>}
+        {view === "messages" && <><div className={styles.screenTitle}><button type="button" onClick={() => setView("home")} aria-label="Back"><ArrowRight size={16} /></button><h3 tabIndex={-1}>Messages</h3></div>{requested ? <button className={styles.job} onClick={() => setView("jobs")}><b>{selectedOperator.name}</b><span>View work order <ArrowRight size={14} /></span></button> : <div className={styles.empty}><MessageSquare size={17} /><span><b>None</b></span></div>}</>}
+        {view === "menu" && <><div className={styles.screenTitle}><button type="button" onClick={() => setView("home")} aria-label="Back"><ArrowRight size={16} /></button><h3 tabIndex={-1}>More</h3></div><button className={styles.menuItem} onClick={() => setView("home")}><UserRound size={16} /> Account <ArrowRight size={15} /></button></>}
       </div>
       {view === "timing" && schedule !== null && <div className={styles.timingDock}><div className={`${styles.timingOptions} ${styles.timingOptionsSelected}`}>
         <button type="button" aria-pressed={schedule === "asap"} onClick={() => setSchedule("asap")}><Sparkles size={19} /><span>ASAP</span></button>
@@ -207,6 +194,7 @@ export default function LandingPhone() {
       {showNav && <nav className={styles.bottomNav} aria-label="Demo navigation">{tabs.map(({ view: tab, label, icon: Icon }) => <button key={tab} aria-label={label} aria-current={activeTab === tab ? "page" : undefined} onClick={() => setView(tab)}><Icon size={20} /></button>)}</nav>}
       <div className={styles.homeIndicator} />
     </div>
-    {view === "success" ? <button className={styles.realApp} onClick={resetDemo}><RotateCcw size={14} /> Replay demo</button> : <Link href="/signup?role=client" className={styles.realApp}>Sign up to book help <ArrowRight size={15} /></Link>}
+    <p className={styles.disclaimer}>Sample walkthrough · no request is sent</p>
+    {view === "success" ? <button className={styles.realApp} onClick={resetDemo}><RotateCcw size={14} /> Replay demo</button> : <Link href="/signup?role=client" className={styles.realApp}>Start a real snow day <ArrowRight size={15} /></Link>}
   </div>;
 }

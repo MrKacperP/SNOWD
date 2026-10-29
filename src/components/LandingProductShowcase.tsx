@@ -1,122 +1,51 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
-import Link from "next/link";
-import {
-  ArrowRight,
-  Bell,
-  CalendarDays,
-  Check,
-  ChevronDown,
-  CircleDollarSign,
-  ClipboardList,
-  CreditCard,
-  Home,
-  House,
-  MessageSquare,
-  Settings,
-  Shovel,
-  User,
-} from "lucide-react";
+import { useState } from "react";
+import { ArrowRight, Camera, Check, Clock3, House, MessageCircle, Shovel } from "lucide-react";
 import styles from "./LandingProductShowcase.module.css";
 
-const jobs = [
-  { person: "Robert K.", service: "Walkway", time: "Today, 1:00 PM", status: "Confirmed" },
-  { person: "Ana P.", service: "Driveway", time: "Tomorrow, 9:00 AM", status: "Requested" },
-];
+type View = "home" | "jobs" | "messages";
 
 export default function LandingProductShowcase() {
-  const sectionRef = useRef<HTMLElement>(null);
-  const [visible, setVisible] = useState(false);
-  const [view, setView] = useState<"home" | "jobs" | "messages">("home");
-  const [service, setService] = useState("Driveway + walkway");
-  const [booked, setBooked] = useState(false);
-  const [demoStep, setDemoStep] = useState(0);
-
-  useEffect(() => {
-    const node = sectionRef.current;
-    if (!node) return;
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
-        setVisible(true);
-        observer.disconnect();
-      }
-    }, { threshold: 0.16 });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
+  const [view, setView] = useState<View>("home");
 
   return (
-    <section ref={sectionRef} className={`${styles.showcase} ${visible ? styles.visible : ""}`} aria-labelledby="showcase-title">
-      <div className={styles.copy}>
-        <h2 id="showcase-title">From first flake<br />to all clear.</h2>
-        <p>Request help, check in with your shoveler, and see when the job is done.</p>
+    <section id="how" className={styles.showcase} aria-labelledby="showcase-title">
+      <div className={styles.heading}>
+        <h2 id="showcase-title">Your snow day, at a glance.</h2>
+        <p>See your visit from request to all clear.</p>
       </div>
-
-      <div className={styles.stage}>
-        <div className={styles.desktop}>
-          <div className={styles.desktopBody}>
-            <aside className={styles.sidebar} aria-label="Demo dashboard navigation">
-              <div className={styles.sidebarBrand}><Image src="/logo.png" alt="" width={29} height={29} /><span><strong>snowd.</strong><small>Snow service network</small></span></div>
-              <div className={styles.account}><small>ACCOUNT</small><strong>Morgan R.</strong><span>Client</span></div>
-              <nav className={styles.demoNav} aria-label="Preview navigation">
-                <button className={view === "home" ? styles.active : ""} onClick={() => setView("home")}><Home size={16} /> Home</button>
-                <Link href="/signup?role=client"><Shovel size={16} /> Book help</Link>
-                <button className={view === "jobs" ? styles.active : ""} onClick={() => setView("jobs")}><ClipboardList size={16} /> Jobs</button>
-                <button className={view === "messages" ? styles.active : ""} onClick={() => setView("messages")}><MessageSquare size={16} /> Messages</button>
-                <span><CircleDollarSign size={16} /> Payments</span>
-              </nav>
-              <div className={styles.sidebarFooter}><span><Bell size={16} /> Notifications</span><span><User size={16} /> Morgan R.</span></div>
-            </aside>
-            <div className={styles.dashboard}>
-              <div className={styles.welcome}><small>Good morning</small><h3>{view === "home" ? "Your snow day" : view === "jobs" ? "Work orders" : "Messages"}</h3></div>
-              {view === "home" && <>
-                <section className={styles.nextAction}>
-                  <div className={styles.actionHeading}><div><small>Next step</small><h4>Visit confirmed.</h4></div><span>Confirmed</span></div>
-                  <p>Your shoveler will update you when they leave.</p>
-                  <div className={styles.visitSummary}>
-                    <div><span>Your shoveler</span><strong>Maya R.</strong></div>
-                    <div><span>When</span><strong>Today, 11:30 AM</strong></div>
-                    <div><span>Total</span><strong>$42.00 CAD</strong></div>
-                  </div>
-                  <div className={styles.actionLinks}><Link href="/signup?role=client">View visit <ArrowRight size={13} /></Link><Link href="/signup?role=client">Book another</Link></div>
-                </section>
-                <section className={styles.visits}>
-                  <div className={styles.visitsHeading}><h4>Other visits</h4><Link href="/signup?role=client">View all</Link></div>
-                  {jobs.map((job) => <div className={styles.visit} key={job.person}><div><strong><User size={13} /> {job.person}</strong><span>{job.service} · {job.time}</span></div><em>{job.status}</em></div>)}
-                </section>
-                <div className={styles.shortcuts}><span><CalendarDays size={17} /><b>Schedule</b><ArrowRight size={14} /></span><span><CreditCard size={17} /><b>Payments</b><ArrowRight size={14} /></span><span><Settings size={17} /><b>Your account &amp; property</b><ArrowRight size={14} /></span></div>
-              </>}
-              {view === "jobs" && <section className={styles.visits}><div className={styles.visitsHeading}><h4>Current work orders</h4><Link href="/signup?role=client">View all</Link></div>{jobs.map((job) => <div className={styles.visit} key={job.person}><div><strong><User size={13} /> {job.person}</strong><span>{job.service} · {job.time}</span></div><em>{job.status}</em></div>)}</section>}
-              {view === "messages" && (
-                <div className={`${styles.panel} ${styles.messages}`}>
-                  <div className={styles.panelTitle}><div><h4>Messages</h4><span>Everything is ready for today</span></div></div>
-                  <div className={styles.message}><span>J</span><div><b>Jamie</b><p>I’m on my way. I’ll send a photo when the driveway is clear.</p></div><small>9:42</small></div>
-                  <div className={styles.message}><span>S</span><div><b>SNOWD support</b><p>Your payment is protected until the job is complete.</p></div><small>Yesterday</small></div>
-                </div>
-              )}
-            </div>
-          </div>
+      <div className={styles.preview}>
+        <div className={styles.previewTop}>
+          <div className={styles.previewBrand}><span className={styles.brandMark}><Shovel size={20} aria-hidden="true" /></span><strong>snowd<span>.</span></strong></div>
+          <span className={styles.sampleBadge}>Sample app preview</span>
         </div>
-
-        <div className={styles.phone}>
-          <div className={styles.phoneTop}><span>9:41</span><i /><span>•••</span></div>
-          <div className={styles.phoneHeader}><Image src="/logo.png" alt="" width={19} height={21} /><b>snowd.</b><span>{demoStep + 1} of 4</span></div>
-          <div className={styles.phoneContent}>
-            {booked ? (
-              <div className={styles.booked}><span><Check size={27} /></span><h3>Sample complete.</h3><p>Create an account to book real snow clearing.</p><div><CalendarDays size={17} /><b>Sample · Today · 11:30 AM</b></div></div>
-            ) : (
-              <>{demoStep === 0 ? <>
-                <p className={styles.phoneKicker}>BOOK SNOW HELP</p><h3>What needs<br />clearing?</h3><p className={styles.phoneIntro}>Choose a service for your home.</p>
-                <button className={styles.select} onClick={() => setService(service === "Driveway + walkway" ? "Front steps" : "Driveway + walkway")}><span><Shovel size={18} /><b>{service}</b></span><ChevronDown size={17} /></button>
-                <div className={styles.address}><span><User size={16} /></span><div><small>SELECTED SHOVELER</small><b>Jamie · Maple Hollow</b></div><Check size={15} /></div>
-                <div className={styles.phonePrice}><span>Estimated total<small>Includes service fees</small></span><strong>{service === "Front steps" ? "$24" : "$42"}<small> CAD</small></strong></div>
-              </> : demoStep === 1 ? <><p className={styles.phoneKicker}>SAMPLE LOCATION</p><h3>Where should Jamie go?</h3><p className={styles.phoneIntro}>This address is fictional. Your location is never used.</p><div className={styles.address}><span><House size={16} /></span><div><small>MADE-UP ADDRESS</small><b>18 Snowdrop Lane</b></div><Check size={15} /></div></> : demoStep === 2 ? <><p className={styles.phoneKicker}>SAMPLE TIMING</p><h3>When do you need help?</h3><p className={styles.phoneIntro}>As soon as possible · sample</p><div className={styles.address}><span><CalendarDays size={16} /></span><div><small>REQUESTED WINDOW</small><b>Today · 11:30 AM</b></div><Check size={15} /></div></> : <><p className={styles.phoneKicker}>SAMPLE REVIEW</p><h3>Your choices</h3><div className={styles.address}><span><User size={16} /></span><div><small>SHOVELER · SERVICE</small><b>Jamie · {service}</b></div></div><div className={styles.address}><span><House size={16} /></span><div><small>LOCATION · PAYMENT</small><b>18 Snowdrop Lane · Cash</b></div></div></> }</>
-            )}
-            {booked ? <Link className={styles.bookButton} href="/signup?role=client" onClick={() => { setBooked(false); setDemoStep(0); setService("Driveway + walkway"); setView("home"); }}>Sign up to book help</Link> : <button className={styles.bookButton} onClick={() => { if (demoStep < 3) setDemoStep(demoStep + 1); else setBooked(true); }}>{demoStep === 0 ? "Continue with Jamie" : demoStep === 1 ? "Confirm sample location" : demoStep === 2 ? "Review choices" : "Complete sample"}</button>}
+        <div className={styles.previewBody}>
+          <nav className={styles.tabs} aria-label="Preview app screens">
+            <button type="button" aria-current={view === "home" ? "page" : undefined} onClick={() => setView("home")}><House size={20} aria-hidden="true" /> Home</button>
+            <button type="button" aria-current={view === "jobs" ? "page" : undefined} onClick={() => setView("jobs")}><Shovel size={20} aria-hidden="true" /> Visits</button>
+            <button type="button" aria-current={view === "messages" ? "page" : undefined} onClick={() => setView("messages")}><MessageCircle size={20} aria-hidden="true" /> Messages</button>
+          </nav>
+          <div className={styles.screen} aria-live="polite">
+            {view === "home" && <>
+              <div className={styles.screenHeading}><div><span>Good morning, Morgan</span><h3>Your snow day</h3></div><span className={styles.weatherIcon} aria-hidden="true">❄</span></div>
+              <div className={styles.mainCard}>
+                <span className={styles.cardLabel}>NEXT VISIT <span className={styles.status}>Confirmed</span></span>
+                <h4>Driveway + walkway</h4>
+                <p>Jamie is coming today at 11:30 AM.</p>
+                <div className={styles.facts}><span><Clock3 size={19} aria-hidden="true" /> 11:30 AM</span><span><House size={19} aria-hidden="true" /> Home</span><strong>$42 CAD</strong></div>
+              </div>
+              <div className={styles.miniCards}><div><MessageCircle size={23} aria-hidden="true" /><strong>Chat with Jamie</strong><ArrowRight size={18} aria-hidden="true" /></div><div><Camera size={23} aria-hidden="true" /><strong>Completion photo</strong><span>When done</span></div></div>
+            </>}
+            {view === "jobs" && <>
+              <div className={styles.screenHeading}><div><span>Your visits</span><h3>Driveway + walkway</h3></div></div>
+              <div className={styles.mainCard}><span className={styles.cardLabel}>TODAY’S VISIT <span className={styles.status}>Confirmed</span></span><h4>Jamie · 11:30 AM</h4><p>18 Snowdrop Lane · Maple Hollow</p><div className={styles.timeline}><span><Check size={17} /> Request sent</span><span><Check size={17} /> Accepted</span><span className={styles.upcoming}><Clock3 size={17} /> Work starts next</span><span><Camera size={17} /> Photo when done</span></div></div>
+            </>}
+            {view === "messages" && <>
+              <div className={styles.screenHeading}><div><span>Your messages</span><h3>Jamie</h3></div></div>
+              <div className={styles.chatCard}><div className={styles.chatBubble}>I’ve accepted your request. I’ll let you know when I’m on my way.</div><span>Jamie · Sample conversation</span><div className={styles.chatReply}>Thanks, see you soon!</div></div>
+            </>}
           </div>
-          <div className={styles.phoneHome} />
         </div>
       </div>
     </section>

@@ -4,7 +4,7 @@ Reviewed October 29, 2026. Scope: the web app on `codex/web-simplification`, bas
 
 ## Result
 
-- One homepage demo, a clear service description, concise steps and expandable factual FAQs. The demo remains fictional and displays its sample price before submission.
+- Restored the approved original landing design: both supplied photos, Need a hand / Lend a hand switch, app preview, booking demo, FAQ and signup links. All nine landing source/asset files match the original working copy exactly. This corrects the earlier release that used an older homepage as its baseline.
 - Sign-in and signup focus on the form, with repeated marketing panels, badges, and helper cards removed. Role-specific signup destinations remain intact.
 - Client and operator dashboards retain the next useful action with less repeated instruction. Mobile navigation shows task names; shortcut labels stay visible on hover and keyboard focus.
 - Routine work-order updates and completion use inline feedback instead of success dialogs. Arrival-time buttons send directly. Payment, cash acknowledgement, cancellation, and deletion decisions retain their existing confirmation controls.
