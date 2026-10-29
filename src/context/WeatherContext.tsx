@@ -12,7 +12,8 @@ interface WeatherData {
   city: string;
   humidity: number;
   windSpeed: number;
-  snowChance: number;
+  snowfallAmount: number;
+  snowfallUnit: string;
 }
 
 interface WeatherContextType {
@@ -62,7 +63,8 @@ async function fetchWeather(lat: number, lng: number): Promise<WeatherData | nul
       city,
       humidity,
       windSpeed,
-      snowChance: snowfall > 0 ? Math.min(100, Math.round(snowfall * 10)) : 0,
+      snowfallAmount: Number.isFinite(snowfall) ? snowfall : 0,
+      snowfallUnit: typeof data.daily_units?.snowfall_sum === "string" ? data.daily_units.snowfall_sum : "",
     };
   } catch (error) {
     console.error("Weather fetch error:", error);
@@ -88,112 +90,24 @@ export function WeatherProvider({ children }: { children: React.ReactNode }) {
   const latitude = profile?.lat, longitude = profile?.lng;
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showLocationPopup, setShowLocationPopup] = useState(false);
-  const [, setLocationGranted] = useState(false);
-
-  const requestLocation = () => {
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const data = await fetchWeather(pos.coords.latitude, pos.coords.longitude);
-        setWeather(data);
-        setLoading(false);
-        setLocationGranted(true);
-      },
-      () => {
-        fetchWeather(43.65, -79.38).then((data) => {
-          setWeather(data);
-          setLoading(false);
-        });
-      },
-      { timeout: 5000 }
-    );
-  };
-
   useEffect(() => {
+    let active = true;
     const frame = requestAnimationFrame(() => {
-    if (typeof latitude === "number" && typeof longitude === "number" && Number.isFinite(latitude) && Number.isFinite(longitude)) {
-      fetchWeather(latitude, longitude).then(data => { setWeather(data); setLoading(false); });
-      return;
-    }
-    if (!navigator.geolocation) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      if (sessionStorage.getItem("snowd-location-dismissed-v1")) {
-        fetchWeather(43.65, -79.38).then((data) => { setWeather(data); setLoading(false); });
+      if (typeof latitude !== "number" || typeof longitude !== "number" || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        setWeather(null);
+        setLoading(false);
         return;
       }
-    } catch { /* Storage restrictions must not block the app. */ }
-
-    // Check if permission was already granted/denied
-    if (navigator.permissions) {
-      navigator.permissions.query({ name: "geolocation" }).then((result) => {
-        if (result.state === "granted") {
-          requestLocation();
-        } else if (result.state === "denied") {
-          // Fallback to Toronto
-          fetchWeather(43.65, -79.38).then((data) => {
-            setWeather(data);
-            setLoading(false);
-          });
-        } else {
-          // Show our custom popup first
-          setShowLocationPopup(true);
-          setLoading(false);
-        }
-      }).catch(() => {
-        setShowLocationPopup(true);
-        setLoading(false);
+      setWeather(null);
+      setLoading(true);
+      fetchWeather(latitude, longitude).then(data => {
+        if (active) { setWeather(data); setLoading(false); }
       });
-    } else {
-      setShowLocationPopup(true);
-      setLoading(false);
-    }
     });
-    return () => cancelAnimationFrame(frame);
+    return () => { active = false; cancelAnimationFrame(frame); };
   }, [latitude, longitude]);
 
-
-  const handleAllowLocation = () => {
-    setShowLocationPopup(false);
-    setLoading(true);
-    requestLocation();
-  };
-
-  const handleDenyLocation = () => {
-    try { sessionStorage.setItem("snowd-location-dismissed-v1", "true"); } catch {}
-    setShowLocationPopup(false);
-    fetchWeather(43.65, -79.38).then((data) => {
-      setWeather(data);
-      setLoading(false);
-    });
-  };
-
-  return (
-    <WeatherContext.Provider value={{ weather, loading, locationPromptOpen: showLocationPopup }}>
-      {children}
-      {/* Lazy-load the location popup */}
-      {showLocationPopup && (
-        <LocationPermissionPopupWrapper
-          onAllow={handleAllowLocation}
-          onDeny={handleDenyLocation}
-        />
-      )}
-    </WeatherContext.Provider>
-  );
-}
-
-const LocationPermissionPopup = React.lazy(() => import("@/components/LocationPermissionPopup"));
-
-// Wrapper to lazy import the popup component
-function LocationPermissionPopupWrapper({ onAllow, onDeny }: { onAllow: () => void; onDeny: () => void }) {
-  return (
-    <React.Suspense fallback={null}>
-      <LocationPermissionPopup isOpen={true} onAllow={onAllow} onDeny={onDeny} />
-    </React.Suspense>
-  );
+  return <WeatherContext.Provider value={{ weather, loading, locationPromptOpen: false }}>{children}</WeatherContext.Provider>;
 }
 
 // Compact weather widget for Navbar
@@ -206,8 +120,8 @@ export function WeatherBadge() {
     <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/10 backdrop-blur rounded-lg text-xs">
       <span>{weather.icon}</span>
       <span className="font-semibold">{weather.temp}°C</span>
-      {weather.snowChance > 0 && (
-        <span className="text-blue-200">❄️{weather.snowChance}%</span>
+      {weather.snowfallAmount > 0 && weather.snowfallUnit && (
+        <span className="text-blue-200">❄️ {weather.snowfallAmount} {weather.snowfallUnit} today</span>
       )}
     </div>
   );
@@ -228,7 +142,7 @@ export function WeatherCard() {
   if (!weather) {
     return (
       <div className="bg-white rounded-2xl border border-gray-100 p-5 text-center text-sm text-gray-400">
-        Weather unavailable. Enable location to see weather.
+        Weather unavailable.
       </div>
     );
   }
@@ -251,8 +165,8 @@ export function WeatherCard() {
       <div className="px-5 py-3 flex items-center gap-4 text-xs text-gray-600">
         <span>💨 {weather.windSpeed} km/h</span>
         <span>💧 {weather.humidity}%</span>
-        {weather.snowChance > 0 && (
-          <span className="text-[#2F6FED] font-semibold">❄️ {weather.snowChance}% snow</span>
+        {weather.snowfallAmount > 0 && weather.snowfallUnit && (
+          <span className="text-[#2F6FED] font-semibold">❄️ {weather.snowfallAmount} {weather.snowfallUnit} snow today</span>
         )}
       </div>
     </div>

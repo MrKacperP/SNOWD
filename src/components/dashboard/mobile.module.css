@@ -99,3 +99,11 @@
 .shortcuts .shortcutHoverAsset { display:none; }
 .shortcuts a:is(:hover,:focus-visible) .shortcutTitle { opacity:1; transform:none; }
 .shortcuts a:hover { background:var(--bg-secondary); }
+
+/* Keep task names visible in the mobile navigation. */
+.bottomNav > :is(a,button) { display:flex; flex-direction:column; justify-content:center; gap:2px; min-height:58px; }
+.bottomNav .navIcon { width:32px; height:30px; }
+.navLabel { font-size:11px; font-weight:600; line-height:1.2; }
+.bookingCard .mainAction { margin-top:20px; }
+.shortcuts a:is(:hover,:focus-visible) .shortcutTitle { opacity:1; transform:none; }
+.shortcuts a:is(:hover,:focus-visible) .shortcutHoverAsset { opacity:0; }

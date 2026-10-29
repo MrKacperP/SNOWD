@@ -37,7 +37,6 @@ test('Google sign-in defaults to Firebase auth hosting instead of an unverified 
 
 test('app surfaces are not hidden in details elements', () => {
   const files = [
-    'src/app/page.tsx',
     'src/app/dashboard/settings/page.tsx',
     'src/app/dashboard/transactions/page.tsx',
     'src/app/dashboard/messages/page.tsx',

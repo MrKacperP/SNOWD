@@ -1107,7 +1107,7 @@ export default function SettingsPage() {
                     <Loader2 className="w-6 h-6 text-yellow-600 animate-spin" />
                     <div>
                       <p className="font-semibold text-yellow-800">Verification Pending</p>
-                      <p className="text-sm text-yellow-600">Stripe is reviewing your account details. This can take a few minutes.</p>
+                      <p className="text-sm text-yellow-600">Stripe is reviewing your details. Check back here for updates.</p>
                     </div>
                   </div>
                   <button

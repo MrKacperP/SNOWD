@@ -113,6 +113,7 @@ test("accepting from the list continues into that work order", async () => {
   await settle();
   assert.deepEqual(ui.routes, ["/dashboard/jobs/job-42"]);
   assert.equal(ui.updates.length, 1);
+  assert.ok(!ui.state.includes("action-success"), "routine updates must not open a success dialog");
 });
 test("failed actions stay in place and show the error", async () => {
   const ui = setup({ fail: true });
@@ -131,6 +132,7 @@ test("actions inside a work order do not navigate away", async () => {
   await settle();
   assert.deepEqual(ui.routes, []);
   assert.equal(ui.updates.length, 1);
+  assert.ok(!ui.state.includes("action-success"), "routine updates must not open a success dialog");
 });
 test("opening card checkout does not navigate or report a completed update", async () => {
   const ui = setup({ uid: "client" });

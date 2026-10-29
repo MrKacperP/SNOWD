@@ -10,7 +10,6 @@ import {
   Check,
   Home,
   Truck,
-  MapPin,
   Sparkles,
 } from "lucide-react";
 import OnboardingAddress, {
@@ -748,10 +747,7 @@ export default function OnboardingFlow({
           </div>
         </section>
       </div>
-      <p className="mx-auto mt-6 max-w-5xl text-center text-xs font-semibold text-[#061321]/50">
-        <MapPin className="mr-1 inline h-3 w-3" />
-        Made for your neighbourhood. Ready for winter.
-      </p>
+
     </main>
   );
 }

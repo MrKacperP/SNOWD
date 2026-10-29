@@ -9,16 +9,10 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { sendPasswordResetEmail, setPersistence, browserLocalPersistence, browserSessionPersistence } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import AuthPageShell from "@/components/AuthPageShell";
-import { ArrowRight, Mail, Eye, EyeOff } from "lucide-react";
+import { ArrowRight, Eye, EyeOff } from "lucide-react";
 import { motion } from "framer-motion";
 
 const ADMIN_EMAILS = ["kacperprymicz@gmail.com"];
-
-const benefits = [
-  "Jump back into active booking threads and job updates.",
-  "Track approvals, arrivals, and payouts from one dashboard.",
-  "Keep operator and homeowner messages in the same winter workflow.",
-];
 
 function LoginPageInner() {
   const { user, profile, loading: authLoading, signInWithGoogle, signInWithEmailPassword } = useAuth();
@@ -139,20 +133,12 @@ function LoginPageInner() {
   if (!authLoading && user && profile?.onboardingComplete) return null;
 
   return (
-    <AuthPageShell
-      eyebrow="account access"
-      title="welcome back"
-      body="Sign in to rejoin active requests, operator chats, and your running snow service workflow."
-      features={benefits}
-    >
+    <AuthPageShell>
       <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="w-full">
         <div className="login-card rounded-[1.35rem] border-[3px] border-[#061321] bg-white p-4 shadow-[5px_5px_0_#061321] sm:p-5 lg:p-6">
-          <div className="login-badge inline-flex rounded-full bg-[#ff820e] px-3.5 py-1.5 text-[11px] font-black uppercase tracking-[0.16em]">
-            Sign in
-          </div>
-          <h2 className="login-title mt-3 font-headline text-[clamp(2rem,7vw,3rem)] font-black lowercase leading-none">
+          <h1 className="login-title mt-3 font-headline text-[clamp(2rem,7vw,3rem)] font-black lowercase leading-none">
             Welcome back<span className="text-[#ff820e]">.</span>
-          </h2>
+          </h1>
 
           <form onSubmit={handleEmailSignIn} className="mt-4 space-y-3">
               <div>
@@ -234,12 +220,6 @@ function LoginPageInner() {
             </p>
         </div>
 
-        <div className="login-helper mt-3 hidden rounded-2xl border-[3px] border-[#061321] bg-[#dfeef8] p-3 sm:block">
-          <div className="flex items-center gap-3 text-xs font-black sm:text-sm">
-            <Mail className="h-5 w-5" strokeWidth={3} />
-            Same dashboard, messages, and dispatch once you are in.
-          </div>
-        </div>
       </motion.div>
     </AuthPageShell>
   );

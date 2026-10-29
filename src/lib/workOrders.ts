@@ -76,10 +76,10 @@ export function scheduleText(
   if (!Number.isFinite(time)) return "Time to be confirmed";
   return (
     new Intl.DateTimeFormat("en-CA", {
-      dateStyle: "medium",
-      timeStyle: "short",
+      month: "short", day: "numeric", year: "numeric",
+      hour: "numeric", minute: "2-digit", timeZoneName: "short",
       timeZone: job.scheduleTimezone || "America/Toronto",
-    }).format(time) + ` (${job.scheduleTimezone || "America/Toronto"})`
+    }).format(time)
   );
 }
 export function terminalOrderDateText(

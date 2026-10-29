@@ -41,11 +41,11 @@ export function ClientHomeView({ locationLabel, activeJobs, profile, operatorNam
   const arrival = useArrivalLabel(nextJob);
   const next = nextJob ? workOrderPresentation(nextJob, nextJob.clientId) : null;
   return (
-    <div className="app-page client-home dashboard-home text-[var(--text-primary)]"><header className="dashboard-overview"><div><p className="app-eyebrow">Welcome back</p><h1>Your snow day</h1></div></header>
+    <div className="app-page client-home dashboard-home text-[var(--text-primary)]"><header className="dashboard-overview"><div><h1>Your snow day</h1></div></header>
       <DashboardMap profile={profile || null} job={activeJobs.find(job => ["en-route", "in-progress"].includes(job.status)) || activeJobs.find(job => job.status === "accepted")} role="client" />
       <div className={nextJob ? "client-home-current" : "client-home-grid"}>
       {!loading && !loadError && nextJob && next ? <section className={`next-action job-widget job-widget--${nextJob.status}`}>
-        <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="app-eyebrow">Next step</p><h2>{next.title}</h2></div><StatusBadge status={nextJob.status} /></div>
+        <div className="flex flex-wrap items-start justify-between gap-3"><div><h2>{next.title}</h2></div><StatusBadge status={nextJob.status} /></div>
         <p>{next.description}</p>
         <div className="visit-summary mt-5 grid grid-cols-2 gap-3 rounded-xl bg-white/75 p-4 sm:grid-cols-3">
           <div><span className="text-xs text-[var(--text-muted)]">Your shoveler</span><strong className="mt-1 block">{operatorNames[nextJob.operatorId] || "Operator"}</strong></div>

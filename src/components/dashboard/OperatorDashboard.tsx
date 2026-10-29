@@ -68,7 +68,7 @@ export default function OperatorDashboard() {
 
   return (
     <div className="app-page dashboard-home text-[var(--text-primary)]">
-      <header className="dashboard-overview"><div><p className="app-eyebrow">Your snow day</p><h1>{loading ? "Work overview" : pending.length ? `${pending.length} work ${pending.length === 1 ? "order needs" : "orders need"} your reply` : nextJob ? "Your next visit" : "Ready for your next request"}</h1><p>{pending.length ? "Review the location, timing and payment, then accept or suggest a time." : "Your requests, upcoming visits and payments in one place."}</p></div><Link href="/dashboard/jobs" className="btn-primary"><IconSwap icon={<ArrowUpRight size={18} />}>{pending.length ? "Review requests" : "View work orders"}<ArrowUpRight size={18} /></IconSwap></Link></header>
+      <header className="dashboard-overview"><div><h1>{loading ? "Work overview" : pending.length ? `${pending.length} work ${pending.length === 1 ? "order needs" : "orders need"} your reply` : nextJob ? "Your next visit" : "Ready for your next request"}</h1></div><Link href="/dashboard/jobs" className="btn-primary"><IconSwap icon={<ArrowUpRight size={18} />}>{pending.length ? "Review requests" : "View work orders"}<ArrowUpRight size={18} /></IconSwap></Link></header>
       <div ref={mapRef}><DashboardMap profile={operator} job={selectedRouteJob || nextJob} role="operator" /></div>
       {!operator?.idVerified && <Link href="/dashboard/settings?tab=verification" className="inline-flex min-h-9 items-center rounded-lg px-2 text-sm font-semibold hover:bg-[var(--bg-secondary)]">Verify your ID to receive jobs</Link>}
 

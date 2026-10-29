@@ -1,5 +1,4 @@
 "use client";
-import PaymentSummary from "./PaymentSummary";
 import { completeWithPhoto } from "@/lib/completeWithPhoto";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -109,7 +108,7 @@ export default function OrderActions({
     fn: () => Promise<unknown>,
     navigate = navigateOnUpdate,
     nextDialog: typeof dialog = "",
-    successMessage = "Work order updated successfully.",
+    successMessage = "Work order updated.",
   ) => {
     if (busy) return;
     setBusy(true);
@@ -120,9 +119,10 @@ export default function OrderActions({
       await fn();
       pendingRequest.current = null;
       setSuccess(successMessage);
-      setDialog(nextDialog);
+      const isSuccess = nextDialog === "action-success" || nextDialog === "completion-success";
+      setDialog(isSuccess ? "" : nextDialog);
       if (navigate) {
-        if (!nextDialog) openWorkOrder();
+        if (!nextDialog || isSuccess) openWorkOrder();
         onUpdated?.(`Order #${orderNumber(job)} updated.`);
       }
     } catch (e) {
@@ -140,7 +140,7 @@ export default function OrderActions({
       setDialog("approve");
       return;
     }
-    const message = action === "accept" ? "Booking confirmed successfully." : "New visit time approved successfully.";
+    const message = action === "accept" ? "Booking confirmed." : "New visit time approved.";
     void run(() => perform(action, { proposalId: job.scheduleProposal?.id }), navigateOnUpdate, "action-success", message);
   };
   const pay = () =>
@@ -196,11 +196,6 @@ export default function OrderActions({
         <p className="guided-success" role="status">
           <span className="guided-success-icon"><Check size={16} aria-hidden="true" /></span>
           {success}
-        </p>
-      )}
-      {actionNeeded && job.status !== "cancelled" && (
-        <p className="text-sm font-semibold text-[var(--ink)]">
-          Next step: {actionNeeded}
         </p>
       )}
       {!actionNeeded && job.status === "pending" && !job.scheduleProposal && (
@@ -293,7 +288,7 @@ export default function OrderActions({
               (job.paymentMethod !== "cash" &&
                 !["held", "paid"].includes(job.paymentStatus))
             }
-            onClick={() => run(shareJourney, navigateOnUpdate, "action-success", "You are now marked on the way. The customer received your ETA.")}
+            onClick={() => run(shareJourney, navigateOnUpdate, "action-success", "On the way. Arrival time sent.")}
           >
             On my way
           </button>
@@ -309,7 +304,7 @@ export default function OrderActions({
                 (job.paymentMethod !== "cash" &&
                   !["held", "paid"].includes(job.paymentStatus))
               }
-              onClick={() => run(() => perform("in-progress"), navigateOnUpdate, "action-success", "Work started successfully. Add photo proof when the clearing is complete.")}
+              onClick={() => run(() => perform("in-progress"), navigateOnUpdate, "action-success", "Work started.")}
             >
               Start work
             </button>
@@ -397,7 +392,7 @@ export default function OrderActions({
                 (job.paymentMethod !== "cash" &&
                   !["held", "paid"].includes(job.paymentStatus))
               }
-              onClick={() => run(() => perform("in-progress"), navigateOnUpdate, "action-success", "Work started successfully. Add photo proof when the clearing is complete.")}
+              onClick={() => run(() => perform("in-progress"), navigateOnUpdate, "action-success", "Work started.")}
             >
               Start work
             </button>
@@ -528,13 +523,6 @@ export default function OrderActions({
         }
         variant={dialog === "cancel" || dialog === "decline" || dialog === "refund" ? "danger" : "default"}
       >
-        {dialog === "action-success" && (
-          <div className="space-y-4 text-center">
-            <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-100 text-emerald-800"><Check size={28} aria-hidden="true" /></span>
-            <p className="text-base font-semibold">{success}</p><p className="text-sm text-[var(--text-secondary)]">Your work order has been updated. Continue to see its current status and next step.</p><PaymentSummary job={job} operator={operator} />
-            <button className={attentionButton} onClick={() => { setDialog(""); setSuccess(""); }}>Continue</button>
-          </div>
-        )}
         {dialog === "finish-after-cash" && <div className="space-y-4">
           <p>Payment is recorded. Complete the work order now so it no longer stays in progress.</p>
           <button className={attentionButton} disabled={busy} onClick={() => job.completionPhotoUrl ? complete() : setDialog("photo")}>{job.completionPhotoUrl ? "Complete work" : "Add photo & complete work"}</button>
@@ -560,7 +548,7 @@ export default function OrderActions({
             <button
               className="min-h-11 rounded-lg border px-4 py-3 font-semibold"
               disabled={busy}
-              onClick={() => setDialog("completion-success")}
+              onClick={() => setDialog("")}
             >
               Not yet · keep payment pending
             </button>
@@ -651,13 +639,6 @@ export default function OrderActions({
             {(busy || preparingPhoto) && <p role="status">Uploading photo and completing work…</p>}
           </div>
         )}
-        {dialog === "completion-success" && (
-          <div className="space-y-4 text-center">
-            <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-100 text-emerald-800"><Check size={28} aria-hidden="true" /></span>
-            <div><p className="text-lg font-semibold">This work order is complete.</p><p className="mt-2 text-sm text-[var(--text-secondary)]">The completion photo has been saved{job.paymentMethod === "cash" && job.paymentStatus !== "paid" ? ". You can record the cash payment later from Needs attention." : ". Check the payment summary for its current status."}</p></div>
-            <button className={attentionButton} onClick={() => { setDialog(""); setSuccess(""); }}>Continue</button>
-          </div>
-        )}
         {dialog === "approve" && (
           <div className="space-y-4">
             <p>
@@ -683,7 +664,7 @@ export default function OrderActions({
                   }),
                   navigateOnUpdate,
                   "action-success",
-                  "Cash booking approved successfully.",
+                  "Cash booking approved.",
                 )
               }
             >

@@ -4,7 +4,7 @@ import IconSwap from "@/components/ui/IconSwap";
 
 import { canAcceptPlatformPayments } from "@/lib/operatorDiscovery";
 import { jobDisplayPrice } from "@/lib/marketplacePricing";
-import { propertySizeLabel } from "@/lib/workOrders";
+import { propertySizeLabel, scheduleText } from "@/lib/workOrders";
 import { isStripeAccountReady,stripeConnectFetch } from "@/lib/stripeConnectClient";
 
 import CancellationPopup from "@/components/CancellationPopup";
@@ -1417,7 +1417,7 @@ export default function ChatPage() {
                 <Camera className="w-4 h-4 text-green-600" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-gray-900">Completion Photo</p>
+                <p className="text-sm font-semibold text-gray-900">Completion photo</p>
                 <p className="text-xs text-gray-500">{formatTimestamp(msg.createdAt)}</p>
               </div>
             </div>
@@ -1694,7 +1694,6 @@ export default function ChatPage() {
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <div>
                     <h2 className="text-sm font-bold text-[var(--text-primary)]">Work orders</h2>
-                    <p className="text-xs text-[var(--text-muted)]">This chat keeps updates for all linked orders together.</p>
                   </div>
                   <span className="rounded-full bg-[var(--bg-secondary)] px-2 py-1 text-[10px] font-bold text-[var(--text-muted)]">{linkedJobs.length}</span>
                 </div>
@@ -1738,11 +1737,10 @@ export default function ChatPage() {
             <div className="guided-review-heading">
               <span className="guided-review-icon"><Star size={18} aria-hidden="true" /></span>
               <div>
-                <p className="guided-review-eyebrow">Final step</p>
                 <p className="text-sm font-semibold text-[var(--text-primary)]">
                   How was {otherUser?.displayName || "your shoveler"}?
                 </p>
-                <p className="text-xs text-[var(--text-secondary)]">A quick rating closes the visit.</p>
+                <p className="text-xs text-[var(--text-secondary)]">Rate your visit.</p>
               </div>
             </div>
             {/* Star Rating */}
@@ -1898,7 +1896,6 @@ export default function ChatPage() {
         )}
 
 
-                <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-[var(--text-muted)]">Work order progress</h3>
             <ProgressTracker
               status={job.status}
               paymentMethod={job.paymentMethod}
@@ -1908,7 +1905,6 @@ export default function ChatPage() {
             {/* Operator Update Buttons */}
             {isOperator && job.status !== "completed" && job.status !== "cancelled" && (
               <div className="mt-4 pt-3 border-t border-[var(--border)] space-y-2">
-                <p className="mb-3 text-xs font-bold uppercase tracking-widest text-gray-400">Update Progress</p>
                 {job.status === "pending" && (
                   <div className="grid grid-cols-2 gap-2">
                     <button
@@ -1930,7 +1926,7 @@ export default function ChatPage() {
                     onClick={() => updateJobStatus("en-route")}
                     className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-[var(--accent)] text-white rounded-xl text-xs font-bold hover:bg-[var(--accent-dark)] transition shadow-[var(--surface-shadow)]"
                   ><IconSwap icon={<Navigation className="w-3.5 h-3.5" />}>
-                    <Navigation className="w-3.5 h-3.5" /> Mark En Route
+                    <Navigation className="w-3.5 h-3.5" /> On my way
                   </IconSwap></button>
                 )}
                 {job.status === "en-route" && (
@@ -1956,7 +1952,7 @@ export default function ChatPage() {
                       disabled={uploadingPhoto}
                       className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-[var(--accent)] text-white rounded-xl text-xs font-bold hover:bg-[var(--accent-dark)] transition shadow-[var(--surface-shadow)] disabled:opacity-50"
                     ><IconSwap icon={<Camera className="w-3.5 h-3.5" />}>
-                      <Camera className="w-3.5 h-3.5" /> {uploadingPhoto ? "Uploading..." : job.completionPhotoUrl || completionPhoto ? "Update Photo Proof" : "Submit Photo Proof"}
+                      <Camera className="w-3.5 h-3.5" /> {uploadingPhoto ? "Uploading..." : job.completionPhotoUrl || completionPhoto ? "Update completion photo" : "Add completion photo"}
                     </IconSwap></button>
                     {(job.completionPhotoUrl || completionPhoto) && (
                       <button
@@ -1983,43 +1979,22 @@ export default function ChatPage() {
                 <p className="mb-2 text-xs font-bold uppercase tracking-widest text-gray-400">Send arrival time</p>
                 <div className="grid grid-cols-3 gap-2">
                   <button
-                    onClick={() => {
-                      requestQuickCommConfirmation({
-                        title: "Send ETA update?",
-                        message: "This will message the client that your estimated arrival is 10 minutes.",
-                        confirmLabel: "Send 10m ETA",
-                        onConfirm: () => sendEtaUpdate(10),
-                      });
-                    }}
+                    onClick={() => void sendEtaUpdate(10)}
                     className="flex items-center justify-center gap-1 rounded-xl bg-[var(--bg-secondary)] px-2 py-2 text-xs font-semibold text-[var(--text-primary)] transition hover:bg-[var(--border)]"
                   >
-                    10 min
+                    Send 10 min
                   </button>
                   <button
-                    onClick={() => {
-                      requestQuickCommConfirmation({
-                        title: "Send ETA update?",
-                        message: "This will message the client that your estimated arrival is 20 minutes.",
-                        confirmLabel: "Send 20m ETA",
-                        onConfirm: () => sendEtaUpdate(20),
-                      });
-                    }}
+                    onClick={() => void sendEtaUpdate(20)}
                     className="flex items-center justify-center gap-1 rounded-xl bg-[var(--bg-secondary)] px-2 py-2 text-xs font-semibold text-[var(--text-primary)] transition hover:bg-[var(--border)]"
                   >
-                    20 min
+                    Send 20 min
                   </button>
                   <button
-                    onClick={() => {
-                      requestQuickCommConfirmation({
-                        title: "Send ETA update?",
-                        message: "This will message the client that your estimated arrival is 30 minutes.",
-                        confirmLabel: "Send 30m ETA",
-                        onConfirm: () => sendEtaUpdate(30),
-                      });
-                    }}
+                    onClick={() => void sendEtaUpdate(30)}
                     className="flex items-center justify-center gap-1 rounded-xl bg-[var(--bg-secondary)] px-2 py-2 text-xs font-semibold text-[var(--text-primary)] transition hover:bg-[var(--border)]"
                   >
-                    30 min
+                    Send 30 min
                   </button>
                 </div>
                 {job.paymentMethod !== "cash" && job.status === "accepted" && (job.paymentStatus === "pending" || job.paymentStatus === "refunded") && (
@@ -2040,14 +2015,14 @@ export default function ChatPage() {
                     }}
                     className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-amber-500 text-white rounded-xl text-xs font-bold hover:bg-amber-600 transition"
                   ><IconSwap icon={<CreditCard className="w-3.5 h-3.5" />}>
-                    <CreditCard className="w-3.5 h-3.5" /> Request Payment
+                    <CreditCard className="w-3.5 h-3.5" /> Request payment
                   </IconSwap></button>
                 )}
               </div>
             )}
 
             <dl className="mt-4 space-y-3 border-t border-[var(--border)] pt-4 text-sm">
-              <div><dt className="font-semibold">Scheduled</dt><dd>{formatMessageDay(job.scheduledDate) || "Date to be confirmed"}{job.scheduledTime ? ` · ${job.scheduledTime}` : ""}</dd></div>
+              <div><dt className="font-semibold">Scheduled</dt><dd>{scheduleText(job)}</dd></div>
               {job.specialInstructions && <div><dt className="font-semibold">Special instructions</dt><dd className="whitespace-pre-wrap">{job.specialInstructions}</dd></div>}
               <div><dt className="font-semibold">Property size</dt><dd>{propertySizeLabel(job.propertySize)}</dd></div>
             </dl>
@@ -2242,7 +2217,7 @@ export default function ChatPage() {
                 <CreditCard className="w-5 h-5 text-amber-600" />
               </div>
               <div>
-                <h3 className="font-bold text-gray-900">Payment Not Yet Received</h3>
+                <h3 className="font-bold text-gray-900">Payment pending</h3>
                 <p className="text-xs text-gray-500">Client hasn&apos;t paid for this job</p>
               </div>
             </div>

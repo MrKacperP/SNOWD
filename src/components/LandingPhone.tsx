@@ -130,7 +130,7 @@ export default function LandingPhone() {
     <p className={styles.caption}>Step {walkthroughStep} of 5</p>
     <div className={styles.phone} aria-label="Interactive sample of the SNOWD client booking flow">
       <div className={styles.status}><span>9:41</span><span className={styles.island} /><span><Signal size={12} /><Wifi size={12} /><BatteryFull size={17} /></span></div>
-      <main data-view={view} className={`${styles.screen} ${view === "home" ? styles.homeScreen : ""} ${view === "success" ? styles.successScreen : ""} ${view === "timing" && schedule === null ? styles.timingIntroScreen : ""}`} key={view}>
+      <div data-view={view} className={`${styles.screen} ${view === "home" ? styles.homeScreen : ""} ${view === "success" ? styles.successScreen : ""} ${view === "timing" && schedule === null ? styles.timingIntroScreen : ""}`} key={view}>
         {view === "home" && <>
           <div className={styles.demoWelcome}><small>Your snow day</small><h3>{requested ? "Your current work order" : "Snow help, close to home"}</h3></div>{!requested && <section className={styles.locationMap} aria-label="Fictional property in Maple Hollow"><SampleStreetRoute journey={false} /></section>}
           {requested ? <section className={styles.pendingOrder}><small>REQUEST SENT</small><h3>Waiting for acceptance</h3><p>{selectedOperator.name} · 2-car driveway</p><p>{schedule === "asap" ? "ASAP · arrival after confirmation" : `${scheduledDateLabel} · ${demoTime}`}</p><p>{payment === "cash" ? "Cash" : "Card"} · $42.00 CAD · Pending</p><button onClick={() => setView("jobs")}>View work order <ArrowRight size={15} /></button></section> : <section className={styles.orderIntro}><h3>Need snow removal?</h3><p>18 Snowdrop Lane · Maple Hollow</p></section>}
@@ -186,6 +186,7 @@ export default function LandingPhone() {
             <div className={styles.reviewRow}><span>When</span><strong className={schedule === "asap" ? styles.asapLabel : ""}>{schedule === "asap" ? "ASAP · after acceptance" : `${scheduledDateLabel} · ${format(new Date(`2000-01-01T${demoTime}:00`), "h:mm a")}`}</strong></div>
           </div>
 
+          <div className={styles.reviewRow}><span>Sample total</span><strong>$42.00 CAD</strong></div>
           <fieldset className={styles.paymentChoice}><legend>Payment</legend><div className={styles.choices}><button type="button" aria-pressed={payment === "cash"} onClick={() => setPayment("cash")}><span className={styles.paymentAsset}><Banknote size={25} /></span><span>Cash</span></button><button type="button" aria-pressed={payment === "credit"} onClick={() => setPayment("credit")}><span className={styles.paymentAsset}><CreditCard size={25} /></span><span>Card</span></button></div></fieldset>
         </>}
 
@@ -197,7 +198,7 @@ export default function LandingPhone() {
         {view === "jobs" && <><div className={styles.screenTitle}><button type="button" onClick={() => setView("home")} aria-label="Back"><ArrowRight size={16} /></button><h3>Work orders</h3></div>{requested ? <button className={styles.job} onClick={() => setView("messages")}><b>{selectedOperator.name} · Driveway</b><small>Requested</small><span>Open messages <ArrowRight size={14} /></span></button> : <div className={styles.empty}><ClipboardList size={17} /><span><b>None</b></span></div>}</>}
         {view === "messages" && <><div className={styles.screenTitle}><button type="button" onClick={() => setView("home")} aria-label="Back"><ArrowRight size={16} /></button><h3>Messages</h3></div>{requested ? <button className={styles.job} onClick={() => setView("jobs")}><b>{selectedOperator.name}</b><span>View work order <ArrowRight size={14} /></span></button> : <div className={styles.empty}><MessageSquare size={17} /><span><b>None</b></span></div>}</>}
         {view === "menu" && <><div className={styles.screenTitle}><button type="button" onClick={() => setView("home")} aria-label="Back"><ArrowRight size={16} /></button><h3>More</h3></div><button className={styles.menuItem} onClick={() => setView("home")}><UserRound size={16} /> Account <ArrowRight size={15} /></button></>}
-      </main>
+      </div>
       {view === "timing" && schedule !== null && <div className={styles.timingDock}><div className={`${styles.timingOptions} ${styles.timingOptionsSelected}`}>
         <button type="button" aria-pressed={schedule === "asap"} onClick={() => setSchedule("asap")}><Sparkles size={19} /><span>ASAP</span></button>
         <button type="button" aria-pressed={schedule === "scheduled"} onClick={() => setSchedule("scheduled")}><CalendarDays size={19} /><span>Scheduled</span></button>
@@ -206,7 +207,6 @@ export default function LandingPhone() {
       {showNav && <nav className={styles.bottomNav} aria-label="Demo navigation">{tabs.map(({ view: tab, label, icon: Icon }) => <button key={tab} aria-label={label} aria-current={activeTab === tab ? "page" : undefined} onClick={() => setView(tab)}><Icon size={20} /></button>)}</nav>}
       <div className={styles.homeIndicator} />
     </div>
-    <p className={styles.disclaimer}>Sample walkthrough · no request is sent</p>
-    {view === "success" ? <button className={styles.realApp} onClick={resetDemo}><RotateCcw size={14} /> Replay demo</button> : <Link href="/signup?role=client" className={styles.realApp}>Start a real snow day <ArrowRight size={15} /></Link>}
+    {view === "success" ? <button className={styles.realApp} onClick={resetDemo}><RotateCcw size={14} /> Replay demo</button> : <Link href="/signup?role=client" className={styles.realApp}>Sign up to book help <ArrowRight size={15} /></Link>}
   </div>;
 }

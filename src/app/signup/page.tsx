@@ -8,14 +8,8 @@ import { googleSignInError } from "@/lib/authErrors";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import AuthPageShell from "@/components/AuthPageShell";
-import { ArrowRight, CheckCircle2 } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
-
-const steps = [
-  "Choose homeowner or operator.",
-  "Find your address in one search.",
-  "Pick your services. You’re ready to go.",
-];
 
 function SignUpPageInner() {
   const { user, profile, loading: authLoading, signInWithGoogle } = useAuth();
@@ -64,12 +58,7 @@ function SignUpPageInner() {
   if (!authLoading && user && profile?.onboardingComplete) return null;
 
   return (
-    <AuthPageShell
-      eyebrow="guided setup"
-      title="start clearing"
-      body="Less setup. More snow days. A little help for your home, or your next opportunity to earn."
-      features={selectedRole ? [selectedRole === "operator" ? "Shoveler selected. Get ready to earn." : "Homeowner selected. Find snow help.", ...steps.slice(1)] : steps}
-    >
+    <AuthPageShell>
       <motion.div
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
@@ -77,19 +66,16 @@ function SignUpPageInner() {
         className="w-full"
       >
         <div className="rounded-[1.35rem] border-[3px] border-[#061321] bg-white p-4 shadow-[5px_5px_0_#061321] sm:p-5 lg:p-6">
-          <div className="inline-flex rounded-full bg-[#ff820e] px-3.5 py-1.5 text-[11px] font-black uppercase tracking-[0.16em]">
-            Create account
-          </div>
-          <h2 className="mt-3 font-headline text-[clamp(2rem,7vw,3rem)] font-black lowercase leading-none">
+          <h1 className="mt-3 font-headline text-[clamp(2rem,7vw,3rem)] font-black lowercase leading-none">
             Create your account<span className="text-[#ff820e]">.</span>
-          </h2>
+          </h1>
           <p className="mt-2 text-sm font-bold leading-5 text-[#061321]/62 sm:text-base">
-            {selectedRole === "operator" ? "Sign up as a shoveler, then add your address and service area." : selectedRole === "client" ? "Sign up as a homeowner, then add the address you need cleared." : "Sign up with Google, then choose homeowner or shoveler and add your details."}
+            {selectedRole === "operator" ? "Set your services, prices, and service area." : selectedRole === "client" ? "Add your address to find nearby snow help." : "Find snow help or earn as a shoveler."}
           </p>
 
           <div className="mt-4 space-y-3">
             {error ? (
-              <div className="rounded-2xl border-[3px] border-red-700 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+              <div role="alert" className="rounded-2xl border-[3px] border-red-700 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
                 {error}
               </div>
             ) : null}
@@ -106,17 +92,6 @@ function SignUpPageInner() {
             </button>
           </div>
 
-          <div className="mt-3 rounded-2xl border-[3px] border-[#061321] bg-[#dfeef8] p-3">
-            <div className="flex items-start gap-3">
-              <CheckCircle2
-                className="mt-0.5 h-5 w-5 shrink-0 text-[#ff820e]"
-                strokeWidth={3}
-              />
-              <p className="text-xs font-black leading-4 text-[#061321]/72 sm:text-sm sm:leading-5">
-                No password to remember. Use your Google account to get started.
-              </p>
-            </div>
-          </div>
 
           <p className="mt-3 text-sm font-bold text-[#061321]/62">
             Already have an account?{" "}

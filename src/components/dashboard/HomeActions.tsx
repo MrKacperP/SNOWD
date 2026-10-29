@@ -7,18 +7,17 @@ import styles from "./mobile.module.css";
 export function BookingAction({ location }: { location: string }) {
   return <section className={`dashboard-widget ${styles.bookingCard}`} aria-labelledby="booking-heading">
     <p className={styles.location}><MapPin size={16} aria-hidden="true" />{location}</p>
-    <h2 id="booking-heading">Need snow cleared?</h2><p>Find a nearby shoveler for your driveway, walkway, or steps.</p>
+    <h2 id="booking-heading">Need snow cleared?</h2>
     <Link href="/dashboard/find" className={styles.mainAction}><IconSwap icon={<ArrowRight size={20} aria-hidden="true" />}>Find a shoveler <ArrowRight size={20} aria-hidden="true" /></IconSwap></Link>
-    <span className={styles.actionNote}>Choose a shoveler, then send a job request.</span>
   </section>;
 }
 
 export function HomeActions({ operator = false }: { operator?: boolean }) {
   const items = [
-    { href: operator ? "/dashboard/clients" : "/dashboard/jobs", label: operator ? "Neighbors Nearby" : "Work orders", icon: operator ? Users : ClipboardList },
-    { href: "/dashboard/calendar", label: "Scheduling", icon: CalendarDays },
+    { href: operator ? "/dashboard/clients" : "/dashboard/jobs", label: operator ? "Nearby clients" : "Jobs", icon: operator ? Users : ClipboardList },
+    { href: "/dashboard/calendar", label: "Calendar", icon: CalendarDays },
     { href: "/dashboard/transactions", label: "Payments", icon: CreditCard },
-    { href: "/dashboard/settings", label: "Manage Profile", icon: Settings },
+    { href: "/dashboard/settings", label: "Settings", icon: Settings },
   ];
   return <nav className={styles.shortcuts} aria-label="Dashboard shortcuts">
     {items.map(({ href, label, icon: Icon }) => <Link key={href} href={href} aria-label={label}>

@@ -61,7 +61,8 @@ export default function OrderCard({
         <div className={styles.priorityFacts} aria-label="Visit time and payment">
           <div>
             <span><Clock3 size={13} /> {isAsap(job) ? "Arrival" : "Scheduled"}</span>
-            <strong className={isAsap(job) ? styles.arrivalChip : ""}>{detail && operator && travelTime ? `About ${travelTime} min drive${route?.distanceKm ? ` · ${route.distanceKm} km` : ""}` : job.status === "en-route" ? arrival : isAsap(job) ? "ASAP · time to confirm" : scheduleText(job)}</strong>
+            <strong className={isAsap(job) ? styles.arrivalChip : ""}>{job.status === "en-route" ? arrival : isAsap(job) ? "ASAP · time to confirm" : scheduleText(job)}</strong>
+            {detail && operator && travelTime && !["completed", "cancelled"].includes(job.status) ? <span>About {travelTime} min drive{route?.distanceKm ? ` · ${route.distanceKm} km` : ""}</span> : null}
           </div>
           <PaymentSummary job={job} operator={operator} />
         </div>
@@ -73,13 +74,13 @@ export default function OrderCard({
           </Link>
         )}
         <OrderActions job={job} compact={!detail} onUpdated={onUpdated} />
-        {detail && <details className={styles.orderDetails} aria-labelledby={`visit-details-${job.id}`}>
-        <summary id={`visit-details-${job.id}`} className={styles.detailSummary}>Notes & photos</summary>
+        {detail && (job.specialInstructions || propertyPhotos.length > 0 || (job.status === "en-route" && (travelTime || job.etaSource === "route"))) && <section className={styles.orderDetails} aria-labelledby={`visit-details-${job.id}`}>
+        <h3 id={`visit-details-${job.id}`} className={styles.detailSummary}>Notes & photos</h3>
         <dl className={styles.facts}>
           {(job.specialInstructions || propertyPhotos.length > 0) && <div><dt>Visit notes</dt><dd>{job.specialInstructions && <p>{job.specialInstructions}</p>}{propertyPhotos.length > 0 && <p className={styles.photoLinks}>{propertyPhotos.map((url, index) => <a key={url} href={url} target="_blank" rel="noreferrer">Property photo {index + 1} ↗</a>)}</p>}</dd></div>}
           {job.status === "en-route" && (travelTime || job.etaSource === "route") && <div><dt>Driving time</dt><dd><strong>About {travelTime || job.eta} minutes away</strong>{Number.isFinite(job.operatorApproxLat) && Number.isFinite(job.operatorApproxLng) && <a className="mt-1 block font-semibold underline" href={`https://www.google.com/maps?q=${job.operatorApproxLat},${job.operatorApproxLng}`} target="_blank" rel="noreferrer">View approximate area ({job.operatorLocationRadiusKm || 1} km radius) ↗</a>}<p className={styles.secondary}>The operator’s exact location stays private.</p></dd></div>}
         </dl>
-        </details>}
+        </section>}
         {conflict && (
           <p
             role="status"

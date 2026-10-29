@@ -20,7 +20,6 @@ export default function WorkOrderPage() {
     [name, setName] = useState("Company / customer"),
     [error, setError] = useState("");
   const [person, setPerson] = useState<OperatorProfile | ClientProfile>();
-  const [notice, setNotice] = useState("");
   useEffect(() => {
     if (!user) return;
     return onSnapshot(
@@ -69,15 +68,9 @@ export default function WorkOrderPage() {
         <p role="status">Loading work order…</p>
       ) : (
         <>
-          {notice && (
-            <p role="status" className="text-sm text-[var(--text-secondary)]">
-              {notice}
-            </p>
-          )}
-          <OrderCard job={job} name={name} person={person} detail onUpdated={setNotice} />
-          {(job.specialInstructions || job.completionPhotoUrl || job.legacyChatId || (person?.role === "client" && !!(person as ClientProfile).propertyDetails?.photos?.length)) && <details className={styles.detailSection} aria-labelledby="visit-notes-heading">
-            <summary id="visit-notes-heading" className={styles.detailSummary}>Notes & proof</summary>
-            {job.specialInstructions && <p className="mt-3">{job.specialInstructions}</p>}
+          <OrderCard job={job} name={name} person={person} detail />
+          {(job.completionPhotoUrl || job.legacyChatId) && <section className={styles.detailSection} aria-labelledby="visit-notes-heading">
+            <h2 id="visit-notes-heading" className={styles.detailSummary}>Completion & history</h2>
             {job.completionPhotoUrl && (
               <a
                 className="mt-3 inline-flex min-h-11 items-center underline"
@@ -98,7 +91,7 @@ export default function WorkOrderPage() {
                 </Link>
               </p>
             )}
-          </details>}
+          </section>}
         </>
       )}
     </div>
