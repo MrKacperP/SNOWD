@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, ArrowUpRight, Plus } from "lucide-react";
-import LandingPhone from "@/components/LandingPhone";
+import { ArrowRight, ArrowUpRight, Camera, Clock3, HelpCircle, Mail, MessageCircleQuestion, MousePointerClick, Phone, Plus, Shovel } from "lucide-react";
 import LandingHero from "@/components/LandingHero";
-import LandingProductShowcase from "@/components/LandingProductShowcase";
+import LandingAppDemo from "@/components/LandingAppDemo";
+import LandingFeedback from "@/components/LandingFeedback";
+import ScrollReveal from "@/components/ScrollReveal";
 import styles from "./landing.module.css";
 
 export const metadata: Metadata = {
@@ -12,29 +13,51 @@ export const metadata: Metadata = {
   description: "Find local help for your driveway, walkway, and steps. Compare snow clearing prices, request a visit, and get a completion photo with SNOWD.",
 };
 
-const questions = [
-  ["How much does snow clearing cost?", "Prices depend on the shoveler and the services you choose. You’ll see the price before you send a booking request."],
-  ["Is there a shoveler near me?", "Create an account and add your service address to see nearby shovelers. Availability varies by location, weather, and the time you request."],
-  ["Can I request help today?", "You can request help as soon as possible or choose a future date. Your booking is confirmed when a shoveler accepts, so same-day service depends on local availability."],
-  ["How do I pay?", "Available payment options are shown when you book. For card bookings, payment is authorized before work starts. For cash bookings, you pay the shoveler directly after the work."],
+const SUPPORT_EMAIL = "support@snowd.ca";
+const SUPPORT_PHONE = "437-922-3895";
+
+const steps = [
+  { icon: MousePointerClick, title: "Book in a minute", text: "Pick nearby help, choose what to clear, and see the price up front." },
+  { icon: Clock3, title: "Follow every step", text: "Get notified when your shoveler accepts, heads out, and starts." },
+  { icon: Camera, title: "See it done", text: "A completion photo lands in the app the moment the job is finished." },
+];
+
+const faqGroups = [
+  {
+    title: "For homeowners",
+    questions: [
+      ["How much does snow clearing cost?", "Prices depend on the shoveler and the services you choose. You’ll always see the full price before you send a booking request, with no surprise fees."],
+      ["Is there a shoveler near me?", "Create a free account and add your service address to see nearby shovelers. Availability varies by location, weather, and the time you request."],
+      ["Can I request help today?", "Yes. Request help as soon as possible or choose a future date. Your booking is confirmed when a shoveler accepts, so same-day service depends on local availability."],
+      ["How do I pay?", "Payment options are shown when you book. For card bookings, payment is authorized before work starts and charged when it’s done. For cash bookings, you pay the shoveler directly after the work."],
+      ["What if the job isn’t done right?", "Every visit ends with a completion photo. If something’s missed, message your shoveler in the app or contact our support team and we’ll help sort it out."],
+    ],
+  },
+  {
+    title: "For shovelers",
+    questions: [
+      ["Who can become a shoveler?", "Neighbours, students, and small snow companies can all sign up. Create a shoveler account, set your service area, and start accepting nearby requests."],
+      ["How and when do I get paid?", "Card payments go straight to your connected payout account once the visit is complete. Cash jobs are paid to you on the spot."],
+      ["Can I choose which jobs I take?", "Always. You set your service area and availability, and you can accept or decline each request."],
+    ],
+  },
 ];
 
 function Brand() {
   return <Link href="/" aria-label="snowd.ca home" className={styles.brand}><Image src="/logo.png" alt="" width={34} height={38} /><span>snowd<span className={styles.dot}>.ca</span></span></Link>;
 }
-function FindHelp({ shine = false }: { shine?: boolean }) {
-  return <Link href="/signup?role=client" className={`${styles.primary}${shine ? " action-shine" : ""}`}>Find my shoveler <ArrowRight size={18} aria-hidden="true" /></Link>;
-}
 
 export default function HomePage() {
   return (
     <div className={styles.page}>
+      <ScrollReveal />
       <a className={styles.skip} href="#main">Skip to content</a>
       <header className={styles.header}>
         <nav className={styles.nav} aria-label="Main navigation">
           <Brand />
           <div className={styles.navLinks}>
-            <a href="#how" className={styles.howLink}>See the app</a>
+            <a href="#demo" className={styles.howLink}>Try the app</a>
+            <a href="#faq" className={styles.howLink}>Help</a>
             <Link href="/signup?role=operator" className={styles.operatorLink}>Earn with SNOWD <ArrowUpRight size={14} aria-hidden="true" /></Link>
             <Link href="/login">Log in</Link>
             <Link href="/signup?role=client" className={styles.navSignup}>Sign up <ArrowRight size={15} aria-hidden="true" /></Link>
@@ -43,34 +66,84 @@ export default function HomePage() {
       </header>
       <main id="main">
         <LandingHero />
-        <LandingProductShowcase />
-        <section id="demo" className={styles.demoSection} aria-labelledby="demo-title">
-          <div className={styles.demoInner}>
-            <div className={styles.demoCopy}>
-              <h2 id="demo-title">Try it yourself.</h2>
-              <p className={styles.demoIntro}>Tap through a sample booking.</p>
-            </div>
-            <div className={styles.demoPanel}><p className={styles.demoLabel}>Interactive demo · No real booking</p><LandingPhone /></div>
-          </div>
+
+        <section className={styles.how} aria-labelledby="how-title">
+          <h2 id="how-title" data-reveal>Snow cleared.<br /><span>Without lifting a shovel.</span></h2>
+          <ol className={styles.steps}>
+            {steps.map(({ icon: Icon, title, text }, index) => (
+              <li key={title} data-reveal style={{ transitionDelay: `${index * 120}ms` }}>
+                <span className={styles.stepNumber}><Icon size={22} aria-hidden="true" /></span>
+                <div><small>0{index + 1}</small><h3>{title}</h3><p>{text}</p></div>
+              </li>
+            ))}
+          </ol>
         </section>
+
+        <LandingAppDemo />
+
         <section id="earn" className={styles.earn} aria-labelledby="earn-title">
-          <div className={styles.earnImage}>
+          <div className={styles.earnImage} data-reveal="left">
             <Image src="/At tims and got a job.jpeg" alt="Two shovelers checking a nearby job on a phone over coffee on a snowy morning" width={825} height={1024} sizes="(max-width: 900px) 100vw, 50vw" />
           </div>
-          <div className={styles.earnCopy}>
+          <div className={styles.earnCopy} data-reveal="right">
             <h2 id="earn-title">Your neighbourhood.<br /><span>Your next job.</span></h2>
-            <p>Find snow clearing work close to home.</p>
+            <p>Find snow clearing work close to home, set your own hours, and get paid the same day.</p>
+            <ul className={styles.earnPoints}>
+              <li><Shovel size={18} aria-hidden="true" />Accept only the jobs you want</li>
+              <li><Camera size={18} aria-hidden="true" />Finish with a photo, get paid</li>
+            </ul>
             <Link href="/signup?role=operator" className={styles.earnAction}>Become a shoveler <ArrowUpRight size={18} aria-hidden="true" /></Link>
           </div>
         </section>
+
         <section id="faq" className={styles.faq} aria-labelledby="faq-title">
-          <h2 id="faq-title">Good to know.</h2>
-          <div className={styles.questions}>{questions.map(([question, answer]) => <details key={question} className={styles.question}><summary><span>{question}</span><Plus size={20} aria-hidden="true" /></summary><p>{answer}</p></details>)}</div>
+          <div className={styles.faqIntro} data-reveal>
+            <p className={styles.eyebrow}><HelpCircle size={16} aria-hidden="true" />Help centre</p>
+            <h2 id="faq-title">Questions?<br /><span>We’ve got answers.</span></h2>
+            <p>Can’t find what you need? Ask below or reach our support team directly.</p>
+          </div>
+          <div className={styles.faqBody}>
+            <div className={styles.questions}>
+              {faqGroups.map(group => (
+                <div key={group.title} className={styles.faqGroup} data-reveal>
+                  <h3>{group.title}</h3>
+                  {group.questions.map(([question, answer]) => <details key={question} className={styles.question}><summary><span>{question}</span><Plus size={20} aria-hidden="true" /></summary><p>{answer}</p></details>)}
+                </div>
+              ))}
+            </div>
+            <div data-reveal="right"><LandingFeedback /></div>
+          </div>
         </section>
-        <section className={styles.ready} aria-labelledby="ready-title"><h2 id="ready-title">Ready for a clear driveway?</h2><FindHelp /></section>
+
+        <section className={styles.ready} aria-labelledby="ready-title" data-reveal>
+          <h2 id="ready-title">Ready for a clear driveway?</h2>
+          <Link href="/signup?role=client" className={`${styles.primary} action-shine`}>Find my shoveler <ArrowRight size={18} aria-hidden="true" /></Link>
+        </section>
       </main>
-      <footer className={styles.footer}><Brand /><nav aria-label="Footer navigation"><a href="#faq">Questions</a><Link href="/signup?role=operator">For shovelers</Link><Link href="/login">Log in</Link></nav></footer>
-      <div className={styles.signature} aria-hidden="true">snowd<span>.ca</span></div>
+
+      <footer className={styles.footer}>
+        <div className={styles.footerInner}>
+          <div className={styles.footerSupport} data-reveal>
+            <h2>We’re here to help, <span>all winter long.</span></h2>
+            <p>Questions about a booking, a payment, or getting started? Reach us any way you like.</p>
+            <div className={styles.supportLinks}>
+              <a href={`mailto:${SUPPORT_EMAIL}`}><Mail size={20} aria-hidden="true" /><span><small>Email support</small>{SUPPORT_EMAIL}</span></a>
+              <a href={`tel:+1${SUPPORT_PHONE.replaceAll("-", "")}`}><Phone size={20} aria-hidden="true" /><span><small>Call us</small>{SUPPORT_PHONE}</span></a>
+              <a href="#ask"><MessageCircleQuestion size={20} aria-hidden="true" /><span><small>No account needed</small>Ask a question</span></a>
+            </div>
+          </div>
+          <div className={styles.footerGrid}>
+            <div className={styles.footerBrand}>
+              <Brand />
+              <p>Local snow clearing, booked in a minute. Made for Canadian winters.</p>
+            </div>
+            <nav aria-label="Homeowners"><h3>Homeowners</h3><Link href="/signup?role=client">Find a shoveler</Link><a href="#demo">Try the live demo</a><a href="#faq">Pricing &amp; payments</a></nav>
+            <nav aria-label="Shovelers"><h3>Shovelers</h3><Link href="/signup?role=operator">Become a shoveler</Link><a href="#earn">How earning works</a><Link href="/login">Shoveler log in</Link></nav>
+            <nav aria-label="Support"><h3>Support</h3><a href="#faq">Help centre</a><a href="#ask">Send feedback</a><a href={`mailto:${SUPPORT_EMAIL}`}>Contact us</a></nav>
+          </div>
+          <div className={styles.footerBottom}><span>© {new Date().getFullYear()} SNOWD. All rights reserved.</span><span><Link href="/login">Log in</Link> · <Link href="/signup?role=client">Sign up</Link></span></div>
+        </div>
+      </footer>
     </div>
   );
 }
