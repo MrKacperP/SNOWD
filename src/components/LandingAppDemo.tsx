@@ -199,12 +199,8 @@ export default function LandingAppDemo() {
             </div>
             <div className={styles.webApp}>
               <aside className={styles.sidebar}>
-                <div className={styles.brandPill}><Image src="/logo.png" alt="" width={22} height={25} /><span><strong>snowd<em>.</em></strong><small>Snow service network</small></span></div>
-                <div className={styles.account}>
-                  <small>Account</small>
-                  <div className={styles.accountRow}><span><strong>Morgan Lee</strong><small>client</small></span><i className={styles.online} aria-label="Online" /></div>
-                  <div className={styles.weather}><small>Local weather</small><span><CloudSnow size={16} aria-hidden="true" /><strong>−6°C</strong> Light snow</span></div>
-                </div>
+                <div className={styles.brand}><Image src="/logo.png" alt="" width={22} height={25} /><strong>snowd</strong></div>
+                <div className={styles.weather}><CloudSnow size={16} aria-hidden="true" /><strong>−6°C</strong> Light snow</div>
                 <nav className={styles.webNav} aria-label="Demo web app navigation">
                   {clientNav.map(({ view, label, icon: Icon, count }) => (
                     <button key={view} type="button" aria-current={clientView === view ? "page" : undefined} onClick={() => openClient(view)}>
@@ -212,6 +208,7 @@ export default function LandingAppDemo() {
                     </button>
                   ))}
                 </nav>
+                <div className={styles.account}><span className={styles.avatar}>ML<i className={styles.online} aria-label="Online" /></span><span><strong>Morgan Lee</strong><small>Client</small></span></div>
               </aside>
 
               <div className={styles.webMain}>

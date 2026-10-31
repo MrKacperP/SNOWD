@@ -3,8 +3,6 @@ import IconSwap from "@/components/ui/IconSwap";
 
 import { useNotifications } from "@/context/NotificationContext";
 import { UnreadBadge } from "@/components/ui/UnreadBadge";
-import CompanyIdentity from "@/components/CompanyIdentity";
-import { OperatorProfile } from "@/lib/types";
 import AvailabilityToggle from "@/components/dashboard/AvailabilityToggle";
 import MobileNavigation from "@/components/dashboard/MobileNavigation";
 import { desktopNavigation } from "@/lib/appNavigation";
@@ -52,6 +50,8 @@ export default function Navbar() {
     : (profile as unknown as Record<string, unknown>)?.isOnline !== false;
 
   const navItems = desktopNavigation(profile?.role);
+
+  useEffect(() => { setCenterOpen(false); }, [pathname, setCenterOpen]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -101,36 +101,21 @@ export default function Navbar() {
   return (
     <>
       <aside className="dashboard-sidebar fixed left-0 top-0 z-30 hidden h-dvh w-[248px] overflow-y-auto border-r border-[var(--border-color)] bg-[var(--card)] px-5 py-5  lg:flex lg:flex-col">
-        <Link href="/dashboard" className="flex items-center gap-3 rounded-[1.5rem] bg-[var(--ink)] px-4 py-4 text-white">
-          <Image src="/logo.png" alt="snowd logo" width={34} height={34} />
-          <div>
-            <div className="text-lg font-headline font-bold leading-none">snowd<span className="text-[var(--accent-sun)]">.</span></div>
-            <div className="mt-1 text-xs text-white/62">Snow service network</div>
-          </div>
+        <Link href="/dashboard" aria-label="snowd home" className="flex items-center gap-2.5 px-2 py-1">
+          <Image src="/logo.png" alt="" width={30} height={30} />
+          <span className="text-xl font-headline font-bold leading-none text-[var(--ink)]">snowd</span>
         </Link>
 
-        <div className="mt-4 surface-panel p-4">
-          <div className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">Account</div>
-          <div className="mt-3 flex items-center justify-between gap-3">
-            <div className="min-w-0 break-words">
-              <div className="text-sm font-bold text-[var(--text-primary)]"><CompanyIdentity person={profile as OperatorProfile} name={(profile as OperatorProfile)?.businessName || profile?.displayName || "Your profile"} /></div>
-              <div className="mt-1 text-xs capitalize text-[var(--text-muted)]">{profile?.role || "user"}</div>
-            </div>
-            {profile?.role !== "operator" && <div className={`status-dot ${isOnline ? "online" : "offline"}`} />}
+        {weather ? (
+          <div className="mt-4 flex items-center gap-2 px-3 text-sm" aria-label={`Weather: ${weather.temp}°C, ${weather.condition}`}>
+            <span aria-hidden="true">{weather.icon}</span>
+            <span className="font-bold text-[var(--text-primary)]">{weather.temp}°C</span>
+            <span className="text-[var(--text-muted)]">{weather.condition}</span>
           </div>
-          {weather ? (
-            <div className="mt-4 rounded-[1.2rem] bg-[var(--bg-secondary)] px-3 py-3">
-              <div className="text-xs text-[var(--text-muted)]">Local weather</div>
-              <div className="mt-1 flex items-center gap-2 text-sm font-bold">
-                <span>{weather.icon}</span>
-                <span>{weather.temp}°C</span>
-                <span className="text-[var(--text-muted)]">{weather.condition}</span>
-              </div>
-            </div>
-          ) : null}
-        </div>
+        ) : null}
 
-        <nav aria-label="Primary navigation" className="desktop-navigation mt-5 grid gap-1">
+        <div className="flex flex-1 flex-col justify-center py-6">
+        <nav aria-label="Primary navigation" className="desktop-navigation grid gap-2">
           {navItems.map(({ href, label, icon: Icon }) => {
             const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(`${href}/`));
             const count = href.includes("messages") ? unreadCount : href.includes("jobs") ? pendingJobCount : 0;
@@ -141,12 +126,13 @@ export default function Navbar() {
             </IconSwap></Link>;
           })}
         </nav>
+        </div>
 
         <button
           type="button"
           aria-haspopup="dialog"
           aria-expanded={centerOpen}
-          onClick={() => { setProfileMenuOpen(false); setCenterOpen(true); }}
+          onClick={() => { setProfileMenuOpen(false); setCenterOpen(!centerOpen); }}
           className="notif-trigger mt-4"
           data-unread={unreadNotifications > 0}
         ><IconSwap icon={<Bell className="h-4 w-4" />}>

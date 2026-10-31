@@ -52,7 +52,7 @@ function NotificationCard({ item, onOpen, prominent = false }: { item: Notificat
   );
 }
 
-/** Slide-over on desktop, bottom sheet on phones. Grouped by what needs the person first. */
+/** Slides out of the left toolbar on desktop, bottom sheet on phones. Grouped by what needs the person first. */
 export default function NotificationCenter() {
   const { notifications, centerOpen, setCenterOpen, markRead, markAllRead, unreadNotifications, error } = useNotifications();
   const router = useRouter();
@@ -67,7 +67,7 @@ export default function NotificationCenter() {
     query.addEventListener("change", update);
     return () => query.removeEventListener("change", update);
   }, []);
-  const hidden = reduceMotion ? { opacity: 0 } : sheet ? { opacity: 1, y: "100%" } : { opacity: 0, x: 48 };
+  const hidden = reduceMotion ? { opacity: 0 } : sheet ? { opacity: 1, y: "100%" } : { opacity: 1, x: "-105%" };
   useDialogFocus(centerOpen, panelRef);
 
   useEffect(() => {

@@ -34,26 +34,21 @@
 
 .webApp { display: grid; grid-template-columns: 210px minmax(0, 1fr); height: 600px; }
 .sidebar { display: flex; flex-direction: column; gap: 14px; min-height: 0; padding: 16px 14px; border-right: 1px solid var(--border); background: var(--card); }
-.brandPill { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 18px; background: var(--ink); color: #fff; }
-.brandPill img { width: 22px; height: auto; }
-.brandPill strong { display: block; font-size: 17px; line-height: 1; }
-.brandPill em { color: var(--accent-sun); font-style: normal; }
-.brandPill small { display: block; margin-top: 3px; color: #ffffff9e; font-size: 10px; }
-.account { padding: 12px; border: 1px solid var(--border); border-radius: 16px; background: var(--card); }
-.account > small { color: var(--text-muted); font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
-.accountRow { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
-.accountRow strong { display: block; font-size: 13px; }
-.accountRow small { color: var(--text-muted); font-size: 11px; }
-.online { width: 9px; height: 9px; border-radius: 50%; background: #18a564; box-shadow: 0 0 0 3px #18a56426; }
-.weather { margin-top: 10px; padding: 9px 10px; border-radius: 12px; background: var(--bg-secondary); }
-.weather small { color: var(--text-muted); font-size: 11px; }
-.weather span { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+.brand { display: flex; align-items: center; gap: 9px; padding: 4px 6px; color: var(--ink); }
+.brand img { width: 22px; height: auto; }
+.brand strong { font-size: 18px; line-height: 1; }
+.weather { display: flex; align-items: center; gap: 6px; padding: 0 8px; color: var(--text-muted); font-size: 12px; }
 .weather strong { color: var(--ink); font-size: 13px; }
+.account { display: flex; align-items: center; gap: 10px; margin-top: auto; padding: 10px 12px; border: 1px solid var(--border); border-radius: 16px; background: var(--card); }
+.account strong { display: block; font-size: 13px; }
+.account small { color: var(--text-muted); font-size: 11px; }
+.avatar { position: relative; display: grid; width: 32px; height: 32px; flex-shrink: 0; place-items: center; border-radius: 50%; background: var(--bg-secondary); color: var(--ink); font-size: 11px; font-weight: 800; }
+.online { position: absolute; right: -1px; bottom: -1px; width: 9px; height: 9px; border: 2px solid var(--card); border-radius: 50%; background: #18a564; }
 .webNav { display: grid; gap: 3px; }
 .webNav button { display: flex; align-items: center; gap: 11px; min-height: 42px; padding: 9px 11px; border: 0; border-radius: 12px; background: transparent; color: var(--text-secondary); font: inherit; font-size: 13px; font-weight: 500; text-align: left; cursor: pointer; }
 .webNav button span { flex: 1; }
 .webNav button:hover { background: var(--bg-secondary); }
-.webNav button[aria-current="page"] { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.webNav button[aria-current="page"] { background: var(--bg-secondary); color: var(--text-primary); font-weight: 700; }
 .count { min-width: 19px; padding: 0 6px; border-radius: 99px; background: #a83225; color: #fff; font-size: 11px; line-height: 19px; text-align: center; }
 
 .webMain { position: relative; min-width: 0; overflow-y: auto; overscroll-behavior: contain; padding: 22px 110px 26px 26px; }
@@ -84,7 +79,7 @@
 .mainAction:hover:not(:disabled) { box-shadow: var(--accent-shadow-hover); transform: translateY(-1px); }
 .mainAction:disabled { opacity: .45; cursor: not-allowed; }
 .secondaryAction { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 8px 14px; border: 1px solid var(--border); border-radius: 12px; background: #fff; color: var(--ink); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
-.secondaryAction:hover { border-color: var(--accent); color: var(--accent); }
+.secondaryAction:hover { border-color: var(--ink); color: var(--ink); }
 .textAction { min-height: 40px; padding: 8px 6px; border: 0; background: none; color: var(--text-secondary); font: inherit; font-size: 13px; font-weight: 600; text-decoration: underline; cursor: pointer; }
 .savedCard { display: grid; gap: 3px; padding: 14px 18px; border: 1px solid var(--border); border-radius: 18px; background: #fff; }
 .savedCard span, .savedCard small { color: var(--text-secondary); font-size: 12px; }
@@ -138,7 +133,7 @@
 .composer :disabled { opacity: .5; cursor: not-allowed; }
 .quick { display: flex; flex-wrap: wrap; gap: 6px; }
 .quick button { min-height: 32px; padding: 5px 11px; border: 1px solid var(--surface-blue-border); border-radius: 99px; background: var(--surface-blue); color: var(--accent-dark); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
-.quick button:hover { border-color: var(--accent); }
+.quick button:hover { border-color: var(--ink); }
 
 .toast { position: absolute; top: 12px; left: 50%; z-index: 5; display: flex; align-items: center; gap: 8px; max-width: calc(100% - 24px); padding: 9px 14px; border-radius: 14px; background: var(--ink); color: #fff; box-shadow: 0 14px 30px #0d1b2440; font-size: 13px; font-weight: 600; transform: translateX(-50%); animation: toastIn 450ms cubic-bezier(.2,1.2,.3,1); }
 .toast span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -215,8 +210,8 @@
   .webMain { padding-right: 140px; }
   .webApp { grid-template-columns: 64px minmax(0, 1fr); }
   .sidebar { align-items: center; padding: 14px 8px; }
-  .brandPill { padding: 9px; }
-  .brandPill > span, .account, .webNav button span { display: none; }
+  .brand { padding: 4px; }
+  .brand strong, .weather, .account, .webNav button span { display: none; }
   .webNav button { justify-content: center; padding: 10px; position: relative; }
   .count { position: absolute; top: 2px; right: 0; min-width: 16px; line-height: 16px; font-size: 10px; padding: 0 4px; }
 }
@@ -241,7 +236,7 @@
   .webApp { grid-template-columns: minmax(0, 1fr); }
   .sidebar { flex-direction: row; justify-content: space-between; padding: 8px; border-right: 0; border-top: 1px solid var(--border); order: 2; }
   .webApp { grid-template-rows: minmax(0, 1fr) auto; }
-  .brandPill { display: none; }
+  .brand { display: none; }
   .webNav { display: flex; width: 100%; justify-content: space-between; }
   .personMeta { display: none; }
   .totalRow { flex-wrap: wrap; }

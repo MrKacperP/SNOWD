@@ -553,14 +553,14 @@ body {
 
 /* Sidebar / More-sheet entry point for the notification center. */
 .notif-trigger { display: flex; width: 100%; min-height: 48px; align-items: center; gap: 12px; padding: 10px 14px; border: 1px solid var(--border-color); border-radius: 1.2rem; background: var(--card); color: var(--text-primary); text-align: left; transition: border-color 150ms ease, background 150ms ease; }
-.notif-trigger:hover { border-color: var(--accent); }
+.notif-trigger:hover { border-color: var(--ink); }
 .notif-trigger[data-unread="true"] { border-color: var(--surface-blue-border); background: var(--accent-soft); }
 .notif-trigger-icon { display: grid; width: 30px; height: 30px; flex-shrink: 0; place-items: center; border-radius: 10px; background: var(--bg-secondary); color: var(--ink); }
 .notif-trigger[data-unread="true"] .notif-trigger-icon { background: var(--accent); color: #fff; }
 
 /* Notification center: right slide-over on desktop, bottom sheet on phones. */
 .nc-overlay { position: fixed; inset: 0; z-index: 9980; background: rgb(17 43 59 / 28%); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
-.nc-panel { position: absolute; top: 12px; right: 12px; bottom: 12px; display: flex; width: min(420px, calc(100vw - 24px)); flex-direction: column; overflow: hidden; border: 1px solid var(--border-color); border-radius: 24px; background: var(--bg-card-solid); box-shadow: 0 24px 64px rgb(17 43 59 / 22%); outline: none; }
+.nc-panel { position: absolute; top: 12px; left: 12px; bottom: 12px; display: flex; width: min(420px, calc(100vw - 24px)); flex-direction: column; overflow: hidden; border: 1px solid var(--border-color); border-radius: 24px; background: var(--bg-card-solid); box-shadow: 0 24px 64px rgb(17 43 59 / 22%); outline: none; }
 .nc-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 22px 20px 12px; }
 .nc-heading h2 { font-size: 22px; font-weight: 800; line-height: 1.15; letter-spacing: -.01em; }
 .nc-heading p { margin-top: 4px; color: var(--text-secondary); font-size: 13.5px; }
@@ -1097,7 +1097,7 @@ html { scroll-padding-top: 6rem; }
 
 .operator-work-list { display:grid; gap:16px; margin-top:16px; }
 .operator-work-row { display:flex; justify-content:space-between; gap:24px; padding:26px; border:1px solid var(--glass-border); border-radius:24px; background:var(--card); color:var(--ink); text-decoration:none; }
-.operator-work-row:hover { border-color:var(--accent); }
+.operator-work-row:hover { border-color:var(--ink); }
 .operator-work-row h3 { font-size:20px; font-weight:650; margin:8px 0; text-transform:capitalize; }
 .operator-work-row p { color:var(--text-secondary); line-height:1.6; margin-top:4px; }
 .operator-work-row .operator-work-status { color:var(--accent); font-weight:600; }
@@ -1123,7 +1123,7 @@ html { scroll-padding-top: 6rem; }
 .operator-work-actions button:disabled { opacity:.55; }
 .operator-work-error { position:relative; z-index:2; width:100%; color:#b42318 !important; }
 .dashboard-earnings { justify-content:center; text-align:center; color:inherit; text-decoration:none; }
-.dashboard-earnings:hover { border-color:var(--accent); }
+.dashboard-earnings:hover { border-color:var(--ink); }
 .dashboard-earnings-content { display:grid; justify-items:center; gap:6px; }
 .dashboard-earnings-value { display:flex; align-items:center; justify-content:center; gap:4px; }
 @media(max-width:600px) { .operator-work-row { padding:18px; }.operator-work-side { justify-items:start; }.operator-work-actions { margin-top:10px; } }
@@ -1194,7 +1194,21 @@ html { scroll-padding-top: 6rem; }
 :is(.btn-cta, .admin-shell .admin-primary, .operator-work-actions button:first-child, .auth-page .auth-form-content button[type="submit"], .guided-review-form button, .conversation-composer button[type="submit"]) { border-color: transparent; background: var(--accent-gradient); color: #fff; box-shadow: var(--accent-shadow); transition: transform 180ms ease, background 180ms ease, box-shadow 180ms ease; }
 :is(.btn-cta, .admin-shell .admin-primary, .operator-work-actions button:first-child, .auth-page .auth-form-content button[type="submit"], .guided-review-form button, .conversation-composer button[type="submit"]):not(:disabled):hover { background: var(--accent-gradient-hover); box-shadow: var(--accent-shadow-hover); transform: translateY(-1px); }
 :is(.btn-cta, .admin-shell .admin-primary, .operator-work-actions button:first-child, .auth-page .auth-form-content button[type="submit"], .guided-review-form button, .conversation-composer button[type="submit"]):not(:disabled):active { transform: scale(0.98); box-shadow: 0 3px 10px rgba(35, 80, 255, 0.3); }
-.desktop-navigation a:not([aria-current="page"]):hover { background: var(--accent-soft); color: var(--accent-dark); }
-.operator-work-row:hover, .dashboard-earnings:hover { box-shadow: 0 10px 28px rgba(35, 80, 255, 0.12); }
+.desktop-navigation a:not([aria-current="page"]):hover { background: var(--bg-secondary); color: var(--text-primary); }
+.operator-work-row:hover, .dashboard-earnings:hover { box-shadow: 0 10px 28px rgba(17, 43, 59, 0.10); }
 ::selection { background: #d6defe; color: var(--ink); }
 @media (prefers-reduced-motion: reduce) { .btn-primary, .btn-secondary, :is(.btn-cta, .admin-shell .admin-primary, .operator-work-actions button:first-child, .auth-page .auth-form-content button[type="submit"], .guided-review-form button, .conversation-composer button[type="submit"]) { transition: none; transform: none !important; } }
+
+/* Desktop: notifications emerge from behind the left toolbar, which stays visible and usable. */
+@media (min-width: 1024px) {
+  .nc-overlay { left: 248px; overflow: hidden; }
+}
+
+/* No blue highlight on hover, press or focus. Fields stay calm; keyboard focus gets a neutral ring. */
+:focus-visible, .dashboard-shell :is(button,a,input,select,textarea,summary):focus-visible, .dashboard-shell :is(button,a):focus-visible { outline-color: var(--ink); }
+:is(input, textarea, select, [contenteditable="true"]):focus, :is(input, textarea, select, [contenteditable="true"]):focus-visible { outline: none !important; box-shadow: none !important; border-color: var(--border-color) !important; }
+.desktop-navigation a[aria-current="page"] { background: var(--bg-secondary); color: var(--text-primary); }
+.desktop-navigation a[aria-current="page"] svg { color: var(--ink); }
+.notif-trigger[data-unread="true"] { border-color: var(--border-color); background: var(--card); }
+.notif-trigger[data-unread="true"] .notif-trigger-icon { background: var(--ink); }
+* { -webkit-tap-highlight-color: transparent; }
