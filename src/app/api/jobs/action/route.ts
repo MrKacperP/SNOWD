@@ -13,6 +13,7 @@ import {
   orderEvent,
 } from "@/lib/workOrderServer";
 import { sendWorkOrderEmail } from "@/lib/emailNotifications";
+import { approximateOperatorLocation } from "@/lib/operatorLocation";
 import { calculateTravelEta } from "@/lib/travelEta";
 
 export async function POST(request: NextRequest) {
@@ -299,15 +300,11 @@ export async function POST(request: NextRequest) {
           update.status = body.action;
           if (body.action === "en-route") {
             if (!journey) throw new OrderError("Calculate an ETA before leaving.");
-            const approximateLat = Math.round(Number(body.operatorLat) * 100) / 100;
-            const approximateLng = Math.round(Number(body.operatorLng) * 100) / 100;
             Object.assign(update, {
               eta: journey.minutes,
               etaSource: journey.source,
               estimatedArrivalAt: new Date(Date.now() + journey.minutes * 60000),
-              operatorApproxLat: approximateLat,
-              operatorApproxLng: approximateLng,
-              operatorLocationRadiusKm: Math.max(1, Math.ceil(Number(body.operatorLocationAccuracy) / 1000)),
+              ...approximateOperatorLocation(Number(body.operatorLat), Number(body.operatorLng), Number(body.operatorLocationAccuracy)),
               operatorLocationUpdatedAt: now,
               operatorLat: FieldValue.delete(),
               operatorLng: FieldValue.delete(),
@@ -384,7 +381,10 @@ export async function POST(request: NextRequest) {
         body.requestId,
         title,
         body.action === "photo" ? update.completionPhotoUrl as string : undefined,
-        body.action === "en-route" ? { type: "eta-update", metadata: { eta: journey?.minutes } } : undefined,
+        {
+          ...(body.action === "en-route" ? { type: "eta-update" as const, metadata: { eta: journey?.minutes } } : {}),
+          terminal: ["completed", "cancelled"].includes(update.status as string),
+        },
       );
       return { success: true, revision: update.revision, eta: body.action === "en-route" ? journey?.minutes : undefined, email: { uid: email.recipient, title: email.message, eventId: body.requestId } };
     });

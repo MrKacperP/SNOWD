@@ -9,7 +9,7 @@ function events() {
   const code = ts.transpileModule(fs.readFileSync('src/lib/workOrderServer.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
   vm.runInNewContext(code, { exports, console, require: id => {
     if (id === 'next/server') return {};
-    if (id === 'firebase-admin/firestore') return { FieldValue: { serverTimestamp: () => 'now', increment: n => n } };
+    if (id === 'firebase-admin/firestore') return { FieldValue: { arrayUnion: (...v) => ({ arrayUnion: v }), arrayRemove: (...v) => ({ arrayRemove: v }), serverTimestamp: () => 'now', increment: n => n } };
     if (id === '@/lib/firebaseAdmin') return { getAdminDb: () => ({ doc: path => path }) };
     throw new Error(id);
   } });
@@ -25,7 +25,9 @@ test('completion proof appears as an image message and notifies the customer in 
   assert.equal(message.chatId, 'chat');
   assert.equal(message.metadata.completionPhotoUrl, 'https://example.test/proof.jpg');
   assert.equal(writes.find(w => w.path === 'notifications/job-photo-event').data.uid, 'client');
-  assert.equal(writes.find(w => w.path === 'chats/chat').data['unreadCount.client'], undefined);
+  // Order updates surface in the inbox preview and unread badge of the shared chat.
+  assert.equal(writes.find(w => w.path === 'chats/chat').data['unreadCount.client'], 1);
+  assert.match(writes.find(w => w.path === 'chats/chat').data.lastMessage, /Completion photo uploaded/);
   assert.equal(writes.find(w => w.path === 'chats/chat').data.lastActivityTime, 'now');
 });
 test('ordinary progress events remain text and notify the other participant', () => {

@@ -81,8 +81,9 @@ if (typeof window !== 'undefined' && isFirebaseConfigured) {
   if (usingEmulators) {
     const marker = window as Window & { snowdEmulatorsConnected?: boolean };
     if (!marker.snowdEmulatorsConnected) {
-      connectAuthEmulator(authInstance, "http://127.0.0.1:9099", { disableWarnings: true });
-      connectFirestoreEmulator(dbInstance, "127.0.0.1", 8080);
+      // Ports can be moved so several local QA stacks can run side by side.
+      connectAuthEmulator(authInstance, `http://127.0.0.1:${process.env.NEXT_PUBLIC_AUTH_EMULATOR_PORT || 9099}`, { disableWarnings: true });
+      connectFirestoreEmulator(dbInstance, "127.0.0.1", Number(process.env.NEXT_PUBLIC_FIRESTORE_EMULATOR_PORT || 8080));
       marker.snowdEmulatorsConnected = true;
     }
   }

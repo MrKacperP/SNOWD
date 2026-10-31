@@ -82,6 +82,14 @@ test('Firestore enforces verified cash listings, chat access, and server-owned p
     await assertFails(updateDoc(doc(client, 'chats/chat'), { jobId: 'other' }));
     await assertFails(updateDoc(doc(client, 'messages/message'), { jobId: 'other' }));
     await assertFails(setDoc(doc(client, 'messages/wrong-order'), { chatId: 'chat', jobId: 'other', senderId: 'client', content: 'wrong' }));
+    // Pair chats: messages belong to any of the chat's work orders, or to none.
+    await env.withSecurityRulesDisabled(async context => { await setDoc(doc(context.firestore(), 'chats/pair'), { jobId: 'cash', jobIds: ['older', 'cash'], openJobIds: ['cash'], participants: ['client', 'operator'] }); });
+    await assertSucceeds(setDoc(doc(client, 'messages/pair-older'), { chatId: 'pair', jobId: 'older', senderId: 'client', content: 'about the earlier order', read: false }));
+    await assertSucceeds(setDoc(doc(client, 'messages/pair-untagged'), { chatId: 'pair', senderId: 'client', content: 'between orders', read: false }));
+    await assertFails(setDoc(doc(client, 'messages/pair-foreign'), { chatId: 'pair', jobId: 'other', senderId: 'client', content: 'wrong' }));
+    await assertFails(updateDoc(doc(client, 'chats/pair'), { jobIds: ['older', 'cash', 'other'] }));
+    await assertFails(updateDoc(doc(client, 'chats/pair'), { openJobIds: [] }));
+    await assertSucceeds(updateDoc(doc(client, 'chats/pair'), { 'unreadCount.client': 0 }));
     await assertFails(updateDoc(doc(operator, 'jobs/cash'), { scheduledDate: new Date(), awaitingResponseFrom: 'client' }));
     await env.withSecurityRulesDisabled(async context => {
       await setDoc(doc(context.firestore(), 'chats/legacy'), { jobId: 'cash', participants: ['client', 'operator'], legacyHistory: true });

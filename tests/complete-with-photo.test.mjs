@@ -44,9 +44,10 @@ function actionFixture({ method = 'cash', payment = 'pending', uid = 'operator',
   };
   const mocks = {
     'next/server': { NextResponse: { json: body => body } },
-    'firebase-admin/firestore': { FieldValue: { serverTimestamp: () => 'now' } },
+    'firebase-admin/firestore': { FieldValue: { arrayUnion: (...v) => ({ arrayUnion: v }), arrayRemove: (...v) => ({ arrayRemove: v }), serverTimestamp: () => 'now' , increment: n => n } },
     '@/lib/firebaseAdmin': { getAdminDb: () => ({ doc: path => path, collection: () => ({ where: () => 'other-jobs' }), runTransaction: fn => fn(tx) }) },
     '@/lib/workOrders': {}, '@/lib/operatorDiscovery': {},
+    '@/lib/operatorLocation': { approximateOperatorLocation: () => ({}) },
     '@/lib/travelEta': { calculateTravelEta: async () => ({ minutes: 12, source: 'estimate' }) },
     '@/lib/workOrderServer': { orderUser: async () => uid, validId: () => true, OrderError: Error, orderFailure: error => ({ error: error.message }), orderEvent: () => ({ recipient: 'client', message: 'Order updated' }) },
   };

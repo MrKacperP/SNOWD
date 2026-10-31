@@ -61,6 +61,9 @@ export function parseSchedule(body: Record<string, unknown>) {
     scheduleTimezone: timezone,
   };
 }
+export function pairChatId(a: string, b: string) {
+  return `pair-${[a, b].sort().join("_")}`;
+}
 export function orderEvent(
   tx: Transaction,
   job: Job,
@@ -68,7 +71,7 @@ export function orderEvent(
   eventId: string,
   title: string,
   completionPhotoUrl?: string,
-  options?: { type?: "system" | "eta-update"; metadata?: Record<string, unknown> },
+  options?: { type?: "system" | "eta-update"; metadata?: Record<string, unknown>; terminal?: boolean },
 ) {
   const db = getAdminDb(),
     now = FieldValue.serverTimestamp();
@@ -102,7 +105,11 @@ export function orderEvent(
       read: false,
     });
     tx.update(db.doc(`chats/${job.chatId}`), {
+      lastMessage: message,
+      lastMessageTime: now,
       lastActivityTime: now,
+      [`unreadCount.${recipient}`]: FieldValue.increment(1),
+      ...(options?.terminal ? { openJobIds: FieldValue.arrayRemove(job.id) } : {}),
     });
   }
   return { recipient, message };

@@ -7,7 +7,6 @@ import {
   getDoc,
   onSnapshot,
 } from "firebase/firestore";
-import Link from "next/link";
 import { db } from "@/lib/firebase";
 import { ClientProfile, Job, OperatorProfile } from "@/lib/types";
 import { useAuth } from "@/context/AuthContext";
@@ -69,7 +68,7 @@ export default function WorkOrderPage() {
       ) : (
         <>
           <OrderCard job={job} name={name} person={person} detail />
-          {(job.completionPhotoUrl || job.legacyChatId) && <section className={styles.detailSection} aria-labelledby="visit-notes-heading">
+          {job.completionPhotoUrl && <section className={styles.detailSection} aria-labelledby="visit-notes-heading">
             <h2 id="visit-notes-heading" className={styles.detailSummary}>Completion & history</h2>
             {job.completionPhotoUrl && (
               <a
@@ -80,16 +79,6 @@ export default function WorkOrderPage() {
               >
                 View completion photo
               </a>
-            )}
-            {job.legacyChatId && (
-              <p className="mt-3">
-                <Link
-                  className="underline"
-                  href={`/dashboard/messages/${job.legacyChatId}`}
-                >
-                  Earlier conversation
-                </Link>
-              </p>
             )}
           </section>}
         </>

@@ -13,13 +13,13 @@ function visit(node) {
 }
 visit(file);
 const code = ts.transpileModule(`exports.send = ${callback}`, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS } }).outputText;
-function setup(commit = async () => {}) {
+function setup(commit = async () => {}, openJobs = [{ id: 'older' }, { id: 'order' }]) {
   let draft = 'Hello', error = '', commits = 0;
   const operations = [], busy = [], notifications = [];
   const context = {
     exports: {}, console: { error() {} },
     user: { uid: 'client', getIdToken: async () => 'test-token' },
-    profile: { displayName: 'Client' }, chatId: 'chat', job: { id: 'order' }, db: {},
+    profile: { displayName: 'Client' }, chatId: 'chat', openJobs, db: {},
     sendingLock: { current: false },
     setSendingMessage: value => busy.push(value), setSendError: value => { error = value; },
     setNewMessage: update => { draft = typeof update === 'function' ? update(draft) : update; },
@@ -52,4 +52,10 @@ test('overlapping sends commit once and preserve newly typed text', async () => 
   const s = setup(() => pending); const first = s.send('Hello');
   await s.send('Hello'); s.edit('Next message'); release(); await first;
   assert.equal(s.commits(), 1); assert.equal(s.draft(), 'Next message');
+});
+test('messages join the newest open work order, or none between orders', async () => {
+  const active = setup(); await active.send('On my way?');
+  assert.equal(active.operations[0][2].jobId, 'order');
+  const idle = setup(async () => {}, []); await idle.send('Thanks again');
+  assert.equal('jobId' in idle.operations[0][2], false);
 });

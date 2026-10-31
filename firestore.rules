@@ -134,7 +134,7 @@ service cloud.firestore {
       allow read: if isParticipant(resource.data);
       allow create: if isAdmin();
       allow update: if isParticipant(resource.data)
-        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(["jobId", "participants", "legacyHistory", "legacyJobIds"])
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(["jobId", "jobIds", "openJobIds", "participants", "legacyHistory", "legacyJobIds", "mergedInto", "mergedFrom"])
         && (resource.data.get("legacyHistory", false) != true || request.resource.data.diff(resource.data).affectedKeys().hasOnly(["unreadCount"]));
       allow delete: if isAdmin();
     }
@@ -155,7 +155,9 @@ service cloud.firestore {
       (request.resource.data.chatId is string &&
         isParticipant(getAfter(/databases/$(database)/documents/chats/$(request.resource.data.chatId)).data) &&
         getAfter(/databases/$(database)/documents/chats/$(request.resource.data.chatId)).data.get("legacyHistory", false) != true &&
-        request.resource.data.get("jobId", "") == getAfter(/databases/$(database)/documents/chats/$(request.resource.data.chatId)).data.jobId);
+        // One chat per pair: a message belongs to one of the chat's work orders, or to none.
+        (!("jobId" in request.resource.data) ||
+          request.resource.data.jobId in getAfter(/databases/$(database)/documents/chats/$(request.resource.data.chatId)).data.get("jobIds", [getAfter(/databases/$(database)/documents/chats/$(request.resource.data.chatId)).data.jobId])));
       allow update: if isAdminOrEmployee() ||
         (
           resource.data.chatId is string &&

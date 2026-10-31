@@ -107,7 +107,7 @@ function paymentSyncFixture() {
   const db = { doc: (path) => path, runTransaction: async (run) => run({ get: async () => ({ data: () => job }), update: (path, data) => writes.push({ path, data }), set: (path, data) => writes.push({ path, data }) }) };
   const sync = load('src/lib/stripePaymentState.ts', {
     '@/lib/firebaseAdmin': { getAdminDb: () => db },
-    'firebase-admin/firestore': { FieldValue: { serverTimestamp: () => 'now' } },
+    'firebase-admin/firestore': { FieldValue: { arrayUnion: (...v) => ({ arrayUnion: v }), arrayRemove: (...v) => ({ arrayRemove: v }), serverTimestamp: () => 'now' , increment: n => n } },
   }).syncStripePayment;
   const payment = { id: 'pi_job', amount: 10000, currency: 'cad', status: 'requires_capture', metadata: { platform: 'snowd.ca', jobId: 'job', clientId: 'client', operatorId: 'operator' } };
   return { sync, job, payment, writes };
@@ -241,23 +241,26 @@ test('booking server rejects stale client totals and saves the server-calculated
   const operator = {uid:'operator',role:'operator',pricing:{driveway:{medium:70}}};
   const customer = {uid:'client',role:'client',propertyDetails:{propertySize:'medium'}};
   const db = {
-    doc: path => ({path}), collection: path => ({doc:()=>({id:path==='jobs'?'new-job':'new-chat',path})}),
+    doc: path => ({path,id:path.split('/').pop()}), collection: path => ({doc:()=>({id:path==='jobs'?'new-job':'new-chat',path})}),
     runTransaction: fn => fn({get:async ref=>({exists:false,data:()=>ref.path==='users/client'?customer:ref.path==='users/operator'?operator:undefined}),set:(ref,data)=>writes.push({ref,data})}),
   };
   const {POST} = load('src/app/api/jobs/create/route.ts', {
     'next/server':{NextResponse:{json:body=>({body,status:200})}},
-    'firebase-admin/firestore':{FieldValue:{serverTimestamp:()=> 'now'}},
+    'firebase-admin/firestore':{FieldValue: { arrayUnion: (...v) => ({ arrayUnion: v }), arrayRemove: (...v) => ({ arrayRemove: v }), serverTimestamp:()=> 'now', increment: n => n }},
     '@/lib/firebaseAdmin':{getAdminDb:()=>db},
     '@/lib/marketplacePricing':pricing,
+    '@/lib/serviceLocations':load('src/lib/serviceLocations.ts'),
     '@/lib/cardPaymentReadiness':{verifyCardPaymentReadiness:async()=>true},
     '@/lib/operatorDiscovery':{isOperatorPublic:()=>true,isClientWithinOperatorRadius:()=>true,canAcceptPlatformPayments:()=>true},
-    '@/lib/workOrderServer':{orderUser:async()=> 'client',validId:x=>!!x,parseSchedule:()=>({}),OrderError:Error,orderFailure:e=>({status:409,error:e.message}),orderEvent:()=>({recipient:'operator',message:'Order created'})},
+    '@/lib/workOrderServer':{orderUser:async()=> 'client',validId:x=>!!x,parseSchedule:()=>({}),OrderError:Error,orderFailure:e=>({status:409,error:e.message}),orderEvent:()=>({recipient:'operator',message:'Order created'}),pairChatId:(a,b)=>`pair-${[a,b].sort().join('_')}`},
   });
   const body={requestId:'req',operatorId:'operator',paymentMethod:'credit',expectedPrice:70};
   assert.equal((await POST({json:async()=>body})).status,409);
   assert.equal(writes.length,0);
   assert.equal((await POST({json:async()=>({...body,expectedPrice:100,platformFeeAmount:0})})).status,200);
   const saved=writes.find(x=>x.ref.path==='jobs').data;
+  assert.equal(saved.chatId,'pair-client_operator');
+  assert.equal(writes.find(x=>x.ref.path==='chats/pair-client_operator').data.openJobIds.join(),'new-job');
   assert.equal(saved.price,100); assert.equal(saved.operatorAmount,7000); assert.equal(saved.platformFeeAmount,3000);
 });
 

@@ -35,7 +35,7 @@ function routeHarness() {
   const route = load("src/app/api/jobs/photo-transfer/route.ts", { modules: {
     "node:crypto": crypto,
     "next/server": { NextResponse: { json: (data, options) => ({ data, status: options?.status || 200 }) } },
-    "firebase-admin/firestore": { FieldValue: { delete: () => null } },
+    "firebase-admin/firestore": { FieldValue: { arrayUnion: (...v) => ({ arrayUnion: v }), arrayRemove: (...v) => ({ arrayRemove: v }), delete: () => null , increment: n => n } },
     "@/lib/firebaseAdmin": { getAdminDb: () => ({ doc: path => path, runTransaction: callback => callback(tx) }) },
     "@/lib/completionPhoto": photos,
     "@/lib/workOrderServer": { OrderError, validId: value => typeof value === "string" && /^[a-zA-Z0-9_-]{1,150}$/.test(value), orderUser: async request => { if (!request.uid) throw new OrderError("Sign in", 401); return request.uid; }, orderFailure: error => ({ status: error.status || 500, data: { error: error.message } }) },

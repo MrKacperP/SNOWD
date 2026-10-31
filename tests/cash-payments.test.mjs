@@ -17,7 +17,7 @@ function fixture({ uid = 'operator', token = 'valid', job: changes = {}, receipt
   const transaction = { get: async path => ({ exists: path.startsWith('jobs/') || receipt, data: () => job }), update: (path, data) => writes.push({ path, data }), set: (path, data) => writes.push({ path, data }) };
   const route = load('src/app/api/jobs/confirm-cash/route.ts', {
     'next/server': { NextResponse: { json: (body, options) => ({ body, status: options?.status || 200 }) } },
-    'firebase-admin/firestore': { FieldValue: { serverTimestamp: () => 'server-time' } },
+    'firebase-admin/firestore': { FieldValue: { arrayUnion: (...v) => ({ arrayUnion: v }), arrayRemove: (...v) => ({ arrayRemove: v }), serverTimestamp: () => 'server-time' , increment: n => n } },
     '@/lib/cashPayments': cash,
     '@/lib/firebaseAdmin': { getAdminAuth: () => ({ verifyIdToken: async () => { if (token !== 'valid') throw Error('invalid'); return { uid }; } }), getAdminDb: () => ({ doc: path => path, runTransaction: fn => fn(transaction) }) },
   });
@@ -63,7 +63,7 @@ function cashActionFixture(changes = {}, uid = 'operator') {
   };
   const route = load('src/app/api/jobs/cash-payment/route.ts', {
     'next/server': { NextResponse: { json: (body, options) => ({ body, status: options?.status || 200 }) } },
-    'firebase-admin/firestore': { FieldValue: { serverTimestamp: () => 'server-time', increment: n => n } },
+    'firebase-admin/firestore': { FieldValue: { arrayUnion: (...v) => ({ arrayUnion: v }), arrayRemove: (...v) => ({ arrayRemove: v }), serverTimestamp: () => 'server-time', increment: n => n } },
     '@/lib/firebaseAdmin': { getAdminAuth: () => ({ verifyIdToken: async () => ({ uid }) }), getAdminDb: () => ({ doc: path => path, runTransaction: fn => fn(transaction) }) },
   });
   return { writes, run: action => route.POST({ headers: new Map([['authorization', 'Bearer valid']]), json: async () => ({ jobId: 'job', action }) }) };
@@ -134,7 +134,7 @@ function cancelFixture({ uid = 'client', status = 'accepted', method = 'cash', p
   const transaction = { get: async () => ({ data: () => job }), update: (path, data) => writes.push({ path, data }), set: (path, data) => writes.push({ path, data }) };
   const route = load('src/app/api/jobs/cancel/route.ts', {
     'next/server': { NextResponse: { json: (body, options) => ({ body, status: options?.status || 200 }) } },
-    'firebase-admin/firestore': { FieldValue: { serverTimestamp: () => 'now', increment: n => n } },
+    'firebase-admin/firestore': { FieldValue: { arrayUnion: (...v) => ({ arrayUnion: v }), arrayRemove: (...v) => ({ arrayRemove: v }), serverTimestamp: () => 'now', increment: n => n } },
     '@/lib/firebaseAdmin': { getAdminAuth: () => ({ verifyIdToken: async () => ({ uid }) }), getAdminDb: () => ({ doc: path => path, runTransaction: fn => fn(transaction) }) },
     '@/lib/stripe': { getStripe: () => ({ paymentIntents: { retrieve: async () => ({ id: 'pi_1', status: payment, metadata: { jobId: 'job', clientId: 'client', operatorId: 'operator' } }), cancel: async () => { releases++; if (failRelease) throw Error(); return { status: 'canceled' }; } } }) },
     '@/lib/stripePaymentState': { syncStripePayment: async () => {} },

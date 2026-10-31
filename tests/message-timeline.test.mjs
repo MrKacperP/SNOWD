@@ -20,3 +20,21 @@ test('pending sends follow received messages and settle into server order',()=>{
   assert.equal(orderMessages([pending,message('reply','b',2)]).at(-1).id,'pending');
   assert.equal(orderMessages([{...pending,pending:false,createdAt:{seconds:1}},message('reply','b',2)])[0].id,'pending');
 });
+test('work orders split one contact conversation into sections', () => {
+  const { buildTimeline } = exports;
+  const jobs = [
+    { id: 'one', status: 'completed', createdAt: { seconds: 10 }, completionTime: { seconds: 40 } },
+    { id: 'two', status: 'accepted', createdAt: { seconds: 60 } },
+  ];
+  const messages = [
+    { id: 'hello', senderId: 'a', createdAt: { seconds: 5 } },
+    { id: 'one-created', jobId: 'one', senderId: 'a', createdAt: { seconds: 10 } },
+    { id: 'eta', jobId: 'one', senderId: 'b', createdAt: { seconds: 20 } },
+    { id: 'done', jobId: 'one', senderId: 'b', createdAt: { seconds: 40 } },
+    { id: 'thanks', senderId: 'a', createdAt: { seconds: 50 } },
+    { id: 'again', jobId: 'two', senderId: 'a', createdAt: { seconds: 70 } },
+    { id: 'typing', jobId: 'two', senderId: 'a', createdAt: null, pending: true },
+  ];
+  const labels = buildTimeline(messages, jobs).map(i => i.kind === 'message' ? i.message.id : `${i.kind}:${i.job.id}`);
+  assert.equal(labels.join(','), 'hello,order-start:one,eta,done,order-end:one,thanks,order-start:two,again,typing');
+});

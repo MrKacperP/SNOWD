@@ -69,7 +69,7 @@ export default function OrderCard({
         {detail && <section className={styles.serviceSummary} aria-label="Requested service"><small>What’s included</small><strong>{propertySizeLabel(job.propertySize)}</strong><span>{job.serviceTypes?.filter((service) => service !== "driveway").map((service) => service.replaceAll("-", " ")).join(" · ") || "Driveway clearing"}</span></section>}
         {!detail && <OrderGuide job={job} uid={user?.uid || ""} />}
         {detail && job.chatId && (
-          <Link className={styles.messageButton} href={`/dashboard/messages/${job.chatId}`}>
+          <Link className={styles.messageButton} href={`/dashboard/messages/${job.chatId}#order-${job.id}`}>
             Message {operator ? "customer" : "provider"}
           </Link>
         )}
@@ -100,7 +100,7 @@ export default function OrderCard({
         {!detail && job.chatId && (
           <Link
             className={styles.button}
-            href={`/dashboard/messages/${job.chatId}`}
+            href={`/dashboard/messages/${job.chatId}#order-${job.id}`}
           >
             Message {operator ? "customer" : "provider"}
           </Link>

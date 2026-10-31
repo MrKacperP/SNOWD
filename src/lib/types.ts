@@ -266,14 +266,20 @@ export interface ChatMessage {
   createdAt: Date;
 }
 
+// One chat per pair of participants (`pair-{uidA}_{uidB}`); work orders live inside it.
 export interface Chat {
   id: string;
   legacyHistory?: boolean;
   legacyJobIds?: string[];
-  jobId: string;
+  jobId: string; // Most recent work order
+  jobIds?: string[]; // Every work order in this chat
+  openJobIds?: string[]; // Work orders not yet completed or cancelled
+  mergedInto?: string; // Retired per-order chat → pair chat id
+  mergedFrom?: string[];
   participants: string[];
   lastMessage?: string;
   lastMessageTime?: Date;
+  lastActivityTime?: Date;
   unreadCount: { [uid: string]: number };
   createdAt: Date;
 }

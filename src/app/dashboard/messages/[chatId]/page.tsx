@@ -2,13 +2,14 @@
 import IconSwap from "@/components/ui/IconSwap";
 
 
-import { canAcceptPlatformPayments } from "@/lib/operatorDiscovery";
-import { jobDisplayPrice } from "@/lib/marketplacePricing";
-import { propertySizeLabel, scheduleText } from "@/lib/workOrders";
-import { isStripeAccountReady,stripeConnectFetch } from "@/lib/stripeConnectClient";
+import { dateMillis, isOpenOrder, orderNumber } from "@/lib/workOrders";
+import { buildTimeline } from "@/lib/messageTimeline";
+import { OrderChatEnd, OrderChatPinned, OrderChatWidget } from "@/components/work-orders/OrderChatWidget";
+import orderChatStyles from "@/components/work-orders/order-chat.module.css";
+import { orderRequest } from "@/components/work-orders/OrderActions";
+import { stripeConnectFetch } from "@/lib/stripeConnectClient";
 
 import CancellationPopup from "@/components/CancellationPopup";
-import ProgressTracker from "@/components/ProgressTracker";
 import StatusBadge from "@/components/StatusBadge";
 import StripeCheckout from "@/components/StripeCheckout";
 import SupportChatButton from "@/components/SupportChatButton";
@@ -22,7 +23,6 @@ import {
 ChatMessage,
 ClaimType,
 Job,
-JobStatus,
 UserProfile,
 } from "@/lib/types";
 import { format } from "date-fns";
@@ -49,21 +49,16 @@ Camera,
 CheckCircle,
 Clock,
 CreditCard,
-ChevronRight,
 DollarSign,
 ExternalLink,
-MapPin,
 MessageSquare,
 Mic,
 MoreHorizontal,
-Navigation,
 Paperclip,
-Play,
 Send,
 Shield,
 Square,
 Star,
-User,
 X,
 } from "lucide-react";
 import Image from "next/image";
@@ -113,10 +108,8 @@ export default function ChatPage() {
   const [linkedJobs, setLinkedJobs] = useState<Job[]>([]);
   const [otherUser, setOtherUser] = useState<UserProfile | null>(null);
   const [showMobileTasksSheet, setShowMobileTasksSheet] = useState(false);
-  const [showEarlierOrders, setShowEarlierOrders] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sendingMessage, setSendingMessage] = useState(false);
-  const [confirmingCash, setConfirmingCash] = useState(false);
   const [cashError, setCashError] = useState("");
   const [cashActionBusy, setCashActionBusy] = useState(false);
   const [showCashPayment, setShowCashPayment] = useState(false);
@@ -136,9 +129,6 @@ export default function ChatPage() {
   const [processingPayment, setProcessingPayment] = useState(false);
 
   // Photo upload state
-  const [completionPhoto, setCompletionPhoto] = useState<string | null>(null);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const chatAttachInputRef = useRef<HTMLInputElement>(null);
   const chatCameraInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -153,16 +143,11 @@ export default function ChatPage() {
   const [submittingReview, setSubmittingReview] = useState(false);
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
 
-  // Rehire state
-  const [rehiring, setRehiring] = useState(false);
-  const [rehireSent, setRehireSent] = useState(false);
 
   // Cancellation popup state
   const [showCancelPopup, setShowCancelPopup] = useState(false);
   const [cancelling, setCancelling] = useState(false);
 
-  // Payment gate popup
-  const [showPaymentGateModal, setShowPaymentGateModal] = useState(false);
 
   // Report / claim state
   const [showReportModal, setShowReportModal] = useState(false);
@@ -285,7 +270,11 @@ export default function ChatPage() {
 
         if (chatDoc.exists()) {
           const chatData = chatDoc.data();
-          if (chatData.rehireSent) setRehireSent(true);
+          // Per-order chats were merged into one chat per contact.
+          if (chatData.mergedInto) {
+            router.replace(`/dashboard/messages/${chatData.mergedInto}${window.location.hash}`);
+            return;
+          }
           const otherUid = chatData.participants?.find(
             (p: string) => p !== user.uid
           );
@@ -306,14 +295,11 @@ export default function ChatPage() {
           unsubscribeJobs = onSnapshot(jobsQuery, (snapshot) => {
             const jobs = snapshot.docs
               .map((jobDoc) => ({ id: jobDoc.id, ...jobDoc.data() } as Job))
-              .sort((a, b) => {
-                if (a.id === chatData.jobId) return -1;
-                if (b.id === chatData.jobId) return 1;
-                return String(b.createdAt || "").localeCompare(String(a.createdAt || ""));
-              });
+              .sort((a, b) => dateMillis(a.createdAt) - dateMillis(b.createdAt));
             setChatLoadError("");
             setLinkedJobs(jobs);
-            setJob((currentJob) => jobs.find((linkedJob) => linkedJob.id === currentJob?.id) || jobs[0] || null);
+            // Payment, cash and review flows act on the newest open order, else the newest order.
+            setJob(jobs.filter(isOpenOrder).at(-1) || jobs.at(-1) || null);
           }, (error) => {
             console.error("Work orders listener error:", error);
             setChatLoadError("Visit updates couldn’t load. Reload to try again.");
@@ -332,12 +318,23 @@ export default function ChatPage() {
       cancelled = true;
       unsubscribeJobs?.();
     };
-  }, [chatId, user?.uid, profile?.role]);
+  }, [chatId, user?.uid, profile?.role, router]);
 
-  const selectWorkOrder = (selectedJob: Job) => {
-    setJob(selectedJob);
-    setRightPanelView("updates");
+  const openJobs = React.useMemo(() => linkedJobs.filter(isOpenOrder), [linkedJobs]);
+  const timeline = React.useMemo(() => buildTimeline(messages, linkedJobs), [messages, linkedJobs]);
+  const scrollToOrder = (jobId: string) => {
+    setShowMobileTasksSheet(false);
+    document.getElementById(`order-${jobId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
+  // Links from work orders land on that order's card (/dashboard/messages/{chat}#order-{job}).
+  // Until a newer message arrives, the order card keeps the view instead of the latest message.
+  const landedOnOrder = useRef<number | null>(null);
+  const landingOnOrder = () => typeof window !== "undefined" && window.location.hash.startsWith("#order-");
+  useEffect(() => {
+    if (landedOnOrder.current !== null || !landingOnOrder() || loading || !linkedJobs.length || !messages.length) return;
+    landedOnOrder.current = messages.length;
+    setTimeout(() => document.getElementById(window.location.hash.slice(1))?.scrollIntoView({ block: "start" }), 50);
+  }, [loading, linkedJobs.length, messages.length]);
 
   // Real-time messages listener
   useEffect(() => {
@@ -403,6 +400,7 @@ export default function ChatPage() {
 
   // Auto scroll to bottom
   useEffect(() => {
+    if (landingOnOrder() && (landedOnOrder.current === null || messages.length <= landedOnOrder.current)) return;
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
@@ -474,13 +472,13 @@ export default function ChatPage() {
           read: false,
           createdAt: Timestamp.now(),
         };
-        if (job?.id) messageData.jobId = job.id;
+        const activeOrder = openJobs.at(-1);
+        if (activeOrder) messageData.jobId = activeOrder.id;
         if (metadata !== undefined) messageData.metadata = metadata;
 
         const chatDocRef = doc(db, "chats", chatId);
         const chatSnap = await getDoc(chatDocRef);
         const chatData = chatSnap.data();
-        if (chatData?.jobId) messageData.jobId = chatData.jobId;
         const otherUid = chatData?.participants?.find(
           (p: string) => p !== user.uid
         );
@@ -508,11 +506,11 @@ export default function ChatPage() {
             title: "New job message",
             message: content,
             senderName: profile?.displayName || "User",
-            chatLabel: `Job chat · ${chatData?.jobId || chatId.slice(0, 8)}`,
+            chatLabel: `Job chat · ${activeOrder?.orderNumber || chatId.slice(0, 8)}`,
             preview: content,
             chatId,
             uid: user.uid,
-            meta: { path: "/admin/chats", jobId: chatData?.jobId || "" },
+            meta: { path: "/admin/chats", jobId: activeOrder?.id || "" },
           });
           void user.getIdToken().then((token) => fetch("/api/notifications/message", {
             method: "POST",
@@ -530,7 +528,7 @@ export default function ChatPage() {
         if (trackSendingState) { sendingLock.current = false; setSendingMessage(false); }
       }
     },
-    [user, chatId, profile?.displayName, job?.id, notify]
+    [user, chatId, profile?.displayName, openJobs, notify]
   );
 
   // Operator actions
@@ -572,99 +570,18 @@ export default function ChatPage() {
     };
   }, [showCameraQrModal, guestUploadSessionId, sendMessage, notify]);
 
-  const updateJobStatus = async (newStatus: JobStatus) => {
-    if (!job) return;
+  const confirmCancelJob = async () => {
+    if (!job?.id) return;
+    setCancelling(true);
     try {
-      // ── Guard: photo proof required before completing ──────────────────────
-      if (newStatus === "completed" && !completionPhoto && !job.completionPhotoUrl) {
-        notify("You must submit photo proof before completing the job. Please upload a completion photo first.");
-        return;
-      }
-
-      // ── Guard: one active job at a time on accept ──────────────────────────
-      if (newStatus === "accepted") {
-        if (!profile?.idVerified) {
-          notify("ID verification is required before accepting a job.");
-          return;
-        }
-        if (job.paymentMethod !== "cash" && !(await isStripeAccountReady(profile.stripeConnectAccountId))) {
-          notify("Stripe setup is required for card-paid jobs. Cash jobs can be accepted without Stripe.");
-          return;
-        }
-        const { getDocs: gd, query: q2, collection: col2, where: w2 } = await import("firebase/firestore");
-        const activeSnap = await gd(q2(col2(db, "jobs"), w2("operatorId", "==", user?.uid), w2("status", "in", ["accepted", "en-route", "in-progress"])));
-        const otherActive = activeSnap.docs.filter(d => d.id !== job.id);
-        if (otherActive.length > 0) {
-          notify("You already have an active job in progress. Please complete it before accepting another.");
-          return;
-        }
-      }
-
-      // ── Guard: payment must be made before proceeding past accepted (credit/e-transfer) ──
-      if ((newStatus === "en-route" || newStatus === "in-progress" || newStatus === "completed") && job.paymentMethod !== "cash" && !["held", "paid"].includes(job.paymentStatus)) {
-        setShowPaymentGateModal(true);
-        return;
-      }
-
-      const updateData: Record<string, unknown> = {
-        status: newStatus,
-        updatedAt: Timestamp.now(),
-      };
-      if (newStatus === "in-progress") {
-        updateData.startTime = Timestamp.now();
-      }
-      if (newStatus === "completed") {
-        updateData.completionTime = Timestamp.now();
-        // Verify Stripe payment before completing (unless cash)
-        if (job.stripePaymentIntentId) {
-          const captureResult = await captureStripePaymentIfNeeded(job);
-          if (captureResult.error) {
-            notify(`Payment verification failed. ${captureResult.error}`);
-            return;
-          }
-          if (captureResult.captured || job.paymentStatus === "paid" || job.paymentCapturedAt) {
-            updateData.paymentStatus = "paid";
-          }
-        } else if (job.paymentMethod === "cash") {
-          await cashPaymentAction("complete");
-          return;
-        } else {
-          notify("A confirmed platform payment is required before completing this job.");
-          return;
-        }
-      }
-
-      await updateDoc(doc(db, "jobs", job.id), updateData);
-
-      const statusLabels: Record<string, string> = {
-        accepted: "accepted this job",
-        "en-route": "is on the way",
-        "in-progress": "has started snow removal",
-        completed: "has completed the job",
-        cancelled: "has cancelled the job",
-      };
-
-      // Send a single status-only message
-      await sendMessage(
-        `${profile?.displayName} ${statusLabels[newStatus] || `updated status to ${newStatus}`}`,
-        "status-update",
-        { newStatus }
-      );
-
-      if (newStatus === "accepted") {
-        // Auto-send payment request to client when operator accepts
-        if (job.paymentMethod !== "cash" && (job.paymentStatus === "pending" || job.paymentStatus === "refunded")) {
-          await sendMessage(
-            `${profile?.displayName} has accepted the job! Please pay $${job.price} CAD to confirm — funds are held securely by snowd.ca until job completion.`,
-            "payment-request",
-            { amount: job.price }
-          );
-        }
-      }
-
+      const result = await orderRequest("/api/jobs/cancel", { jobId: job.id });
+      if (result.warning) notify(result.warning, "info");
       setShowMobileTasksSheet(false);
+      setShowCancelPopup(false);
     } catch (error) {
-      console.error("Error updating status:", error);
+      notify(error instanceof Error ? error.message : "Failed to cancel job. Please try again.");
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -675,177 +592,6 @@ export default function ChatPage() {
       return;
     }
     setShowCancelPopup(true);
-  };
-
-  const confirmCancelJob = async () => {
-    if (!job?.id || job.status === "in-progress") return;
-    setCancelling(true);
-    const userRole = isOperator ? "operator" : "client";
-    try {
-      if (job.stripePaymentIntentId) {
-        const response = await stripeConnectFetch("/api/stripe/cancel-payment", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ paymentIntentId: job.stripePaymentIntentId }),
-        });
-        const result = await response.json();
-        if (!response.ok || result.status !== "canceled") {
-          throw new Error(result.error || "Could not release the payment hold. Please retry.");
-        }
-      }
-      await updateDoc(doc(db, "jobs", job.id), {
-        status: "cancelled",
-        cancelledAt: Timestamp.now(),
-        cancelledBy: user?.uid,
-        updatedAt: Timestamp.now(),
-      });
-      await sendMessage(
-        `${profile?.displayName} (${userRole}) has cancelled this job`,
-        "status-update",
-        { newStatus: "cancelled" }
-      );
-      setShowMobileTasksSheet(false);
-      setShowCancelPopup(false);
-    } catch (error) {
-      console.error("Error cancelling job:", error);
-      notify(error instanceof Error ? error.message : "Failed to cancel job. Please try again.");
-    } finally {
-      setCancelling(false);
-    }
-  };
-
-  // Rehire operator from a completed/cancelled chat
-  const rehireOperator = async (cashAccepted = false) => {
-    if (!job || !user?.uid || !otherUser?.uid || rehiring || rehireSent) return;
-    if (job.paymentMethod === "cash" && job.status === "completed" && job.paymentStatus === "pending") {
-      setCashError("Settle this job's cash payment before booking again in this conversation.");
-      setShowMobileTasksSheet(true);
-      return;
-    }
-    setRehiring(true);
-    try {
-      const { collection: col, Timestamp: Ts } = await import("firebase/firestore");
-      const bookingOperator = isOperator ? profile : otherUser;
-      if (!bookingOperator?.idVerified) throw new Error("The operator must verify their ID before receiving jobs.");
-      const operatorRequiresCard = canAcceptPlatformPayments(bookingOperator) && (bookingOperator.stripeEnabledJobsOnly ?? true);
-
-      if (!operatorRequiresCard && !cashAccepted) {
-        setQuickCommConfirmation({ title: "Book a cash-only job?", confirmLabel: "Agree & request help", message: `Pay $${(job.price || 0).toFixed(2)} directly to the operator after the work. No card will be charged.`, onConfirm: () => rehireOperator(true) });
-        return;
-      }
-
-      // Keep the cancelled/completed work order immutable and start a new thread.
-      const newJobRef = doc(col(db, "jobs"));
-      const newChatRef = doc(col(db, "chats"));
-      const now = Ts.now();
-      const batch = writeBatch(db);
-      batch.set(newJobRef, {
-        clientId: isOperator ? otherUser.uid : user.uid,
-        operatorId: isOperator ? user.uid : otherUser.uid,
-        status: "pending",
-        serviceTypes: job.serviceTypes || [],
-        propertySize: job.propertySize || "medium",
-        address: job.address || "",
-        city: job.city || "",
-        province: job.province || "",
-        postalCode: job.postalCode || "",
-        specialInstructions: job.specialInstructions || "",
-        scheduledDate: Ts.now(),
-        scheduledTime: "ASAP",
-        estimatedDuration: job.estimatedDuration || 60,
-        price: job.price || 0,
-        paymentMethod: operatorRequiresCard ? "credit" : "cash",
-        requiresCardPayment: operatorRequiresCard,
-        cashPaymentAcknowledged: !operatorRequiresCard,
-        paymentStatus: "pending",
-        chatId: newChatRef.id,
-        createdAt: now,
-        updatedAt: now,
-      });
-      batch.set(newChatRef, {
-        jobId: newJobRef.id,
-        participants: [isOperator ? otherUser.uid : user.uid, isOperator ? user.uid : otherUser.uid],
-        lastMessage: "New job request created",
-        lastMessageTime: now,
-        createdAt: now,
-      });
-      batch.set(doc(col(db, "messages")), {
-        chatId: newChatRef.id,
-        senderId: user.uid,
-        senderName: profile?.displayName || "snowd.ca",
-        type: "system",
-        content: `${profile?.displayName} has requested a new work order with the same operator.${operatorRequiresCard ? "" : " Cash only: pay the operator directly after the work. No card will be charged."}`,
-        read: false,
-        createdAt: now,
-      });
-      await batch.commit();
-      setRehireSent(true);
-      router.push(`/dashboard/messages/${newChatRef.id}`);
-
-    } catch (error) {
-      console.error("Error rehiring:", error);
-      notify("Failed to create new job. Please try again.");
-    } finally {
-      setRehiring(false);
-    }
-  };
-
-  // Reopen a cancelled job within 5-minute window
-  const reopenJob = async () => {
-    if (!job?.id) return;
-    try {
-      await updateDoc(doc(db, "jobs", job.id), {
-        status: "pending",
-        cancelledAt: null,
-        cancelledBy: null,
-        updatedAt: Timestamp.now(),
-      });
-      await sendMessage(
-        `${profile?.displayName} has reopened the job`,
-        "status-update",
-        { newStatus: "pending" }
-      );
-    } catch (error) {
-      console.error("Error reopening job:", error);
-      notify("Failed to reopen job. Please try again.");
-    }
-  };
-
-  // Check if within 5-min reopen window
-  const [reopenTimeLeft, setReopenTimeLeft] = useState<number | null>(null);
-  useEffect(() => {
-    if (job?.status !== "cancelled" || !job?.cancelledAt) {
-      setReopenTimeLeft(null);
-      return;
-    }
-    const cancelledAt = job.cancelledAt;
-    const cancelledDate = cancelledAt instanceof Date
-      ? cancelledAt
-      : typeof cancelledAt === "object" && cancelledAt !== null && "toDate" in cancelledAt
-      ? (cancelledAt as unknown as Timestamp).toDate()
-      : new Date(cancelledAt as unknown as string);
-
-    const calcRemaining = () => {
-      const elapsed = Date.now() - cancelledDate.getTime();
-      const remaining = 5 * 60 * 1000 - elapsed; // 5 minutes
-      return remaining > 0 ? remaining : 0;
-    };
-
-    setReopenTimeLeft(calcRemaining());
-    const interval = setInterval(() => {
-      const remaining = calcRemaining();
-      setReopenTimeLeft(remaining);
-      if (remaining <= 0) clearInterval(interval);
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [job?.status, job?.cancelledAt]);
-
-  const sendEtaUpdate = async (minutes: number) => {
-    await sendMessage(`Estimated arrival: ${minutes} minutes`, "eta-update", {
-      eta: minutes,
-    });
-    setShowMobileTasksSheet(false);
   };
 
   const cashPaymentAction = async (action: "defer" | "complete" | "refund") => {
@@ -861,52 +607,6 @@ export default function ChatPage() {
       setCashError(error instanceof Error ? error.message : "Could not update cash payment.");
       setShowMobileTasksSheet(true);
     } finally { setCashActionBusy(false); }
-  };
-
-  const confirmCashReceived = async () => {
-    if (!job || confirmingCash) return;
-    setConfirmingCash(true); setCashError("");
-    try {
-      const response = await stripeConnectFetch("/api/jobs/confirm-cash", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jobId: job.id }) });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Could not confirm cash received.");
-      if (!result.alreadyConfirmed) await sendMessage(`Cash payment of $${job.price} CAD received and confirmed by ${profile?.displayName || "the operator"}. No card was charged.`, "payment", { amount: job.price });
-    } catch (error) { setCashError(error instanceof Error ? error.message : "Could not confirm cash received."); }
-    finally { setConfirmingCash(false); }
-  };
-
-  const requestQuickCommConfirmation = (confirmation: QuickCommConfirmation) => {
-    setQuickCommConfirmation(confirmation);
-  };
-
-  const captureStripePaymentIfNeeded = async (activeJob: Job) => {
-    if (!activeJob.stripePaymentIntentId) {
-      return { captured: false, skipped: true };
-    }
-
-    if (activeJob.paymentStatus === "paid" || activeJob.paymentCapturedAt) {
-      return { captured: false, skipped: true };
-    }
-
-    if (activeJob.paymentStatus !== "held") {
-      return { captured: false, skipped: false, error: "Payment is not in a hold state yet." };
-    }
-
-    try {
-      const response = await stripeConnectFetch("/api/stripe/capture-payment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paymentIntentId: activeJob.stripePaymentIntentId }),
-      });
-      const data = await response.json();
-      if (!response.ok || data.status !== "succeeded") {
-        return { captured: false, skipped: false, error: data.error || "Payment capture has not succeeded." };
-      }
-
-      return { captured: true, skipped: false };
-    } catch {
-      return { captured: false, skipped: false, error: "Unable to capture payment. Please retry." };
-    }
   };
 
   // Stripe payment initiation
@@ -972,36 +672,6 @@ export default function ChatPage() {
     } catch (error) {
       console.error("Payment recording error:", error);
       throw error;
-    }
-  };
-
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !job) return;
-    setUploadingPhoto(true);
-    try {
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => reject(new Error("Could not read the photo."));
-        reader.readAsDataURL(file);
-      });
-      await updateDoc(doc(db, "jobs", job.id), {
-        completionPhotoUrl: base64,
-        updatedAt: Timestamp.now(),
-      });
-      setCompletionPhoto(base64);
-      await sendMessage(
-        `${profile?.displayName} submitted completion photo proof.`,
-        "completion-photo",
-        { completionPhotoUrl: base64 }
-      );
-    } catch (error) {
-      console.error("Photo upload error:", error);
-      notify("Could not save photo proof. Please try again.");
-    } finally {
-      setUploadingPhoto(false);
-      e.target.value = "";
     }
   };
 
@@ -1463,7 +1133,7 @@ export default function ChatPage() {
                 <button
                   onClick={initiatePayment}
                   disabled={processingPayment}
-                    className="mt-3 w-full rounded-xl bg-[var(--ink)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-black disabled:opacity-50"
+                    className="mt-3 w-full btn-cta rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
                   >
                   {processingPayment ? "Processing..." : `Pay $${job?.price} CAD Now`}
                 </button>
@@ -1546,20 +1216,12 @@ export default function ChatPage() {
           </button>
         </div>
 
-        {job && (
-          <div className="shrink-0 border-b border-[var(--border-soft)] bg-[var(--bg-secondary)] px-3 py-2.5 sm:px-4">
-            <Link href={`/dashboard/jobs/${job.id}?returnTo=${encodeURIComponent(`/dashboard/messages/${chatId}`)}`} className="chat-order-link block min-h-11 w-full rounded-xl bg-white px-3 py-2.5 text-left">
-              <span className="chat-order-main"><span><small>Work order</small><strong>{propertySizeLabel(job.propertySize)}{job.serviceTypes?.includes("walkway") ? " + Walkway" : ""} <span className="chat-order-price">${jobDisplayPrice(job, isOperator).toFixed(2)} CAD</span></strong></span></span>
-              <StatusBadge status={job.status} /><ChevronRight size={17} aria-hidden="true" />
-            </Link>
-            {linkedJobs.length > 1 && <section className="mt-1"><button type="button" className="py-2 text-xs font-semibold text-[var(--text-secondary)]" aria-expanded={showEarlierOrders} onClick={() => setShowEarlierOrders(value => !value)}>Earlier work orders ({linkedJobs.length - 1}) <span aria-hidden="true">{showEarlierOrders ? "−" : "+"}</span></button>{showEarlierOrders && <div className="grid gap-1">{linkedJobs.filter(linkedJob => linkedJob.id !== job.id).map(linkedJob => <button key={linkedJob.id} type="button" onClick={() => selectWorkOrder(linkedJob)} className="rounded-lg px-3 py-2 text-left text-sm hover:bg-white">{linkedJob.serviceTypes?.[0]?.replaceAll("-", " ") || "Snow service"} · ${linkedJob.price} CAD</button>)}</div>}</section>}
-          </div>
-        )}
+        <OrderChatPinned jobs={openJobs} uid={user?.uid || ""} />
 
         {(chatLoadError || messageLoadError) && <div role="alert" className="shrink-0 border-b border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{chatLoadError || messageLoadError} <button type="button" className="min-h-11 font-semibold underline" onClick={() => window.location.reload()}>Reload</button></div>}
         {/* Messages */}
         <div role="log" aria-label="Conversation" className="chat-history min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain bg-[var(--bg-primary)] p-3 sm:p-5">
-          {messages.length === 0 && (
+          {timeline.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center py-12 text-[var(--text-muted)]">
               <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border-[3px] border-[var(--border-soft)] bg-white shadow-[var(--surface-shadow)]">
                 <MessageSquare className="h-7 w-7 text-[var(--ink)]" />
@@ -1568,9 +1230,144 @@ export default function ChatPage() {
               <p className="mt-1 max-w-xs text-xs leading-5 text-gray-500">Share arrival details, photos, and job updates here.</p>
             </div>
           )}
-          {messages.map((message, index) => {
+          {timeline.map((item, index) => {
+            if (item.kind === "order-start")
+              return <OrderChatWidget key={`start-${item.job.id}`} job={item.job} uid={user?.uid || ""} returnTo={`/dashboard/messages/${chatId}`} onUpdated={(message) => notify(message, "success")} />;
+            if (item.kind === "order-end")
+              return (
+                <React.Fragment key={`end-${item.job.id}`}>
+                  <OrderChatEnd job={item.job} />
+                        {/* Review Prompt — Auto-shows when job is completed */}
+        {item.job.id === job?.id && job?.status === "completed" && !reviewSubmitted && (
+          <div className="guided-review">
+            <div className="guided-review-heading">
+              <span className="guided-review-icon"><Star size={18} aria-hidden="true" /></span>
+              <div>
+                <p className="text-sm font-semibold text-[var(--text-primary)]">
+                  How was {otherUser?.displayName || "your shoveler"}?
+                </p>
+                <p className="text-xs text-[var(--text-secondary)]">Rate your visit.</p>
+              </div>
+            </div>
+            {/* Star Rating */}
+            <div className="guided-review-stars">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  aria-label={`Rate ${star} out of 5`}
+                  onClick={() => setReviewRating(star)}
+                  className="guided-review-star"
+                >
+                  <Star
+                    className={`w-8 h-8 ${
+                      star <= reviewRating
+                        ? "text-yellow-500 fill-yellow-500"
+                        : "text-gray-300"
+                    }`}
+                  />
+                </button>
+              ))}
+            </div>
+            {reviewRating > 0 && (
+              <div className="guided-review-form">
+                <textarea
+                  value={reviewComment}
+                  aria-label="Review comment"
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  placeholder={reviewRating < 3 ? "Please describe what went wrong (required)..." : "Add a comment (optional)..."}
+                  rows={2}
+                  className={`w-full px-3 py-2 border rounded-xl text-sm resize-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent outline-none ${
+                    reviewRating < 3 ? "border-red-300" : "border-gray-200"
+                  }`}
+                />
+                {reviewRating < 3 && !reviewComment.trim() && (
+                  <p className="text-xs text-red-600">* Description required for ratings below 3 stars</p>
+                )}
+                <button
+                  onClick={submitReview}
+                  disabled={submittingReview}
+                  className="w-full px-4 py-2.5 bg-yellow-500 text-white rounded-xl font-semibold text-sm hover:bg-yellow-600 transition disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {submittingReview ? "Submitting..." : "Submit Review"}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        {item.job.id === job?.id && job?.status === "completed" && reviewSubmitted && (
+          <div className="guided-review guided-review-complete" role="status">
+            <span className="guided-success-icon"><CheckCircle size={16} aria-hidden="true" /></span>
+            <div>
+              <p className="font-semibold text-[var(--text-primary)]">Visit complete.</p>
+              <p className="text-xs text-[var(--text-secondary)]">Thanks for helping your neighbourhood.</p>
+            </div>
+          </div>
+        )}
+
+        {/* Client cancel button for pending jobs */}
+        {!isOperator && ["pending", "accepted", "en-route"].includes(job?.status || "") && job?.paymentStatus !== "paid" && (
+          <div className="bg-gray-50 border-x border-gray-100 px-4 py-3 border-t border-gray-200">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-gray-800">Cancel this job?</p>
+                <p className="text-xs text-gray-600">You can cancel until the operator starts the work.</p>
+              </div>
+              <button
+                onClick={cancelJob}
+                className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg font-semibold text-sm transition flex items-center gap-2"
+              ><IconSwap icon={<X className="w-4 h-4" />}>
+                <X className="w-4 h-4" />
+                Cancel Job
+              </IconSwap></button>
+            </div>
+          </div>
+        )}
+
+        {/* Client payment banner */}
+        {!isOperator && job?.paymentMethod !== "cash" && job?.status === "accepted" && (job?.paymentStatus === "pending" || job?.paymentStatus === "refunded") && (
+          <div className="bg-yellow-50 border-x border-yellow-100 px-4 py-3 border-t border-yellow-200">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Shield className="w-5 h-5 text-yellow-600" />
+                <div>
+                  <p className="text-sm font-medium text-yellow-800">Pay ${job.price} CAD to confirm</p>
+                  <p className="text-xs text-yellow-600">Funds held securely until job completion</p>
+                </div>
+              </div>
+              <button
+                onClick={initiatePayment}
+                disabled={processingPayment}
+                className="px-4 py-2 bg-[var(--accent)] text-white rounded-lg font-semibold text-sm hover:bg-[var(--accent-dark)] transition disabled:opacity-50 flex items-center gap-2"
+              >
+                {processingPayment ? (
+                  <>
+                    <Image src="/logo.png" alt="Loading" width={16} height={16} className="animate-spin-slow" style={{ width: "auto", height: "auto" }} />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="w-4 h-4" />
+                    Pay Now
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+                  {item.job.id === job?.id && item.job.status !== "pending" && !isOperator && (
+                    <div className="my-3 flex justify-center">
+                      <Link href={`/dashboard/jobs/new?previousOrder=${item.job.id}`} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--border-color)] bg-white px-4 py-2 text-sm font-semibold hover:bg-[var(--bg-secondary)]">
+                        <Briefcase className="h-4 w-4" aria-hidden="true" /> Book again
+                      </Link>
+                    </div>
+                  )}
+                </React.Fragment>
+              );
+            const message = item.message;
+            const previous = timeline.slice(0, index).reverse().find((entry) => entry.kind === "message");
             const currentDay = formatMessageDay(message.createdAt);
-            const previousDay = index > 0 ? formatMessageDay(messages[index - 1].createdAt) : "";
+            const previousDay = previous?.kind === "message" ? formatMessageDay(previous.message.createdAt) : "";
             const showDayBreak = currentDay && currentDay !== previousDay;
 
             return (
@@ -1582,7 +1379,9 @@ export default function ChatPage() {
                     </span>
                   </div>
                 )}
-                {renderMessage(message)}
+                <div className={item.job ? orderChatStyles.section : undefined} data-order={item.job?.id}>
+                  {renderMessage(message)}
+                </div>
               </React.Fragment>
             );
           })}
@@ -1591,14 +1390,6 @@ export default function ChatPage() {
 
         {/* Message Input */}
         <div className="conversation-composer sticky bottom-0 z-20 shrink-0 border-t border-[var(--border-soft)] bg-white/95 px-2.5 pb-[max(10px,env(safe-area-inset-bottom))] pt-2.5 shadow-[var(--surface-shadow)] backdrop-blur sm:px-4">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={handlePhotoUpload}
-            className="hidden"
-          />
           <input
             ref={chatAttachInputRef}
             type="file"
@@ -1666,7 +1457,7 @@ export default function ChatPage() {
         </div>
       </div>
 
-      <Modal isOpen={showMobileTasksSheet && !showCashPayment && !showCancelPopup && !quickCommConfirmation && !showMapModal && !showCheckout && !showPaymentGateModal && !showReportModal && !showCameraQrModal} onClose={() => setShowMobileTasksSheet(false)} title="Conversation details" size="lg">
+      <Modal isOpen={showMobileTasksSheet && !showCashPayment && !showCancelPopup && !quickCommConfirmation && !showMapModal && !showCheckout && !showReportModal && !showCameraQrModal} onClose={() => setShowMobileTasksSheet(false)} title="Conversation details" size="lg">
         <div className="chat-details">
             <div className="mb-4 flex items-center gap-2 rounded-xl border-[3px] border-[var(--border-soft)] bg-[var(--bg-secondary)] p-1">
               <button
@@ -1689,7 +1480,7 @@ export default function ChatPage() {
               </button>
             </div>
 
-            {job && (
+            {rightPanelView === "updates" && job && (
               <section className="mb-4 rounded-2xl border border-[var(--border-color)] bg-white p-3">
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <div>
@@ -1698,16 +1489,15 @@ export default function ChatPage() {
                   <span className="rounded-full bg-[var(--bg-secondary)] px-2 py-1 text-[10px] font-bold text-[var(--text-muted)]">{linkedJobs.length}</span>
                 </div>
                 <div className="space-y-2">
-                  {linkedJobs.map((linkedJob, index) => (
+                  {[...linkedJobs].reverse().map((linkedJob) => (
                     <button
                       key={linkedJob.id}
                       type="button"
-                      onClick={() => selectWorkOrder(linkedJob)}
-                      aria-pressed={linkedJob.id === job.id}
+                      onClick={() => scrollToOrder(linkedJob.id)}
                       className={`w-full rounded-xl border px-3 py-2 text-left ${linkedJob.id === job.id ? "border-[var(--ink)] bg-[var(--bg-secondary)]" : "border-[var(--border-soft)] hover:bg-[var(--bg-secondary)]"}`}
                     >
                       <span className="flex items-center justify-between gap-2 text-xs font-semibold">
-                        <span>Order {index + 1}{linkedJob.id === job.id ? " · Active" : ""}</span>
+                        <span>Order #{orderNumber(linkedJob)}</span>
                         <StatusBadge status={linkedJob.status} />
                       </span>
                       <span className="mt-1 block text-xs capitalize text-[var(--text-muted)]">{linkedJob.serviceTypes?.[0]?.replaceAll("-", " ") || "Snow service"} · ${linkedJob.price} CAD</span>
@@ -1715,370 +1505,6 @@ export default function ChatPage() {
                   ))}
                 </div>
               </section>
-            )}
-
-            {rightPanelView === "updates" && job && (
-              <>
-        {job?.paymentMethod === "cash" && <section className="mb-4 rounded-2xl bg-[#eaf1ee] p-4 text-sm">
-          <h3 className="text-base font-semibold">{job.paymentStatus === "paid" ? "Cash received" : job.paymentStatus === "refunded" ? "Cash refunded" : job.status === "completed" ? "Work complete · cash payment pending" : "Cash payment pending"}</h3>
-          <p className="mt-2">{job.paymentStatus === "paid" ? `The operator confirmed $${job.price} CAD in cash. Your receipt is in Payments.` : job.paymentStatus === "refunded" ? "The operator recorded a cash refund. The job remains open until completed or cancelled." : `Pay $${job.price} CAD directly to the operator ${job.status === "completed" ? "now that the work is complete" : "when the work is done"}. This is not a prepaid job.`}</p>
-          {isOperator && job.paymentStatus !== "paid" && job.status !== "cancelled" && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-amber-900">You are responsible for collecting cash. No advance payment is held through Stripe, so travelling and working before payment is at your own risk. You can complete the work while payment remains pending.</p>}
-          {!isOperator && job.paymentStatus !== "paid" && job.status !== "cancelled" && <button onClick={initiatePayment} className="btn-primary mt-4 w-full px-4 py-3">{job.status === "completed" ? "Pay cash · view instructions" : job.cashPaymentDeferredAt ? "View pending cash payment" : "Pay cash after the job"}</button>}
-          {isOperator && job.paymentStatus === "paid" && !["completed", "cancelled"].includes(job.status) && <button disabled={cashActionBusy} onClick={() => requestQuickCommConfirmation({ title: "Record cash refund?", message: `Only confirm after returning $${job.price} CAD to the client in cash. This records the refund; it does not transfer money or cancel the job.`, confirmLabel: "Cash returned to client", onConfirm: () => cashPaymentAction("refund") })} className="btn-secondary mt-4 w-full px-4 py-3">Record cash refund</button>}
-          {!isOperator && job.paymentStatus === "paid" && !["completed", "cancelled"].includes(job.status) && <button onClick={() => requestQuickCommConfirmation({ title: "Request cash refund?", message: "This asks the operator to return your cash. They must return the money directly and record the refund. The job stays open until cancelled or completed.", confirmLabel: "Send refund request", onConfirm: () => sendMessage(`Please return my $${job.price} CAD cash payment and record the refund. The work is not completed.`, "payment") })} className="btn-secondary mt-4 w-full px-4 py-3">Request cash refund</button>}
-          {job.paymentStatus !== "paid" && ["pending", "accepted", "en-route"].includes(job.status) && <button onClick={cancelJob} className="mt-3 w-full rounded-xl px-4 py-3 font-semibold text-red-700">Cancel job</button>}
-          {isOperator && ["in-progress", "completed"].includes(job.status) && job.paymentStatus !== "paid" && <button disabled={confirmingCash} onClick={() => requestQuickCommConfirmation({ title: "Confirm cash received?", message: `Confirm only after you have received $${job.price} CAD from the client. This records a cash receipt for both of you.`, confirmLabel: "Yes, cash received", onConfirm: confirmCashReceived })} className="mt-4 w-full rounded-full bg-[#112b3b] px-4 py-3 font-semibold text-white disabled:opacity-50">{confirmingCash ? "Confirming…" : "Confirm cash received"}</button>}
-          {cashError && <p role="alert" className="mt-3 text-red-700">{cashError}</p>}
-        </section>}
-
-                        {/* Review Prompt — Auto-shows when job is completed */}
-        {job?.status === "completed" && !reviewSubmitted && (
-          <div className="guided-review">
-            <div className="guided-review-heading">
-              <span className="guided-review-icon"><Star size={18} aria-hidden="true" /></span>
-              <div>
-                <p className="text-sm font-semibold text-[var(--text-primary)]">
-                  How was {otherUser?.displayName || "your shoveler"}?
-                </p>
-                <p className="text-xs text-[var(--text-secondary)]">Rate your visit.</p>
-              </div>
-            </div>
-            {/* Star Rating */}
-            <div className="guided-review-stars">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  aria-label={`Rate ${star} out of 5`}
-                  onClick={() => setReviewRating(star)}
-                  className="guided-review-star"
-                >
-                  <Star
-                    className={`w-8 h-8 ${
-                      star <= reviewRating
-                        ? "text-yellow-500 fill-yellow-500"
-                        : "text-gray-300"
-                    }`}
-                  />
-                </button>
-              ))}
-            </div>
-            {reviewRating > 0 && (
-              <div className="guided-review-form">
-                <textarea
-                  value={reviewComment}
-                  aria-label="Review comment"
-                  onChange={(e) => setReviewComment(e.target.value)}
-                  placeholder={reviewRating < 3 ? "Please describe what went wrong (required)..." : "Add a comment (optional)..."}
-                  rows={2}
-                  className={`w-full px-3 py-2 border rounded-xl text-sm resize-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent outline-none ${
-                    reviewRating < 3 ? "border-red-300" : "border-gray-200"
-                  }`}
-                />
-                {reviewRating < 3 && !reviewComment.trim() && (
-                  <p className="text-xs text-red-600">* Description required for ratings below 3 stars</p>
-                )}
-                <button
-                  onClick={submitReview}
-                  disabled={submittingReview}
-                  className="w-full px-4 py-2.5 bg-yellow-500 text-white rounded-xl font-semibold text-sm hover:bg-yellow-600 transition disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {submittingReview ? "Submitting..." : "Submit Review"}
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-        {job?.status === "completed" && reviewSubmitted && (
-          <div className="guided-review guided-review-complete" role="status">
-            <span className="guided-success-icon"><CheckCircle size={16} aria-hidden="true" /></span>
-            <div>
-              <p className="font-semibold text-[var(--text-primary)]">Visit complete.</p>
-              <p className="text-xs text-[var(--text-secondary)]">Thanks for helping your neighbourhood.</p>
-            </div>
-          </div>
-        )}
-
-        {/* Client cancel button for pending jobs */}
-        {!isOperator && ["pending", "accepted", "en-route"].includes(job?.status || "") && job?.paymentStatus !== "paid" && (
-          <div className="bg-gray-50 border-x border-gray-100 px-4 py-3 border-t border-gray-200">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium text-gray-800">Cancel this job?</p>
-                <p className="text-xs text-gray-600">You can cancel until the operator starts the work.</p>
-              </div>
-              <button
-                onClick={cancelJob}
-                className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg font-semibold text-sm transition flex items-center gap-2"
-              ><IconSwap icon={<X className="w-4 h-4" />}>
-                <X className="w-4 h-4" />
-                Cancel Job
-              </IconSwap></button>
-            </div>
-          </div>
-        )}
-
-        {/* Client payment banner */}
-        {!isOperator && job?.paymentMethod !== "cash" && job?.status === "accepted" && (job?.paymentStatus === "pending" || job?.paymentStatus === "refunded") && (
-          <div className="bg-yellow-50 border-x border-yellow-100 px-4 py-3 border-t border-yellow-200">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <Shield className="w-5 h-5 text-yellow-600" />
-                <div>
-                  <p className="text-sm font-medium text-yellow-800">Pay ${job.price} CAD to confirm</p>
-                  <p className="text-xs text-yellow-600">Funds held securely until job completion</p>
-                </div>
-              </div>
-              <button
-                onClick={initiatePayment}
-                disabled={processingPayment}
-                className="px-4 py-2 bg-[var(--accent)] text-white rounded-lg font-semibold text-sm hover:bg-[var(--accent-dark)] transition disabled:opacity-50 flex items-center gap-2"
-              >
-                {processingPayment ? (
-                  <>
-                    <Image src="/logo.png" alt="Loading" width={16} height={16} className="animate-spin-slow" style={{ width: "auto", height: "auto" }} />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <CreditCard className="w-4 h-4" />
-                    Pay Now
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Completed Job — Rehire option (clients only, once) */}
-        {job?.status === "completed" && reviewSubmitted && !isOperator && !rehireSent && (
-          <div className="bg-[var(--accent)]/5 border-x border-[var(--accent)]/10 px-4 py-3 border-t border-[var(--accent)]/20">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium text-gray-900">Job Complete</p>
-                <p className="text-xs text-gray-500">Need this service again?</p>
-              </div>
-              <button
-                onClick={() => rehireOperator()}
-                disabled={rehiring}
-                className="px-4 py-2 bg-[var(--accent)] text-white rounded-lg font-semibold text-sm hover:bg-[var(--accent-dark)] transition flex items-center gap-2 disabled:opacity-50"
-              ><IconSwap icon={<Briefcase className="w-4 h-4" />}>
-                <Briefcase className="w-4 h-4" />
-                {rehiring ? "Creating..." : "Rehire"}
-              </IconSwap></button>
-            </div>
-          </div>
-        )}
-
-        {/* Cancelled Job — reopen the original briefly, or create a separate work order. */}
-        {job?.status === "cancelled" && (
-          <div className="bg-red-50 border-x border-red-100 px-4 py-3 border-t border-red-200">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium text-red-800">Job Cancelled</p>
-                {!isOperator && <p className="text-xs text-red-600">Reopen this order or request a separate visit.</p>}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {!isOperator && reopenTimeLeft !== null && reopenTimeLeft > 0 && (
-                  <button onClick={reopenJob} className="px-4 py-2 bg-[var(--accent)] text-white rounded-lg font-semibold text-sm hover:bg-[var(--accent-dark)] transition flex items-center gap-2"><IconSwap icon={<Play className="w-4 h-4" />}>
-                    <Play className="w-4 h-4" />
-                    Reopen order ({Math.floor(reopenTimeLeft / 60000)}:{String(Math.floor((reopenTimeLeft % 60000) / 1000)).padStart(2, "0")})
-                  </IconSwap></button>
-                )}
-                {!isOperator && !rehireSent && (
-                  <button onClick={() => rehireOperator()} disabled={rehiring} className="px-4 py-2 bg-[var(--accent)] text-white rounded-lg font-semibold text-sm hover:bg-[var(--accent-dark)] transition flex items-center gap-2 disabled:opacity-50"><IconSwap icon={<Briefcase className="w-4 h-4" />}>
-                    <Briefcase className="w-4 h-4" />
-                    {rehiring ? "Creating..." : "New work order"}
-                  </IconSwap></button>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-
-            <ProgressTracker
-              status={job.status}
-              paymentMethod={job.paymentMethod}
-              paymentStatus={job.paymentStatus as "pending" | "held" | "paid" | "refunded" | undefined}
-            />
-
-            {/* Operator Update Buttons */}
-            {isOperator && job.status !== "completed" && job.status !== "cancelled" && (
-              <div className="mt-4 pt-3 border-t border-[var(--border)] space-y-2">
-                {job.status === "pending" && (
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => updateJobStatus("accepted")}
-                      className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-green-500 text-white rounded-xl text-xs font-bold hover:bg-green-600 transition shadow-[var(--surface-shadow)]"
-                    ><IconSwap icon={<CheckCircle className="w-3.5 h-3.5" />}>
-                      <CheckCircle className="w-3.5 h-3.5" /> Accept
-                    </IconSwap></button>
-                    <button
-                      onClick={() => updateJobStatus("cancelled")}
-                      className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-red-50 text-red-600 rounded-xl text-xs font-bold hover:bg-red-100 transition"
-                    ><IconSwap icon={<X className="w-3.5 h-3.5" />}>
-                      <X className="w-3.5 h-3.5" /> Decline
-                    </IconSwap></button>
-                  </div>
-                )}
-                {job.status === "accepted" && (
-                  <button
-                    onClick={() => updateJobStatus("en-route")}
-                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-[var(--accent)] text-white rounded-xl text-xs font-bold hover:bg-[var(--accent-dark)] transition shadow-[var(--surface-shadow)]"
-                  ><IconSwap icon={<Navigation className="w-3.5 h-3.5" />}>
-                    <Navigation className="w-3.5 h-3.5" /> On my way
-                  </IconSwap></button>
-                )}
-                {job.status === "en-route" && (
-                  <>
-                    <button
-                      onClick={() => updateJobStatus("in-progress")}
-                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-[var(--accent)] text-white rounded-xl text-xs font-bold hover:bg-[var(--accent-dark)] transition shadow-[var(--surface-shadow)]"
-                    ><IconSwap icon={<Play className="w-3.5 h-3.5" />}>
-                      <Play className="w-3.5 h-3.5" /> Start Job
-                    </IconSwap></button>
-                    <button
-                      onClick={() => updateJobStatus("accepted")}
-                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-100 text-gray-500 rounded-xl text-xs font-medium hover:bg-gray-200 transition"
-                    ><IconSwap icon={<ArrowLeft className="w-3.5 h-3.5" />}>
-                      <ArrowLeft className="w-3.5 h-3.5" /> Go Back
-                    </IconSwap></button>
-                  </>
-                )}
-                {job.status === "in-progress" && (
-                  <>
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={uploadingPhoto}
-                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-[var(--accent)] text-white rounded-xl text-xs font-bold hover:bg-[var(--accent-dark)] transition shadow-[var(--surface-shadow)] disabled:opacity-50"
-                    ><IconSwap icon={<Camera className="w-3.5 h-3.5" />}>
-                      <Camera className="w-3.5 h-3.5" /> {uploadingPhoto ? "Uploading..." : job.completionPhotoUrl || completionPhoto ? "Update completion photo" : "Add completion photo"}
-                    </IconSwap></button>
-                    {(job.completionPhotoUrl || completionPhoto) && (
-                      <button
-                        disabled={cashActionBusy}
-                        onClick={() => job.paymentMethod === "cash" && job.paymentStatus !== "paid" ? requestQuickCommConfirmation({ title: "Complete work with payment pending?", message: `The client will be notified to pay $${job.price} CAD in cash. You remain responsible for collecting it; no Stripe prepayment is held.`, confirmLabel: "Complete work · cash still due", onConfirm: () => updateJobStatus("completed") }) : updateJobStatus("completed")}
-                        className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-green-600 text-white rounded-xl text-xs font-bold hover:bg-green-700 transition shadow-[var(--surface-shadow)]"
-                      ><IconSwap icon={<CheckCircle className="w-3.5 h-3.5" />}>
-                        <CheckCircle className="w-3.5 h-3.5" /> {job.paymentMethod === "cash" ? "Complete work order" : "Complete & release payment"}
-                      </IconSwap></button>
-                    )}
-                    <button
-                      onClick={() => updateJobStatus("en-route")}
-                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-100 text-gray-500 rounded-xl text-xs font-medium hover:bg-gray-200 transition"
-                    ><IconSwap icon={<ArrowLeft className="w-3.5 h-3.5" />}>
-                      <ArrowLeft className="w-3.5 h-3.5" /> Go Back
-                    </IconSwap></button>
-                  </>
-                )}
-              </div>
-            )}
-
-            {isOperator && (job.status === "accepted" || job.status === "en-route") && (
-              <div className="mt-4 pt-3 border-t border-[var(--border)] space-y-2">
-                <p className="mb-2 text-xs font-bold uppercase tracking-widest text-gray-400">Send arrival time</p>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    onClick={() => void sendEtaUpdate(10)}
-                    className="flex items-center justify-center gap-1 rounded-xl bg-[var(--bg-secondary)] px-2 py-2 text-xs font-semibold text-[var(--text-primary)] transition hover:bg-[var(--border)]"
-                  >
-                    Send 10 min
-                  </button>
-                  <button
-                    onClick={() => void sendEtaUpdate(20)}
-                    className="flex items-center justify-center gap-1 rounded-xl bg-[var(--bg-secondary)] px-2 py-2 text-xs font-semibold text-[var(--text-primary)] transition hover:bg-[var(--border)]"
-                  >
-                    Send 20 min
-                  </button>
-                  <button
-                    onClick={() => void sendEtaUpdate(30)}
-                    className="flex items-center justify-center gap-1 rounded-xl bg-[var(--bg-secondary)] px-2 py-2 text-xs font-semibold text-[var(--text-primary)] transition hover:bg-[var(--border)]"
-                  >
-                    Send 30 min
-                  </button>
-                </div>
-                {job.paymentMethod !== "cash" && job.status === "accepted" && (job.paymentStatus === "pending" || job.paymentStatus === "refunded") && (
-                  <button
-                    onClick={() => {
-                      requestQuickCommConfirmation({
-                        title: "Send payment request?",
-                        message: `This will ask the client to pay $${job.price} CAD for this job.`,
-                        confirmLabel: "Send Request",
-                        onConfirm: async () => {
-                          await sendMessage(
-                            `${profile?.displayName} is requesting payment of $${job.price} CAD for this job. Tap Pay Now to hold funds securely with snowd.ca.`,
-                            "payment-request",
-                            { amount: job.price }
-                          );
-                        },
-                      });
-                    }}
-                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-amber-500 text-white rounded-xl text-xs font-bold hover:bg-amber-600 transition"
-                  ><IconSwap icon={<CreditCard className="w-3.5 h-3.5" />}>
-                    <CreditCard className="w-3.5 h-3.5" /> Request payment
-                  </IconSwap></button>
-                )}
-              </div>
-            )}
-
-            <dl className="mt-4 space-y-3 border-t border-[var(--border)] pt-4 text-sm">
-              <div><dt className="font-semibold">Scheduled</dt><dd>{scheduleText(job)}</dd></div>
-              {job.specialInstructions && <div><dt className="font-semibold">Special instructions</dt><dd className="whitespace-pre-wrap">{job.specialInstructions}</dd></div>}
-              <div><dt className="font-semibold">Property size</dt><dd>{propertySizeLabel(job.propertySize)}</dd></div>
-            </dl>
-
-            {/* Job summary */}
-            <div className="mt-4 border-t border-[var(--border)] pt-4 text-sm">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-xl border-[3px] border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2.5">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-                    {isOperator ? "Job price" : "Price"}
-                  </p>
-                  <div className="mt-1 flex items-center gap-1">
-                    <DollarSign className="h-4 w-4 text-[var(--accent)]" />
-                    <span className="text-lg font-bold text-[var(--ink)]">{job.price}</span>
-                    <span className="text-xs text-[var(--text-muted)]">CAD</span>
-                  </div>
-                </div>
-                <div className="rounded-xl border-[3px] border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2.5">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Payment</p>
-                  <p className="mt-1 text-sm font-semibold capitalize text-[var(--ink)]">{job.paymentStatus}</p>
-                </div>
-                <div className="rounded-xl border-[3px] border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2.5">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Service</p>
-                  <p className="mt-1 break-words text-sm font-semibold capitalize text-[var(--ink)]">
-                    {job.serviceTypes?.filter((service) => service !== "driveway").map((s) => s.replace("-", " ")).join(", ") || "Driveway clearing"}
-                  </p>
-                </div>
-                <div className="rounded-xl border-[3px] border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2.5">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Distance</p>
-                  <p className="mt-1 text-sm font-semibold text-[var(--ink)]">
-                    {distance !== null ? `${distance.toFixed(1)} km` : "Unknown"}
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setShowMapModal(true)}
-                className="mt-2 flex w-full items-center gap-2 rounded-xl border-[3px] border-[var(--border)] bg-white px-3 py-2.5 text-left text-xs text-[var(--text-muted)] transition hover:text-[var(--accent)]"
-              ><IconSwap icon={<MapPin className="h-3.5 w-3.5 shrink-0" />}>
-                <MapPin className="h-3.5 w-3.5 shrink-0" />
-                <span className="min-w-0 flex-1 break-words">{job.address}, {job.city}</span>
-                <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-              </IconSwap></button>
-            </div>
-
-                <div className="mt-4 border-t border-[var(--border)] pt-3">
-                  <button
-                    type="button"
-                    onClick={() => { setRightPanelView("profile"); setShowMobileTasksSheet(true); }}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--bg-secondary)] px-3 py-2.5 text-xs font-semibold text-[var(--text-primary)] transition hover:bg-[var(--border)]"
-                  ><IconSwap icon={<User className="w-3.5 h-3.5" />}>
-                    <User className="w-3.5 h-3.5" /> View profile details
-                  </IconSwap></button>
-                </div>
-              </>
             )}
 
             {rightPanelView === "profile" && otherUser && (
@@ -2204,54 +1630,6 @@ export default function ChatPage() {
             >
               {submittingReport ? "Submitting..." : "Submit Report"}
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* Payment Gate Modal — shown when operator tries to go en-route without client payment */}
-      {showPaymentGateModal && job && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowPaymentGateModal(false)}>
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-[var(--surface-shadow)]" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center gap-3 mb-1">
-              <div className="w-11 h-11 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
-                <CreditCard className="w-5 h-5 text-amber-600" />
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-900">Payment pending</h3>
-                <p className="text-xs text-gray-500">Client hasn&apos;t paid for this job</p>
-              </div>
-            </div>
-            <p className="text-sm text-gray-600 leading-relaxed">
-              The client needs to pay <span className="font-bold text-gray-900">${job.price} CAD</span> before you can proceed. Send them a payment request so funds are held securely.
-            </p>
-            <div className="space-y-2 pt-1">
-              <button
-                onClick={() => {
-                  requestQuickCommConfirmation({
-                    title: "Send payment request?",
-                    message: `This will ask the client to pay $${job.price} CAD before the job starts.`,
-                    confirmLabel: "Send Request",
-                    onConfirm: async () => {
-                      await sendMessage(
-                        `${profile?.displayName} is requesting payment of $${job.price} CAD before starting the job. Please pay to confirm — funds are held securely by snowd.ca until completion.`,
-                        "payment-request",
-                        { amount: job.price }
-                      );
-                      setShowPaymentGateModal(false);
-                    },
-                  });
-                }}
-                className="w-full py-3 bg-[var(--accent)] text-white rounded-xl font-semibold text-sm hover:bg-[var(--accent-dark)] transition flex items-center justify-center gap-2"
-              ><IconSwap icon={<CreditCard className="w-4 h-4" />}>
-                <CreditCard className="w-4 h-4" /> Send Payment Request to Client
-              </IconSwap></button>
-              <button
-                onClick={() => setShowPaymentGateModal(false)}
-                className="w-full py-2.5 text-gray-500 text-sm font-medium hover:text-gray-700 transition"
-              >
-                Cancel
-              </button>
-            </div>
           </div>
         </div>
       )}

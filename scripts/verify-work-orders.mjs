@@ -131,12 +131,13 @@ const second = await create({
   scheduledDate: when(26),
 });
 assert.notEqual(first.jobId, second.jobId);
-assert.notEqual(first.chatId, second.chatId);
+// Both orders between the same pair share one conversation.
+assert.equal(first.chatId, second.chatId);
 assert.notEqual(first.orderNumber, second.orderNumber);
-assert.equal(
-  (await db.doc(`chats/${first.chatId}`).get()).data().jobId,
-  first.jobId,
-);
+const pairChat = (await db.doc(`chats/${first.chatId}`).get()).data();
+assert.equal(pairChat.jobId, second.jobId);
+assert.deepEqual([...pairChat.jobIds].sort(), [first.jobId, second.jobId].sort());
+assert.deepEqual([...pairChat.openJobIds].sort(), [first.jobId, second.jobId].sort());
 assert.equal((await action(first.jobId, "accept", strangerId)).status, 403);
 assert.equal(
   (await api("create", { ...booking, requestId: randomUUID() }, "invalid"))

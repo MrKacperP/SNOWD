@@ -1,3 +1,4 @@
+import { parseServiceLocation, sameServiceAddress } from "@/lib/serviceLocations";
 import { verifyCardPaymentReadiness } from "@/lib/cardPaymentReadiness";
 import { calculateServicePrice, quoteMarketplace } from "@/lib/marketplacePricing";
 import { NextRequest, NextResponse } from "next/server";
@@ -16,6 +17,7 @@ import {
   OrderError,
   orderFailure,
   orderEvent,
+  pairChatId,
 } from "@/lib/workOrderServer";
 import { sendWorkOrderEmail } from "@/lib/emailNotifications";
 
@@ -47,10 +49,13 @@ export async function POST(request: NextRequest) {
         ...(await tx.get(db.doc(`users/${clientId}`))).data(),
         uid: clientId,
       } as ClientProfile;
-      const location = body.serviceLocation;
-      if (location && (fromOperator || typeof location.address !== "string" || location.address.trim().length < 5 || location.address.length > 250 || typeof location.city !== "string" || !location.city.trim() || location.city.length > 100 || typeof location.province !== "string" || !location.province.trim() || location.province.length > 40 || typeof location.postalCode !== "string" || !/^[A-Z]\d[A-Z]\s?\d[A-Z]\d$/i.test(location.postalCode.trim()) || (location.lat !== undefined && (typeof location.lat !== "number" || !Number.isFinite(location.lat) || Math.abs(location.lat) > 90)) || (location.lng !== undefined && (typeof location.lng !== "number" || !Number.isFinite(location.lng) || Math.abs(location.lng) > 180))))
-        throw new OrderError("Choose a valid service address.", 400);
-      const serviceClient = location ? { ...client, address: location.address.trim(), city: location.city.trim(), province: location.province.trim(), postalCode: location.postalCode.trim(), lat: location.lat, lng: location.lng } : client;
+      let location;
+      if (body.serviceLocation) {
+        if (fromOperator) throw new OrderError("Only the client can choose a new service address.",403);
+        try { location = parseServiceLocation(body.serviceLocation); } catch(error) { throw new OrderError((error as Error).message,400); }
+        if (!sameServiceAddress(location,client) && body.serviceAddressConfirmed !== true) throw new OrderError("Confirm service at the selected address instead of your profile home.",400);
+      }
+      const serviceClient = location ? { ...client, ...location, lat:location.lat, lng:location.lng } : client;
       if (
         operator.role !== "operator" ||
         client.role !== "client" ||
@@ -99,7 +104,7 @@ export async function POST(request: NextRequest) {
         throw new OrderError("Please acknowledge payment in cash.", 400);
       const schedule = parseSchedule(body);
       const size =
-        previous?.propertySize ||
+        location?.propertySize || previous?.propertySize ||
         client.propertyDetails?.propertySize ||
         "medium";
       const requestedServices: ServiceType[] = Array.isArray(body.serviceTypes)
@@ -128,8 +133,10 @@ export async function POST(request: NextRequest) {
       const counterRef = db.doc("counters/workOrders"),
         counter = await tx.get(counterRef);
       const number = (counter.data()?.value || 1000) + 1;
+      // One chat per client/operator pair; each work order is a section inside it.
+      const chat = db.doc(`chats/${pairChatId(clientId, operator.uid)}`),
+        chatExists = (await tx.get(chat)).exists;
       const ref = db.collection("jobs").doc(),
-        chat = db.collection("chats").doc(),
         now = FieldValue.serverTimestamp();
       const data = {
         clientId,
@@ -150,8 +157,8 @@ export async function POST(request: NextRequest) {
         clientLat: serviceClient.lat ?? null,
         clientLng: serviceClient.lng ?? null,
         specialInstructions:
-          previous?.specialInstructions ||
-          client.propertyDetails?.specialInstructions ||
+          (location && !sameServiceAddress(location,previous || client) ? "" : previous?.specialInstructions) ||
+          (location && !sameServiceAddress(location,client) ? "" : client.propertyDetails?.specialInstructions) ||
           "",
         ...schedule,
         estimatedDuration: previous?.estimatedDuration || 45,
@@ -165,12 +172,21 @@ export async function POST(request: NextRequest) {
       };
       tx.set(counterRef, { value: number });
       tx.set(ref, data);
-      tx.set(chat, {
-        jobId: ref.id,
-        participants: [clientId, operator.uid],
-        unreadCount: { [clientId]: 0, [operator.uid]: 0 },
-        createdAt: now,
-      });
+      if (chatExists)
+        tx.update(chat, {
+          jobId: ref.id,
+          jobIds: FieldValue.arrayUnion(ref.id),
+          openJobIds: FieldValue.arrayUnion(ref.id),
+        });
+      else
+        tx.set(chat, {
+          jobId: ref.id,
+          jobIds: [ref.id],
+          openJobIds: [ref.id],
+          participants: [clientId, operator.uid],
+          unreadCount: { [clientId]: 0, [operator.uid]: 0 },
+          createdAt: now,
+        });
       const email = orderEvent(
         tx,
         { ...data, id: ref.id } as unknown as Job,

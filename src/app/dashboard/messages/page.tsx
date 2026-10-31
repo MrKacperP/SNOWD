@@ -22,35 +22,25 @@ export default function MessagesPage() {
   const { chats, loading, error } = useUserChats(user?.uid, profile?.role);
   const { jobs, names, people, error: jobsError } = useWorkOrders();
   const [search, setSearch] = useState("");
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
-  const groups = useMemo(() => {
-    const jobMap = new Map(jobs.map((job) => [job.id, job]));
-    const grouped = new Map<string, typeof chats>();
-    for (const chat of [...chats].sort(
-      (a, b) => dateMillis(b.lastMessageTime) - dateMillis(a.lastMessageTime),
-    )) {
-      const other =
-        chat.participants.find((id) => id !== user?.uid) || "unknown";
-      const job = jobMap.get(chat.jobId);
-      const haystack =
-        `${names[other] || ""} ${job ? orderNumber(job) : ""} ${job?.address || ""} ${chat.lastMessage || ""}`.toLowerCase();
-      if (search.trim() && !haystack.includes(search.trim().toLowerCase())) continue;
-      grouped.set(other, [...(grouped.get(other) || []), chat]);
-    }
-    return [...grouped]
-      .map(([other, conversations]) => ({
-        other,
-        conversations: [...conversations].sort((a, b) => {
-          const activeDifference = Number(isOpenOrder(jobMap.get(b.jobId))) - Number(isOpenOrder(jobMap.get(a.jobId)));
-          return activeDifference || dateMillis(b.lastMessageTime) - dateMillis(a.lastMessageTime);
-        }),
-        jobMap,
-      }))
-      .sort((a, b) => {
-        const aActive = a.conversations.some(chat => isOpenOrder(jobMap.get(chat.jobId)));
-        const bActive = b.conversations.some(chat => isOpenOrder(jobMap.get(chat.jobId)));
-        return Number(bActive) - Number(aActive) || dateMillis(b.conversations[0]?.lastMessageTime) - dateMillis(a.conversations[0]?.lastMessageTime);
-      });
+  // One conversation per contact; its work orders live inside it.
+  const rows = useMemo(() => {
+    const ordersByChat = new Map<string, typeof jobs>();
+    for (const job of jobs) if (job.chatId) ordersByChat.set(job.chatId, [...(ordersByChat.get(job.chatId) || []), job]);
+    return chats
+      .filter((chat) => !chat.mergedInto)
+      .map((chat) => {
+        const other = chat.participants.find((id) => id !== user?.uid) || "unknown";
+        const orders = (ordersByChat.get(chat.id) || []).sort((a, b) => dateMillis(b.createdAt) - dateMillis(a.createdAt));
+        const openOrders = orders.filter(isOpenOrder);
+        const time = dateMillis(chat.lastActivityTime) || dateMillis(chat.lastMessageTime);
+        return { chat, other, orders, openOrders, time };
+      })
+      .filter(({ other, orders, chat }) => {
+        const needle = search.trim().toLowerCase();
+        if (!needle) return true;
+        return `${names[other] || ""} ${orders.map((job) => `${orderNumber(job)} ${job.address || ""}`).join(" ")} ${chat.lastMessage || ""}`.toLowerCase().includes(needle);
+      })
+      .sort((a, b) => Number(b.openOrders.length > 0) - Number(a.openOrders.length > 0) || b.time - a.time);
   }, [chats, jobs, names, search, user?.uid]);
   if (loading) return <ConversationLoading />;
   return (
@@ -68,60 +58,30 @@ export default function MessagesPage() {
           try again.
         </p>
       )}
-      {!loading && !error && !groups.length && (search.trim() ? <div className="empty-state"><h2>No matching conversations</h2><p>Try a name, address, or order number.</p><button className="btn-secondary mt-5" onClick={() => setSearch("")}>Clear search</button></div> : <EmptyState title="No messages yet" description="Your conversations will appear after a visit is requested." actionHref={profile?.role === "operator" ? "/dashboard/jobs" : "/dashboard/find"} actionLabel={profile?.role === "operator" ? "View jobs" : "Book snow help"} />)}
-      {groups.map(({ other, conversations, jobMap }) => {
-        const hasOpenOrder = conversations.some(chat => isOpenOrder(jobMap.get(chat.jobId)));
-        const unread = (items: typeof chats) =>
-          items.reduce(
-            (sum, chat) => sum + (chat.unreadCount?.[user?.uid || ""] || 0),
-            0,
-          );
-        const row = (chat: (typeof chats)[number]) => {
-          const job = jobMap.get(chat.jobId), count = unread([chat]), open = isOpenOrder(job);
-          return (
-            <Link
-              key={chat.id}
-              href={`/dashboard/messages/${chat.id}`}
-              className={`${styles.conversationRow} ${theme.row}`}
-              data-unread={count > 0}
-              data-active-job={open}
-            >
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <strong>
-                  {chat.legacyHistory
-                    ? "Earlier shared conversation"
-                    : job
-                      ? `Order #${orderNumber(job)}`
-                      : "Work order · details unavailable"}
-                </strong>
-                {open && <span className={theme.activeBadge}>Active visit</span>}
-                {count > 0 && <span className={theme.unreadBadge}>{count} new</span>}
-              </div>
-              {job && !chat.legacyHistory && <p className={styles.conversationStatus}>{orderLabel(job)}{orderActionNeeded(job, user?.uid || "") ? ` · ${orderActionNeeded(job, user?.uid || "")}` : ""}</p>}
-              <p className={styles.messagePreview}>
-                {chat.lastMessage || "No messages yet"}
-              </p>
-              {dateMillis(chat.lastMessageTime) > 0 && <time className={styles.conversationTime} dateTime={new Date(dateMillis(chat.lastMessageTime)).toISOString()}>{new Date(dateMillis(chat.lastMessageTime)).toLocaleString("en-CA", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</time>}
-            </Link>
-          );
-        };
-        const expanded = expandedGroups[other] ?? !!search.trim();
-        const summary = <>
-          <span className={styles.companyInfo}>
-            <CompanyIdentity person={people[other]} name={names[other] || "Company / customer"} />
-            <span className={styles.companyMeta}>{hasOpenOrder ? "Active visit" : `${conversations.length} conversation${conversations.length === 1 ? "" : "s"}`}</span>
-          </span>
-          <span className={styles.inboxMeta}>
-            {unread(conversations) > 0 && <span className={theme.unreadBadge}>{unread(conversations)}</span>}
-          </span>
-          <span className={styles.companyChevron} aria-hidden="true">›</span>
-        </>;
+      {!loading && !error && !rows.length && (search.trim() ? <div className="empty-state"><h2>No matching conversations</h2><p>Try a name, address, or order number.</p><button className="btn-secondary mt-5" onClick={() => setSearch("")}>Clear search</button></div> : <EmptyState title="No messages yet" description="Your conversations will appear after a visit is requested." actionHref={profile?.role === "operator" ? "/dashboard/jobs" : "/dashboard/find"} actionLabel={profile?.role === "operator" ? "View jobs" : "Book snow help"} />)}
+      {rows.map(({ chat, other, openOrders, time }) => {
+        const count = chat.unreadCount?.[user?.uid || ""] || 0;
+        const current = openOrders[0];
+        const needed = current ? orderActionNeeded(current, user?.uid || "") : "";
         return (
-          <section key={other} className={`${styles.companyGroup} ${theme.group}`} data-active-job={hasOpenOrder}>
-            {conversations.length === 1 ? <Link href={`/dashboard/messages/${conversations[0].id}`} className={`${styles.companySummary} ${theme.summary}`}>{summary}</Link> : <button type="button" className={`${styles.companySummary} ${theme.summary} w-full text-left`} aria-expanded={expanded} onClick={() => setExpandedGroups(current => ({ ...current, [other]: !expanded }))}>{summary}</button>}
-            {conversations.length > 1 && expanded && <ul className={styles.companyList}>
-              {conversations.map(chat => <li key={chat.id}>{row(chat)}</li>)}
-            </ul>}
+          <section key={chat.id} className={`${styles.companyGroup} ${theme.group}`} data-active-job={!!current}>
+            <Link href={`/dashboard/messages/${chat.id}`} className={`${styles.companySummary} ${theme.summary}`} data-unread={count > 0}>
+              <span className={styles.companyInfo}>
+                <CompanyIdentity person={people[other]} name={names[other] || "Company / customer"} />
+                <span className={styles.companyMeta}>
+                  {current
+                    ? `Order #${orderNumber(current)} · ${needed || orderLabel(current)}${openOrders.length > 1 ? ` · +${openOrders.length - 1} more open` : ""}`
+                    : chat.lastMessage || "No messages yet"}
+                </span>
+                {current && chat.lastMessage && <span className={styles.messagePreview}>{chat.lastMessage}</span>}
+              </span>
+              <span className={styles.inboxMeta}>
+                {current && <span className={theme.activeBadge}>Active order</span>}
+                {count > 0 && <span className={theme.unreadBadge}>{count}</span>}
+                {time > 0 && <time className={styles.conversationTime} dateTime={new Date(time).toISOString()}>{new Date(time).toLocaleString("en-CA", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</time>}
+              </span>
+              <span className={styles.companyChevron} aria-hidden="true">›</span>
+            </Link>
           </section>
         );
       })}
