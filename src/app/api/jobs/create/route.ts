@@ -33,14 +33,10 @@ export async function POST(request: NextRequest) {
       const prior = await tx.get(requestRef);
       if (prior.exists) return prior.data();
       const actor = (await tx.get(db.doc(`users/${uid}`))).data();
-      const fromOperator = actor?.role === "operator";
-      const clientId = fromOperator ? body.clientId : uid;
-      if (
-        !validId(clientId) ||
-        (fromOperator && body.operatorId !== uid) ||
-        (!fromOperator && actor?.role !== "client")
-      )
-        throw new OrderError("You cannot request this booking.", 403);
+      // Only customers start bookings; operators cannot propose new ones.
+      if (actor?.role !== "client")
+        throw new OrderError("Only the customer can request a booking.", 403);
+      const clientId = uid;
       const operator = {
         ...(await tx.get(db.doc(`users/${body.operatorId}`))).data(),
         uid: body.operatorId,
@@ -51,7 +47,6 @@ export async function POST(request: NextRequest) {
       } as ClientProfile;
       let location;
       if (body.serviceLocation) {
-        if (fromOperator) throw new OrderError("Only the client can choose a new service address.",403);
         try { location = parseServiceLocation(body.serviceLocation); } catch(error) { throw new OrderError((error as Error).message,400); }
         if (!sameServiceAddress(location,client) && body.serviceAddressConfirmed !== true) throw new OrderError("Confirm service at the selected address instead of your profile home.",400);
       }
@@ -82,11 +77,6 @@ export async function POST(request: NextRequest) {
             403,
           );
       }
-      if (fromOperator && !previous)
-        throw new OrderError(
-          "Choose a previous customer order to send a proposal.",
-          403,
-        );
       if (!["cash", "credit"].includes(body.paymentMethod))
         throw new OrderError("Choose cash or card.", 400);
       if (
@@ -97,7 +87,6 @@ export async function POST(request: NextRequest) {
           "This operator cannot accept card payments right now. Choose cash or find another operator who accepts cards.",
         );
       if (
-        !fromOperator &&
         body.paymentMethod === "cash" &&
         body.cashPaymentAcknowledged !== true
       )
@@ -112,7 +101,7 @@ export async function POST(request: NextRequest) {
             typeof service === "string" && operator.serviceTypes.includes(service as ServiceType),
           ))]
         : [];
-      if (!fromOperator && Array.isArray(body.serviceTypes) && requestedServices.length !== body.serviceTypes.length)
+      if (Array.isArray(body.serviceTypes) && requestedServices.length !== body.serviceTypes.length)
         throw new OrderError("Choose valid services offered by this company.", 400);
       const services = previous?.serviceTypes || (requestedServices.length > 0
         ? requestedServices
@@ -126,7 +115,7 @@ export async function POST(request: NextRequest) {
         throw new OrderError("The company must set a valid service price.");
       const quote = quoteMarketplace(operatorPrice, body.paymentMethod);
       const price = quote.price;
-      if (body.expectedPrice === undefined || body.expectedPrice !== (fromOperator ? operatorPrice : price))
+      if (body.expectedPrice === undefined || body.expectedPrice !== price)
         throw new OrderError(
           "The service price changed. Refresh and review the current price before submitting.",
         );
@@ -145,7 +134,7 @@ export async function POST(request: NextRequest) {
         orderNumber: String(number),
         revision: 0,
         bookingInitiator: uid,
-        awaitingResponseFrom: fromOperator ? clientId : operator.uid,
+        awaitingResponseFrom: operator.uid,
         ...(previous ? { previousOrderId: body.previousOrderId } : {}),
         status: "pending",
         serviceTypes: services,
@@ -165,7 +154,7 @@ export async function POST(request: NextRequest) {
         ...quote,
         paymentMethod: body.paymentMethod,
         requiresCardPayment: body.paymentMethod === "credit",
-        cashPaymentAcknowledged: !fromOperator && body.paymentMethod === "cash",
+        cashPaymentAcknowledged: body.paymentMethod === "cash",
         paymentStatus: "pending",
         createdAt: now,
         updatedAt: now,
@@ -192,9 +181,7 @@ export async function POST(request: NextRequest) {
         { ...data, id: ref.id } as unknown as Job,
         uid,
         "created",
-        `${size} driveway · ${services.map(service => service.replaceAll("-", " ")).join(", ")} · ${fromOperator
-          ? "Booking proposal · customer approval needed"
-          : "Request sent · awaiting company"}`,
+        `${size} driveway · ${services.map(service => service.replaceAll("-", " ")).join(", ")} · Request sent · awaiting company`,
       );
       const result = {
         jobId: ref.id,

@@ -1,4 +1,7 @@
 "use client";
+import ServiceLocationPicker from "@/components/ServiceLocationPicker";
+import { useServiceLocation } from "@/context/ServiceLocationContext";
+import { formatServiceAddress, sameServiceAddress } from "@/lib/serviceLocations";
 import { calculateServicePrice, quoteMarketplace } from "@/lib/marketplacePricing";
 import GuidedStep from "@/components/ui/GuidedStep";
 import CompanyIdentity from "@/components/CompanyIdentity";
@@ -15,6 +18,9 @@ import Link from "next/link";
 export default function RepeatBookingPage() {
   const { profile, user } = useAuth(),
     router = useRouter();
+  const locations=useServiceLocation();
+  const [editingLocation,setEditingLocation]=useState(false);
+  const [confirmedAddress,setConfirmedAddress]=useState("");
   const [previous, setPrevious] = useState<Job | null>(null),
     [operator, setOperator] = useState<OperatorProfile | null>(null),
     [client, setClient] = useState<ClientProfile | null>(null);
@@ -26,8 +32,9 @@ export default function RepeatBookingPage() {
     [method, setMethod] = useState("cash");
   const [step, setStep] = useState(0);
   const attempt = useRef<{ key: string; id: string } | null>(null);
+  const isOperator = profile?.role === "operator";
   useEffect(() => {
-    if (!user) return;
+    if (!user || isOperator) return;
     let active = true;
     const id = new URLSearchParams(window.location.search).get("previousOrder");
     if (!id) {
@@ -53,25 +60,29 @@ export default function RepeatBookingPage() {
     return () => {
       active = false;
     };
-  }, [user]);
-  const isOperator = profile?.role === "operator";
-  const bookingSize = (previous?.propertySize || client?.propertyDetails?.propertySize || "medium") as "small" | "medium" | "large";
+  }, [user, isOperator]);
+  const serviceLocation = locations?.location;
+  const differentAddress = !sameServiceAddress(serviceLocation,profile);
+  const addressConfirmed = !differentAddress || confirmedAddress === formatServiceAddress(serviceLocation);
+  const bookingSize = (serviceLocation?.propertySize || previous?.propertySize || client?.propertyDetails?.propertySize || "medium") as "small" | "medium" | "large";
   const bookingServices = previous?.serviceTypes || client?.propertyDetails?.serviceTypes || ["driveway"];
   const price = calculateServicePrice(operator?.pricing, bookingServices, bookingSize);
-  const shownPrice = isOperator ? price : quoteMarketplace(price, method).price;
+  const shownPrice = quoteMarketplace(price, method).price;
   const submit = async () => {
-    if (!previous || !operator || busy) return;
+    if (!previous || !operator || busy || isOperator) return;
     setBusy(true);
     setError("");
     try {
+      if ((!locations?.ready || locations.error || !serviceLocation || !addressConfirmed)) throw new Error("Confirm your service address before booking.");
       if (!asap && (!time || !Number.isFinite(new Date(time).getTime()) || new Date(time).getTime() <= Date.now()))
         throw new Error("Choose a future date and time for your visit.");
       const body = {
+        serviceLocation,
+        serviceAddressConfirmed: addressConfirmed,
         previousOrderId: previous.id,
         operatorId: operator.uid,
-        clientId: previous.clientId,
         paymentMethod: method,
-        cashPaymentAcknowledged: !isOperator && cash,
+        cashPaymentAcknowledged: cash,
         scheduleMode: asap ? "asap" : "scheduled",
         scheduledDate: asap ? null : new Date(time).toISOString(),
         scheduleTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -99,24 +110,27 @@ export default function RepeatBookingPage() {
       >
         ← Work orders
       </Link>
-      <h1 className="text-3xl font-bold">
-        {isOperator ? "Propose another booking" : "Request again"}
-      </h1>
-      <p>
-        Same helping hand. A fresh visit.
-      </p>
-      {previous && operator && (
+      <h1 className="text-3xl font-bold">Request again</h1>
+      {isOperator ? (
+        <p role="status">
+          Only customers can request a new booking. They can book you again
+          from a past work order.
+        </p>
+      ) : (
+        <p>Same helping hand. A fresh visit.</p>
+      )}
+      {!isOperator && previous && operator && (
         <section className="surface-card space-y-4 rounded-3xl p-6">
           <GuidedStep step={step} labels={["Service", "When", "Payment"]} title={["Same service again?", "When works for you?", "Ready to send?"][step]}>
           {step === 0 && <>
           <h2 className="text-xl font-bold">
             <CompanyIdentity person={operator} name={operator.businessName || operator.displayName} />
           </h2>
-          {isOperator && <p>For {client?.displayName}</p>}
-          <p>{client?.address}</p>
+          <p>{formatServiceAddress(serviceLocation)}</p>
+          <button type="button" className="btn-secondary" onClick={()=>setEditingLocation(true)}>Change address</button>{differentAddress && <label className="flex gap-3"><input type="checkbox" checked={addressConfirmed} onChange={e=>setConfirmedAddress(e.target.checked ? formatServiceAddress(serviceLocation) : "")} />This differs from my profile home. I confirm service at {formatServiceAddress(serviceLocation)}.</label>}
           <p className="capitalize">{previous.serviceTypes?.filter((service) => service !== "driveway").map((service) => service.replaceAll("-", " ")).join(" · ") || "Driveway clearing"}</p>
           <p>{previous.specialInstructions}</p>
-          <p>{propertySizeLabel(previous.propertySize || client?.propertyDetails?.propertySize)} · company rate</p>
+          <p>{propertySizeLabel(bookingSize)} · company rate</p>
           <p className="text-lg font-bold">
             Current price: ${shownPrice.toFixed(2)} CAD
           </p>
@@ -163,7 +177,7 @@ export default function RepeatBookingPage() {
               )}
             </select>
           </label>
-          {method === "cash" && !isOperator && (
+          {method === "cash" && (
             <label className="flex gap-3">
               <input
                 type="checkbox"
@@ -174,28 +188,20 @@ export default function RepeatBookingPage() {
               cash after work.
             </label>
           )}
-          {!isOperator && <p className="text-sm">The provider must accept your request before the visit is confirmed. For card bookings, authorize payment after acceptance; payment is captured when work is completed.</p>}
-          {isOperator && (
-            <p>
-              The customer must approve the service, price, time, and payment
-              terms before this is booked.
-            </p>
-          )}
+          <p className="text-sm">The provider must accept your request before the visit is confirmed. For card bookings, authorize payment after acceptance; payment is captured when work is completed.</p>
           </>}
           <button
-            className="min-h-12 rounded-xl bg-[var(--ink)] px-5 py-3 font-semibold text-white disabled:opacity-50"
+            className="min-h-12 btn-cta rounded-xl px-5 py-3 font-semibold text-white disabled:opacity-50"
             disabled={
-              busy ||
+              busy || !locations?.ready || !addressConfirmed ||
               (step === 1 && !asap && (!time || !Number.isFinite(new Date(time).getTime()) || new Date(time).getTime() <= Date.now())) ||
-              (step === 2 && !isOperator && method === "cash" && !cash)
+              (step === 2 && method === "cash" && !cash)
             }
             onClick={() => step === 2 ? void submit() : setStep(value => value + 1)}
           >
             {busy
               ? "Sending…"
-              : step < 2 ? "Continue →" : isOperator
-                ? "Send booking proposal"
-                : "Send new request"}
+              : step < 2 ? "Continue →" : "Send new request"}
           </button>
           {step > 0 && <button className="min-h-11 underline" disabled={busy} onClick={() => setStep(value => value - 1)}>Back</button>}
           </GuidedStep>
@@ -206,7 +212,8 @@ export default function RepeatBookingPage() {
           {error}
         </p>
       )}
-      {!previous && !error && <p role="status">Loading booking details…</p>}
+      {editingLocation && <ServiceLocationPicker onClose={()=>{setEditingLocation(false);setConfirmedAddress("");}} />}
+      {!isOperator && !previous && !error && <p role="status">Loading booking details…</p>}
     </div>
   );
 }

@@ -172,7 +172,7 @@ export default function ProfilePage() {
               onClick={handleSave}
               disabled={saving}
               className={`flex items-center gap-1 px-4 py-2 text-sm font-medium text-white rounded-lg transition disabled:opacity-50 ${
-                saved ? "bg-green-600 hover:bg-green-700" : "bg-[var(--ink)] hover:bg-black"
+                saved ? "bg-green-600 hover:bg-green-700" : "btn-cta"
               }`}
             >
               {saving ? (

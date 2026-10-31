@@ -1,0 +1,18 @@
+.home { display:grid; gap:20px; max-width:960px; margin-inline:auto; }
+.home :global(.dashboard-overview) { margin-bottom:0; }
+.home :global(.dashboard-overview h1) { font-size:28px; }
+.home :global(.dashboard-location-map) { height:160px; }
+.home :global(.dashboard-location-footer) { padding:12px 16px; }
+.home :global(.dashboard-location-footer span) { white-space:normal; overflow-wrap:anywhere; }
+.home :global(.next-action) { padding:20px; }
+.home :global(.client-home-grid), .home :global(.client-home-current) { gap:16px; }
+.home :global(.operator-work) { padding:20px; border:1px solid var(--border-color); border-radius:18px; background:var(--bg-card-solid); }
+.home :global(.operator-work-row) { border:0; border-top:1px solid var(--border-color); border-radius:0; padding:16px 0; background:transparent; box-shadow:none; }
+.home :global(.operator-work-row p), .home :global(.operator-work-side > span) { font-size:14px; overflow-wrap:anywhere; }
+.home :global(.operator-work-address) { min-height:44px; }
+.home :global(.dashboard-earnings) { width:100%; padding:16px 20px; margin:0; justify-content:flex-start; text-align:left; }
+.home :global(.dashboard-earnings-content) { justify-items:start; text-align:left; }
+.home :global(.dashboard-earnings-row) { justify-content:space-between; width:100%; }
+.home :global(.dashboard-earnings small) { font-size:14px; }
+.home :global(.visit-summary) { background:transparent; padding:0; }
+@media (max-width:600px) { .home { gap:16px; } .home :global(.dashboard-location-map) { height:150px; } .home :global(.operator-work), .home :global(.next-action) { padding:16px; } }

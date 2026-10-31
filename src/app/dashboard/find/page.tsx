@@ -7,7 +7,9 @@ import { orderRequest } from "@/components/work-orders/OrderActions";
 import Modal from "@/components/ui/Modal";
 import PageHeader from "@/components/ui/PageHeader";
 import PropertyMap from "@/components/PropertyMap";
-import OnboardingAddress, { type OnboardingLocation } from "@/components/OnboardingAddress";
+import ServiceLocationPicker from "@/components/ServiceLocationPicker";
+import { useServiceLocation } from "@/context/ServiceLocationContext";
+import { formatServiceAddress, sameServiceAddress } from "@/lib/serviceLocations";
 import { ResultState } from "@/components/ui/AppPrimitives";
 
 import { canAcceptPlatformPayments } from "@/lib/operatorDiscovery";
@@ -46,7 +48,7 @@ Star,
 Zap
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect,useState,useRef } from "react";
+import { useEffect,useMemo,useState,useRef } from "react";
 
 const SERVICE_LABELS: Record<ServiceType, string> = {
   driveway: "Driveway",
@@ -67,7 +69,8 @@ function operatorServicePrice(operator: OperatorProfile, client: ClientProfile) 
 
 export default function FindOperatorsPage() {
   const { user, profile } = useAuth();
-  const clientProfile = profile as ClientProfile;
+  const locations = useServiceLocation();
+  const clientProfile = useMemo(() => profile ? { ...profile, ...(locations?.location || {}), propertyDetails: { ...(profile as ClientProfile).propertyDetails, propertySize:locations?.location?.propertySize || (profile as ClientProfile).propertyDetails?.propertySize || "medium" } } as ClientProfile : null as unknown as ClientProfile, [profile,locations?.location]);
   const [operators, setOperators] = useState<OperatorProfile[]>([]);
   const [filteredOperators, setFilteredOperators] = useState<OperatorProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -233,10 +236,12 @@ export default function FindOperatorsPage() {
   const [createdJobId, setCreatedJobId] = useState("");
   const [bookingStep, setBookingStep] = useState(1);
   const [editingLocation, setEditingLocation] = useState(false);
-  const [bookingLocation, setBookingLocation] = useState<OnboardingLocation | null>(null);
-  const serviceLocation = bookingLocation || clientProfile;
-  const locationReady = Boolean(serviceLocation?.address?.trim() && serviceLocation?.city?.trim() && serviceLocation?.province?.trim() && /^[A-Z]\d[A-Z]\s?\d[A-Z]\d$/i.test(serviceLocation?.postalCode?.trim() || ""));
-  const locationInRange = !bookingLocation || Boolean(schedulingOperator && isClientWithinOperatorRadius({ ...clientProfile, ...bookingLocation }, schedulingOperator));
+  const [confirmedAddress,setConfirmedAddress] = useState("");
+  const serviceLocation = locations?.location || clientProfile;
+  const differentAddress = !sameServiceAddress(serviceLocation,profile);
+  const addressConfirmed = !differentAddress || confirmedAddress === formatServiceAddress(serviceLocation);
+  const locationReady = !!locations?.ready && !locations.error && Boolean(serviceLocation?.address?.trim() && serviceLocation?.city?.trim() && serviceLocation?.province?.trim() && /^[A-Z]\d[A-Z]\s?\d[A-Z]\d$/i.test(serviceLocation?.postalCode?.trim() || ""));
+  const locationInRange = Boolean(schedulingOperator && isClientWithinOperatorRadius(clientProfile, schedulingOperator));
   const monthDays = eachDayOfInterval({ start: startOfWeek(startOfMonth(calendarMonth)), end: endOfWeek(endOfMonth(calendarMonth)) });
   const timeOptions = Array.from({ length: 25 }, (_, index) => { const minutes = 7 * 60 + index * 30; return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`; });
   const isScheduledTimePast = (time: string) => new Date(`${scheduledDate}T${time}:00`).getTime() <= Date.now();
@@ -251,7 +256,7 @@ export default function FindOperatorsPage() {
     if (operator && isClientWithinOperatorRadius(clientProfile, operator)) {
       setSchedulingOperator(operator);
       setBookingStep(1);
-      setBookingLocation(null);
+      setConfirmedAddress("");
       setEditingLocation(false);
       setTimingChosen(false);
       setRequestedServices((clientProfile?.propertyDetails?.serviceTypes || ["driveway"]).filter(service => operator.serviceTypes.includes(service)).slice(0, 1).length
@@ -267,7 +272,7 @@ export default function FindOperatorsPage() {
     if (!user?.uid || !profile) return;
     setCreatedJobId("");
     setBookingStep(1);
-    setBookingLocation(null);
+    setConfirmedAddress("");
     setEditingLocation(false);
     setTimingChosen(false);
     setSchedulingOperator(operator);
@@ -298,12 +303,12 @@ export default function FindOperatorsPage() {
   // Confirm booking after schedule selection
   const confirmBooking = async () => {
     if (!schedulingOperator || !user?.uid || !profile) return;
-    if (!locationReady || !locationInRange) { setBookingError("Choose a valid address within this operator’s service area."); setBookingStep(2); return; }
+    if (!locationReady || !locationInRange || !addressConfirmed) { setBookingError("Choose a valid address within this operator’s service area."); setBookingStep(2); return; }
     setBooking(true);
     try {
       const operatorSnapshot = await getDoc(doc(db, "users", schedulingOperator.uid));
       const operator = { ...operatorSnapshot.data(), uid: schedulingOperator.uid } as OperatorProfile;
-      if (!operatorSnapshot.exists() || !isOperatorPublic(operator) || !isClientWithinOperatorRadius({ ...clientProfile, ...(bookingLocation || {}) }, operator)) {
+      if (!operatorSnapshot.exists() || !isOperatorPublic(operator) || !isClientWithinOperatorRadius(clientProfile, operator)) {
         setBookingError("This operator is no longer available in your service area.");
         return;
       }
@@ -352,7 +357,8 @@ export default function FindOperatorsPage() {
         cashPaymentAcknowledged: !operatorRequiresCard && cashAcknowledged,
         expectedPrice: quoteMarketplace(calculateServicePrice(operator.pricing, requestedServices, propertySize), paymentMethod).price,
         serviceTypes: requestedServices,
-        ...(bookingLocation ? { serviceLocation: bookingLocation } : {}),
+        serviceLocation,
+        serviceAddressConfirmed: addressConfirmed,
       };
       const key = JSON.stringify(payload);
       if (bookingAttempt.current?.key !== key) bookingAttempt.current = { key, id: crypto.randomUUID() };
@@ -420,7 +426,7 @@ export default function FindOperatorsPage() {
             onClick={() => setShowFilters(!showFilters)}
             className={`inline-flex h-13 items-center justify-center gap-2 rounded-[1.3rem] border px-4 font-semibold transition ${
               showFilters
-                ? "border-[var(--ink)] bg-[var(--ink)] text-white"
+                ? "border-[var(--accent)] bg-[var(--accent)] text-white"
                 : "border-[var(--border-color)] bg-white text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
             }`}
           ><IconSwap icon={<Filter className="h-4 w-4" />}>
@@ -520,12 +526,12 @@ export default function FindOperatorsPage() {
 
       {loadError && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4"><p>{loadError}</p><button type="button" className="mt-2 min-h-11 underline" onClick={() => setRetry(value => value + 1)}>Try again</button></div>}
       {bookingError && !schedulingOperator && <p role="alert" className="text-red-700">{bookingError}</p>}
-      <Modal isOpen={!!schedulingOperator} onClose={() => { if (!booking) { setSchedulingOperator(null); setCreatedJobId(""); setBookingStep(1); } }} title={createdJobId ? undefined : `Request snow help · ${bookingStep} of 4`} size="lg" showClose={!booking}>
+      <Modal isOpen={!!schedulingOperator && !editingLocation} onClose={() => { if (!booking) { setSchedulingOperator(null); setCreatedJobId(""); setBookingStep(1); } }} title={createdJobId ? undefined : `Request snow help · ${bookingStep} of 4`} size="lg" showClose={!booking}>
         {schedulingOperator && createdJobId ? <ResultState title="Request sent." description={`${schedulingOperator.businessName || schedulingOperator.displayName} will review your request. We’ll let you know when they respond.`} actionHref={`/dashboard/jobs/${createdJobId}`} actionLabel="Track your work order">
           <div className="mt-6 flex items-center justify-center gap-2 rounded-xl bg-[var(--bg-secondary)] p-4 text-sm font-semibold"><CalendarDays size={18} />{scheduleType === "asap" ? "As soon as possible" : `${format(new Date(`${scheduledDate}T12:00:00`), "EEE, MMM d")} · ${format(new Date(`${scheduledDate}T${scheduledTime}:00`), "h:mm a")}`}</div>
           <p className="mt-3 text-center text-sm text-[var(--text-secondary)]">{requestedServices.map(item => item.replaceAll("-", " ")).join(" · ")} · {serviceLocation?.address} · {paymentMethod === "cash" ? "Cash" : "Card"}</p>
         </ResultState> : schedulingOperator && <div className="space-y-5">
-          <div className="h-1.5 overflow-hidden rounded-full bg-[var(--bg-secondary)]"><div className="h-full rounded-full bg-[var(--ink)] transition-all" style={{ width: `${bookingStep * 25}%` }} /></div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-[var(--bg-secondary)]"><div className="h-full rounded-full bg-[image:var(--accent-gradient)] transition-all" style={{ width: `${bookingStep * 25}%` }} /></div>
           {bookingStep > 1 && <button type="button" onClick={() => { setBookingError(""); setBookingStep(current => current - 1); }} className="inline-flex min-h-10 items-center gap-2 rounded-full px-2 text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]">← Back</button>}
           {bookingStep === 1 && <>
           <h3 className="text-lg font-semibold">Choose your service</h3>
@@ -535,16 +541,13 @@ export default function FindOperatorsPage() {
           </>}
           {bookingStep === 2 && <>
           <h3 className="text-lg font-semibold">Confirm your location</h3>
-          {editingLocation ? <OnboardingAddress compact value={bookingLocation || { address: "", city: "", province: "", postalCode: "" }} onChange={setBookingLocation} /> : <>
-            {serviceLocation?.address && <div className="h-48"><PropertyMap address={[serviceLocation.address, serviceLocation.city, serviceLocation.province].filter(Boolean).join(", ")} /></div>}
-            <div className="flex items-center gap-3 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4"><MapPin size={20} /><span><small className="block text-xs text-[var(--text-muted)]">{bookingLocation ? "THIS VISIT" : "SAVED PROPERTY"}</small><strong>{serviceLocation?.address || "Add a service address"}</strong><small className="block text-[var(--text-secondary)]">{serviceLocation?.city}</small></span></div>
-          </>}
-          <button type="button" className="min-h-11 text-sm font-semibold text-[var(--accent)]" onClick={() => {
-            if (editingLocation) { setBookingLocation(null); setEditingLocation(false); }
-            else { setBookingLocation({ address: serviceLocation?.address || "", city: serviceLocation?.city || "", province: serviceLocation?.province || "", postalCode: serviceLocation?.postalCode || "", lat: serviceLocation?.lat ?? undefined, lng: serviceLocation?.lng ?? undefined }); setEditingLocation(true); }
-          }}>{editingLocation ? "Use saved address" : "Change location"}</button>
+          {serviceLocation?.address && <div className="h-48"><PropertyMap address={formatServiceAddress(serviceLocation)} /></div>}
+          <p>{formatServiceAddress(serviceLocation) || "Choose a service address"}</p>
+          <button type="button" className="btn-secondary" onClick={()=>setEditingLocation(true)}>Change address</button>
+          {locations?.error && <p role="alert">{locations.error} <button onClick={locations.reload}>Try again</button></p>}
+          {differentAddress && <label className="flex min-h-11 items-start gap-3 rounded-xl border p-4"><input type="checkbox" checked={addressConfirmed} onChange={e=>setConfirmedAddress(e.target.checked ? formatServiceAddress(serviceLocation) : "")} />This differs from my profile home. I confirm service at {formatServiceAddress(serviceLocation)}.</label>}
           {locationReady && !locationInRange && <p role="alert" className="text-sm text-red-700">This address is outside this shoveler’s service area.</p>}
-          <button type="button" onClick={() => { setEditingLocation(false); setBookingStep(3); }} disabled={!locationReady || !locationInRange} className="btn-primary w-full min-h-12">Continue</button>
+          <button type="button" onClick={() => { setEditingLocation(false); setBookingStep(3); }} disabled={!locationReady || !locationInRange || !addressConfirmed} className="btn-primary w-full min-h-12">Continue</button>
           </>}
           {bookingStep === 3 && <>
           <h3 className="text-lg font-semibold">When do you need help?</h3>
@@ -573,6 +576,7 @@ export default function FindOperatorsPage() {
           </>}
         </div>}
       </Modal>
+      {editingLocation && <ServiceLocationPicker onClose={()=>{setEditingLocation(false);setConfirmedAddress("");}} />}
     </div>
   );
 }

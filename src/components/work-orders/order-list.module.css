@@ -17,7 +17,7 @@
 .status { flex-shrink: 0; max-width: 48%; color: #617481; font-size: 12px; font-weight: 550; text-align: right; }
 .status[data-status="pending"] { color: #936619; }
 .status[data-status="completed"] { color: #31734f; }
-.status[data-status="en-route"], .status[data-status="in-progress"] { color: #285cce; }
+.status[data-status="en-route"], .status[data-status="in-progress"] { color: var(--accent); }
 .details { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-top: 20px; }
 .description { min-width: 0; }
 .description h2 { font-size: 15px; font-weight: 650; text-transform: capitalize; margin-bottom: 9px; }
@@ -81,3 +81,8 @@
 .search input, .search input:focus { min-height:42px; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; outline:0; }
 .search input::-webkit-search-cancel-button { cursor:pointer; }
 @media(max-width:600px) { .search { width:auto; } }
+
+/* Orders with unseen updates: accent edge and tint so they stand out without shouting. */
+.order[data-unread="true"] { position: relative; border-color: var(--surface-blue-border); background: linear-gradient(90deg, var(--accent-soft), var(--bg-card-solid) 55%); box-shadow: inset 3px 0 0 var(--accent); }
+.order[data-unread="true"] h2 { font-weight: 800; }
+.reference { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }

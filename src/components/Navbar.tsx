@@ -1,33 +1,24 @@
 "use client";
 import IconSwap from "@/components/ui/IconSwap";
 
-import { notificationWasViewed } from "@/lib/notificationReadState";
+import { useNotifications } from "@/context/NotificationContext";
+import { UnreadBadge } from "@/components/ui/UnreadBadge";
 import CompanyIdentity from "@/components/CompanyIdentity";
 import { OperatorProfile } from "@/lib/types";
 import AvailabilityToggle from "@/components/dashboard/AvailabilityToggle";
 import MobileNavigation from "@/components/dashboard/MobileNavigation";
 import { desktopNavigation } from "@/lib/appNavigation";
 
-import { useUserChats } from "@/hooks/useUserChats";
 
 import UserAvatar from "@/components/UserAvatar";
 import { useAuth } from "@/context/AuthContext";
 import { useWeather } from "@/context/WeatherContext";
 import { useDialogFocus } from "@/hooks/useDialogFocus";
 import { db } from "@/lib/firebase";
-import {
-collection,
-doc,
-onSnapshot,
-query,
-updateDoc,
-where,
-writeBatch,
-} from "firebase/firestore";
+import { doc, updateDoc } from "firebase/firestore";
 import {
 Bell,
 CalendarDays,
-CheckCheck,
 CircleDollarSign,
 LogOut,
 Menu,
@@ -39,25 +30,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname,useRouter } from "next/navigation";
 import { useEffect,useRef,useState } from "react";
-import { formatDistanceToNow } from "date-fns";
-
-type NotificationItem = {
-  id: string;
-  chatId?: string;
-  jobId?: string;
-  operatorId?: string;
-  type?: string;
-  title?: string;
-  message?: string;
-  read?: boolean;
-  createdAt?: { seconds?: number };
-  preview?: string;
-};
-
-const formatNotificationTime = (createdAt?: { seconds?: number }) => {
-  if (!createdAt?.seconds) return "Just now";
-  return formatDistanceToNow(new Date(createdAt.seconds * 1000), { addSuffix: true });
-};
 
 export default function Navbar() {
   const { profile, signOut } = useAuth();
@@ -70,41 +42,11 @@ export default function Navbar() {
   const statusLock = useRef(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [notifOpen, setNotifOpen] = useState(false);
-  const [desktopNotifPosition, setDesktopNotifPosition] = useState({ top: 16, left: 260 });
-  const [pendingJobCount, setPendingJobCount] = useState(0);
-  const [notificationError, setNotificationError] = useState("");
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const { unreadNotifications, unreadMessages: unreadCount, pendingJobs: pendingJobCount, centerOpen, setCenterOpen } = useNotifications();
 
   const menuRef = useRef<HTMLDivElement>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
   useDialogFocus(drawerOpen, drawerRef);
-  const notifRef = useRef<HTMLDivElement>(null);
-  const desktopNotifButtonRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (!notifOpen || !window.matchMedia("(min-width: 1024px)").matches) return;
-
-    const updatePosition = () => {
-      const trigger = desktopNotifButtonRef.current;
-      if (!trigger) return;
-      const rect = trigger.getBoundingClientRect();
-      setDesktopNotifPosition({
-        left: rect.right + 12,
-        // Keep the panel aligned with its trigger while leaving room for its header and list.
-        top: Math.max(16, Math.min(rect.top, window.innerHeight - 400)),
-      });
-    };
-
-    updatePosition();
-    window.addEventListener("resize", updatePosition);
-    window.addEventListener("scroll", updatePosition, true);
-    return () => {
-      window.removeEventListener("resize", updatePosition);
-      window.removeEventListener("scroll", updatePosition, true);
-    };
-  }, [notifOpen]);
-
-  const isClient = profile?.role === "client";
   const isOnline = profile?.role === "operator"
     ? (profile as unknown as Record<string, unknown>)?.isAvailable !== false
     : (profile as unknown as Record<string, unknown>)?.isOnline !== false;
@@ -114,7 +56,6 @@ export default function Navbar() {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) setProfileMenuOpen(false);
-      if (!notifRef.current?.contains(event.target as Node)) setNotifOpen(false);
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -124,78 +65,12 @@ export default function Navbar() {
     const close = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setDrawerOpen(false);
-        setNotifOpen(false);
         setProfileMenuOpen(false);
       }
     };
     window.addEventListener("keydown", close);
     return () => window.removeEventListener("keydown", close);
   }, []);
-
-  const { chats: inboxChats } = useUserChats(profile?.uid, profile?.role);
-  const unreadCount = inboxChats.reduce((count, chat) => count + (chat.unreadCount?.[profile?.uid || ""] || 0), 0);
-
-  useEffect(() => {
-    if (!profile?.uid || isClient) return;
-    const q = query(collection(db, "jobs"), where("operatorId", "==", profile.uid), where("status", "==", "pending"));
-    return onSnapshot(q, (snapshot) => setPendingJobCount(snapshot.docs.length));
-  }, [profile?.uid, isClient]);
-
-  useEffect(() => {
-    if (!profile?.uid) return;
-    const notifQuery = query(
-      collection(db, "notifications"),
-      where("uid", "==", profile.uid),
-
-    );
-    return onSnapshot(
-      notifQuery,
-      (snapshot) => {
-        const items = snapshot.docs.map((snap) => ({
-          id: snap.id,
-          ...(snap.data() as Omit<NotificationItem, "id">),
-        }));
-        setNotifications(items.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
-        setNotificationError("");
-      },
-      (error) => {
-        setNotificationError("Could not load updates. Reload the page to try again.");
-        if (error.code !== "failed-precondition") {
-          console.error("Notifications listener error:", error);
-        }
-      }
-    );
-  }, [profile?.uid]);
-
-  useEffect(() => {
-    const acknowledgeVisible = async () => {
-      if (document.visibilityState !== "visible") return;
-      const viewed = notifications.filter(item => notificationWasViewed(item, pathname)).slice(0, 450);
-      if (!viewed.length) return;
-      const batch = writeBatch(db);
-      viewed.forEach(item => batch.update(doc(db, "notifications", item.id), { read: true }));
-      try { await batch.commit(); } catch { setNotificationError("Could not clear read updates. Please reload to retry."); }
-    };
-    void acknowledgeVisible();
-    document.addEventListener("visibilitychange", acknowledgeVisible);
-    return () => document.removeEventListener("visibilitychange", acknowledgeVisible);
-  }, [notifications, pathname]);
-
-  const unreadNotifications = notifications.filter((notification) => !notification.read).length;
-
-  const notificationTitle = (notification: NotificationItem) => {
-    const titles: Record<string, string> = {
-      "Cash payment pending": "Cash payment needed",
-      "Cash payment needed": "Cash payment needed",
-      "Work completed · cash payment due": "Cash payment due",
-      "Work completed": "Job complete",
-      "Cash refund recorded": "Cash refund recorded",
-      "Account Approved": "Account approved",
-      "Verification Rejected": "Verification needs attention",
-    };
-    const title = notification.title?.trim();
-    return title ? titles[title] || title : "New update";
-  };
 
   const toggleOnlineStatus = async () => {
     if (!profile?.uid || statusLock.current) return;
@@ -210,29 +85,6 @@ export default function Navbar() {
     } finally {
       statusLock.current = false;
       setStatusSaving(false);
-    }
-  };
-
-  const markNotificationRead = async (id: string) => {
-    try {
-      await updateDoc(doc(db, "notifications", id), { read: true });
-    } catch (error) {
-      console.error("Failed to mark notification read:", error);
-      setNotificationError("Could not mark this update as read. Please try again.");
-    }
-  };
-
-  const markAllNotificationsRead = async () => {
-    const unread = notifications.filter((notification) => !notification.read);
-    if (!unread.length) return;
-    try {
-      const batch = writeBatch(db);
-      unread.forEach((notification) => batch.update(doc(db, "notifications", notification.id), { read: true }));
-      await batch.commit();
-      setNotificationError("");
-    } catch (error) {
-      console.error("Failed to mark all notifications read:", error);
-      setNotificationError("Could not mark updates as read. Please try again.");
     }
   };
 
@@ -285,66 +137,29 @@ export default function Navbar() {
             const tour = href === "/dashboard" ? "nav-home" : href.includes("jobs") ? "nav-jobs" : href.includes("messages") ? "nav-messages" : href.includes("calendar") ? "nav-calendar" : undefined;
             return <Link data-tour={tour} key={href} href={href} aria-current={active ? "page" : undefined}><IconSwap icon={<Icon size={20} aria-hidden="true" />}>
               <Icon size={20} aria-hidden="true" /><span className="flex-1">{label}</span>
-              {count > 0 && <span className="unread-badge">{count > 9 ? "9+" : count}</span>}
+              <UnreadBadge count={count} label={`${count} ${href.includes("jobs") ? "awaiting attention" : "unread"}`} />
             </IconSwap></Link>;
           })}
         </nav>
 
-        <div className="joined-menu relative mt-4 shrink-0" ref={notifRef}>
-          <button
-            ref={desktopNotifButtonRef}
-            aria-expanded={notifOpen}
-            onClick={() => { setProfileMenuOpen(false); setNotifOpen((value) => !value); }}
-            className="flex w-full items-center gap-3 rounded-[1.2rem] border border-[var(--border-color)] bg-[var(--card)] px-4 py-3 text-left"
-          ><IconSwap icon={<Bell className="h-4 w-4" />}>
-            <Bell className="h-4 w-4" />
-            <span className="flex-1 text-sm font-bold">Notifications</span>
-            {unreadNotifications > 0 ? <span className="unread-badge">{unreadNotifications > 9 ? "9+" : unreadNotifications}</span> : null}
-          </IconSwap></button>
-          {notifOpen ? (
-            <div className="joined-menu-panel notification-popover glass-readable-overlay" style={desktopNotifPosition}>
-              <div className="flex items-center justify-between border-b border-[var(--border-color)] px-4 py-3">
-                <div className="text-sm font-bold">Notifications</div>
-                {unreadNotifications > 0 ? (
-                  <button onClick={markAllNotificationsRead} className="inline-flex min-h-11 items-center gap-1 text-xs font-bold text-[var(--text-muted)]"><IconSwap icon={<CheckCheck className="h-3.5 w-3.5" />}>
-                    <CheckCheck className="h-3.5 w-3.5" />
-                    Mark all read
-                  </IconSwap></button>
-                ) : null}
-              </div>
-              <div className="max-h-[min(320px,calc(100dvh-160px))] overflow-y-auto overscroll-contain">
-                {notificationError && notifications.length > 0 && <p role="alert" className="p-4 text-sm text-red-700">{notificationError}</p>}
-                {notifications.length ? (
-                  notifications.map((notification) => (
-                    <button
-                      key={notification.id}
-                      onClick={() => { markNotificationRead(notification.id); if (notification.type === "booking-invite" && notification.operatorId) { setNotifOpen(false); router.push(`/dashboard/find?operator=${encodeURIComponent(notification.operatorId)}`); } else if (notification.jobId && notification.type !== "message") { setNotifOpen(false); router.push(`/dashboard/jobs/${encodeURIComponent(notification.jobId)}`); } else if (notification.chatId) { setNotifOpen(false); router.push(`/dashboard/messages/${encodeURIComponent(notification.chatId)}`); } }}
-                      aria-label={`${notification.read ? "Read" : "Unread"} notification: ${notificationTitle(notification)}`}
-                      className={`w-full border-b border-[var(--border-soft)] border-l-4 px-4 py-3 text-left transition last:border-b-0 hover:bg-[var(--bg-secondary)] ${notification.read ? "border-l-transparent bg-[var(--card)]" : "border-l-[var(--accent)] bg-[var(--accent-soft)]"}`}
-                    >
-                      <span className="flex items-start gap-3 text-sm leading-5 text-[var(--text-primary)]">
-                        <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${notification.read ? "bg-[var(--border-color)]" : "bg-[var(--accent)]"}`} aria-hidden="true" />
-                        <span className="min-w-0 flex-1">
-                          <span className="block break-words font-semibold">{notificationTitle(notification)}</span>
-                          {(notification.preview || notification.message) && <span className="mt-1 block line-clamp-2 text-xs font-normal leading-4 text-[var(--text-secondary)]">{notification.preview || notification.message}</span>}
-                          <span className="mt-1 block text-[11px] font-normal text-[var(--text-muted)]">{formatNotificationTime(notification.createdAt)}</span>
-                        </span>
-                      </span>
-                    </button>
-                  ))
-                ) : (
-                  <div className="px-4 py-8 text-center text-sm text-[var(--text-muted)]">{notificationError || "No notifications yet. Job and payment updates will appear here."}</div>
-                )}
-              </div>
-            </div>
-          ) : null}
-        </div>
+        <button
+          type="button"
+          aria-haspopup="dialog"
+          aria-expanded={centerOpen}
+          onClick={() => { setProfileMenuOpen(false); setCenterOpen(true); }}
+          className="notif-trigger mt-4"
+          data-unread={unreadNotifications > 0}
+        ><IconSwap icon={<Bell className="h-4 w-4" />}>
+          <span className="notif-trigger-icon"><Bell className="h-4 w-4" aria-hidden="true" /></span>
+          <span className="flex-1 text-sm font-bold">Notifications</span>
+          <UnreadBadge count={unreadNotifications} label={`${unreadNotifications} unread notifications`} />
+        </IconSwap></button>
 
         <div className="joined-menu relative mt-4 shrink-0" ref={menuRef}>
           <button
             data-tour="profile-menu"
             aria-expanded={profileMenuOpen}
-            onClick={() => { setNotifOpen(false); setProfileMenuOpen((value) => !value); }}
+            onClick={() => setProfileMenuOpen((value) => !value)}
             className="flex w-full items-center gap-3 rounded-[1.2rem] border border-[var(--ink)] bg-[var(--card)] px-4 py-3 shadow-[var(--surface-shadow)]"
           >
             <div className="relative">
@@ -383,7 +198,7 @@ export default function Navbar() {
         </div>
       </aside>
 
-      <MobileNavigation role={profile?.role} pathname={pathname} unreadMessages={unreadCount} pendingJobs={pendingJobCount} menuOpen={drawerOpen} onOpenMenu={() => { setNotifOpen(false); setDrawerOpen(true); }} />
+      <MobileNavigation role={profile?.role} pathname={pathname} unreadMessages={unreadCount} pendingJobs={pendingJobCount} unreadNotifications={unreadNotifications} menuOpen={drawerOpen} onOpenMenu={() => setDrawerOpen(true)} />
 
       {drawerOpen ? (
         <div className="fixed inset-0 z-40 bg-black/35 lg:hidden" onClick={() => setDrawerOpen(false)}>
@@ -405,6 +220,12 @@ export default function Navbar() {
                 <X className="h-4 w-4" />
               </button>
             </div>
+
+            <button type="button" className="notif-trigger mt-5" data-unread={unreadNotifications > 0} onClick={() => { setDrawerOpen(false); setCenterOpen(true); }}>
+              <span className="notif-trigger-icon"><Bell className="h-4 w-4" aria-hidden="true" /></span>
+              <span className="flex-1 text-left text-sm font-bold">Notifications</span>
+              <UnreadBadge count={unreadNotifications} label={`${unreadNotifications} unread notifications`} />
+            </button>
 
             <div className="mt-5 grid divide-y divide-[var(--border-color)] border-t border-[var(--border-color)]">
               <Link href="/dashboard/calendar" onClick={() => setDrawerOpen(false)} className="flex min-h-13 items-center gap-3 px-4 py-3 hover:bg-[var(--bg-secondary)]"><IconSwap icon={<CalendarDays className="h-5 w-5" />}><CalendarDays className="h-5 w-5" /><span>Schedule</span></IconSwap></Link>

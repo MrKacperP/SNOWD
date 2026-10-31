@@ -1,10 +1,15 @@
 "use client";
+import ServiceLocationProvider from "@/context/ServiceLocationContext";
+import OperatorLocationTracker from "@/components/dashboard/OperatorLocationTracker";
 import IconSwap from "@/components/ui/IconSwap";
 
 
 import { canAcceptPlatformPayments } from "@/lib/operatorDiscovery";
 
 import Notification from "@/components/Notification";
+import NotificationToasts from "@/components/NotificationToasts";
+import NotificationCenter from "@/components/NotificationCenter";
+import { NotificationProvider } from "@/context/NotificationContext";
 import LoadingScreen from "@/components/LoadingScreen";
 import Navbar from "@/components/Navbar";
 import SupportChatButton from "@/components/SupportChatButton";
@@ -104,7 +109,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const verificationPending = hasIdPhoto && !verificationRejected;
 
   return (
-    <WeatherProvider>
+    <WeatherProvider><NotificationProvider><ServiceLocationProvider><OperatorLocationTracker>
       {uploadError && <Notification message={uploadError} type="error" onClose={() => setUploadError("")} />}
       <div className={`dashboard-shell ${inConversation ? "conversation-shell" : "min-h-screen"} bg-[var(--bg-primary)] transition-colors`}>
         <a href="#dashboard-content" className="skip-link">Skip to main content</a>
@@ -148,7 +153,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                       {!verificationPending && (
                         <>
                           <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleIdUpload} className="hidden" />
-                          <button onClick={() => fileInputRef.current?.click()} disabled={uploadingId} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--ink)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+                          <button onClick={() => fileInputRef.current?.click()} disabled={uploadingId} className="inline-flex min-h-11 items-center gap-2 btn-cta rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
                             {uploadingId ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" /> : <Camera className="h-4 w-4" />}
                             {uploadingId ? "Submitting…" : verificationRejected ? "Submit a new ID" : "Submit government ID"}
                           </button>
@@ -177,8 +182,10 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         </main>
         {!inConversation && <div className="hidden lg:block"><SupportChatButton /></div>}
         <TutorialOverlay />
+        <NotificationToasts />
+        <NotificationCenter />
       </div>
-    </WeatherProvider>
+    </OperatorLocationTracker></ServiceLocationProvider></NotificationProvider></WeatherProvider>
   );
 }
 

@@ -357,12 +357,12 @@ export default function OrderActions({
             </button>
           )}
         {closed && activeOrder && <Link className={button} href={`/dashboard/jobs/${activeOrder.id}`}>View current open work order</Link>}
-        {closed && !activeOrder && !bookingUnavailable && (
+        {closed && !activeOrder && !bookingUnavailable && !operator && (
           <Link
             className={button}
             href={`/dashboard/jobs/new?previousOrder=${encodeURIComponent(job.id)}`}
           >
-            {operator ? "Propose another booking" : "Request again"}
+            Request again
           </Link>
         )}
       </div>

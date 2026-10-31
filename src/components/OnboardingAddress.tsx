@@ -36,9 +36,11 @@ export default function OnboardingAddress({
   value,
   onChange,
   compact = false,
+  note,
 }: {
   value: OnboardingLocation;
   compact?: boolean;
+  note?: string;
   onChange: (value: OnboardingLocation) => void;
 }) {
   const [provider, setProvider] = useState<"google" | "mapbox">(
@@ -331,7 +333,7 @@ export default function OnboardingAddress({
         {value.provider === "mapbox" || provider === "mapbox"
           ? "Search powered by Mapbox. "
           : ""}
-        {compact ? "This address is shared with your operator for this visit. Your saved home stays the same." : "We use your location to find nearby help and jobs."}
+        {note ?? (compact ? "This address is shared with your operator for this visit. Your saved home stays the same." : "We use your location to find nearby help and jobs.")}
       </p>
     </div>
   );

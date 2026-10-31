@@ -10,10 +10,13 @@ import { jobDisplayPrice } from "@/lib/marketplacePricing";
 import { dateMillis, isAsap, orderNumber, orderLabel, orderActionNeeded, propertySizeLabel, scheduleText, terminalOrderDateText } from "@/lib/workOrders";
 import styles from "./work-orders.module.css";
 import ui from "./order-list.module.css";
+import { useNotifications } from "@/context/NotificationContext";
+import { NewChip } from "@/components/ui/UnreadBadge";
 
 export default function WorkOrdersPage({ history = false, schedule = false }: { history?: boolean; schedule?: boolean }) {
   const data = useWorkOrders();
   const { jobs, names, people, uid, isOperator, loading, error } = data;
+  const { unreadByJob } = useNotifications();
   const [search, setSearch] = useState("");
   const [view, setView] = useState(history ? "history" : "current");
   const closed = (job: typeof jobs[number]) => ["completed", "cancelled"].includes(job.status);
@@ -46,7 +49,8 @@ export default function WorkOrdersPage({ history = false, schedule = false }: { 
           const action = orderActionNeeded(job, uid);
           const actionLabel = action === "Accept or decline request" ? "Review request" : action === "Review proposed time" ? "Review new time" : action || (isOperator && job.status === "in-progress" ? "Continue job" : "View order");
           const timing = closed(job) ? terminalOrderDateText(job) : isAsap(job) ? "As soon as possible" : scheduleText(job);
-          return <li key={job.id}><Link href={`/dashboard/jobs/${job.id}`} className={ui.order} aria-label={`${actionLabel}: order ${orderNumber(job)}`} >
+          const updates = unreadByJob[job.id] || 0;
+          return <li key={job.id}><Link href={`/dashboard/jobs/${job.id}`} className={ui.order} data-unread={updates > 0} aria-label={`${actionLabel}: order ${orderNumber(job)}${updates ? `, ${updates} new ${updates === 1 ? "update" : "updates"}` : ""}`} >
             <div className={ui.identity}>
               <CompanyIdentity person={people[personId]} name={names[personId] || (isOperator ? "Customer" : "Service provider")} />
               <span className={ui.status} data-status={job.status}>{orderLabel(job)}</span>
@@ -60,7 +64,7 @@ export default function WorkOrdersPage({ history = false, schedule = false }: { 
               <div className={ui.price}>${jobDisplayPrice(job, isOperator).toFixed(2)} <span>CAD</span><small>{isOperator ? "Your earnings" : "Total"} · {job.paymentMethod === "cash" ? "Cash" : "Card"}</small></div>
             </div>
             <footer className={ui.footer}>
-              <span className={ui.reference}>Order #{orderNumber(job)}</span>
+              <span className={ui.reference}>Order #{orderNumber(job)}{updates > 0 && <NewChip>{updates === 1 ? "New update" : `${updates} new updates`}</NewChip>}</span>
               <span className={ui.openHint}>{actionLabel}<ArrowRight size={18} aria-hidden="true" /></span>
             </footer>
           </Link></li>;

@@ -10,8 +10,9 @@
 .location svg { flex-shrink: 0; }
 .bookingCard h2 { font-size: 28px; line-height: 1.2; margin-top: 16px; }
 .bookingCard > p:not(.location) { margin-top: 10px; font-size: 15px; line-height: 1.6; color: var(--text-secondary); max-width: 460px; }
-.mainAction { display: flex; min-height: 52px; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 18px; background: var(--accent); color: white; border-radius: 14px; margin-top: 22px; font-size: 16px; font-weight: 700; }
-.mainAction:hover { background: var(--accent-dark); }
+.mainAction { display: flex; min-height: 52px; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 18px; background: var(--accent-gradient); color: white; border-radius: 14px; box-shadow: var(--accent-shadow); transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease; margin-top: 22px; font-size: 16px; font-weight: 700; }
+.mainAction:hover { background: var(--accent-gradient-hover); box-shadow: var(--accent-shadow-hover); transform: translateY(-1px); }
+.mainAction:active { transform: scale(0.98); }
 .mainAction svg { flex-shrink: 0; }
 .actionNote { display: block; margin-top: 11px; color: var(--text-secondary); font-size: 12px; line-height: 1.5; }
 .shortcuts { border: 1px solid var(--border-color); border-radius: 16px; background: var(--card); overflow: hidden; box-shadow: none; }
@@ -51,9 +52,9 @@
 .bottomNav > :is(a,button) { position: relative; z-index: 1; border-radius: 22px; }
 .bottomNav [aria-current="page"] { background: var(--glass-sheen), var(--accent-soft); box-shadow: inset 0 1px 0 #ffffffbf; }
 .bottomNav [aria-current="page"] .navIcon { background: transparent; }
-.mainAction { border-radius: 999px; background-image: linear-gradient(#ffffff24, #ffffff00); box-shadow: inset 0 1px 0 #ffffff66, 0 6px 18px #285cce20; }
+.mainAction { border-radius: 999px; box-shadow: var(--accent-shadow); }
 
-.badge { top: -4px; right: -4px; display: grid; min-width: 21px; height: 21px; padding: 0 4px; place-items: center; border: 2px solid var(--card); border-radius: 999px; background: #bd3027; color: #fff; font-size: 10px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.badge { top: -4px; right: -4px; display: grid; min-width: 21px; height: 21px; padding: 0 4px; place-items: center; border: 2px solid var(--card); border-radius: 999px; background: var(--accent); color: #fff; font-size: 10px; font-weight: 800; box-shadow: 0 2px 6px rgb(35 80 255 / 35%); line-height: 1; font-variant-numeric: tabular-nums; }
 
 .shortcuts a { position:relative; min-height:68px; overflow:hidden; text-decoration:none; }
 .shortcutIcon { position:relative; z-index:1; display:grid; width:42px; height:42px; flex:none; place-items:center; border-radius:13px; background:var(--accent-soft); color:var(--accent); }
@@ -92,7 +93,7 @@
 .bookingCard h2 { font-size:28px; margin-top:16px; }
 .bookingCard > p:not(.location) { font-size:15px; margin:10px 0 0; }
 .bookingCard .location,.bookingCard .actionNote { font-size:13px; }
-.bookingCard .mainAction { font-size:16px; min-height:48px; background-image:none; box-shadow:none; }
+.bookingCard .mainAction { font-size:16px; min-height:48px; }
 .shortcuts { gap:10px; }
 .shortcuts a { min-height:64px; border-radius:14px; background:#fff; box-shadow:none; }
 .shortcuts .shortcutTitle { font-size:14px; }

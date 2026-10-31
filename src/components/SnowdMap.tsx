@@ -1,7 +1,7 @@
 "use client";
 
-import { DirectionsRenderer, GoogleMap, OverlayView, useJsApiLoader } from "@react-google-maps/api";
-import { useEffect, useMemo, useState } from "react";
+import { Circle, DirectionsRenderer, GoogleMap, OverlayView, useJsApiLoader } from "@react-google-maps/api";
+import { useEffect, useId, useMemo, useState } from "react";
 import { House, Shovel, Snowflake } from "lucide-react";
 import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES, hasGoogleMapsApiKey } from "@/lib/googleMaps";
 import styles from "./snowd-map.module.css";
@@ -22,9 +22,11 @@ export const SNOWD_MAP_OPTIONS: google.maps.MapOptions = {
   ],
 };
 const containerStyle = { width: "100%", height: "100%" };
-type Route = { minutes: number; distanceKm: number };
-type Props = { location: string; origin?: string; client?: boolean; label?: string; onRoute?: (route: Route | null) => void };
-const offset = (width: number, height: number) => ({ x: -width / 2, y: -height + 9 });
+export type Route = { minutes: number; distanceKm: number; walkingMinutes?: number };
+export type MapOffer = { selected: boolean; detailsId: string; onSelect: () => void };
+type Props = { offer?: MapOffer; markerAddress?: string; onLocationResolved?: (point: google.maps.LatLngLiteral) => void; location: string; origin?: string; client?: boolean; label?: string; onRoute?: (route: Route | null) => void; compact?: boolean; approximateArea?: { lat: number; lng: number; radius: number } };
+// Anchor markers in CSS: Google measures overlay size before React paints, which can report 0 and drop pins off the map.
+const offset = () => ({ x: 0, y: 0 });
 
 export default function SnowdMap(props: Props) {
   return <div className={styles.map}>
@@ -33,7 +35,7 @@ export default function SnowdMap(props: Props) {
   </div>;
 }
 
-function LiveMap({ location, origin, client, label = "Your home", onRoute }: Props) {
+function LiveMap({ location, origin, client, label = "Your home", onRoute, compact, approximateArea, markerAddress, onLocationResolved, offer }: Props) {
   const { isLoaded, loadError } = useJsApiLoader({ googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: GOOGLE_MAPS_LIBRARIES });
   const coordinates = useMemo(() => {
     const parts = location.split(",").map(Number);
@@ -41,6 +43,13 @@ function LiveMap({ location, origin, client, label = "Your home", onRoute }: Pro
   }, [location]);
   const [resolved, setResolved] = useState<google.maps.LatLngLiteral | null>(null);
   const point = coordinates || resolved;
+  useEffect(() => { if (point) onLocationResolved?.(point); }, [point, onLocationResolved]);
+  const [map, setMap] = useState<google.maps.Map | null>(null);
+  useEffect(() => {
+    if (!map || !point || !approximateArea) return;
+    const bounds = new google.maps.Circle({ center: approximateArea, radius: approximateArea.radius }).getBounds();
+    if (bounds) { bounds.extend(point); map.fitBounds(bounds, 32); }
+  }, [map, point, approximateArea]);
   const [failed, setFailed] = useState(false);
   const [route, setRoute] = useState<google.maps.DirectionsResult | null>(null);
   useEffect(() => {
@@ -61,24 +70,63 @@ function LiveMap({ location, origin, client, label = "Your home", onRoute }: Pro
       setRoute(result);
       const leg = result.routes[0]?.legs[0];
       const duration = leg?.duration_in_traffic?.value || leg?.duration?.value;
-      onRoute?.(duration ? { minutes: Math.ceil(duration / 60), distanceKm: Math.round((leg?.distance?.value || 0) / 100) / 10 } : null);
+      const summary = duration ? { minutes: Math.ceil(duration / 60), distanceKm: Math.round((leg?.distance?.value || 0) / 100) / 10 } : null;
+      onRoute?.(summary);
+      if (compact && summary) new google.maps.DirectionsService().route({ origin, destination: location, travelMode: google.maps.TravelMode.WALKING }).then(walking => {
+        if (active) onRoute?.({ ...summary, walkingMinutes: Math.ceil((walking.routes[0]?.legs[0]?.duration?.value || 0) / 60) || undefined });
+      }).catch(() => {});
     }).catch(() => { if (active) setFailed(true); });
     return () => { active = false; };
-  }, [isLoaded, origin, location, client, onRoute]);
+  }, [isLoaded, origin, location, client, onRoute, compact]);
   if (loadError || (!point && failed)) return <div className={styles.unavailable}>Map preview unavailable</div>;
   if (!isLoaded || !point) return <div className={styles.unavailable} role="status">Finding your location…</div>;
   const start = route?.routes[0]?.legs[0]?.start_location;
   return <>
-    <GoogleMap mapContainerStyle={containerStyle} center={point} zoom={16} options={SNOWD_MAP_OPTIONS}>
-      {route && <DirectionsRenderer directions={route} options={{ suppressMarkers: true, polylineOptions: { strokeColor: "#287057", strokeWeight: 5, strokeOpacity: .8 } }} />}
+    <GoogleMap mapContainerStyle={containerStyle} center={point} zoom={16} onLoad={setMap} options={compact ? { ...SNOWD_MAP_OPTIONS, zoomControl: false, keyboardShortcuts: false, gestureHandling: "none" } : SNOWD_MAP_OPTIONS}>
+      {client && approximateArea && <PulsingArea area={approximateArea} />}
+      {!client && route && <DirectionsRenderer directions={route} options={{ suppressMarkers: true, polylineOptions: { strokeColor: "#287057", strokeWeight: 5, strokeOpacity: .8 } }} />}
       <OverlayView position={point} mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET} getPixelPositionOffset={offset}>
-        <div className={styles.marker}>
-          {client ? <><span className={styles.eta} role="status" key={label}>{label}</span><span className={styles.ping} aria-label="Your service location" /></> : <span className={styles.operatorPin} aria-label="Service property"><House size={20} /></span>}
+        <div className={`${styles.anchor} ${styles.marker}`}>
+          {client && !compact ? <><span className={styles.eta} role="status" key={label}>{label}</span><span className={styles.ping} aria-label="Your service location" /></> : offer ? <OfferPin offer={offer} address={markerAddress} /> : <AddressPin address={markerAddress} />}
         </div>
       </OverlayView>
-      {start && <OverlayView position={start} mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET} getPixelPositionOffset={offset}><span className={styles.operatorPin} aria-label="Route starting point"><Shovel size={20} /></span></OverlayView>}
+      {!client && start && <OverlayView position={start} mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET} getPixelPositionOffset={offset}><div className={styles.anchor}><span className={styles.operatorPin} aria-label="Route starting point"><Shovel size={20} /></span></div></OverlayView>}
     </GoogleMap>
-    <div className={styles.snow} aria-hidden="true"><i /><i /><i /><i /><i /></div>
-    {failed && origin && <span className={styles.notice}>Route unavailable · use Directions</span>}
+    {!compact && <div className={styles.snow} aria-hidden="true"><i /><i /><i /><i /><i /></div>}
+    {failed && origin && <span className={styles.notice}>Travel estimate unavailable</span>}
+  </>;
+}
+
+function AddressPin({address}:{address?:string}) {
+  const [open,setOpen]=useState(false);
+  const id=useId();
+  return <div className={styles.addressMarker} onMouseEnter={()=>setOpen(true)} onMouseLeave={()=>setOpen(false)}>
+    <button type="button" className={styles.operatorPin} aria-label={address ? `Show address: ${address}` : "Service property"} aria-expanded={open} aria-describedby={open && address ? id : undefined} onClick={()=>setOpen(true)} onFocus={()=>setOpen(true)} onBlur={()=>setOpen(false)} onKeyDown={e=>{if(e.key === "Escape"){e.stopPropagation();setOpen(false);}}}><House size={20} /></button>
+    {open && address && <span id={id} role="tooltip" className={styles.addressTooltip}>{address}</span>}
+  </div>;
+}
+
+function OfferPin({offer,address}:{offer:MapOffer;address?:string}) {
+  return <div className={styles.addressMarker}>
+    {!offer.selected && <span className={styles.offerChip} aria-hidden="true">New offer</span>}
+    <button type="button" className={`${styles.operatorPin} ${styles.offerPin}`} aria-label={`New offer${address ? ` at ${address}` : ""}. Show details`} aria-expanded={offer.selected} aria-controls={offer.detailsId} onClick={offer.onSelect}><House size={20} /></button>
+  </div>;
+}
+
+// Google circles can't use CSS animation, so the operator's area breathes and sends out a fading ring frame by frame.
+function PulsingArea({area}:{area:{lat:number;lng:number;radius:number}}) {
+  const [phase,setPhase]=useState(0);
+  useEffect(()=>{
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let frame=0;
+    const start=performance.now();
+    const tick=(now:number)=>{setPhase(((now-start)%1800)/1800);frame=requestAnimationFrame(tick);};
+    frame=requestAnimationFrame(tick);
+    return ()=>cancelAnimationFrame(frame);
+  },[]);
+  const breathe=(1-Math.cos(phase*Math.PI*2))/2;
+  return <>
+    <Circle center={area} radius={area.radius} options={{ strokeColor:"#287057", strokeWeight:2, strokeOpacity:.6+.4*breathe, fillColor:"#287057", fillOpacity:.12+.12*breathe, clickable:false }} />
+    {phase > 0 && <Circle center={area} radius={area.radius*(1+.6*phase)} options={{ strokeColor:"#287057", strokeWeight:2, strokeOpacity:.7*(1-phase), fillOpacity:0, clickable:false }} />}
   </>;
 }

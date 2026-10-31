@@ -1,10 +1,13 @@
 "use client";
+import { useServiceLocation } from "@/context/ServiceLocationContext";
 import { useArrivalLabel } from "@/hooks/useArrivalLabel";
 import IconSwap from "@/components/ui/IconSwap";
 import DashboardMap from "./DashboardMap";
 
 
-import { BookingAction, HomeActions } from "./HomeActions";
+import { estimatedTimeSaved, timeSavedLabel } from "@/lib/clientValue";
+import styles from "./home.module.css";
+import { BookingAction } from "./HomeActions";
 import PaymentSummary from "@/components/work-orders/PaymentSummary";
 import StatusBadge from "@/components/StatusBadge";
 import { useAuth } from "@/context/AuthContext";
@@ -20,6 +23,7 @@ import OrderActions from "@/components/work-orders/OrderActions";
 export default function ClientDashboard() {
   const { profile } = useAuth();
   const clientProfile = profile as ClientProfile;
+  const serviceLocation = useServiceLocation()?.location || clientProfile;
   const { jobs, names: operatorNames, loading, error } = useWorkOrders();
   const activeJobs = jobs.filter(job => (["pending", "accepted", "en-route", "in-progress"].includes(job.status) || !!orderActionNeeded(job, profile?.uid || "")))
     .sort((a, b) => {
@@ -28,23 +32,23 @@ export default function ClientDashboard() {
     }).slice(0, 3);
   const loadError = !!error;
   const locationLabel =
-    [clientProfile?.city, clientProfile?.province].filter(Boolean).join(", ") || "Your service area";
+    [serviceLocation?.city, serviceLocation?.province].filter(Boolean).join(", ") || "Your service area";
 
-  return <ClientHomeView locationLabel={locationLabel} activeJobs={activeJobs} profile={clientProfile} operatorNames={operatorNames} loading={loading} loadError={loadError} />;
+  return <ClientHomeView locationLabel={locationLabel} activeJobs={activeJobs} profile={clientProfile} operatorNames={operatorNames} loading={loading} loadError={loadError} savedMinutes={estimatedTimeSaved(jobs)} />;
 }
 
-export function ClientHomeView({ locationLabel, activeJobs, profile, operatorNames, loading, loadError }: {
+export function ClientHomeView({ locationLabel, activeJobs, profile, operatorNames, loading, loadError, savedMinutes = 0 }: {
   locationLabel: string; activeJobs: Job[]; profile?: ClientProfile | null;
-  operatorNames: Record<string, string>; loading: boolean; loadError: boolean;
+  operatorNames: Record<string, string>; loading: boolean; loadError: boolean; savedMinutes?: number;
 }) {
   const nextJob = activeJobs[0];
   const arrival = useArrivalLabel(nextJob);
   const next = nextJob ? workOrderPresentation(nextJob, nextJob.clientId) : null;
   return (
-    <div className="app-page client-home dashboard-home text-[var(--text-primary)]"><header className="dashboard-overview"><div><h1>Your snow day</h1></div></header>
+    <div className={`app-page client-home dashboard-home ${styles.home} text-[var(--text-primary)]`}><header className="dashboard-overview"><div><h1>Your snow day</h1></div></header>
       <DashboardMap profile={profile || null} job={activeJobs.find(job => ["en-route", "in-progress"].includes(job.status)) || activeJobs.find(job => job.status === "accepted")} role="client" />
       <div className={nextJob ? "client-home-current" : "client-home-grid"}>
-      {!loading && !loadError && nextJob && next ? <section className={`next-action job-widget job-widget--${nextJob.status}`}>
+      {loading ? <p role="status">Loading your work orders…</p> : loadError ? <p role="alert">Could not load work orders. <Link href="/dashboard/jobs">Try again</Link></p> : nextJob && next ? <section className={`next-action job-widget job-widget--${nextJob.status}`}>
         <div className="flex flex-wrap items-start justify-between gap-3"><div><h2>{next.title}</h2></div><StatusBadge status={nextJob.status} /></div>
         <p>{next.description}</p>
         <div className="visit-summary mt-5 grid grid-cols-2 gap-3 rounded-xl bg-white/75 p-4 sm:grid-cols-3">
@@ -57,11 +61,11 @@ export function ClientHomeView({ locationLabel, activeJobs, profile, operatorNam
             <OrderActions job={nextJob} compact navigateOnUpdate={false} />
             <Link className="inline-flex min-h-11 items-center px-2 font-semibold text-[var(--text-secondary)]" href={`/dashboard/jobs/${nextJob.id}`}>View work order</Link>
           </> : <Link className="btn-primary min-h-12" href={`/dashboard/jobs/${nextJob.id}`}><IconSwap icon={<ArrowRight size={18} />}>{next.nextAction || "View visit"}<ArrowRight size={18} /></IconSwap></Link>}
-          <Link className="inline-flex min-h-11 items-center px-2 font-semibold text-[var(--text-secondary)]" href="/dashboard/find">Book another</Link>
+
         </div>
       </section> : <BookingAction location={locationLabel} />}
 
-      {(loading || loadError || !nextJob || activeJobs.length > 1) && <section className="client-orders-panel" aria-labelledby="jobs-heading">
+      {(!loading && !loadError && activeJobs.length > 1) && <section className="client-orders-panel" aria-labelledby="jobs-heading">
         <div className="mb-4 flex items-center justify-between gap-4">
           <h2 id="jobs-heading" className="text-xl font-semibold tracking-tight">{nextJob ? "Other visits" : "Current work orders"}</h2>
           <Link href="/dashboard/jobs" className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]">View all</Link>
@@ -90,7 +94,7 @@ export function ClientHomeView({ locationLabel, activeJobs, profile, operatorNam
       </section>}
 
       </div>
-      <HomeActions />
+      <section className="dashboard-earnings" aria-label="Estimated time saved"><span className="dashboard-earnings-content"><span>Time back for you</span><strong>{loading || loadError ? "—" : timeSavedLabel(savedMinutes)}</strong><small>{loading ? "Loading completed visits…" : loadError ? "Could not load time saved." : "Estimated from the service duration of completed visits"}</small></span></section>
     </div>
   );
 }

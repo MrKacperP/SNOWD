@@ -38,7 +38,15 @@
     ".next-support-calls/types/**/*.ts",
     ".next-support-calls/dev/types/**/*.ts",
     ".next-stripe-managed/types/**/*.ts",
-    ".next-stripe-managed/dev/types/**/*.ts"
+    ".next-stripe-managed/dev/types/**/*.ts",
+    ".next-workorders/pairchat/types/**/*.ts",
+    ".next-workorders/pairchat/dev/types/**/*.ts",
+    ".next-property-review/types/**/*.ts",
+    ".next-property-review/dev/types/**/*.ts",
+    ".next-notif-preview/types/**/*.ts",
+    ".next-notif-preview/dev/types/**/*.ts",
+    ".next-build-check/types/**/*.ts",
+    ".next-build-check/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

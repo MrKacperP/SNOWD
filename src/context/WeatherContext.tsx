@@ -149,7 +149,7 @@ export function WeatherCard() {
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-      <div className="bg-[#2F6FED] px-5 py-4 text-white">
+      <div className="bg-[#2350FF] px-5 py-4 text-white">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs text-white/70">{weather.city}</p>
@@ -166,7 +166,7 @@ export function WeatherCard() {
         <span>💨 {weather.windSpeed} km/h</span>
         <span>💧 {weather.humidity}%</span>
         {weather.snowfallAmount > 0 && weather.snowfallUnit && (
-          <span className="text-[#2F6FED] font-semibold">❄️ {weather.snowfallAmount} {weather.snowfallUnit} snow today</span>
+          <span className="text-[#2350FF] font-semibold">❄️ {weather.snowfallAmount} {weather.snowfallUnit} snow today</span>
         )}
       </div>
     </div>

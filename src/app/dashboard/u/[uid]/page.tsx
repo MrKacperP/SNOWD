@@ -394,7 +394,7 @@ export default function PublicProfilePage() {
               onClick={() => setActiveTab(tab.key)}
               className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition ${
                 activeTab === tab.key
-                  ? "bg-[var(--ink)] text-white"
+                  ? "bg-[var(--accent)] text-white"
                   : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                 }`}
             >
@@ -413,7 +413,7 @@ export default function PublicProfilePage() {
               onClick={() => setActiveTab(tab.key)}
               className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition ${
                 activeTab === tab.key
-                  ? "bg-[var(--ink)] text-white"
+                  ? "bg-[var(--accent)] text-white"
                   : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                 }`}
             >

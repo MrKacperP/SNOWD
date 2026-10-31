@@ -83,7 +83,7 @@ function SignUpPageInner() {
             <button
               onClick={handleGoogleSignUp}
               disabled={loading}
-              className="flex min-h-12 w-full items-center justify-center rounded-2xl border-[3px] border-[#061321] bg-[#061321] px-5 text-base font-black text-white transition hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-55 sm:min-h-13"
+              className="flex min-h-12 w-full items-center justify-center rounded-2xl btn-cta border-[3px] px-5 text-base font-black text-white disabled:translate-y-0 disabled:opacity-55 sm:min-h-13"
             >
               {loading ? "Connecting..." : "Continue with Google"}{" "}
               {!loading ? (

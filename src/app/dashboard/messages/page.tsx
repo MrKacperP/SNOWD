@@ -17,6 +17,7 @@ import {
 } from "@/lib/workOrders";
 import { AppPage, EmptyState } from "@/components/ui/AppPrimitives";
 import ConversationLoading from "@/components/ConversationLoading";
+import { UnreadBadge, UnreadDot } from "@/components/ui/UnreadBadge";
 export default function MessagesPage() {
   const { profile, user } = useAuth();
   const { chats, loading, error } = useUserChats(user?.uid, profile?.role);
@@ -65,7 +66,8 @@ export default function MessagesPage() {
         const needed = current ? orderActionNeeded(current, user?.uid || "") : "";
         return (
           <section key={chat.id} className={`${styles.companyGroup} ${theme.group}`} data-active-job={!!current}>
-            <Link href={`/dashboard/messages/${chat.id}`} className={`${styles.companySummary} ${theme.summary}`} data-unread={count > 0}>
+            <Link href={`/dashboard/messages/${chat.id}`} className={`${styles.companySummary} ${theme.summary}`} data-unread={count > 0} aria-label={count > 0 ? `${names[other] || "Conversation"}, ${count} unread` : undefined}>
+              {count > 0 && <UnreadDot className="unread-row-dot" />}
               <span className={styles.companyInfo}>
                 <CompanyIdentity person={people[other]} name={names[other] || "Company / customer"} />
                 <span className={styles.companyMeta}>
@@ -77,7 +79,7 @@ export default function MessagesPage() {
               </span>
               <span className={styles.inboxMeta}>
                 {current && <span className={theme.activeBadge}>Active order</span>}
-                {count > 0 && <span className={theme.unreadBadge}>{count}</span>}
+                <UnreadBadge count={count} />
                 {time > 0 && <time className={styles.conversationTime} dateTime={new Date(time).toISOString()}>{new Date(time).toLocaleString("en-CA", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</time>}
               </span>
               <span className={styles.companyChevron} aria-hidden="true">›</span>

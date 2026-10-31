@@ -9,14 +9,13 @@
 .page :global(.app-search input) { border: 0; outline: 0; background: transparent; box-shadow: none; }
 .page :global(.empty-state) { border: 1px solid var(--border-soft); border-radius: 22px; background: #fff; }
 .page .group { background: #fff; border: 1px solid var(--border-soft); border-radius: 22px; box-shadow: 0 8px 24px rgba(17,43,59,.045); }
-.page .group[data-active-job="true"] { border-color: #cfe0ff; box-shadow: 0 8px 24px rgba(17,43,59,.045); }
+.page .group[data-active-job="true"] { border-color: #d6defe; box-shadow: 0 8px 24px rgba(17,43,59,.045); }
 .page .summary { width: 100%; padding: 18px 22px; gap: 12px; }
 .page .summary:hover, .page .row:hover { background: #f8fafb; }
 .page .row { padding: 18px 22px; }
 .page .row[data-active-job="true"] { background: #f8faff; }
-.page .row[data-unread="true"] { border-left: 3px solid #285cce; background: #f2f6ff; }
-.unreadBadge, .activeBadge { flex-shrink: 0; border-radius: 999px; padding: 5px 9px; font-size: .72rem; font-weight: 750; }
-.unreadBadge { color: #285cce; background: #eaf1ff; }
+.page .row[data-unread="true"] { border-left: 3px solid var(--accent); background: var(--accent-soft); }
+.activeBadge { flex-shrink: 0; border-radius: 999px; padding: 5px 9px; font-size: .72rem; font-weight: 750; }
 .activeBadge { color: #14734f; background: #e9f7ef; }
 .page .companyInfo { gap: 5px; }
 .page .inboxMeta { color: #82909a; }
@@ -33,3 +32,8 @@
 .page .row[data-active-job="true"] { background:#fff; }
 .page .row[data-unread="true"] { background:#f1f6fb; border-color:#b8cfe1; }
 .page :global(.app-search) { min-height:48px; border:1px solid var(--border-color); border-radius:14px; background:var(--card); box-shadow:none; }
+
+/* Unread conversations: tinted row, accent dot, stronger name and preview. */
+.page .summary { position: relative; }
+.page .summary[data-unread="true"] { background: var(--accent-soft); border-bottom-color: var(--surface-blue-border); }
+.page .summary[data-unread="true"] :global(.unread-row-dot) { position: absolute; left: 7px; top: 50%; margin-top: -4px; }

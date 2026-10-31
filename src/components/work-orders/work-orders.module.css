@@ -87,7 +87,7 @@
 .locationMap::after { width:30px; height:150%; left:55%; top:-22%; transform:rotate(25deg); }
 .mapRoadOne,.mapRoadTwo,.mapRoadThree { position:absolute; z-index:1; height:11px; border:2px solid #fff; border-radius:99px; background:#dfe7df; }
 .mapRoadOne { width:72%; top:22%; left:12%; transform:rotate(18deg); }.mapRoadTwo { width:78%; top:72%; left:8%; transform:rotate(-18deg); }.mapRoadThree { width:50%; top:48%; right:-7%; transform:rotate(64deg); }
-.mapMarker { position:absolute; z-index:2; top:48%; left:55%; display:grid; width:36px; height:36px; place-items:center; border:3px solid white; border-radius:50% 50% 50% 8px; background:#285cce; color:white; box-shadow:0 3px 12px #102d3e44; transform:rotate(-45deg); }
+.mapMarker { position:absolute; z-index:2; top:48%; left:55%; display:grid; width:36px; height:36px; place-items:center; border:3px solid white; border-radius:50% 50% 50% 8px; background:var(--accent); color:white; box-shadow:0 3px 12px #102d3e44; transform:rotate(-45deg); }
 .mapMarker svg { transform:rotate(45deg); }
 .locationIcon {
   display: grid;
@@ -600,7 +600,7 @@ a.locationOpen:hover { color: var(--accent); }
 .summaryCard span { font-size: .8rem; font-weight: 700; color: var(--text-secondary); }
 .summaryCard strong { font-size: 1.6rem; line-height: 1.2; letter-spacing: -.03em; }
 .summaryCard small { font-size: .75rem; color: var(--text-muted); }
-.summaryCard .summaryIcon { display: grid; place-items: center; flex: 0 0 auto; width: 46px; height: 46px; border-radius: 14px; background: #eaf1ff; color: #285cce; }
+.summaryCard .summaryIcon { display: grid; place-items: center; flex: 0 0 auto; width: 46px; height: 46px; border-radius: 14px; background: var(--accent-soft); color: var(--accent); }
 .summaryCard .amber { background: #fff3db; color: #a85a00; }
 .page .companyGroup, .page .card { border: 1px solid var(--border-soft); border-radius: 22px; background: #fff; box-shadow: 0 8px 24px rgba(17,43,59,.045); }
 .page .companyHeader { padding: 22px; }
@@ -611,12 +611,12 @@ a.locationOpen:hover { color: var(--accent); }
 .page .orderRow { padding: 20px 22px; }
 .page .orderRow:hover, .page .companySummary[data-expandable="true"]:hover { background: #f8fafb; }
 .page .orderHighlights { background: #f8fafb; border-color: var(--border-soft); }
-.page .orderHighlight > svg, .page .orderView { color: #285cce; }
+.page .orderHighlight > svg, .page .orderView { color: var(--accent); }
 .page .orderRowFooter:has(.orderView:only-child) { justify-content: flex-end; }
 .page .badge { border-color: transparent; background: #f1f3f5; color: #5f6c74; font-size: .72rem; font-weight: 750; }
 .page .badge[data-status="completed"], .page .badge[data-status="accepted"] { background: #e9f7ef; color: #14734f; }
 .page .badge[data-status="pending"] { background: #fff3db; color: #915000; }
-.page .badge[data-status="en-route"], .page .badge[data-status="in-progress"] { background: #eaf1ff; color: #285cce; }
+.page .badge[data-status="en-route"], .page .badge[data-status="in-progress"] { background: var(--accent-soft); color: var(--accent); }
 .page .searchLabel { padding: 20px 22px; margin-bottom: 14px; border: 1px solid var(--border-soft); border-radius: 22px; background: #fff; box-shadow: 0 8px 24px rgba(17,43,59,.045); }
 .page .searchInput { border-color: var(--border-soft); background: #f8fafb; font-weight: 400; }
 .page .button { min-height: 46px; gap: 9px; border-radius: 14px; background: #fff; box-shadow: 0 4px 12px rgba(17,43,59,.04); }
@@ -661,3 +661,8 @@ a.locationOpen:hover { color: var(--accent); }
 .serviceSummary strong { color:#294c3b; font-size:21px; }
 .serviceSummary span { color:#526b5b; font-size:14px; }
 @media(max-width:600px) { .priorityFacts > div { min-height:112px; padding:16px 13px; } .priorityFacts > div > strong { font-size:21px; } .priorityFacts > div > strong.arrivalChip { font-size:14px; } .serviceSummary { padding:17px; } }
+
+/* Unread conversations share one treatment: stronger name, darker preview, accent timestamp. */
+.companySummary[data-unread="true"] .companyInfo > :first-child { font-weight: 800; }
+.companySummary[data-unread="true"] .companyMeta, .companySummary[data-unread="true"] .messagePreview { color: var(--ink); font-weight: 600; }
+.companySummary[data-unread="true"] .conversationTime { color: var(--accent); font-weight: 700; }

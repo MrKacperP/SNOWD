@@ -1,4 +1,5 @@
 "use client";
+import SavedProperties from "@/components/SavedProperties";
 import IconSwap from "@/components/ui/IconSwap";
 
 
@@ -25,7 +26,7 @@ OperatorProfile,
 OperatorServiceArea,
 UserProfile,
 } from "@/lib/types";
-import { doc,updateDoc } from "firebase/firestore";
+import { deleteField,doc,updateDoc } from "firebase/firestore";
 import { getDownloadURL,ref,uploadBytes } from "firebase/storage";
 import {
 AlertCircle,
@@ -104,6 +105,15 @@ export default function SettingsPage() {
   const [province, setProvince] = useState(profile?.province || "");
   const [postalCode, setPostalCode] = useState(profile?.postalCode || "");
   const [address, setAddress] = useState(profile?.address || "");
+  const previousHome = useRef({address:profile?.address || "",city:profile?.city || "",province:profile?.province || "",postalCode:profile?.postalCode || ""});
+  useEffect(()=>{
+    const previous=previousHome.current;
+    setAddress(value=>value === previous.address ? profile?.address || "" : value);
+    setCity(value=>value === previous.city ? profile?.city || "" : value);
+    setProvince(value=>value === previous.province ? profile?.province || "" : value);
+    setPostalCode(value=>value === previous.postalCode ? profile?.postalCode || "" : value);
+    previousHome.current={address:profile?.address || "",city:profile?.city || "",province:profile?.province || "",postalCode:profile?.postalCode || ""};
+  },[profile?.address,profile?.city,profile?.province,profile?.postalCode]);
   const [age, setAge] = useState<number | undefined>((profile as ClientProfile)?.age);
   const [propertyPhotos, setPropertyPhotos] = useState<string[]>((profile as ClientProfile)?.propertyDetails?.photos || []);
   const [uploadingPropertyPhotos, setUploadingPropertyPhotos] = useState(false);
@@ -569,6 +579,9 @@ export default function SettingsPage() {
         postalCode,
         address,
       };
+      if (address !== profile.address || city !== profile.city || province !== profile.province || postalCode !== profile.postalCode) {
+        updates.lat=deleteField(); updates.lng=deleteField();
+      }
       if (isOperator) {
         updates.bio = bio;
         updates.businessName = businessName;
@@ -720,6 +733,7 @@ export default function SettingsPage() {
             {savedMissingFields.length > 0 && activeTab !== "general" && <Link href="/dashboard/settings/general" className={styles.incompleteNotice}><IconSwap icon={<AlertCircle size={17} />}><AlertCircle size={17} /><span>Finish your account details</span><ChevronRight size={17} /></IconSwap></Link>}
 
       {/* General Settings */}
+      {activeTab === "general" && !isOperator && <SavedProperties />}
       {activeTab === "general" && (
         <div className="space-y-6">
           {/* Profile Info */}
