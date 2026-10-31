@@ -10,11 +10,12 @@ test('time saved counts completed service only and rejects unusable durations', 
   assert.equal(api.timeSavedLabel(105),'1 hr 45 min');
   assert.equal(api.timeSavedLabel(0),'0 min');
 });
-test('arrival counts down a stored arrival time without inventing arrival after it expires', () => {
+test('arrival shows the operator ETA and keeps it after the countdown runs out', () => {
   const now = Date.parse('2026-10-20T14:00:00Z');
   const job = { status:'en-route', estimatedArrivalAt:{seconds:(now + 12*60000)/1000}, eta:20 };
-  assert.equal(api.arrivalLabel(job, now),'~12 min away');
-  assert.equal(api.arrivalLabel(job, now + 15*60000),'Arrival update due');
+  const time = new Date(now + 12*60000).toLocaleTimeString('en-CA', { hour:'numeric', minute:'2-digit' });
+  assert.equal(api.arrivalLabel(job, now),`ETA ${time} · ~12 min`);
+  assert.equal(api.arrivalLabel(job, now + 15*60000),`ETA ${time}`);
   assert.equal(api.arrivalLabel({...job, status:'accepted'},now),'ETA when on the way');
   assert.equal(api.arrivalLabel({...job,status:'in-progress'},now),'Clearing now');
   assert.equal(api.arrivalLabel({status:'en-route'},now),'ETA updating');

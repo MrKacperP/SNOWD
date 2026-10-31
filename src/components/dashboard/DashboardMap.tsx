@@ -5,8 +5,7 @@ import ServiceLocationPicker from "@/components/ServiceLocationPicker";
 import { useServiceLocation } from "@/context/ServiceLocationContext";
 import { formatServiceAddress, type ServiceLocation } from "@/lib/serviceLocations";
 import styles from "@/components/service-location.module.css";
-import SnowdMap, { Route } from "@/components/SnowdMap";
-import { useArrivalLabel } from "@/hooks/useArrivalLabel";
+import SnowdMap from "@/components/SnowdMap";
 import { useOperatorPosition } from "./OperatorLocationTracker";
 import { dateMillis } from "@/lib/workOrders";
 import { Job, UserProfile } from "@/lib/types";
@@ -20,9 +19,7 @@ export default function DashboardMap({ profile, job, role, showVisitLink = true,
   const [preview,setPreview] = useState<ServiceLocation | null>(null);
   const [offerOpen,setOfferOpen] = useState(false);
   const offerId = useId();
-  const arrival = useArrivalLabel(job);
-  const { position, message } = useOperatorPosition();
-  const [route, setRoute] = useState<Route | null>(null);
+  const { position } = useOperatorPosition();
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(timer); }, []);
   const client = role === "client";
@@ -37,10 +34,9 @@ export default function DashboardMap({ profile, job, role, showVisitLink = true,
   const recent = now - dateMillis(job?.operatorLocationUpdatedAt) < 120000;
   const sharing = client && job && ["accepted", "en-route"].includes(job.status);
   const approximateArea = sharing && recent && locationOf(job.operatorApproxLat, job.operatorApproxLng) ? { lat: job.operatorApproxLat!, lng: job.operatorApproxLng!, radius: Math.max(100, (job.operatorLocationRadiusKm || 0.1) * 1000) } : undefined;
-  const label = client ? job ? arrival : "Your home" : offer ? "New offer · reply needed" : job ? "Your next property" : "Your location";
+  const label = client ? "Your home" : offer ? "New offer · reply needed" : job ? "Your next property" : "Your location";
   return <section className="dashboard-location" aria-label={client ? "Home and approximate operator area" : "Your location and assigned property"}>
-    <div className="dashboard-location-map">{location ? <SnowdMap location={location} origin={origin || undefined} client={client} label={label} compact markerAddress={markerAddress} offer={!client && offer ? { selected: offerOpen, detailsId: offerId, onSelect: () => setOfferOpen(open => !open) } : undefined} approximateArea={editing ? undefined : approximateArea} onRoute={setRoute} /> : <div className="dashboard-location-unset">Choose a service address to see its location.</div>}{client && showVisitLink && <button type="button" className={styles.mapAction} onClick={()=>{setPreview(null);setEditing(true);}}>Change address</button>}</div>
-        {(!!job || !!origin || !!message) && <div className="dashboard-location-footer"><div><strong>{label}</strong><span>{client ? approximateArea ? `Operator within the shaded area · about ${Math.round(approximateArea.radius)} m radius` : sharing ? "Waiting for a fresh operator location" : "" : origin ? route ? `${route.distanceKm} km · ${route.minutes} min drive${route.walkingMinutes ? ` · ${route.walkingMinutes} min walk` : ""}${!live ? " · from saved address" : ""}` : "Travel estimate unavailable or loading" : ""}</span>{!client && message && <span>{message}</span>}{!client && !!offer?.more && <span>{offer.more} more {offer.more === 1 ? "offer" : "offers"} waiting below</span>}</div></div>}
+    <div className="dashboard-location-map">{location ? <SnowdMap location={location} origin={origin || undefined} client={client} label={label} compact markerAddress={markerAddress} offer={!client && offer ? { selected: offerOpen, detailsId: offerId, onSelect: () => setOfferOpen(open => !open) } : undefined} approximateArea={editing ? undefined : approximateArea} /> : <div className="dashboard-location-unset">Choose a service address to see its location.</div>}{client && showVisitLink && <button type="button" className={styles.mapAction} onClick={()=>{setPreview(null);setEditing(true);}}>Change address</button>}</div>
     {!client && offer && offerOpen && <div id={offerId} className={styles.offerDetails}><div><strong>{offer.title}</strong><span>{markerAddress}</span><span>{offer.detail}</span></div><Link href={offer.href} className={styles.offerLink}>View work order</Link></div>}
     {editing && <ServiceLocationPicker onPreview={setPreview} existingOrder={!!job} onClose={()=>{setEditing(false);setPreview(null);}} />}
   </section>;

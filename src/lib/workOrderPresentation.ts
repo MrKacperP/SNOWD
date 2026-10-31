@@ -50,7 +50,7 @@ export function workOrderPresentation(job: Job, uid: string): WorkOrderPresentat
   };
   if (job.status === "en-route") return {
     title: operator ? "Ready to start?" : "Help is on the way.", status: orderLabel(job), tone: "progress", progress: 3,
-    description: operator ? "Start work when you reach the property." : "Message your shoveler if they need arrival details.",
+    description: operator ? "Start work when you reach the property." : "",
     nextAction: operator ? "Start work" : "", paymentMessage,
   };
   return {

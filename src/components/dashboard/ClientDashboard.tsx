@@ -10,6 +10,8 @@ import styles from "./home.module.css";
 import { BookingAction } from "./HomeActions";
 import PaymentSummary from "@/components/work-orders/PaymentSummary";
 import StatusBadge from "@/components/StatusBadge";
+import WorkOrderTimeline from "@/components/work-orders/WorkOrderTimeline";
+import { useCancellationNotices } from "@/hooks/useCancellationNotices";
 import { useAuth } from "@/context/AuthContext";
 import { useWorkOrders } from "@/hooks/useWorkOrders";
 import { dateMillis, isAsap, scheduleText, orderActionNeeded } from "@/lib/workOrders";
@@ -25,9 +27,10 @@ export default function ClientDashboard() {
   const clientProfile = profile as ClientProfile;
   const serviceLocation = useServiceLocation()?.location || clientProfile;
   const { jobs, names: operatorNames, loading, error } = useWorkOrders();
-  const activeJobs = jobs.filter(job => (["pending", "accepted", "en-route", "in-progress"].includes(job.status) || !!orderActionNeeded(job, profile?.uid || "")))
+  const cancellations = useCancellationNotices(jobs, profile?.uid);
+  const activeJobs = [...cancellations, ...jobs.filter(job => !cancellations.includes(job) && (["pending", "accepted", "en-route", "in-progress"].includes(job.status) || !!orderActionNeeded(job, profile?.uid || "")))]
     .sort((a, b) => {
-      const urgency = (job: Job) => ["en-route", "in-progress"].includes(job.status) ? 0 : orderActionNeeded(job, profile?.uid || "") ? 1 : 2;
+      const urgency = (job: Job) => ["en-route", "in-progress"].includes(job.status) ? 0 : job.status === "cancelled" && cancellations.includes(job) ? 1 : orderActionNeeded(job, profile?.uid || "") ? 2 : 3;
       return urgency(a) - urgency(b) || (dateMillis(a.scheduledDate) || dateMillis(a.createdAt)) - (dateMillis(b.scheduledDate) || dateMillis(b.createdAt));
     }).slice(0, 3);
   const loadError = !!error;
@@ -49,11 +52,12 @@ export function ClientHomeView({ locationLabel, activeJobs, profile, operatorNam
       <DashboardMap profile={profile || null} job={activeJobs.find(job => ["en-route", "in-progress"].includes(job.status)) || activeJobs.find(job => job.status === "accepted")} role="client" />
       <div className={nextJob ? "client-home-current" : "client-home-grid"}>
       {loading ? <p role="status">Loading your work orders…</p> : loadError ? <p role="alert">Could not load work orders. <Link href="/dashboard/jobs">Try again</Link></p> : nextJob && next ? <section className={`next-action job-widget job-widget--${nextJob.status}`}>
-        <div className="flex flex-wrap items-start justify-between gap-3"><div><h2>{next.title}</h2></div><StatusBadge status={nextJob.status} /></div>
-        <p>{next.description}</p>
+        <WorkOrderTimeline job={nextJob} />
+        <h2>{next.title}</h2>
+        {next.description && <p>{next.description}</p>}
         <div className="visit-summary mt-5 grid grid-cols-2 gap-3 rounded-xl bg-white/75 p-4 sm:grid-cols-3">
           <div><span className="text-xs text-[var(--text-muted)]">Your shoveler</span><strong className="mt-1 block">{operatorNames[nextJob.operatorId] || "Operator"}</strong></div>
-          <div className="col-span-2 sm:col-span-1"><span className="text-xs text-[var(--text-muted)]">When</span><strong className="mt-1 block text-sm">{nextJob.status === "in-progress" ? "Clearing now" : nextJob.status === "en-route" ? arrival : isAsap(nextJob) ? "As soon as possible" : scheduleText(nextJob)}</strong></div>
+          <div className="col-span-2 sm:col-span-1"><span className="text-xs text-[var(--text-muted)]">When</span><strong className="mt-1 block">{nextJob.status === "cancelled" ? "Cancelled" : nextJob.status === "in-progress" ? "Clearing now" : nextJob.status === "en-route" ? arrival : isAsap(nextJob) ? "As soon as possible" : scheduleText(nextJob)}</strong></div>
           <PaymentSummary job={nextJob} />
         </div>
         <div className="mt-5 flex flex-wrap items-center gap-3">

@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       let email: { uid: string; title: string; eventId: string } | undefined;
       if (job.status !== "cancelled") {
         const now = FieldValue.serverTimestamp();
-        transaction.update(ref, { status: "cancelled", revision: (job.revision || 0) + 1, scheduleProposal: null, awaitingResponseFrom: null, cancelledBy: uid, cancelledAt: now, updatedAt: now });
+        transaction.update(ref, { status: "cancelled", revision: (job.revision || 0) + 1, scheduleProposal: null, awaitingResponseFrom: null, cancelledBy: uid, cancelledAt: now, cancellationNotice: true, cancellationSeenAt: null, updatedAt: now });
         transaction.set(db.doc(`jobs/${jobId}/events/cancelled`), { title: "Order cancelled", actorId: uid, createdAt: now });
         const recipient = uid === job.clientId ? job.operatorId : job.clientId;
         const message = `This job has been cancelled. ${job.paymentMethod === "cash" ? "Any cash already exchanged must be settled directly; the operator can record cash returned." : "Held card payments will be released. Captured payments require a refund through support."}`;

@@ -21,7 +21,8 @@ export function arrivalLabel(job?: Job, now = Date.now()) {
   const date = value instanceof Date ? value : value && typeof value === "object" && "seconds" in value ? new Date(Number(value.seconds) * 1000) : typeof value === "string" ? new Date(value) : null;
   if (date && Number.isFinite(date.getTime())) {
     const minutes = Math.ceil((date.getTime() - now) / 60000);
-    return minutes > 0 ? `~${minutes} min away` : "Arrival update due";
+    const time = date.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" });
+    return minutes > 0 ? `ETA ${time} · ~${minutes} min` : `ETA ${time}`;
   }
   return Number.isFinite(job.eta) && job.eta! > 0 ? `~${job.eta} min · last estimate` : "ETA updating";
 }

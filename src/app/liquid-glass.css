@@ -172,3 +172,7 @@ body.snowd-glass {
 .snowd-glass .dashboard-home :is(.dashboard-widget, .dashboard-location, .job-widget, .next-action, .dashboard-earnings, .client-orders-empty) { background:#fff; background-image:none; border:1px solid #e1e5e3; border-radius:18px; box-shadow:none; -webkit-backdrop-filter:none; backdrop-filter:none; }
 .snowd-glass .dashboard-home :is(.dashboard-widget, .next-action)::before,
 .snowd-glass .dashboard-home :is(.dashboard-widget, .next-action)::after { display:none; }
+
+/* Primary progress buttons are solid ink: the glass sheen must not wash them out to white. */
+.snowd-glass .btn-primary, .snowd-glass .btn-primary:hover { border-color: var(--ink); background: var(--ink); color: #fff; }
+.snowd-glass .btn-primary:hover:not(:disabled) { background: #0a1c27; }

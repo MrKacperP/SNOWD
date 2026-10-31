@@ -72,7 +72,7 @@ function LiveMap({ location, origin, client, label = "Your home", onRoute, compa
       const duration = leg?.duration_in_traffic?.value || leg?.duration?.value;
       const summary = duration ? { minutes: Math.ceil(duration / 60), distanceKm: Math.round((leg?.distance?.value || 0) / 100) / 10 } : null;
       onRoute?.(summary);
-      if (compact && summary) new google.maps.DirectionsService().route({ origin, destination: location, travelMode: google.maps.TravelMode.WALKING }).then(walking => {
+      if (compact && summary && onRoute) new google.maps.DirectionsService().route({ origin, destination: location, travelMode: google.maps.TravelMode.WALKING }).then(walking => {
         if (active) onRoute?.({ ...summary, walkingMinutes: Math.ceil((walking.routes[0]?.legs[0]?.duration?.value || 0) / 60) || undefined });
       }).catch(() => {});
     }).catch(() => { if (active) setFailed(true); });

@@ -32,7 +32,8 @@ export async function orderRequest(
 }
 const button =
   "motion-safe:transition motion-safe:active:scale-[0.98] min-h-11 rounded-lg border border-[var(--border-color)] bg-[var(--bg-card-solid)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 px-4 py-3 text-sm font-semibold disabled:opacity-50";
-const attentionButton = `${button} action-shine enabled:!border-[var(--accent)] enabled:!bg-[var(--accent)] enabled:!text-white enabled:hover:!bg-[var(--accent-dark)]`;
+// Progress steps stay dark so they read as the next step before hover.
+const attentionButton = `${button} action-shine !border-[var(--ink)] !bg-[var(--ink)] !bg-none !text-white enabled:hover:!bg-[#0a1c27] disabled:!opacity-60`;
 const dangerButton = `${button} border-red-200 text-red-700 hover:!border-red-300 hover:!bg-red-50`;
 const confirmDangerButton = `${button} !border-red-700 !bg-red-700 !text-white hover:!bg-red-800`;
 export default function OrderActions({

@@ -152,6 +152,8 @@ export async function POST(request: NextRequest) {
             declinedBy: uid,
             cancelledBy: uid,
             cancelledAt: now,
+            cancellationNotice: true,
+            cancellationSeenAt: null,
             awaitingResponseFrom: null,
             scheduleProposal: null,
           });

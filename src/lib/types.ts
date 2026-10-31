@@ -236,6 +236,10 @@ export interface Job {
   createdAt: Date;
   updatedAt: Date;
   cancelledAt?: Date;
+  cancelledBy?: string;
+  /** Set on cancellations that should show on both dashboards until the other party has seen them. */
+  cancellationNotice?: boolean;
+  cancellationSeenAt?: Date | null;
 }
 
 // -- Messaging --

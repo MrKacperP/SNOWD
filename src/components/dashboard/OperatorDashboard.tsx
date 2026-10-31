@@ -1,4 +1,6 @@
 "use client";
+import WorkOrderTimeline from "@/components/work-orders/WorkOrderTimeline";
+import { useCancellationNotices } from "@/hooks/useCancellationNotices";
 import DashboardMap from "./DashboardMap";
 import styles from "./home.module.css";
 import { useAuth } from "@/context/AuthContext";
@@ -48,6 +50,7 @@ export function OperatorHomeView({ operator, jobs, loading, loadError, transacti
 }) {
   const [selectedRouteJobId, setSelectedRouteJobId] = useState<string | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
+  const cancellations = useCancellationNotices(jobs, operator?.uid);
   const pending = jobs.filter(job => job.status === "pending" && orderActionNeeded(job, operator?.uid || ""));
   const active = jobs.filter(job => ["accepted", "en-route", "in-progress"].includes(job.status)).sort((a, b) => (dateMillis(a.scheduledDate) || dateMillis(a.createdAt)) - (dateMillis(b.scheduledDate) || dateMillis(b.createdAt)));
   const nextJob = active.find(job => job.status === "in-progress") ?? active.find(job => job.status === "en-route") ?? active[0];
@@ -81,12 +84,12 @@ export function OperatorHomeView({ operator, jobs, loading, loadError, transacti
       <section aria-labelledby="work-heading" className="operator-work">
         <div className="flex items-center justify-between gap-3"><h2 id="work-heading" className="text-xl font-semibold">{pending.length ? "Waiting for your reply" : "Upcoming work"}</h2><Link href="/dashboard/jobs" className="min-h-11 content-center font-semibold">View all</Link></div>
         {loadError ? <p role="alert">Could not load work orders. <Link href="/dashboard/jobs">Try again</Link></p> : loading ? <p role="status">Loading work orders…</p> : <div className="operator-work-list">
-          {[...pending.slice(0, 3), ...active.slice(0, 3)].map(job => <article key={job.id} className={`operator-work-row ${job.status === "pending" ? "operator-work-row--new" : ""}`}>
+          {[...cancellations, ...pending.slice(0, 3), ...active.slice(0, 3)].map(job => <article key={job.id} className={`operator-work-row ${job.status === "pending" ? "operator-work-row--new" : ""}`}>
             <Link href={`/dashboard/jobs/${job.id}`} className="operator-work-row-link" aria-label={`Open work order: ${serviceSummary(job)}`} />
-            <div className="operator-work-main"><p className="operator-work-status">{job.status === "pending" ? "New request" : job.status === "in-progress" ? "Work in progress" : job.status === "en-route" ? "On the way" : "Visit confirmed"}</p><h3>{serviceSummary(job)}</h3><p>{job.address ? <button type="button" className="operator-work-address" aria-label={`Show route to ${job.address} on the dashboard map`} aria-pressed={selectedRouteJobId === job.id} onClick={() => { setSelectedRouteJobId(job.id); mapRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); }}>{job.address} <span aria-hidden="true">↗</span></button> : "Address to be confirmed"}</p><p>{job.status === "en-route" && job.eta ? `Due in about ${job.eta} min` : job.scheduleMode === "asap" || job.scheduledTime === "ASAP" ? scheduleText(job) : `Due ${scheduleText(job)}`}</p></div>
+            <div className="operator-work-main"><WorkOrderTimeline job={job} /><p className="operator-work-status">{job.status === "cancelled" ? job.declinedBy ? "Request declined" : "Visit cancelled" : job.status === "pending" ? "New request" : job.status === "in-progress" ? "Work in progress" : job.status === "en-route" ? "On the way" : "Visit confirmed"}</p><h3>{serviceSummary(job)}</h3><p>{job.address ? <button type="button" className="operator-work-address" aria-label={`Show route to ${job.address} on the dashboard map`} aria-pressed={selectedRouteJobId === job.id} onClick={() => { setSelectedRouteJobId(job.id); mapRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); }}>{job.address} <span aria-hidden="true">↗</span></button> : "Address to be confirmed"}</p><p>{job.status === "en-route" && job.eta ? `Due in about ${job.eta} min` : job.scheduleMode === "asap" || job.scheduledTime === "ASAP" ? scheduleText(job) : `Due ${scheduleText(job)}`}</p></div>
             <div className="operator-work-side"><strong>${jobDisplayPrice(job, true).toFixed(2)} <small>CAD</small></strong><span>{job.paymentMethod === "cash" ? job.paymentStatus === "paid" ? "Cash paid" : "Cash, payment pending" : job.paymentStatus === "paid" ? "Paid by card" : job.paymentStatus === "held" ? "Card authorized" : "Card payment pending"}</span></div>
           </article>)}
-          {!pending.length && !nextJob && <div className="client-orders-empty"><div><h3>No jobs requested</h3><p>Your queue is clear.</p></div></div>}
+          {!pending.length && !nextJob && !cancellations.length && <div className="client-orders-empty"><div><h3>No jobs requested</h3><p>Your queue is clear.</p></div></div>}
         </div>}
       </section>
 
