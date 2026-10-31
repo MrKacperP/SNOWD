@@ -1,22 +1,24 @@
 "use client";
 
+import Image from "next/image";
+import SnowStorm from "@/components/SnowStorm";
+
 export default function LoadingScreen({ embedded = false, label = "Getting things ready…" }: { embedded?: boolean; label?: string }) {
   return (
     <div
       role="status"
       aria-label={label}
       aria-live="polite"
-      className={`flex w-full ${embedded ? "min-h-64 flex-1 self-stretch" : "min-h-dvh"} items-center justify-center bg-[var(--bg-primary)] px-6 text-[var(--text-primary)]`}
+      className={`snow-loading ${embedded ? "snow-loading-embedded" : ""}`}
     >
-      <div className="flex w-full max-w-xs flex-col items-center text-center">
-        <p className="font-headline text-3xl font-semibold lowercase">
-          snowd<span className="text-[var(--accent-sun)]">.</span>
+      <SnowStorm className="snow-loading-storm" />
+      <div className="snow-loading-mark">
+        <Image src="/logo.png" alt="" width={56} height={61} priority className="h-[61px] w-14 object-contain" />
+        <p className="font-headline text-4xl font-semibold">
+          snowd<span className="text-[var(--accent-sun)]">.ca</span>
         </p>
-        <div
-          aria-hidden="true"
-          className="motion-safe:animate-spin mt-6 h-7 w-7 rounded-full border-[3px] border-[var(--border-soft)] border-t-[var(--accent)]"
-        />
-        <p className="mt-4 text-sm font-semibold text-[var(--text-secondary)]">{label}</p>
+        <span className="snow-loading-bar" aria-hidden="true"><span /></span>
+        <p className="snow-loading-label">{label}</p>
       </div>
     </div>
   );

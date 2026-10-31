@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, ArrowUpRight, Camera, Clock3, HelpCircle, Mail, MessageCircleQuestion, MousePointerClick, Phone, Plus, Shovel } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Camera, HelpCircle, Mail, MessageCircleQuestion, Phone, Plus, Shovel } from "lucide-react";
 import LandingHero from "@/components/LandingHero";
 import LandingAppDemo from "@/components/LandingAppDemo";
 import LandingFeedback from "@/components/LandingFeedback";
+import LandingNav from "@/components/LandingNav";
+import { BookVisual, FollowVisual, PhotoVisual } from "@/components/LandingStepVisuals";
 import ScrollReveal from "@/components/ScrollReveal";
 import styles from "./landing.module.css";
 
@@ -17,9 +19,9 @@ const SUPPORT_EMAIL = "support@snowd.ca";
 const SUPPORT_PHONE = "437-922-3895";
 
 const steps = [
-  { icon: MousePointerClick, title: "Book in a minute", text: "Pick nearby help, choose what to clear, and see the price up front." },
-  { icon: Clock3, title: "Follow every step", text: "Get notified when your shoveler accepts, heads out, and starts." },
-  { icon: Camera, title: "See it done", text: "A completion photo lands in the app the moment the job is finished." },
+  { visual: BookVisual, title: "Book in a minute", text: "Pick nearby help, choose what to clear, and see the price up front." },
+  { visual: FollowVisual, title: "Follow every step", text: "Get notified when your shoveler accepts, heads out, and starts." },
+  { visual: PhotoVisual, title: "See it done", text: "A completion photo lands in the app the moment the job is finished." },
 ];
 
 const faqGroups = [
@@ -53,16 +55,7 @@ export default function HomePage() {
       <ScrollReveal />
       <a className={styles.skip} href="#main">Skip to content</a>
       <header className={styles.header}>
-        <nav className={styles.nav} aria-label="Main navigation">
-          <Brand />
-          <div className={styles.navLinks}>
-            <a href="#demo" className={styles.howLink}>Try the app</a>
-            <a href="#faq" className={styles.howLink}>Help</a>
-            <Link href="/signup?role=operator" className={styles.operatorLink}>Earn with SNOWD <ArrowUpRight size={14} aria-hidden="true" /></Link>
-            <Link href="/login">Log in</Link>
-            <Link href="/signup?role=client" className={styles.navSignup}>Sign up <ArrowRight size={15} aria-hidden="true" /></Link>
-          </div>
-        </nav>
+        <LandingNav brand={<Brand />} />
       </header>
       <main id="main">
         <LandingHero />
@@ -70,9 +63,9 @@ export default function HomePage() {
         <section className={styles.how} aria-labelledby="how-title">
           <h2 id="how-title" data-reveal>Snow cleared.<br /><span>Without lifting a shovel.</span></h2>
           <ol className={styles.steps}>
-            {steps.map(({ icon: Icon, title, text }, index) => (
+            {steps.map(({ visual: Visual, title, text }, index) => (
               <li key={title} data-reveal style={{ transitionDelay: `${index * 120}ms` }}>
-                <span className={styles.stepNumber}><Icon size={22} aria-hidden="true" /></span>
+                <Visual />
                 <div><small>0{index + 1}</small><h3>{title}</h3><p>{text}</p></div>
               </li>
             ))}

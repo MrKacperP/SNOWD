@@ -11,6 +11,7 @@ import { desktopNavigation } from "@/lib/appNavigation";
 import UserAvatar from "@/components/UserAvatar";
 import { useAuth } from "@/context/AuthContext";
 import { useWeather } from "@/context/WeatherContext";
+import SidebarWeather from "@/components/dashboard/SidebarWeather";
 import { useDialogFocus } from "@/hooks/useDialogFocus";
 import { db } from "@/lib/firebase";
 import { doc, updateDoc } from "firebase/firestore";
@@ -106,16 +107,9 @@ export default function Navbar() {
           <span className="text-xl font-headline font-bold leading-none text-[var(--ink)]">snowd</span>
         </Link>
 
-        {weather ? (
-          <div className="mt-4 flex items-center gap-2 px-3 text-sm" aria-label={`Weather: ${weather.temp}°C, ${weather.condition}`}>
-            <span aria-hidden="true">{weather.icon}</span>
-            <span className="font-bold text-[var(--text-primary)]">{weather.temp}°C</span>
-            <span className="text-[var(--text-muted)]">{weather.condition}</span>
-          </div>
-        ) : null}
+        {weather ? <div className="mt-4"><SidebarWeather weather={weather} /></div> : null}
 
-        <div className="flex flex-1 flex-col justify-center py-6">
-        <nav aria-label="Primary navigation" className="desktop-navigation grid gap-2">
+        <nav aria-label="Primary navigation" className="desktop-navigation mt-4 grid gap-1">
           {navItems.map(({ href, label, icon: Icon }) => {
             const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(`${href}/`));
             const count = href.includes("messages") ? unreadCount : href.includes("jobs") ? pendingJobCount : 0;
@@ -126,14 +120,13 @@ export default function Navbar() {
             </IconSwap></Link>;
           })}
         </nav>
-        </div>
 
         <button
           type="button"
           aria-haspopup="dialog"
           aria-expanded={centerOpen}
           onClick={() => { setProfileMenuOpen(false); setCenterOpen(!centerOpen); }}
-          className="notif-trigger mt-4"
+          className="notif-trigger mt-4 shrink-0"
           data-unread={unreadNotifications > 0}
         ><IconSwap icon={<Bell className="h-4 w-4" />}>
           <span className="notif-trigger-icon"><Bell className="h-4 w-4" aria-hidden="true" /></span>
@@ -141,7 +134,7 @@ export default function Navbar() {
           <UnreadBadge count={unreadNotifications} label={`${unreadNotifications} unread notifications`} />
         </IconSwap></button>
 
-        <div className="joined-menu relative mt-4 shrink-0" ref={menuRef}>
+        <div className="joined-menu relative mt-3 shrink-0" ref={menuRef}>
           <button
             data-tour="profile-menu"
             aria-expanded={profileMenuOpen}

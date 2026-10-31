@@ -1,0 +1,99 @@
+/* The scene fills the whole card; props travel across it behind the copy. */
+.card.card.card { position:relative; display:block; overflow:hidden; isolation:isolate; }
+.copy { position:relative; z-index:2; display:grid; justify-items:start; max-width:60%; gap:6px; padding-bottom:104px; text-align:left; }
+.copy > strong { font-variant-numeric:tabular-nums; }
+.copy > small { line-height:1.45; color:var(--text-secondary); }
+.shuffle { justify-self:start; min-height:36px; padding:0; border:0; background:none; color:var(--text-secondary); font-size:13px; font-weight:700; text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
+.shuffle:hover { color:var(--text-primary); }
+
+.stage { position:absolute; inset:0; z-index:1; pointer-events:none; }
+.stage > span { position:absolute; display:block; }
+.stage svg { display:block; width:100%; height:auto; overflow:visible; }
+.ground { left:0; right:0; bottom:0; height:16px; border-radius:60% 60% 0 0 / 16px 16px 0 0; background:linear-gradient(#f2f6fb, #e7eef7); }
+.flake { top:-14px; width:10px; opacity:0; animation:flakeFall 8s linear infinite; }
+
+/* Sheep: hop into the barn, a puff of wool escapes, hop back out shorn. */
+.barn { right:4%; bottom:8px; width:96px; }
+.woolly { left:2%; bottom:12px; width:64px; animation:woollyGo 8s linear infinite; }
+.shorn { left:calc(96% - 76px); bottom:12px; width:56px; opacity:0; animation:shornGo 8s linear infinite; }
+.shorn svg { transform:scaleX(-1); }
+.hop { display:block; animation:hop .45s ease-in-out infinite alternate; }
+.wool { right:calc(4% + 24px); bottom:82px; width:48px; opacity:0; animation:woolFloat 8s ease-out infinite; }
+
+/* Cocoa: steam rises while marshmallows bounce out and across the floor. */
+.mug { right:6%; bottom:8px; width:84px; transform-origin:bottom center; animation:wobble 3s ease-in-out infinite; }
+.steam { right:calc(6% + 30px); bottom:76px; width:16px; opacity:0; animation:steam 2.2s ease-out infinite; }
+.mallow { left:calc(94% - 58px); bottom:60px; width:22px; opacity:0; animation:mallowGo 4.2s linear infinite; }
+.bounce { display:block; animation:mallowBounce 4.2s ease-in-out infinite; }
+
+/* Snow angel: flap, scoot over, flap again, leaving angels behind. */
+.imprint { bottom:2px; width:84px; opacity:0; }
+.imprintOne { left:4%; animation:imprintOne 9s linear infinite; }
+.imprintTwo { left:38%; animation:imprintTwo 9s linear infinite; }
+.kid { left:4%; bottom:2px; width:84px; animation:kidGo 9s ease-in-out infinite; }
+.arms { transform-box:view-box; transform-origin:50px 42px; animation:arms .6s ease-in-out infinite alternate; }
+.legs { transform-box:view-box; transform-origin:50px 64px; animation:legs .6s ease-in-out infinite alternate; }
+
+/* Nap: the cat breathes, Zs drift off, a ball of yarn rolls up and gives up. */
+.cat { right:5%; bottom:4px; width:124px; }
+.breathe { transform-box:fill-box; transform-origin:bottom; animation:breathe 2.6s ease-in-out infinite; }
+.z { right:calc(5% + 92px); bottom:58px; width:16px; opacity:0; animation:zFloat 3.6s ease-out infinite; }
+.yarn { left:-8%; bottom:8px; width:28px; animation:yarnGo 6s ease-in-out infinite; }
+.roll { display:block; animation:yarnRoll 6s ease-in-out infinite; }
+
+/* Snowman: three balls roll in, stack up, and the hat drops on. */
+.ball { bottom:8px; }
+.spin { display:block; }
+.base { left:-70px; width:64px; animation:baseGo 9s ease-in-out infinite; }
+.base .spin { animation:spinBase 9s ease-in-out infinite; }
+.middle { left:-60px; width:46px; animation:middleGo 9s ease-in-out infinite; }
+.middle .spin { animation:spinMiddle 9s ease-in-out infinite; }
+.head { left:-50px; width:34px; animation:headGo 9s ease-in-out infinite; }
+.head .spin { animation:spinHead 9s ease-in-out infinite; }
+.face { position:absolute; inset:0; opacity:0; animation:face 9s linear infinite; }
+.hat { left:calc(92% - 51px); bottom:200px; width:38px; opacity:0; animation:hatDrop 9s ease-in infinite; }
+
+/* Pancake: one flip in the pan, then one flies across onto the plate. */
+.plate { left:4%; bottom:8px; width:96px; }
+.stacked { left:calc(4% + 19px); bottom:16px; width:58px; }
+.pan { right:5%; bottom:10px; width:124px; }
+.cake { left:calc(95% - 110px); bottom:34px; width:58px; animation:cakeGo 6s linear infinite; }
+.flip { display:block; animation:cakeFlip 6s ease-in-out infinite; }
+
+@keyframes flakeFall { 0% { opacity:0; transform:translate(0,0); } 10% { opacity:.7; } 50% { transform:translate(14px,120px); } 90% { opacity:.5; } 100% { opacity:0; transform:translate(-6px,260px); } }
+@keyframes hop { from { transform:translateY(0); } to { transform:translateY(-14px); } }
+@keyframes woollyGo { 0% { left:2%; opacity:0; transform:scale(1); } 4% { opacity:1; } 40% { left:calc(96% - 80px); opacity:1; transform:scale(1); } 46% { left:calc(96% - 76px); opacity:0; transform:scale(.6); } 100% { left:calc(96% - 76px); opacity:0; } }
+@keyframes shornGo { 0%,54% { left:calc(96% - 76px); opacity:0; transform:scale(.6); } 60% { opacity:1; transform:scale(1); } 94% { left:2%; opacity:1; } 100% { left:2%; opacity:0; } }
+@keyframes woolFloat { 0%,46% { opacity:0; transform:translate(0,0) scale(.4); } 52% { opacity:1; transform:translate(0,-10px) scale(1); } 90% { opacity:.9; transform:translate(-110px,-60px) scale(1.15) rotate(-12deg); } 100% { opacity:0; transform:translate(-130px,-66px) scale(1.2); } }
+@keyframes wobble { 0%,100% { transform:rotate(0); } 25% { transform:rotate(-3deg); } 75% { transform:rotate(3deg); } }
+@keyframes steam { 0% { opacity:0; transform:translateY(8px) scaleY(.6); } 40% { opacity:.9; } 100% { opacity:0; transform:translateY(-36px) scaleY(1.1); } }
+@keyframes mallowGo { 0% { left:calc(94% - 58px); opacity:0; } 5%,88% { opacity:1; } 100% { left:4%; opacity:0; } }
+@keyframes mallowBounce { 0% { transform:translateY(0) rotate(0); } 14% { transform:translateY(-60px) rotate(120deg); } 34% { transform:translateY(50px) rotate(260deg); } 48% { transform:translateY(20px) rotate(340deg); } 60% { transform:translateY(50px) rotate(420deg); } 70% { transform:translateY(36px) rotate(470deg); } 80%,100% { transform:translateY(50px) rotate(540deg); } }
+@keyframes imprintOne { 0%,28% { opacity:0; } 32%,94% { opacity:1; } 100% { opacity:0; } }
+@keyframes imprintTwo { 0%,61% { opacity:0; } 65%,94% { opacity:1; } 100% { opacity:0; } }
+@keyframes kidGo { 0% { left:4%; opacity:0; } 3% { opacity:1; } 28% { left:4%; } 34%,61% { left:38%; } 67% { left:calc(96% - 84px); } 94% { left:calc(96% - 84px); opacity:1; } 100% { left:calc(96% - 84px); opacity:0; } }
+@keyframes arms { from { transform:scaleY(1); } to { transform:scaleY(-.7); } }
+@keyframes legs { from { transform:scaleX(1); } to { transform:scaleX(1.7); } }
+@keyframes breathe { 50% { transform:scaleY(1.06); } }
+@keyframes zFloat { 0% { opacity:0; transform:translate(0,0) scale(.6); } 20% { opacity:1; } 100% { opacity:0; transform:translate(-70px,-90px) scale(1.3) rotate(-15deg); } }
+@keyframes yarnGo { 0% { left:-8%; opacity:1; } 45% { left:calc(95% - 160px); } 55% { left:calc(95% - 190px); } 62%,90% { left:calc(95% - 172px); opacity:1; } 100% { left:calc(95% - 172px); opacity:0; } }
+@keyframes yarnRoll { 0% { transform:rotate(0); } 45% { transform:rotate(900deg); } 55% { transform:rotate(800deg); } 62%,100% { transform:rotate(840deg); } }
+@keyframes baseGo { 0% { left:-70px; opacity:1; } 22%,92% { left:calc(92% - 64px); opacity:1; } 100% { left:calc(92% - 64px); opacity:0; } }
+@keyframes spinBase { 0% { transform:rotate(0); } 22%,100% { transform:rotate(720deg); } }
+@keyframes middleGo { 0%,18% { left:-60px; bottom:8px; opacity:1; } 40% { left:calc(92% - 55px); bottom:8px; } 45% { bottom:92px; } 50%,92% { left:calc(92% - 55px); bottom:64px; opacity:1; } 100% { left:calc(92% - 55px); bottom:64px; opacity:0; } }
+@keyframes spinMiddle { 0%,18% { transform:rotate(0); } 40%,100% { transform:rotate(720deg); } }
+@keyframes headGo { 0%,38% { left:-50px; bottom:8px; opacity:1; } 58% { left:calc(92% - 49px); bottom:8px; } 63% { bottom:132px; } 67%,92% { left:calc(92% - 49px); bottom:104px; opacity:1; } 100% { left:calc(92% - 49px); bottom:104px; opacity:0; } }
+@keyframes spinHead { 0%,38% { transform:rotate(0); } 58%,100% { transform:rotate(720deg); } }
+@keyframes face { 0%,67% { opacity:0; } 71%,92% { opacity:1; } 100% { opacity:0; } }
+@keyframes hatDrop { 0%,68% { bottom:200px; opacity:0; } 70% { opacity:1; } 76% { bottom:134px; } 79% { bottom:142px; } 82%,92% { bottom:134px; opacity:1; } 100% { bottom:134px; opacity:0; } }
+@keyframes cakeGo { 0%,40% { left:calc(95% - 110px); opacity:1; } 80%,92% { left:calc(4% + 19px); opacity:1; } 100% { left:calc(4% + 19px); opacity:0; } }
+@keyframes cakeFlip { 0% { transform:translateY(0) rotate(0); } 12% { transform:translateY(-80px) rotate(180deg); } 24%,40% { transform:translateY(0) rotate(360deg); } 58% { transform:translateY(-110px) rotate(560deg); } 80%,100% { transform:translateY(2px) rotate(720deg); } }
+
+@media (max-width:560px) {
+  .copy { max-width:none; padding-bottom:150px; }
+  .stage { inset:auto 0 0 auto; width:125%; height:125%; transform:scale(.8); transform-origin:bottom right; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stage * { animation:none !important; }
+  .flake, .wool, .steam, .mallow, .z, .shorn, .imprint, .face, .hat { opacity:0; }
+}

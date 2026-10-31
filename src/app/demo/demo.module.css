@@ -1,0 +1,3 @@
+.loading { min-height: 100vh; background: var(--bg-primary); }
+/* Address changes need a real account, so the demo leaves them out. */
+.demo :global([class*="mapAction"]) { display: none; }

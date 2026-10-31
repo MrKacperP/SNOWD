@@ -1,0 +1,19 @@
+/* Weather mark motion — slow and small so it never pulls focus. */
+.weather { display:block; overflow:visible; }
+.sunRays { transform-box:view-box; transform-origin:32px 32px; animation:spin 24s linear infinite; }
+.twinkle { animation:twinkle 2.4s ease-in-out infinite; }
+.drift { animation:drift 6s ease-in-out infinite; }
+.driftSlow { animation:drift 9s ease-in-out infinite reverse; }
+.fogLine { animation:fog 4s ease-in-out infinite; }
+.drop { animation:drop 1s linear infinite; }
+.flake { animation:flake 2.4s ease-in infinite; }
+.bolt { animation:bolt 3s steps(1) infinite; }
+.delay { animation-delay:1.2s; }
+@keyframes spin { to { transform:rotate(360deg); } }
+@keyframes twinkle { 50% { opacity:.25; } }
+@keyframes drift { 50% { transform:translateX(3px); } }
+@keyframes fog { 50% { transform:translateX(-5px); opacity:.55; } }
+@keyframes drop { 0% { transform:translateY(-4px); opacity:0; } 30% { opacity:1; } 100% { transform:translateY(10px); opacity:0; } }
+@keyframes flake { 0% { transform:translate(0,-6px); opacity:0; } 25% { opacity:1; } 60% { transform:translate(2px,5px); } 100% { transform:translate(-1px,14px); opacity:0; } }
+@keyframes bolt { 0%,100% { opacity:1; } 8% { opacity:.2; } 12% { opacity:1; } 16% { opacity:.3; } }
+@media (prefers-reduced-motion: reduce) { .weather * { animation:none !important; } }

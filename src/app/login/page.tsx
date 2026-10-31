@@ -9,6 +9,8 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { sendPasswordResetEmail, setPersistence, browserLocalPersistence, browserSessionPersistence } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import AuthPageShell from "@/components/AuthPageShell";
+import AuthStepsAside from "@/components/AuthStepsAside";
+import LoadingScreen from "@/components/LoadingScreen";
 import { ArrowRight, Eye, EyeOff } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -133,7 +135,7 @@ function LoginPageInner() {
   if (!authLoading && user && profile?.onboardingComplete) return null;
 
   return (
-    <AuthPageShell>
+    <AuthPageShell aside={<AuthStepsAside />}>
       <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="w-full">
         <div className="login-card rounded-[1.35rem] border-[3px] border-[#061321] bg-white p-4 shadow-[5px_5px_0_#061321] sm:p-5 lg:p-6">
           <h1 className="login-title mt-3 font-headline text-[clamp(2rem,7vw,3rem)] font-black lowercase leading-none">
@@ -227,7 +229,7 @@ function LoginPageInner() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-dvh bg-[var(--bg-primary)]" />}>
+    <Suspense fallback={<LoadingScreen />}>
       <LoginPageInner />
     </Suspense>
   );

@@ -46,7 +46,13 @@
     ".next-notif-preview/types/**/*.ts",
     ".next-notif-preview/dev/types/**/*.ts",
     ".next-build-check/types/**/*.ts",
-    ".next-build-check/dev/types/**/*.ts"
+    ".next-build-check/dev/types/**/*.ts",
+    ".next-verify/types/**/*.ts",
+    ".next-verify/dev/types/**/*.ts",
+    ".next-login/types/**/*.ts",
+    ".next-login/dev/types/**/*.ts",
+    ".next-landing/types/**/*.ts",
+    ".next-landing/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

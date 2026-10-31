@@ -4,33 +4,25 @@ import { useCancellationNotices } from "@/hooks/useCancellationNotices";
 import DashboardMap from "./DashboardMap";
 import styles from "./home.module.css";
 import { useAuth } from "@/context/AuthContext";
+import { useWorkOrders } from "@/hooks/useWorkOrders";
 import { db } from "@/lib/firebase";
 import { Job,OperatorProfile,Transaction } from "@/lib/types";
 import { jobDisplayPrice } from "@/lib/marketplacePricing";
 import { transactionDisplayAmount } from "@/lib/marketplacePricing";
 import { dateMillis, orderActionNeeded, propertySizeLabel, scheduleText } from "@/lib/workOrders";
 import { collection,onSnapshot,query,where } from "firebase/firestore";
+import { arrivalLabel } from "@/lib/clientValue";
+import { User } from "lucide-react";
 import Link from "next/link";
 import { useEffect,useRef,useState } from "react";
 
 export default function OperatorDashboard() {
   const { profile } = useAuth();
   const operator = profile as OperatorProfile | null;
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
+  const { jobs, names: clientNames, loading, error } = useWorkOrders();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [earningsLoading, setEarningsLoading] = useState(true);
   const [earningsError, setEarningsError] = useState(false);
-
-  useEffect(() => {
-    if (!profile?.uid) return;
-    return onSnapshot(query(collection(db, "jobs"), where("operatorId", "==", profile.uid)), snapshot => {
-      setJobs(snapshot.docs.map(document => ({ ...document.data(), id: document.id } as Job)));
-      setLoading(false);
-      setLoadError(false);
-    }, () => { setLoadError(true); setLoading(false); });
-  }, [profile?.uid]);
 
   useEffect(() => {
     if (!profile?.uid) return;
@@ -41,11 +33,11 @@ export default function OperatorDashboard() {
     }, () => { setEarningsLoading(false); setEarningsError(true); });
   }, [profile?.uid]);
 
-  return <OperatorHomeView operator={operator} jobs={jobs} loading={loading} loadError={loadError} transactions={transactions} earningsLoading={earningsLoading} earningsError={earningsError} />;
+  return <OperatorHomeView operator={operator} jobs={jobs} clientNames={clientNames} loading={loading} loadError={!!error} transactions={transactions} earningsLoading={earningsLoading} earningsError={earningsError} />;
 }
 
-export function OperatorHomeView({ operator, jobs, loading, loadError, transactions, earningsLoading, earningsError }: {
-  operator: OperatorProfile | null; jobs: Job[]; loading: boolean; loadError: boolean;
+export function OperatorHomeView({ operator, jobs, clientNames = {}, loading, loadError, transactions, earningsLoading, earningsError }: {
+  operator: OperatorProfile | null; jobs: Job[]; clientNames?: Record<string, string>; loading: boolean; loadError: boolean;
   transactions: Transaction[]; earningsLoading: boolean; earningsError: boolean;
 }) {
   const [selectedRouteJobId, setSelectedRouteJobId] = useState<string | null>(null);
@@ -86,7 +78,7 @@ export function OperatorHomeView({ operator, jobs, loading, loadError, transacti
         {loadError ? <p role="alert">Could not load work orders. <Link href="/dashboard/jobs">Try again</Link></p> : loading ? <p role="status">Loading work orders…</p> : <div className="operator-work-list">
           {[...cancellations, ...pending.slice(0, 3), ...active.slice(0, 3)].map(job => <article key={job.id} className={`operator-work-row ${job.status === "pending" ? "operator-work-row--new" : ""}`}>
             <Link href={`/dashboard/jobs/${job.id}`} className="operator-work-row-link" aria-label={`Open work order: ${serviceSummary(job)}`} />
-            <div className="operator-work-main"><WorkOrderTimeline job={job} /><p className="operator-work-status">{job.status === "cancelled" ? job.declinedBy ? "Request declined" : "Visit cancelled" : job.status === "pending" ? "New request" : job.status === "in-progress" ? "Work in progress" : job.status === "en-route" ? "On the way" : "Visit confirmed"}</p><h3>{serviceSummary(job)}</h3><p>{job.address ? <button type="button" className="operator-work-address" aria-label={`Show route to ${job.address} on the dashboard map`} aria-pressed={selectedRouteJobId === job.id} onClick={() => { setSelectedRouteJobId(job.id); mapRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); }}>{job.address} <span aria-hidden="true">↗</span></button> : "Address to be confirmed"}</p><p>{job.status === "en-route" && job.eta ? `Due in about ${job.eta} min` : job.scheduleMode === "asap" || job.scheduledTime === "ASAP" ? scheduleText(job) : `Due ${scheduleText(job)}`}</p></div>
+            <div className="operator-work-main"><WorkOrderTimeline job={job} /><p className="operator-work-status">{job.status === "cancelled" ? job.declinedBy ? "Request declined" : "Visit cancelled" : job.status === "pending" ? "New request" : job.status === "in-progress" ? "Work in progress" : job.status === "en-route" ? "On the way" : "Visit confirmed"}</p><h3>{serviceSummary(job)}</h3><p className="operator-work-client"><User size={14} aria-hidden="true" />{clientNames[job.clientId] || "Homeowner"}</p><p>{job.address ? <button type="button" className="operator-work-address" aria-label={`Show route to ${job.address} on the dashboard map`} aria-pressed={selectedRouteJobId === job.id} onClick={() => { setSelectedRouteJobId(job.id); mapRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); }}>{job.address} <span aria-hidden="true">↗</span></button> : "Address to be confirmed"}</p>{job.status === "en-route" ? <p className="eta-live"><span className="eta-live-badge"><span aria-hidden="true" />Live</span>{arrivalLabel(job)}</p> : <p>{job.scheduleMode === "asap" || job.scheduledTime === "ASAP" ? scheduleText(job) : `Due ${scheduleText(job)}`}</p>}</div>
             <div className="operator-work-side"><strong>${jobDisplayPrice(job, true).toFixed(2)} <small>CAD</small></strong><span>{job.paymentMethod === "cash" ? job.paymentStatus === "paid" ? "Cash paid" : "Cash, payment pending" : job.paymentStatus === "paid" ? "Paid by card" : job.paymentStatus === "held" ? "Card authorized" : "Card payment pending"}</span></div>
           </article>)}
           {!pending.length && !nextJob && !cancellations.length && <div className="client-orders-empty"><div><h3>No jobs requested</h3><p>Your queue is clear.</p></div></div>}

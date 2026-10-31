@@ -8,6 +8,7 @@ import { googleSignInError } from "@/lib/authErrors";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import AuthPageShell from "@/components/AuthPageShell";
+import AuthStepsAside from "@/components/AuthStepsAside";
 import { ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -58,7 +59,7 @@ function SignUpPageInner() {
   if (!authLoading && user && profile?.onboardingComplete) return null;
 
   return (
-    <AuthPageShell>
+    <AuthPageShell aside={<AuthStepsAside />}>
       <motion.div
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}

@@ -1212,3 +1212,69 @@ html { scroll-padding-top: 6rem; }
 .notif-trigger[data-unread="true"] { border-color: var(--border-color); background: var(--card); }
 .notif-trigger[data-unread="true"] .notif-trigger-icon { background: var(--ink); }
 * { -webkit-tap-highlight-color: transparent; }
+
+/* Sidebar weather card */
+.sidebar-weather { display:grid; grid-template-columns:auto 1fr; align-items:center; gap:4px 12px; padding:12px 14px; border:1px solid var(--border-color); border-radius:16px; background:linear-gradient(160deg, #eef4ff, var(--card) 75%); }
+.sidebar-weather-art { width:56px; height:56px; }
+.sidebar-weather strong { display:block; font-size:26px; font-weight:700; line-height:1.1; letter-spacing:-.02em; color:var(--text-primary); font-variant-numeric:tabular-nums; }
+.sidebar-weather strong + span { display:block; font-size:13px; color:var(--text-secondary); }
+.sidebar-weather-snow { grid-column:1 / -1; margin:6px 0 0; padding-top:8px; border-top:1px solid var(--border-color); font-size:12px; font-weight:600; color:var(--text-secondary); }
+.sidebar-weather-snow[data-today="true"] { color:var(--accent); }
+
+/* Auth snowstorm: wind-blown snow on a deep winter backdrop, with the form
+   and an info panel floating on one solid card. */
+.auth-page, .snowd-glass .auth-page { position: relative; isolation: isolate; background: #050b16; }
+.auth-snowstorm { position: fixed; inset: 0; z-index: -1; width: 100vw; height: 100dvh; pointer-events: none; }
+.auth-page .auth-frame, .snowd-glass .auth-page .auth-frame { border: 1px solid rgb(255 255 255 / 70%); border-radius: 28px; background: rgb(251 252 250 / 96%); box-shadow: 0 30px 80px rgb(0 8 18 / 45%); }
+.auth-frame-split { display: grid; grid-template-columns: minmax(0, 1fr); overflow: hidden; }
+.auth-aside { display: none; }
+@media (min-width: 900px) {
+  .auth-frame-split { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); }
+  .auth-aside { display: flex; padding: 12px; }
+}
+.auth-aside-inner { display: flex; flex-direction: column; justify-content: center; gap: 22px; width: 100%; padding: 36px 32px; border-radius: 20px; background: #eef4f8; color: #112b3b; }
+.auth-aside-kicker { font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: #5b7383; }
+.auth-aside-title { margin-top: -12px; font-family: "Instrument Sans", sans-serif; font-size: 28px; font-weight: 600; line-height: 1.15; }
+.auth-aside-steps { display: grid; gap: 12px; }
+.auth-aside-steps li { display: grid; gap: 10px; padding: 10px 10px 12px; border-radius: 16px; background: #fff; box-shadow: 0 1px 2px rgb(17 43 59 / 6%); }
+.auth-aside-step-title { font-size: 15px; font-weight: 600; }
+.auth-aside-step-title span { margin-right: 4px; color: var(--accent-sun); font-variant-numeric: tabular-nums; }
+.auth-aside-foot { font-size: 13px; color: #526873; }
+.auth-aside-foot a { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; font-weight: 600; color: #112b3b; text-decoration: underline; text-decoration-color: var(--accent-sun); text-decoration-thickness: 2px; text-underline-offset: 4px; }
+@media (max-width: 767px) {
+  .auth-page .auth-frame, .snowd-glass .auth-page .auth-frame { border-radius: 22px; background: rgb(251 252 250 / 97%); }
+}
+
+/* The auth card always fits the viewport; only a very short screen scrolls
+   inside the card rather than the page. */
+.auth-page .auth-frame { max-height: 100%; overflow-y: auto; overscroll-behavior: contain; }
+.auth-page .auth-form-section .auth-form-content { padding-block: 12px; }
+
+/* Shared loading screen: the night snowstorm with the wordmark in the middle. */
+.snow-loading { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; overflow: hidden; background: #050b16; color: #f4f8ff; }
+.snow-loading-embedded { position: relative; inset: auto; z-index: auto; min-height: 16rem; flex: 1; align-self: stretch; width: 100%; border-radius: 24px; }
+.snow-loading-storm { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.snow-loading-mark { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 24px; text-align: center; animation: snow-loading-in 600ms ease-out both; }
+.snow-loading-bar { position: relative; width: 120px; height: 3px; margin-top: 10px; overflow: hidden; border-radius: 3px; background: rgb(244 248 255 / 15%); }
+.snow-loading-bar span { position: absolute; inset: 0 auto 0 0; width: 40%; border-radius: inherit; background: var(--accent-sun); animation: snow-loading-bar 1.3s ease-in-out infinite; }
+.snow-loading-label { font-size: 14px; font-weight: 500; color: rgb(244 248 255 / 70%); }
+@keyframes snow-loading-in { from { opacity: 0; transform: translateY(8px); } }
+@keyframes snow-loading-bar { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+@media (prefers-reduced-motion: reduce) {
+  .snow-loading-mark, .snow-loading-bar span { animation: none; }
+}
+/* The steps panel takes its height from the sign-in form, and the animated
+   stages shrink to share it, so the card never grows past the screen. */
+@media (min-width: 900px) {
+  .auth-aside { contain: size; }
+  .auth-aside-inner { gap: 14px; padding: 24px; overflow: hidden; }
+  .auth-aside-title { margin-top: -8px; }
+  .auth-aside-steps { flex: 1; min-height: 0; grid-auto-rows: minmax(0, 1fr); gap: 10px; }
+  .auth-aside-steps li { min-height: 0; grid-template-rows: minmax(0, 1fr) auto; gap: 8px; padding: 8px 8px 10px; }
+  .auth-aside-steps li > div:first-child { height: 100%; min-height: 0; }
+  .auth-aside-step-title { padding-inline: 4px; }
+  .auth-aside-foot a { min-height: 32px; }
+  /* The step title already names it, so the tracker's own heading can go. */
+  .auth-aside-steps li:nth-child(2) > div:first-child { padding-block: 8px; }
+  .auth-aside-steps li:nth-child(2) > div:first-child > span:first-child { display: none; }
+}

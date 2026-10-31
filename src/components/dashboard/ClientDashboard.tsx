@@ -5,7 +5,7 @@ import IconSwap from "@/components/ui/IconSwap";
 import DashboardMap from "./DashboardMap";
 
 
-import { estimatedTimeSaved, timeSavedLabel } from "@/lib/clientValue";
+import { estimatedTimeSaved } from "@/lib/clientValue";
 import styles from "./home.module.css";
 import { BookingAction } from "./HomeActions";
 import PaymentSummary from "@/components/work-orders/PaymentSummary";
@@ -16,7 +16,8 @@ import { useAuth } from "@/context/AuthContext";
 import { useWorkOrders } from "@/hooks/useWorkOrders";
 import { dateMillis, isAsap, scheduleText, orderActionNeeded } from "@/lib/workOrders";
 import { workOrderPresentation } from "@/lib/workOrderPresentation";
-import { ClientProfile,Job } from "@/lib/types";
+import { ClientProfile,Job,OperatorProfile } from "@/lib/types";
+import TimeBack from "./TimeBack";
 import { ArrowRight, MapPin, User } from "lucide-react";
 import Link from "next/link";
 
@@ -26,7 +27,7 @@ export default function ClientDashboard() {
   const { profile } = useAuth();
   const clientProfile = profile as ClientProfile;
   const serviceLocation = useServiceLocation()?.location || clientProfile;
-  const { jobs, names: operatorNames, loading, error } = useWorkOrders();
+  const { jobs, names: operatorNames, people: operators, loading, error } = useWorkOrders();
   const cancellations = useCancellationNotices(jobs, profile?.uid);
   const activeJobs = [...cancellations, ...jobs.filter(job => !cancellations.includes(job) && (["pending", "accepted", "en-route", "in-progress"].includes(job.status) || !!orderActionNeeded(job, profile?.uid || "")))]
     .sort((a, b) => {
@@ -37,16 +38,19 @@ export default function ClientDashboard() {
   const locationLabel =
     [serviceLocation?.city, serviceLocation?.province].filter(Boolean).join(", ") || "Your service area";
 
-  return <ClientHomeView locationLabel={locationLabel} activeJobs={activeJobs} profile={clientProfile} operatorNames={operatorNames} loading={loading} loadError={loadError} savedMinutes={estimatedTimeSaved(jobs)} />;
+  return <ClientHomeView locationLabel={locationLabel} activeJobs={activeJobs} profile={clientProfile} operatorNames={operatorNames} operators={operators} loading={loading} loadError={loadError} savedMinutes={estimatedTimeSaved(jobs)} />;
 }
 
-export function ClientHomeView({ locationLabel, activeJobs, profile, operatorNames, loading, loadError, savedMinutes = 0 }: {
+export function ClientHomeView({ locationLabel, activeJobs, profile, operatorNames, operators = {}, loading, loadError, savedMinutes = 0 }: {
   locationLabel: string; activeJobs: Job[]; profile?: ClientProfile | null;
-  operatorNames: Record<string, string>; loading: boolean; loadError: boolean; savedMinutes?: number;
+  operatorNames: Record<string, string>; operators?: Record<string, OperatorProfile>; loading: boolean; loadError: boolean; savedMinutes?: number;
 }) {
   const nextJob = activeJobs[0];
   const arrival = useArrivalLabel(nextJob);
   const next = nextJob ? workOrderPresentation(nextJob, nextJob.clientId) : null;
+  const operator = nextJob ? operators[nextJob.operatorId] : undefined;
+  const business = operator?.businessName?.trim();
+  const person = operator?.displayName?.trim();
   return (
     <div className={`app-page client-home dashboard-home ${styles.home} text-[var(--text-primary)]`}><header className="dashboard-overview"><div><h1>Your snow day</h1></div></header>
       <DashboardMap profile={profile || null} job={activeJobs.find(job => ["en-route", "in-progress"].includes(job.status)) || activeJobs.find(job => job.status === "accepted")} role="client" />
@@ -56,8 +60,8 @@ export function ClientHomeView({ locationLabel, activeJobs, profile, operatorNam
         <h2>{next.title}</h2>
         {next.description && <p>{next.description}</p>}
         <div className="visit-summary mt-5 grid grid-cols-2 gap-3 rounded-xl bg-white/75 p-4 sm:grid-cols-3">
-          <div><span className="text-xs text-[var(--text-muted)]">Your shoveler</span><strong className="mt-1 block">{operatorNames[nextJob.operatorId] || "Operator"}</strong></div>
-          <div className="col-span-2 sm:col-span-1"><span className="text-xs text-[var(--text-muted)]">When</span><strong className="mt-1 block">{nextJob.status === "cancelled" ? "Cancelled" : nextJob.status === "in-progress" ? "Clearing now" : nextJob.status === "en-route" ? arrival : isAsap(nextJob) ? "As soon as possible" : scheduleText(nextJob)}</strong></div>
+          <div><span className="text-xs text-[var(--text-muted)]">Your shoveler</span><strong className="mt-1 block">{business || person || operatorNames[nextJob.operatorId] || "Operator"}</strong>{business && person && business !== person && <span className="visit-person">{person}</span>}</div>
+          <div className="col-span-2 sm:col-span-1"><span className="text-xs text-[var(--text-muted)]">When</span>{nextJob.status === "en-route" ? <strong className="eta-live mt-1"><span className="eta-live-badge"><span aria-hidden="true" />Live</span>{arrival}</strong> : <strong className="mt-1 block">{nextJob.status === "cancelled" ? "Cancelled" : nextJob.status === "in-progress" ? "Clearing now" : isAsap(nextJob) ? "As soon as possible" : scheduleText(nextJob)}</strong>}</div>
           <PaymentSummary job={nextJob} />
         </div>
         <div className="mt-5 flex flex-wrap items-center gap-3">
@@ -98,7 +102,7 @@ export function ClientHomeView({ locationLabel, activeJobs, profile, operatorNam
       </section>}
 
       </div>
-      <section className="dashboard-earnings" aria-label="Estimated time saved"><span className="dashboard-earnings-content"><span>Time back for you</span><strong>{loading || loadError ? "—" : timeSavedLabel(savedMinutes)}</strong><small>{loading ? "Loading completed visits…" : loadError ? "Could not load time saved." : "Estimated from the service duration of completed visits"}</small></span></section>
+      <TimeBack minutes={savedMinutes} loading={loading} loadError={loadError} />
     </div>
   );
 }

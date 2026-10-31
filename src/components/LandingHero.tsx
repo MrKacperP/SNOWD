@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight, House, Pause, Play, Shovel } from "lucide-react";
+import { ArrowRight, ArrowUpRight, House, Shovel } from "lucide-react";
 import styles from "@/app/landing.module.css";
 
 const ROTATE_MS = 5000;
@@ -37,7 +37,6 @@ const slides = [
 export default function LandingHero() {
   const [active, setActive] = useState(0);
   const [shuffled, setShuffled] = useState(false);
-  const [paused, setPaused] = useState(false);
   const [hovering, setHovering] = useState(false);
   const slide = slides[active];
 
@@ -47,10 +46,10 @@ export default function LandingHero() {
   }, []);
 
   useEffect(() => {
-    if (paused || hovering) return;
+    if (hovering) return;
     const timer = window.setTimeout(() => show((active + 1) % slides.length), ROTATE_MS);
     return () => window.clearTimeout(timer);
-  }, [active, paused, hovering, show]);
+  }, [active, hovering, show]);
 
   return (
     <section className={styles.hero} aria-labelledby="hero-title" aria-roledescription="carousel" data-role={slide.role}>
@@ -60,15 +59,12 @@ export default function LandingHero() {
             {slides.map(({ tab, icon: Icon, role }, index) => (
               <button key={role} type="button" role="tab" aria-selected={index === active} aria-controls="hero-content" onClick={() => show(index)}>
                 <Icon size={18} aria-hidden="true" />{tab}
-                {index === active && !paused && <span key={`${active}-${hovering}`} className={styles.roleProgress} data-held={hovering} aria-hidden="true" />}
+                {index === active && <span key={`${active}-${hovering}`} className={styles.roleProgress} data-held={hovering} aria-hidden="true" />}
               </button>
             ))}
           </div>
-          <button type="button" className={styles.heroPause} onClick={() => setPaused(value => !value)} aria-label={paused ? "Resume automatic slides" : "Pause automatic slides"}>
-            {paused ? <Play size={15} aria-hidden="true" /> : <Pause size={15} aria-hidden="true" />}
-          </button>
         </div>
-        <div id="hero-content" role="tabpanel" aria-live={paused ? "polite" : "off"} aria-atomic="true">
+        <div id="hero-content" role="tabpanel" aria-live="off" aria-atomic="true">
           <h1 id="hero-title" key={`title-${active}`}>Snow day.<br /><span className={styles.heroAccent}>{slide.accent}</span></h1>
           <p key={`intro-${active}`} className={styles.intro}>{slide.intro}</p>
           <div className={styles.heroActions}>
