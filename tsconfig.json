@@ -52,7 +52,13 @@
     ".next-login/types/**/*.ts",
     ".next-login/dev/types/**/*.ts",
     ".next-landing/types/**/*.ts",
-    ".next-landing/dev/types/**/*.ts"
+    ".next-landing/dev/types/**/*.ts",
+    ".next-dashboard/types/**/*.ts",
+    ".next-dashboard/dev/types/**/*.ts",
+    ".next-workorder/types/**/*.ts",
+    ".next-workorder/dev/types/**/*.ts",
+    ".next-mobile-native/types/**/*.ts",
+    ".next-mobile-native/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

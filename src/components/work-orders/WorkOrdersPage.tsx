@@ -12,11 +12,21 @@ import styles from "./work-orders.module.css";
 import ui from "./order-list.module.css";
 import { useNotifications } from "@/context/NotificationContext";
 import { NewChip } from "@/components/ui/UnreadBadge";
+import { OperatorOrderList, estimateTrip, pointOf } from "@/components/dashboard/OperatorOrderCard";
+import { useOperatorPosition } from "@/components/dashboard/OperatorLocationTracker";
+import { useAuth } from "@/context/AuthContext";
 
 export default function WorkOrdersPage({ history = false, schedule = false }: { history?: boolean; schedule?: boolean }) {
   const data = useWorkOrders();
   const { jobs, names, people, uid, isOperator, loading, error } = data;
   const { unreadByJob } = useNotifications();
+  const { profile } = useAuth();
+  const { position } = useOperatorPosition();
+  const tripStart = pointOf(position?.lat, position?.lng) || pointOf(profile?.lat, profile?.lng);
+  const tripTo = (job: typeof jobs[number]) => {
+    const site = pointOf(job.clientLat, job.clientLng);
+    return tripStart && site ? { trip: estimateTrip(tripStart, site), estimated: true } : null;
+  };
   const [search, setSearch] = useState("");
   const [view, setView] = useState(history ? "history" : "current");
   const closed = (job: typeof jobs[number]) => ["completed", "cancelled"].includes(job.status);
@@ -43,7 +53,10 @@ export default function WorkOrdersPage({ history = false, schedule = false }: { 
         </div>
         <label className={ui.search}><Search size={17} aria-hidden="true" /><input aria-label="Search work orders" type="search" placeholder="Search orders" value={search} onChange={event => setSearch(event.target.value)} /></label>
       </div>
-      {loading ? <p className={ui.empty} role="status">Loading work orders…</p> : error ? <p className={ui.empty} role="alert">{error}</p> : visible.length ? <ul className={ui.list}>
+      {loading ? <p className={ui.empty} role="status">Loading work orders…</p> : error ? <p className={ui.empty} role="alert">{error}</p> : visible.length && isOperator && view === "current"
+        // Operators see live orders exactly as the dashboard shows them: timing, pay, trip and reply.
+        ? <OperatorOrderList orders={visible} uid={uid} names={names} tripTo={tripTo} label="Current work orders" />
+        : visible.length ? <ul className={ui.list}>
         {visible.map(job => {
           const personId = isOperator ? job.clientId : job.operatorId;
           const action = orderActionNeeded(job, uid);

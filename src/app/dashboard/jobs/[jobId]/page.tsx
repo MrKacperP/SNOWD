@@ -11,6 +11,7 @@ import { db } from "@/lib/firebase";
 import { ClientProfile, Job, OperatorProfile } from "@/lib/types";
 import { useAuth } from "@/context/AuthContext";
 import OrderCard from "@/components/work-orders/OrderCard";
+import OperatorWorkOrder from "@/components/work-orders/OperatorWorkOrder";
 import styles from "@/components/work-orders/work-orders.module.css";
 export default function WorkOrderPage() {
   const { jobId } = useParams<{ jobId: string }>();
@@ -58,6 +59,14 @@ export default function WorkOrderPage() {
       active = false;
     };
   }, [job, user]);
+  // Operators get the focused work order: map, one sheet, large reply or message buttons.
+  if (job && user?.uid === job.operatorId && !error) return (
+    <div className={styles.operatorDetail}>
+      <BackButton href="/dashboard/jobs" label="Back" />
+      <OperatorWorkOrder job={job} name={name === "Company / customer" ? "Homeowner" : name} person={person} />
+      {job.completionPhotoUrl && <a className="inline-flex min-h-11 items-center underline" href={job.completionPhotoUrl} target="_blank" rel="noreferrer">View completion photo</a>}
+    </div>
+  );
   return (
     <div className={`${styles.detailPage} ${styles.openWorkOrder}`}>
       <BackButton href="/dashboard/jobs" label="Back" />

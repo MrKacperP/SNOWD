@@ -391,6 +391,15 @@ export async function POST(request: NextRequest) {
       return { success: true, revision: update.revision, eta: body.action === "en-route" ? journey?.minutes : undefined, email: { uid: email.recipient, title: email.message, eventId: body.requestId } };
     });
     if (result.email) await sendWorkOrderEmail(result.email.uid, String(body.jobId), result.email.title, result.email.eventId).catch(error => console.error("Work order email failed", error));
+    // Replying to a request settles it, so its alerts leave the operator's notification center.
+    if (["accept", "decline"].includes(body.action)) {
+      const unread = await db.collection("notifications").where("uid", "==", uid).where("jobId", "==", body.jobId).where("read", "==", false).get().catch(() => null);
+      if (unread?.size) {
+        const batch = db.batch();
+        unread.docs.forEach(item => batch.update(item.ref, { read: true }));
+        await batch.commit().catch(error => console.error("Could not clear request notifications", error));
+      }
+    }
     const { email: _email, ...response } = result;
     return NextResponse.json(response);
   } catch (error) {

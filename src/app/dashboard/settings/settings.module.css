@@ -9,8 +9,8 @@
 .overview { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, .65fr); align-items: center; gap: 32px; padding: 26px 30px; background: var(--card); border: 1px solid var(--settings-line); border-radius: 16px; box-shadow: 0 2px 4px #18305203; }
 .identity { display: flex; align-items: center; gap: 17px; min-width: 0; }
 .identity > div:last-child { min-width: 0; }
-.avatar { width: 60px; height: 60px; flex: none; display: grid; place-items: center; border-radius: 18px; background: #edf2ff; border: 1px solid #dce5fa; color: #385b9a; font-size: 20px; font-weight: 650; overflow: hidden; }
-.avatar img { width: 100%; height: 100%; object-fit: cover; }
+.avatar { width: 60px; height: 60px; flex: none; display: grid; place-items: center; border-radius: 50%; background: #edf2ff; border: 1px solid #dce5fa; color: #385b9a; font-size: 20px; font-weight: 650; overflow: hidden; }
+.avatar img { width: 100%; height: 100%; object-fit: cover; object-position: center; }
 .identity h2 { margin-top: 4px; font-size: 20px; font-weight: 650; letter-spacing: -.025em; overflow-wrap: anywhere; }
 .identity p { color: var(--settings-muted); font-size: 16px; overflow-wrap: anywhere; }
 .visibility { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; color: var(--settings-muted); font-size: 16px; }

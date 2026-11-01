@@ -1,0 +1,81 @@
+/* Operator work orders: one calm card per order, or one shared card when there are several. */
+.list { display:grid; border:1px solid var(--border-color); border-radius:20px; background:var(--bg-card-solid); box-shadow:0 4px 18px #1734430a; overflow:hidden; }
+.listHead { display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding:16px 20px 4px; }
+.listHead h2 { font-size:15px; font-weight:700; color:var(--ink); }
+.listHead span { color:var(--accent); font-size:13px; font-weight:650; }
+
+.order { position:relative; display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:start; gap:10px 20px; padding:20px; transition:background-color .18s ease; animation:orderIn .35s cubic-bezier(.2,.8,.3,1) both; }
+.list[data-grouped] .order + .order { border-top:1px solid var(--border-color); }
+.order[data-mapped] { background:#f6f9fb; }
+.order[data-new] { background:#f6f8ff; box-shadow:inset 3px 0 0 var(--accent); }
+.order[data-new][data-mapped] { background:#eef2ff; }
+.order[data-cancelled] { opacity:.72; }
+.order > * { grid-column:1 / -1; }
+.order > .head { grid-column:1; }
+.order > .pay { grid-column:2; grid-row:1; }
+
+.overlay { position:absolute; inset:0; z-index:1; border-radius:inherit; }
+.overlay:focus-visible { outline:3px solid var(--accent); outline-offset:-3px; }
+
+/* Label sits inside the card, above the name. */
+.tag { display:inline-flex; align-items:center; gap:6px; margin-bottom:8px; padding:3px 10px; border-radius:999px; background:var(--bg-secondary); color:var(--text-secondary); font-size:12px; font-weight:700; letter-spacing:.01em; }
+.tag[data-tone="new"] { background:var(--accent); color:#fff; text-transform:uppercase; letter-spacing:.05em; }
+.tag[data-tone="new"]::before { content:""; width:6px; height:6px; border-radius:50%; background:#fff; animation:dot 1.6s ease-in-out infinite; }
+.tag[data-tone="accepted"] { background:#e8f5ee; color:#1a6b43; }
+.tag:is([data-tone="en-route"], [data-tone="in-progress"]) { background:var(--accent-soft); color:var(--accent); }
+.tag[data-tone="cancelled"] { background:#fdecea; color:#a8261b; }
+.name { margin:0; color:var(--ink); font-size:18px; font-weight:700; line-height:1.25; letter-spacing:-.01em; overflow-wrap:anywhere; }
+.service { margin:2px 0 0; color:var(--text-secondary); font-size:14px; text-transform:capitalize; }
+
+.pay { display:grid; justify-items:end; gap:2px; text-align:right; }
+.pay strong { color:#16805d; font-size:clamp(24px,4vw,30px); font-weight:750; line-height:1.05; letter-spacing:-.03em; font-variant-numeric:tabular-nums; }
+.pay strong small { font-size:12px; font-weight:600; letter-spacing:0; }
+.pay span { color:var(--text-secondary); font-size:12px; }
+.order[data-cancelled] .pay strong { color:var(--text-secondary); text-decoration:line-through; }
+
+/* When and how far, as one line of text. */
+.meta { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 10px; margin:0; color:var(--ink); font-size:15px; }
+.meta strong { font-weight:650; }
+.asap { color:var(--accent); font-weight:750 !important; }
+.away { color:var(--text-secondary); font-size:14px; }
+.trip { color:var(--text-secondary); font-size:14px; font-variant-numeric:tabular-nums; }
+.trip::before { content:"·"; margin-right:10px; color:var(--border-color); }
+.address { margin:-4px 0 0; font-size:14px; color:var(--text-secondary); }
+.address a { position:relative; z-index:2; display:inline-flex; align-items:center; gap:5px; min-height:32px; color:#176a83; font-weight:600; text-decoration:underline; text-decoration-color:#176a8355; text-underline-offset:3px; }
+.address a:hover { color:#104a60; text-decoration-color:currentColor; }
+.address a:focus-visible { outline:2px solid var(--accent); outline-offset:3px; border-radius:3px; }
+.progress { margin-top:2px; }
+.progress :global(ol) { margin:0; }
+
+/* Accept / Decline: the shared pill buttons, text only until hovered. */
+.reply { position:relative; z-index:2; display:grid; gap:8px; margin-top:4px; }
+.replyButtons { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.replyButton { display:inline-flex; align-items:center; justify-content:center; min-height:52px; padding:0 20px; border:1px solid transparent; border-radius:999px; color:#fff; font-size:16px; font-weight:700; text-decoration:none; cursor:pointer; transition:transform 180ms ease, box-shadow 180ms ease, background 180ms ease; }
+.replyButton:not(:disabled):active { transform:scale(.98); }
+.replyButton:focus-visible { outline:3px solid var(--accent); outline-offset:3px; }
+.replyButton:disabled { opacity:.6; cursor:default; }
+.replyButton :global(.icon-swap-asset > svg) { width:24px; height:24px; }
+.accept, .review { background:var(--accent-gradient); box-shadow:var(--accent-shadow); }
+.accept:not(:disabled):hover, .review:hover { background:var(--accent-gradient-hover); box-shadow:var(--accent-shadow-hover); transform:translateY(-1px); }
+.review { grid-column:1 / -1; }
+.decline { background:var(--accent-sun); box-shadow:0 6px 18px rgb(255 139 69 / 32%), inset 0 1px 0 rgb(255 255 255 / 22%); }
+.decline:not(:disabled):hover { background:#f2762b; box-shadow:0 10px 28px rgb(255 139 69 / 42%), 0 0 0 4px rgb(255 139 69 / 14%); transform:translateY(-1px); }
+.keep { border-color:var(--border-color); background:var(--bg-card-solid); color:var(--ink); box-shadow:none; }
+.keep:not(:disabled):hover { background:var(--bg-secondary); }
+.confirm { margin:0; color:var(--ink); font-size:14px; font-weight:600; }
+.error { margin:0; color:#b42318; font-size:14px; }
+
+/* The open work order makes the same buttons glove-sized. */
+.reply[data-large] .replyButton { min-height:clamp(84px,14vh,120px); border-radius:28px; font-size:clamp(20px,3vw,24px); font-weight:800; }
+.reply[data-large] .replyButton :global(.icon-swap-asset > svg) { width:34px; height:34px; }
+.reply[data-large] .confirm { font-size:17px; font-weight:700; text-align:center; }
+
+@keyframes orderIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+@keyframes dot { 50% { opacity:.35; } }
+@media (max-width:520px) {
+  .order { padding:16px; gap:8px 14px; }
+  .listHead { padding:14px 16px 2px; }
+  .name { font-size:17px; }
+  .pay strong { font-size:22px; }
+}
+@media (prefers-reduced-motion:reduce) { .order, .tag[data-tone="new"]::before { animation:none; } .replyButton { transition:none; } }

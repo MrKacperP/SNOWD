@@ -76,6 +76,7 @@ function OnboardingPageInner() {
       accountNumber: deletedAccountIds.length + 1,
       displayName,
       phone,
+      ...(role === "client" && draft.avatar ? { avatar: draft.avatar } : {}),
       role: role!,
       createdAt: new Date(),
       onboardingComplete: true,

@@ -16,6 +16,7 @@ import OnboardingAddress, {
   type OnboardingLocation,
 } from "./OnboardingAddress";
 import ServiceAreaEditor from "./ServiceAreaEditor";
+import ProfilePhotoPicker from "./ProfilePhotoPicker";
 import type { OperatorServiceArea } from "@/lib/types";
 import {
   type PropertySize,
@@ -47,6 +48,7 @@ export type OnboardingDraft = {
   isStudent: boolean;
   phone: string;
   age: string;
+  avatar: string;
 };
 const defaults: OnboardingDraft = {
   role: null,
@@ -72,6 +74,7 @@ const defaults: OnboardingDraft = {
   isStudent: false,
   phone: "",
   age: "",
+  avatar: "",
 };
 const field =
   "w-full min-h-12 rounded-xl border border-[var(--border-color)] bg-white px-3 text-base font-semibold outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/30";
@@ -157,7 +160,7 @@ export default function OnboardingFlow({
           (parsed.version === 2 || parsed.version === 3) &&
           parsed.data &&
           Object.entries(defaults)
-            .filter(([key, value]) => typeof value === "string" && key !== "serviceAreaMode")
+            .filter(([key, value]) => typeof value === "string" && key !== "serviceAreaMode" && key !== "avatar")
             .every(([key]) => typeof parsed.data[key] === "string") &&
           ["small", "medium", "large", "commercial"].includes(
             parsed.data.propertySize,
@@ -190,6 +193,7 @@ export default function OnboardingFlow({
           setDraft({
             ...defaults,
             ...parsed.data,
+            avatar: typeof parsed.data.avatar === "string" ? parsed.data.avatar : "",
             role: initialRole || parsed.data.role,
             step: initialRole && initialRole !== parsed.data.role ? 1 : parsed.data.role ? parsed.data.step : 1,
           });
@@ -666,6 +670,12 @@ export default function OnboardingFlow({
                           placeholder="A gate, steps, or a spot to watch out for…"
                         />
                       </label>
+                    )}
+                    {role === "client" && (
+                      <div className="text-sm font-bold">
+                        <span className="mb-2 block">Profile photo (optional)</span>
+                        <ProfilePhotoPicker value={draft.avatar} onChange={(avatar) => update({ avatar })} size={64} />
+                      </div>
                     )}
                     <label className="block text-sm font-bold">
                       Phone (optional)

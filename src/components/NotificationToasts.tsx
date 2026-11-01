@@ -3,11 +3,17 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { X } from "lucide-react";
+import { ArrowRight, BadgeCheck, Banknote, BellRing, CalendarCheck, CalendarClock, CalendarX2, Camera, CircleCheckBig, CircleX, ClipboardList, CreditCard, IdCard, MapPin, MessageCircle, Shovel, Truck, Undo2, X, type LucideIcon } from "lucide-react";
 import { presentNotification, useNotifications, type NotificationItem } from "@/context/NotificationContext";
-import { KIND_ICONS } from "@/components/NotificationCenter";
+import type { NotificationArt } from "@/lib/notificationPresentation";
+import IconSwap from "@/components/ui/IconSwap";
 
 const DURATION = 6000;
+const ART: Record<NotificationArt, LucideIcon> = {
+  request: ClipboardList, confirmed: CalendarCheck, declined: CalendarX2, time: CalendarClock, "on-the-way": Truck,
+  clearing: Shovel, photo: Camera, done: CircleCheckBig, cash: Banknote, card: CreditCard, refund: Undo2,
+  cancelled: CircleX, message: MessageCircle, verified: BadgeCheck, id: IdCard, nearby: MapPin, update: BellRing,
+};
 const LABELS = { message: "Message", order: "Work order", payment: "Payment", account: "Account", invite: "Nearby" } as const;
 
 function Banner({ item, more }: { item: NotificationItem; more: number }) {
@@ -17,7 +23,7 @@ function Banner({ item, more }: { item: NotificationItem; more: number }) {
   const [paused, setPaused] = useState(false);
   const remaining = useRef(DURATION);
   const view = presentNotification(item);
-  const Icon = KIND_ICONS[view.kind];
+  const Icon = ART[view.art];
 
   // Clears itself; hovering, focusing or touching holds it in place.
   useEffect(() => {
@@ -55,17 +61,17 @@ function Banner({ item, more }: { item: NotificationItem; more: number }) {
     >
       {/* The whole card is a click target; the action button is the keyboard path. */}
       <div className="drop-banner-main" onClick={open}>
-        <span className="drop-banner-icon" aria-hidden="true"><Icon size={18} /></span>
-        <span className="drop-banner-text">
-          <span className="drop-banner-eyebrow">{LABELS[view.kind]}{view.context ? ` · ${view.context}` : ""}</span>
-          <span className="drop-banner-title">{view.title}</span>
-          {view.detail && <span className="drop-banner-detail">{view.detail}</span>}
-        </span>
+        <span className="drop-banner-icon" data-art={view.art} aria-hidden="true"><Icon size={24} strokeWidth={2} /></span>
+        <span className="drop-banner-eyebrow">{LABELS[view.kind]}{view.context ? ` · ${view.context}` : ""}</span>
+        <span className="drop-banner-title">{view.title}</span>
+        {view.detail && <span className="drop-banner-detail">{view.detail}</span>}
       </div>
       <button type="button" className="drop-banner-close" onClick={() => dismissToast(item.id)} aria-label="Dismiss"><X size={15} /></button>
       {(view.href || more > 0) && <div className="drop-banner-footer">
-        {more > 0 ? <button type="button" className="drop-banner-more" onClick={() => setCenterOpen(true)}>+{more} more {more === 1 ? "update" : "updates"}</button> : <span />}
-        {view.href && <button type="button" className="drop-banner-action" onClick={open} aria-label={`${view.action}: ${view.title}`}>{view.action}</button>}
+        {view.href && <button type="button" className="drop-banner-action" onClick={open} aria-label={`${view.action}: ${view.title}`}>
+          <IconSwap icon={<ArrowRight strokeWidth={2.5} />}>{view.action}</IconSwap>
+        </button>}
+        {more > 0 && <button type="button" className="drop-banner-more" onClick={() => setCenterOpen(true)}>+{more} more {more === 1 ? "update" : "updates"}</button>}
       </div>}
       <span className="drop-banner-grabber" aria-hidden="true" />
       <span key={item.id} className="drop-banner-timer" aria-hidden="true" style={{ animationDuration: `${DURATION}ms` }} />

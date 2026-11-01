@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
         email = { uid: recipient, title: `Order #${job.orderNumber || job.id} · Job cancelled`, eventId: "cancelled" };
         if (job.chatId) {
           transaction.set(db.doc(`messages/${jobId}-cancelled`), { chatId: job.chatId, jobId, senderId: uid, senderName: "Job update", type: "status-update", content: message, metadata: { newStatus: "cancelled" }, read: false, createdAt: now });
-          transaction.update(db.doc(`chats/${job.chatId}`), { lastMessage: "Job cancelled", lastMessageTime: now, lastActivityTime: now, [`unreadCount.${recipient}`]: FieldValue.increment(1), openJobIds: FieldValue.arrayRemove(jobId) });
+          transaction.update(db.doc(`chats/${job.chatId}`), { lastMessage: "Job cancelled", lastMessageTime: now, lastActivityTime: now, openJobIds: FieldValue.arrayRemove(jobId) });
         }
       }
       return { job, email };

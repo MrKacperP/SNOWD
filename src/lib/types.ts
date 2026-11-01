@@ -57,6 +57,8 @@ export interface UserProfile {
     account?: boolean;
     workOrders?: boolean;
   };
+  /** Chats this user has moved to Archived in Messages. */
+  archivedChats?: string[];
   // Stripe
   stripeCustomerId?: string;
   stripePaymentMethods?: {

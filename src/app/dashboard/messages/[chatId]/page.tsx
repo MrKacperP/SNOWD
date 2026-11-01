@@ -42,6 +42,8 @@ writeBatch
 } from "firebase/firestore";
 import {
 AlertTriangle,
+Archive,
+ArchiveRestore,
 ArrowLeft,
 CheckCheck,
 Briefcase,
@@ -55,6 +57,7 @@ MessageSquare,
 Mic,
 MoreHorizontal,
 Paperclip,
+Phone,
 Send,
 Shield,
 Square,
@@ -67,6 +70,8 @@ import { useParams,useRouter } from "next/navigation";
 import React,{ useCallback,useEffect,useRef,useState } from "react";
 import "./chat.css";
 import ConversationLoading from "@/components/ConversationLoading";
+import { useArchivedChats } from "@/hooks/useArchivedChats";
+import { formatPhone, hasCompletedJobWith, telHref } from "@/lib/contacts";
 
 type QuickCommConfirmation = {
   title: string;
@@ -321,6 +326,10 @@ export default function ChatPage() {
   }, [chatId, user?.uid, profile?.role, router]);
 
   const openJobs = React.useMemo(() => linkedJobs.filter(isOpenOrder), [linkedJobs]);
+  const { isArchived, setChatArchived } = useArchivedChats();
+  const chatArchived = isArchived(chatId);
+  // Numbers are only shared after a completed job between the two of them.
+  const callHref = otherUser && hasCompletedJobWith(linkedJobs, otherUser.uid) ? telHref(otherUser.phone) : "";
   const timeline = React.useMemo(() => buildTimeline(messages, linkedJobs), [messages, linkedJobs]);
   const scrollToOrder = (jobId: string) => {
     setShowMobileTasksSheet(false);
@@ -1207,8 +1216,14 @@ export default function ChatPage() {
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <button type="button" onClick={() => { setRightPanelView("profile"); setShowMobileTasksSheet(true); }} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={`View ${otherUser?.displayName || "user"} profile details`}>
-            <span className="hidden sm:block"><UserAvatar photoURL={(otherUser as unknown as Record<string, string> | null)?.avatar} logoURL={(otherUser as unknown as Record<string, string> | null)?.logoUrl} role={otherUser?.role} displayName={otherUser?.displayName} size={44} /></span>
+            <UserAvatar photoURL={(otherUser as unknown as Record<string, string> | null)?.avatar} logoURL={(otherUser as unknown as Record<string, string> | null)?.logoUrl} role={otherUser?.role} displayName={otherUser?.displayName} size={40} />
             <span className="min-w-0"><span className="block truncate font-semibold">{otherUser?.displayName || "User"}</span><span className="block truncate text-xs text-[var(--text-muted)]">{[otherUser?.city, otherUser?.province].filter(Boolean).join(", ") || "View profile"}</span></span>
+          </button>
+          {callHref
+            ? <a href={callHref} className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[var(--border-soft)] text-[#14734f] transition hover:bg-[var(--bg-secondary)]" aria-label={`Call ${otherUser?.displayName || "contact"} at ${formatPhone(otherUser?.phone)}`} title={formatPhone(otherUser?.phone)}><Phone className="h-5 w-5" /></a>
+            : <span role="img" className="grid h-10 w-10 shrink-0 cursor-not-allowed place-items-center rounded-full border border-[var(--border-soft)] text-[#c3cbd0]" aria-label="Phone number shared after a completed job" title="Phone number shared after a completed job"><Phone className="h-5 w-5" /></span>}
+          <button type="button" onClick={() => setChatArchived(chatId, !chatArchived).then(() => notify(chatArchived ? "Chat moved back to Messages." : "Chat archived.", "success"), () => notify("Could not update archive. Try again.", "error"))} className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[var(--text-muted)] transition hover:bg-[var(--bg-secondary)]" aria-label={chatArchived ? "Unarchive chat" : "Archive chat"} title={chatArchived ? "Unarchive" : "Archive"}>
+            {chatArchived ? <ArchiveRestore className="h-5 w-5" /> : <Archive className="h-5 w-5" />}
           </button>
           <SupportChatButton inline />
           <button type="button" onClick={() => { setRightPanelView("updates"); setShowMobileTasksSheet(true); }} className="rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-[var(--bg-secondary)]" aria-label="Conversation options">

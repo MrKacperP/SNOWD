@@ -1,5 +1,6 @@
 "use client";
 import SavedProperties from "@/components/SavedProperties";
+import ProfilePhotoPicker from "@/components/ProfilePhotoPicker";
 import IconSwap from "@/components/ui/IconSwap";
 
 
@@ -340,6 +341,13 @@ export default function SettingsPage() {
     } finally {
       setUploadingTranscript(false);
     }
+  };
+
+  const saveClientPhoto = async (url: string) => {
+    if (!profile?.uid) return;
+    await updateDoc(doc(db, "users", profile.uid), { avatar: url ? url : deleteField() });
+    await refreshProfile();
+    setFeedback(url ? "Profile photo saved." : "Profile photo removed.");
   };
 
   // Logo upload
@@ -736,6 +744,16 @@ export default function SettingsPage() {
       {activeTab === "general" && !isOperator && <SavedProperties />}
       {activeTab === "general" && (
         <div className="space-y-6">
+          {!isOperator && (
+            <section className={styles.card}>
+              <h3 className="min-h-11 text-lg font-semibold text-[var(--ink)] flex items-center gap-2">
+                <Camera className="w-5 h-5 text-[var(--accent)]" />
+                Profile photo
+              </h3>
+              <p className={styles.sectionDescription}>Shown on your contact card and in Messages. Saves as soon as you choose it.</p>
+              <ProfilePhotoPicker value={profile?.avatar || ""} name={profile?.displayName} onChange={saveClientPhoto} />
+            </section>
+          )}
           {/* Profile Info */}
           <section className={styles.card}>
             <h3 className="min-h-11 text-lg font-semibold text-[var(--ink)] flex items-center gap-2">
@@ -1413,9 +1431,9 @@ export default function SettingsPage() {
 
             {/* Logo */}
             <div className="flex items-center gap-5 mb-6">
-              <div className="relative w-20 h-20 rounded-2xl border-2 border-dashed border-[var(--border)] flex items-center justify-center overflow-hidden bg-[var(--bg-primary)]">
+              <div className="relative w-20 h-20 rounded-full border-2 border-dashed border-[var(--border)] flex items-center justify-center overflow-hidden bg-[var(--bg-primary)]">
                 {logoUrl ? (
-                  <img src={logoUrl} alt="Logo" className="w-full h-full object-cover rounded-2xl" />
+                  <img src={logoUrl} alt="Logo" className="w-full h-full object-cover object-center rounded-full" />
                 ) : (
                   <Camera className="w-6 h-6 text-[var(--text-muted)]" />
                 )}

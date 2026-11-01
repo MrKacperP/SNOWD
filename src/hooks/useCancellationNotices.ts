@@ -4,23 +4,34 @@ import { stripeConnectFetch } from "@/lib/stripeConnectClient";
 import { dateMillis } from "@/lib/workOrders";
 import type { Job } from "@/lib/types";
 
-/** How long a cancellation stays on the dashboard after the other party first sees it. */
-export const CANCELLATION_NOTICE_MS = 7000;
+/** How long a cancelled or declined order stays on the dashboard once it has been seen. */
+export const CANCELLATION_NOTICE_MS = 5000;
 
 /**
- * Cancelled work orders that still belong on the dashboard. A cancellation stays
- * for both people until the party who did not cancel opens their dashboard; it
- * then clears to history 7 seconds later.
+ * Cancelled and declined work orders that still belong on the dashboard. The
+ * person who cancelled sees it for 5 seconds from that moment; the other party
+ * sees it for 5 seconds from when they first open their dashboard. Either way
+ * it then clears to Jobs › History.
  */
 export function useCancellationNotices(jobs: Job[], uid?: string) {
   const [now, setNow] = useState(() => Date.now());
   const [seenHere, setSeenHere] = useState<Record<string, number>>({});
   const reported = useRef(new Set<string>());
+  // The canceller's clock starts here when it just happened; an older one is already past.
+  const seenAt = (job: Job) => seenHere[job.id] || (job.cancelledBy === uid
+    ? now - dateMillis(job.cancelledAt) > 60000 ? dateMillis(job.cancelledAt) : 0
+    : dateMillis(job.cancellationSeenAt));
   const notices = jobs.filter(job => {
     if (job.status !== "cancelled" || !job.cancellationNotice) return false;
-    const seen = seenHere[job.id] || dateMillis(job.cancellationSeenAt);
+    const seen = seenAt(job);
     return !seen || now < seen + CANCELLATION_NOTICE_MS;
   });
+  const ownFresh = notices.filter(job => uid && job.cancelledBy === uid && !seenAt(job)).map(job => job.id).join(",");
+  useEffect(() => {
+    if (!ownFresh) return;
+    const at = Date.now();
+    setSeenHere(current => ({ ...current, ...Object.fromEntries(ownFresh.split(",").map(id => [id, current[id] || at])) }));
+  }, [ownFresh]);
   const unseen = notices.filter(job => uid && job.cancelledBy !== uid && !job.cancellationSeenAt && !seenHere[job.id]).map(job => job.id).join(",");
 
   useEffect(() => {
@@ -41,7 +52,7 @@ export function useCancellationNotices(jobs: Job[], uid?: string) {
     return () => document.removeEventListener("visibilitychange", markSeen);
   }, [unseen]);
 
-  const timed = notices.some(job => seenHere[job.id] || job.cancellationSeenAt);
+  const timed = notices.some(job => seenAt(job));
   useEffect(() => {
     if (!timed) return;
     const timer = setInterval(() => setNow(Date.now()), 250);

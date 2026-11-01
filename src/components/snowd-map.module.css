@@ -26,3 +26,14 @@
 .offerPin:focus-visible { outline:3px solid var(--accent); outline-offset:3px; }
 @keyframes offer { 0% { transform:scale(.85); opacity:.9; } to { transform:scale(1.35); opacity:0; } }
 @media(prefers-reduced-motion:reduce) { .offerPin::before { animation:none; opacity:.6; } }
+.routeChip { position:absolute; top:12px; right:12px; display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border:1px solid #d3e1d9; border-radius:999px; background:#fff; color:#214b3b; box-shadow:0 4px 16px #16372b16; font:700 12px/1.2 system-ui,sans-serif; font-variant-numeric:tabular-nums; pointer-events:none; }
+
+/* Several orders at once: smaller pins for the others; the order being hovered pings. */
+.smallPin { width:34px; height:34px; border-width:2px; border-radius:11px; opacity:.9; }
+.smallPin[data-new] { background:var(--accent, #2350ff); }
+.marker[data-ping] { z-index:2; }
+.marker[data-ping] .operatorPin { position:relative; opacity:1; transform:scale(1.12); transition:transform .2s ease; }
+.marker[data-ping] .operatorPin::after { content:""; position:absolute; inset:-8px; border:3px solid #287057; border-radius:18px; animation:pinPing 1.2s ease-out infinite; pointer-events:none; }
+.marker[data-ping] .operatorPin[data-new]::after { border-color:var(--accent, #2350ff); }
+@keyframes pinPing { 0% { transform:scale(.9); opacity:.95; } to { transform:scale(1.6); opacity:0; } }
+@media(prefers-reduced-motion:reduce) { .marker[data-ping] .operatorPin::after { animation:none; opacity:.7; } }

@@ -108,7 +108,7 @@ export function orderEvent(
       lastMessage: message,
       lastMessageTime: now,
       lastActivityTime: now,
-      [`unreadCount.${recipient}`]: FieldValue.increment(1),
+      // Work order updates show in the chat but don't count as unread messages; only people's messages do.
       ...(options?.terminal ? { openJobIds: FieldValue.arrayRemove(job.id) } : {}),
     });
   }

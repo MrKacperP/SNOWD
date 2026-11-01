@@ -35,16 +35,21 @@ export default function UserAvatar({
 
   const imageURL = role === "operator" ? logoURL || photoURL : photoURL;
   if (imageURL) {
+    // Any upload shape (portrait, landscape, logo) is centred and cropped to fill the whole circle.
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={imageURL}
-        alt={role === "operator" && logoURL ? `${displayName || "Business"} logo` : displayName || "User"}
-        width={size}
-        height={size}
-        className={`${role === "operator" && logoURL ? "object-contain bg-white" : "object-cover"} ${roundedClass} ${className}`}
+      <span
+        className={`relative block shrink-0 overflow-hidden bg-gray-100 ${roundedClass} ${className}`}
         style={{ width: size, height: size, minWidth: size }}
-      />
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={imageURL}
+          alt={role === "operator" && logoURL ? `${displayName || "Business"} logo` : displayName || "User"}
+          width={size}
+          height={size}
+          className="absolute inset-0 block h-full w-full max-w-none object-cover object-center"
+        />
+      </span>
     );
   }
 
