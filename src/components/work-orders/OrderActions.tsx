@@ -14,7 +14,9 @@ const StripeCheckout = dynamic(() => import("@/components/StripeCheckout"), {
 import Link from "next/link";
 import PhotoPicker from "./PhotoPicker";
 import PhonePhotoTransfer from "./PhonePhotoTransfer";
-import { Check } from "lucide-react";
+import { ArrowLeft, CalendarDays, Check, Send, Zap } from "lucide-react";
+import IconSwap from "@/components/ui/IconSwap";
+import popup from "@/components/ui/popup.module.css";
 
 export async function orderRequest(
   path: string,
@@ -35,7 +37,6 @@ const button =
 // Progress steps stay dark so they read as the next step before hover.
 const attentionButton = `${button} action-shine !border-[var(--ink)] !bg-[var(--ink)] !bg-none !text-white enabled:hover:!bg-[#0a1c27] disabled:!opacity-60`;
 const dangerButton = `${button} border-red-200 text-red-700 hover:!border-red-300 hover:!bg-red-50`;
-const confirmDangerButton = `${button} !border-red-700 !bg-red-700 !text-white hover:!bg-red-800`;
 export default function OrderActions({
   job,
   onUpdated,
@@ -191,6 +192,11 @@ export default function OrderActions({
       operatorLocationAccuracy: position.coords.accuracy,
     });
   };
+  const backButton = (
+    <button type="button" className="dialog-btn" data-tone="neutral" disabled={busy} onClick={() => setDialog("")}>
+      <IconSwap icon={<ArrowLeft />}>Back to order</IconSwap>
+    </button>
+  );
   return (
     <div className="mt-4 space-y-3">
       {success && dialog !== "action-success" && (
@@ -524,129 +530,120 @@ export default function OrderActions({
         }
         variant={dialog === "cancel" || dialog === "decline" || dialog === "refund" ? "danger" : "default"}
       >
-        {dialog === "finish-after-cash" && <div className="space-y-4">
-          <p>Payment is recorded. Complete the work order now so it no longer stays in progress.</p>
-          <button className={attentionButton} disabled={busy} onClick={() => job.completionPhotoUrl ? complete() : setDialog("photo")}>{job.completionPhotoUrl ? "Complete work" : "Add photo & complete work"}</button>
+        {dialog === "finish-after-cash" && <div>
+          <p className="dialog-message" data-tone="success">Payment is recorded. Complete the work order now so it no longer stays in progress.</p>
+          <div className="dialog-actions">
+            {backButton}
+            <button className="dialog-btn" data-tone="primary" disabled={busy} onClick={() => job.completionPhotoUrl ? complete() : setDialog("photo")}>{job.completionPhotoUrl ? "Complete work" : "Add photo & complete work"}</button>
+          </div>
         </div>}
         {dialog === "complete-cash" && (
-          <div className="space-y-4">
-            <p>
-              Have you received ${job.price.toFixed(2)} CAD in cash for this
-              job?
+          <div>
+            <p className="dialog-message">
+              Have you received <strong>${job.price.toFixed(2)} CAD</strong> in cash for this job?
             </p>
-            <button
-              className={button}
-              disabled={busy}
-              onClick={() => run(
-                () => orderRequest("/api/jobs/confirm-cash", { jobId: job.id }),
-                false,
-                "completion-success",
-                "Cash payment recorded",
-              )}
-            >
-              Yes · record payment
-            </button>
-            <button
-              className="min-h-11 rounded-lg border px-4 py-3 font-semibold"
-              disabled={busy}
-              onClick={() => setDialog("")}
-            >
-              Not yet · keep payment pending
-            </button>
-            <p className="text-sm">
-              Unpaid cash jobs stay in Needs attention so you can confirm
-              payment later.
+            <div className="dialog-actions">
+              <button className="dialog-btn" data-tone="neutral" disabled={busy} onClick={() => setDialog("")}>
+                Not yet
+              </button>
+              <button
+                className="dialog-btn"
+                data-tone="success"
+                disabled={busy}
+                onClick={() => run(
+                  () => orderRequest("/api/jobs/confirm-cash", { jobId: job.id }),
+                  false,
+                  "completion-success",
+                  "Cash payment recorded",
+                )}
+              >
+                <Check className="h-4 w-4" aria-hidden="true" />
+                Yes · record payment
+              </button>
+            </div>
+            <p className="dialog-note mt-3">
+              Unpaid cash jobs stay in Needs attention so you can confirm payment later.
             </p>
           </div>
         )}
         {dialog === "time" && (
-          <div className="space-y-4">
-            <label className="flex gap-2">
-              <input
-                type="checkbox"
-                checked={asap}
-                onChange={(e) => setAsap(e.target.checked)}
-              />
-              ASAP · no promised appointment time
-            </label>
-            {!asap && (
-              <label className="block">
-                New date and time
-                <input
-                  type="datetime-local"
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                  className="mt-2 block min-h-12 w-full rounded-xl border p-3"
-                />
+          <div className={popup.stack}>
+            <p className="dialog-message">Currently <strong>{scheduleText(job)}</strong>. The other participant must approve a new time.</p>
+            <div className={popup.options} role="group" aria-label="New timing">
+              <button type="button" className={popup.option} aria-pressed={asap} onClick={() => setAsap(true)}><IconSwap icon={<Zap />}><Zap size={16} aria-hidden="true" />ASAP</IconSwap></button>
+              <button type="button" className={popup.option} aria-pressed={!asap} onClick={() => setAsap(false)}><IconSwap icon={<CalendarDays />}><CalendarDays size={16} aria-hidden="true" />Pick a time</IconSwap></button>
+            </div>
+            {asap ? <p className={popup.note}>No promised appointment time. The visit happens as soon as possible.</p> : (
+              <label className={popup.field}>
+                <span className={popup.eyebrow}>New date and time</span>
+                <input type="datetime-local" value={time} min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)} onChange={(e) => setTime(e.target.value)} />
               </label>
             )}
             {!operator &&
               job.paymentMethod === "cash" &&
               !job.cashPaymentAcknowledged && (
-                <label className="flex gap-2">
-                  <input
-                    type="checkbox"
-                    checked={cash}
-                    onChange={(e) => setCash(e.target.checked)}
-                  />
-                  I agree to pay ${job.price.toFixed(2)} in cash after work.
+                <label className={popup.check}>
+                  <input type="checkbox" checked={cash} onChange={(e) => setCash(e.target.checked)} />
+                  <span className={popup.tick} aria-hidden="true"><Check size={13} strokeWidth={3} /></span>
+                  <span>I agree to pay ${job.price.toFixed(2)} in cash after work.</span>
                 </label>
               )}
-            <p className="text-sm">
-              Time zone: {Intl.DateTimeFormat().resolvedOptions().timeZone}. Choose a future time. The
-              other participant must approve.
-            </p>
-            <button
-              className={button}
-              disabled={
-                busy ||
-                (!asap && (!time || !Number.isFinite(new Date(time).getTime()) || new Date(time).getTime() <= Date.now())) ||
-                (!operator &&
-                  job.paymentMethod === "cash" &&
-                  !job.cashPaymentAcknowledged &&
-                  !cash)
-              }
-              onClick={() =>
-                run(() =>
-                  perform("propose-time", {
-                    cashPaymentAcknowledged: cash,
-                    scheduleMode: asap ? "asap" : "scheduled",
-                    scheduledDate: asap ? null : new Date(time).toISOString(),
-                    scheduleTimezone:
-                      Intl.DateTimeFormat().resolvedOptions().timeZone,
-                  }),
-                  navigateOnUpdate,
-                  "action-success",
-                  "The new visit time was sent for approval.",
-                )
-              }
-            >
-              Send time proposal
-            </button>
+            <p className="dialog-note">Time zone: {Intl.DateTimeFormat().resolvedOptions().timeZone}</p>
+            <div className="dialog-actions !mt-0">
+              {backButton}
+              <button
+                className="dialog-btn action-shine"
+                data-tone="primary"
+                disabled={
+                  busy ||
+                  (!asap && (!time || !Number.isFinite(new Date(time).getTime()) || new Date(time).getTime() <= Date.now())) ||
+                  (!operator &&
+                    job.paymentMethod === "cash" &&
+                    !job.cashPaymentAcknowledged &&
+                    !cash)
+                }
+                onClick={() =>
+                  run(() =>
+                    perform("propose-time", {
+                      cashPaymentAcknowledged: cash,
+                      scheduleMode: asap ? "asap" : "scheduled",
+                      scheduledDate: asap ? null : new Date(time).toISOString(),
+                      scheduleTimezone:
+                        Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    }),
+                    navigateOnUpdate,
+                    "action-success",
+                    "The new visit time was sent for approval.",
+                  )
+                }
+              >
+                <IconSwap icon={<Send />}>Send time proposal</IconSwap>
+              </button>
+            </div>
           </div>
         )}
         {dialog === "photo" && (
           <div className="space-y-4">
-            <p>
-              {desktopPhotoFlow ? "Scan the QR code with your phone to add the completion photo." : "Choose the completion photo from your gallery."}
-              {" "}Uploading completion proof automatically completes this work order.
-              For card orders, the authorized payment is captured at completion.
+            <p className="text-center text-sm text-[var(--text-secondary)]">
+              {desktopPhotoFlow ? "Add a photo of the cleared areas." : "Take the completion photo or choose it from your gallery."}
+              {" "}Sending it completes this work order{job.paymentMethod === "cash" ? "." : " and captures the authorized payment."}
             </p>
             {desktopPhotoFlow ? (
               <PhonePhotoTransfer jobId={job.id} onPhoto={submitCompletionPhoto} disabled={busy} autoStart />
             ) : (
-              <PhotoPicker photo={photo} onChange={submitCompletionPhoto} disabled={busy} onBusy={setPreparingPhoto} showCamera={false} />
+              <PhotoPicker photo={photo} onChange={submitCompletionPhoto} disabled={busy} onBusy={setPreparingPhoto} />
             )}
             {(busy || preparingPhoto) && <p role="status">Uploading photo and completing work…</p>}
+            <div className="dialog-actions">{backButton}</div>
           </div>
         )}
         {dialog === "approve" && (
           <div className="space-y-4">
-            <p>
-              Pay ${job.price.toFixed(2)} CAD directly to the operator after
+            <p className="dialog-message">
+              Pay <strong>${job.price.toFixed(2)} CAD</strong> directly to the operator after
               work. No card will be charged.
             </p>
-            <label className="flex gap-2">
+            <label className="flex justify-center gap-2">
               <input
                 type="checkbox"
                 checked={cash}
@@ -654,78 +651,78 @@ export default function OrderActions({
               />
               I agree to pay in cash.
             </label>
-            <button
-              className={button}
-              disabled={busy || !cash}
-              onClick={() =>
-                run(() =>
-                  perform(job.scheduleProposal ? "approve-time" : "accept", {
-                    proposalId: job.scheduleProposal?.id,
-                    cashPaymentAcknowledged: true,
-                  }),
-                  navigateOnUpdate,
-                  "action-success",
-                  "Cash booking approved.",
-                )
-              }
-            >
-              Agree & approve
-            </button>
+            <div className="dialog-actions">
+              {backButton}
+              <button
+                className="dialog-btn"
+                data-tone="success"
+                disabled={busy || !cash}
+                onClick={() =>
+                  run(() =>
+                    perform(job.scheduleProposal ? "approve-time" : "accept", {
+                      proposalId: job.scheduleProposal?.id,
+                      cashPaymentAcknowledged: true,
+                    }),
+                    navigateOnUpdate,
+                    "action-success",
+                    "Cash booking approved.",
+                  )
+                }
+              >
+                Agree & approve
+              </button>
+            </div>
           </div>
         )}
         {["cancel", "decline", "cash", "refund"].includes(dialog) && (
-          <div className="space-y-4">
-            {busy && dialog === "cancel" && <div className="overflow-hidden rounded-xl border border-red-200 bg-red-50 p-3 text-center" role="status"><div className="mx-auto mb-2 h-1.5 w-full overflow-hidden rounded-full bg-red-100"><span className="block h-full w-1/2 animate-[cancel-sweep_700ms_ease-in-out_infinite] rounded-full bg-red-600" /></div><p className="text-sm font-semibold text-red-800">Cancelling work order…</p></div>}
-            <p>
+          <div>
+            {busy && dialog === "cancel" && <div className="mb-4 overflow-hidden rounded-xl border border-red-200 bg-red-50 p-3 text-center" role="status"><div className="mx-auto mb-2 h-1.5 w-full overflow-hidden rounded-full bg-red-100"><span className="block h-full w-1/2 animate-[cancel-sweep_700ms_ease-in-out_infinite] rounded-full bg-red-600" /></div><p className="text-sm font-semibold text-red-800">Cancelling work order…</p></div>}
+            <p className="dialog-message" data-tone={dialog === "cash" ? "success" : "danger"}>
               {dialog === "cancel" || dialog === "decline"
                 ? "This order will stay in history. New work requires a new booking. Held card payments are released on cancellation; captured payments require support for refunds."
                 : dialog === "cash"
-                  ? `Confirm only after you have received $${job.price.toFixed(2)} in cash.`
-                  : `Confirm only after returning $${job.price.toFixed(2)} directly to the customer.`}
+                  ? <>Confirm only after you have received <strong>${job.price.toFixed(2)}</strong> in cash.</>
+                  : <>Confirm only after returning <strong>${job.price.toFixed(2)}</strong> directly to the customer.</>}
             </p>
-            <button
-              className={
-                dialog === "cancel" ||
-                dialog === "decline" ||
-                dialog === "refund"
-                  ? confirmDangerButton
-                  : button
-              }
-              disabled={busy}
-              onClick={() =>
-                run(async () => {
-                  if (dialog === "decline") await perform("decline");
-                  else {
-                    const data = await orderRequest(
-                      dialog === "cancel"
-                        ? "/api/jobs/cancel"
-                        : dialog === "cash"
-                          ? "/api/jobs/confirm-cash"
-                          : "/api/jobs/cash-payment",
-                      {
-                        jobId: job.id,
-                        ...(dialog === "refund" ? { action: "refund" } : {}),
-                      },
-                    );
-                    if (data.warning) setNotice(data.warning);
-                  }
-                }, dialog !== "cash", dialog === "cash" && job.status === "in-progress" ? "finish-after-cash" : "action-success", dialog === "cancel" ? "The work order was cancelled successfully." : dialog === "decline" ? "The booking request was declined." : dialog === "cash" ? "Cash payment recorded successfully." : "Cash return recorded successfully.")
-              }
-            >
-              Confirm{" "}
-              {dialog === "cancel"
-                ? "cancellation"
-                : dialog === "decline"
-                  ? "decline"
-                  : dialog === "cash"
-                    ? "cash received"
-                    : "cash returned"}
-            </button>
+            <div className="dialog-actions">
+              {backButton}
+              <button
+                className="dialog-btn"
+                data-tone={dialog === "cash" ? "success" : "danger"}
+                disabled={busy}
+                onClick={() =>
+                  run(async () => {
+                    if (dialog === "decline") await perform("decline");
+                    else {
+                      const data = await orderRequest(
+                        dialog === "cancel"
+                          ? "/api/jobs/cancel"
+                          : dialog === "cash"
+                            ? "/api/jobs/confirm-cash"
+                            : "/api/jobs/cash-payment",
+                        {
+                          jobId: job.id,
+                          ...(dialog === "refund" ? { action: "refund" } : {}),
+                        },
+                      );
+                      if (data.warning) setNotice(data.warning);
+                    }
+                  }, dialog !== "cash", dialog === "cash" && job.status === "in-progress" ? "finish-after-cash" : "action-success", dialog === "cancel" ? "The work order was cancelled successfully." : dialog === "decline" ? "The booking request was declined." : dialog === "cash" ? "Cash payment recorded successfully." : "Cash return recorded successfully.")
+                }
+              >
+                {dialog === "cash" && <Check className="h-4 w-4" aria-hidden="true" />}
+                Confirm{" "}
+                {dialog === "cancel"
+                  ? "cancellation"
+                  : dialog === "decline"
+                    ? "decline"
+                    : dialog === "cash"
+                      ? "cash received"
+                      : "cash returned"}
+              </button>
+            </div>
           </div>
         )}
-        {dialog !== "completion-success" && dialog !== "action-success" && <button type="button" className={`${button} mt-4`} disabled={busy}
-          onClick={() => setDialog("")}>Back to order</button>
-        }
         {error && (
           <p role="alert" className="mt-3 text-red-700">
             {error}

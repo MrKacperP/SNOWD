@@ -1,6 +1,7 @@
 "use client";
 import SavedProperties from "@/components/SavedProperties";
 import ProfilePhotoPicker from "@/components/ProfilePhotoPicker";
+import UserAvatar from "@/components/UserAvatar";
 import IconSwap from "@/components/ui/IconSwap";
 
 
@@ -17,6 +18,7 @@ import { stripeConnectFetch } from "@/lib/stripeConnectClient";
 
 import ServiceAreaEditor from "@/components/ServiceAreaEditor";
 import { useAuth } from "@/context/AuthContext";
+import { useServiceLocation } from "@/context/ServiceLocationContext";
 import { sendAdminNotif } from "@/lib/adminNotifications";
 import { db,storage } from "@/lib/firebase";
 import { buildGoogleMapsEmbedUrl } from "@/lib/googleMaps";
@@ -31,6 +33,7 @@ import { deleteField,doc,updateDoc } from "firebase/firestore";
 import { getDownloadURL,ref,uploadBytes } from "firebase/storage";
 import {
 AlertCircle,
+ArrowLeft,
 Bell,
 Briefcase,
 Building2,
@@ -40,13 +43,13 @@ ChevronRight,
 CreditCard,
 ExternalLink,
 GraduationCap,
+Home,
 ImagePlus,
 Loader2,
 LogOut,
 MapPin,
-  Palette,
-LockKeyhole,
-Snowflake,
+Palette,
+Pencil,
 RefreshCw,
 Save,
 Shield,
@@ -58,6 +61,25 @@ User
 import { usePathname,useRouter,useSearchParams } from "next/navigation";
 import React,{ useEffect,useState,useRef } from "react";
 import styles from "./settings.module.css";
+
+const SECTIONS = ["general", "properties", "service-areas", "payment", "verification", "notifications", "branding"] as const;
+type Section = typeof SECTIONS[number];
+const sectionFromPath = (path: string): Section | null => {
+  const section = path.split("/")[3];
+  return (SECTIONS as readonly string[]).includes(section) ? section as Section : null;
+};
+
+// The field's name sits inside the box and shrinks to the top once there's a value.
+type FieldProps = { label: string; missing?: boolean; wide?: boolean };
+function Field({ label, missing, wide, ...props }: FieldProps & React.InputHTMLAttributes<HTMLInputElement>) {
+  return <label className={`${styles.field} ${wide ? styles.wide : ""}`} data-missing={missing || undefined}><input {...props} placeholder=" " /><span>{label}</span></label>;
+}
+function TextAreaField({ label, missing, ...props }: FieldProps & React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return <label className={`${styles.field} ${styles.wide}`} data-missing={missing || undefined}><textarea {...props} placeholder=" " /><span>{label}</span></label>;
+}
+function SelectField({ label, missing, wide, ...props }: FieldProps & React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return <label className={`${styles.field} ${wide ? styles.wide : ""}`} data-missing={missing || undefined} data-empty={!props.value || undefined}><select {...props} /><span>{label}</span></label>;
+}
 
 export default function SettingsPage() {
   const { user, profile, signOut, refreshProfile, deleteAccount } = useAuth();
@@ -76,10 +98,8 @@ export default function SettingsPage() {
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [savingEmailPreferences, setSavingEmailPreferences] = useState(false);
   const [emailPreferences, setEmailPreferences] = useState({ account: true, workOrders: true });
-  const [activeTab, setActiveTab] = useState<"general" | "payment" | "notifications" | "verification" | "branding">(() => {
-    const section = pathname.split("/")[3];
-    return ["general", "payment", "notifications", "verification", "branding"].includes(section) ? section as "general" | "payment" | "notifications" | "verification" | "branding" : "general";
-  });
+  const locations = useServiceLocation();
+  const [activeTab, setActiveTab] = useState<Section | null>(() => sectionFromPath(pathname));
   const [onboardingAccountId, setOnboardingAccountId] = useState<string | null>(null);
   const [stripeCheckVersion, setStripeCheckVersion] = useState(0);
   const [stripeConnecting, setStripeConnecting] = useState(false);
@@ -264,7 +284,7 @@ export default function SettingsPage() {
   }, [profile]);
   const brandingDirty = isOperator && (avatarUrl !== (profile?.avatar || "") || logoUrl !== (operatorProfile?.logoUrl || "") || brandingTagline !== (operatorProfile?.tagline || "") || brandingDescription !== (operatorProfile?.brandDescription || "") || JSON.stringify(portfolioPhotos) !== JSON.stringify(operatorProfile?.portfolioPhotos || []));
   const brandingBusy = uploadingLogo || uploadingPortfolio;
-  const generalDirty = Boolean(profile) && (requiredGeneralFields.some(field => field.value !== String((profile as unknown as Record<string, unknown>)?.[field.key] || "")) || (!isOperator && age !== (profile as ClientProfile)?.age) || (isOperator && (serviceRadius !== (operatorProfile.serviceRadius || 10) || serviceAreaMode !== (operatorProfile.serviceAreaMode || (operatorProfile.serviceAreas?.length ? "cities" : "radius")) || JSON.stringify(serviceAreas) !== JSON.stringify(operatorProfile.serviceAreas || []) || pricing.small !== (operatorProfile.pricing?.driveway?.small || 25) || pricing.medium !== (operatorProfile.pricing?.driveway?.medium || 40) || pricing.large !== (operatorProfile.pricing?.driveway?.large || 60) || pricing.walkway !== (operatorProfile.pricing?.walkway || 15) || pricing.sidewalk !== (operatorProfile.pricing?.sidewalk || 15))));
+  const generalDirty = Boolean(profile) && (requiredGeneralFields.some(field => field.value !== String((profile as unknown as Record<string, unknown>)?.[field.key] || "")) || (!isOperator && age !== (profile as ClientProfile)?.age) || (isOperator && (serviceRadius !== (operatorProfile.serviceRadius || 10) || serviceAreaMode !== (operatorProfile.serviceAreaMode || (operatorProfile.serviceAreas?.length ? "cities" : "radius")) || JSON.stringify(serviceAreas) !== JSON.stringify(operatorProfile.serviceAreas || []) || pricing.small !== (operatorProfile.pricing?.driveway?.small || 25) || pricing.medium !== (operatorProfile.pricing?.driveway?.medium || 40) || pricing.large !== (operatorProfile.pricing?.driveway?.large || 60) || pricing.walkway !== (operatorProfile.pricing?.walkway || 15) || pricing.sidewalk !== (operatorProfile.pricing?.sidewalk || 15) || pricing.backyardPatio !== (operatorProfile.pricing?.backyardPatio || 15) || pricing.porch !== (operatorProfile.pricing?.porch || 10))));
   useEffect(() => {
     if (!generalDirty && !brandingDirty && !brandingBusy) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
@@ -445,12 +465,11 @@ export default function SettingsPage() {
 
     // Handle tab query param (e.g. from transactions page)
     const tabParam = searchParams.get("tab");
-    if (tabParam && ["general", "payment", "notifications", "verification", "branding"].includes(tabParam)) router.replace(`/dashboard/settings/${tabParam}`);
+    if (tabParam && (SECTIONS as readonly string[]).includes(tabParam)) router.replace(`/dashboard/settings/${tabParam}`);
   }, [searchParams, profile?.uid, router, refreshProfile]);
 
   useEffect(() => {
-    const section = pathname.split("/")[3];
-    setActiveTab(["general", "payment", "notifications", "verification", "branding"].includes(section) ? section as typeof activeTab : "general");
+    setActiveTab(sectionFromPath(pathname));
   }, [pathname]);
 
   // Check Stripe Connect account status
@@ -601,7 +620,8 @@ export default function SettingsPage() {
           walkway: pricing.walkway,
           sidewalk: pricing.sidewalk,
           backyardPatio: pricing.backyardPatio,
-          porch: pricing.porch,
+          // Front porch is always billed at the sidewalk rate.
+          porch: pricing.sidewalk,
         };
         updates.logoUrl = logoUrl;
         updates.avatar = avatarUrl;
@@ -670,18 +690,23 @@ export default function SettingsPage() {
 
   const TABS = [
     { key: "general" as const, label: "Account", icon: User },
+    ...(isOperator
+      ? [{ key: "service-areas" as const, label: "Service areas", icon: MapPin }]
+      : [{ key: "properties" as const, label: "Properties", icon: Home }]),
     { key: "payment" as const, label: "Payment", icon: CreditCard },
     { key: "verification" as const, label: "Verification", icon: ShieldCheck },
     { key: "notifications" as const, label: "Notifications", icon: Bell },
     ...(isOperator ? [{ key: "branding" as const, label: "Branding", icon: Palette }] : []),
   ];
 
-  const TAB_DESCRIPTIONS: Record<string, string> = {
-    general: "Contact details and service location",
+  const TAB_DESCRIPTIONS: Record<Section, string> = {
+    general: "Your name, phone and contact details",
+    properties: "Your main house, rentals and business properties",
+    "service-areas": "Where you're based and the areas you serve",
     payment: isOperator ? "Connect and manage your Stripe payout account" : "Review cards and secure payment details",
     verification: "Upload and manage your verification documents",
-    notifications: "Where to find your updates and receipts",
-    branding: "Your business name, photos and introduction",
+    notifications: "Choose which emails you receive",
+    branding: "Your business logo, tagline and photos",
   };
 
   const activeTabMeta = TABS.find((tab) => tab.key === activeTab);
@@ -689,364 +714,197 @@ export default function SettingsPage() {
   const completionPercent = Math.round((savedRequiredFields.length - savedMissingFields.length) / savedRequiredFields.length * 100);
   const verificationLabel = profile?.idVerified ? "Verified" : verificationStatus === "rejected" ? "Action needed" : profile?.idPhotoUrl ? "In review" : "Not submitted";
   const paymentLabel = isOperator ? stripeStatus?.fullyReady ? "Connected" : stripeConfigError ? "Check connection" : stripeStatus ? "Setup needed" : "Check status" : "At checkout";
-  const sectionStatus: Record<string, string> = { general: accountComplete ? "Complete" : `${savedMissingFields.length} missing`, payment: paymentLabel, verification: verificationLabel, notifications: "Preferences", branding: "Optional" };
+  const LOCATION_FIELDS = ["address", "city", "province", "postalCode"];
+  const locationSection: Section = isOperator ? "service-areas" : "properties";
+  const missingIn = (section: Section) => savedMissingFields.filter(field => (LOCATION_FIELDS.includes(field.key) ? locationSection : "general") === section).length;
+  const propertyCount = (locations?.home ? 1 : 0) + (locations?.properties.length || 0);
+  const sectionStatus: Record<Section, string> = {
+    general: missingIn("general") ? `${missingIn("general")} missing` : "Complete",
+    properties: missingIn("properties") ? "Add your main house" : `${propertyCount} saved`,
+    "service-areas": missingIn("service-areas") ? "Add your location" : operatorProfile?.serviceAreaMode === "cities" && operatorProfile.serviceAreas?.length ? `${operatorProfile.serviceAreas.length} ${operatorProfile.serviceAreas.length === 1 ? "city" : "cities"}` : `${operatorProfile?.serviceRadius || 10} km radius`,
+    payment: paymentLabel,
+    verification: verificationLabel,
+    notifications: "Preferences",
+    branding: "Optional",
+  };
+  const firstMissingSection: Section | null = savedMissingFields.length ? LOCATION_FIELDS.includes(savedMissingFields[0].key) ? locationSection : "general" : null;
+  const headerName = (isOperator && operatorProfile?.businessName) || profile?.displayName || "Your profile";
+  const basedIn = [profile?.city, profile?.province].filter(Boolean).join(", ");
 
-  const profileInitials = (profile?.displayName || "Your profile").split(" ").filter(Boolean).slice(0, 2).map(word => word[0]).join("").toUpperCase();
+  const saveBar = <>
+    {saveError && <p role="alert" className="text-red-700">{saveError}</p>}
+    <div className={styles.saveBar}>
+      <div><strong>{generalDirty ? "You have unsaved changes" : "All changes saved"}</strong><p>Save to update your profile.</p></div>
+      <button type="button" onClick={handleSave} disabled={saving || brandingBusy || !generalDirty} className="btn-primary flex items-center justify-center gap-2">
+        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <CheckCircle className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+        {saving ? "Saving…" : saved ? "Saved" : "Save changes"}
+      </button>
+    </div>
+  </>;
+
+  const locationFields = <div className={styles.fields}>
+    <Field wide label="Street address" value={address} missing={missingGeneralFieldSet.has("address")} onChange={(e) => setAddress(e.target.value)} autoComplete="street-address" />
+    <Field label="City" value={city} missing={missingGeneralFieldSet.has("city")} onChange={(e) => setCity(e.target.value)} autoComplete="address-level2" />
+    <SelectField label="Province" value={province} missing={missingGeneralFieldSet.has("province")} onChange={(e) => setProvince(e.target.value)}>
+      <option value="" disabled hidden />
+      {CANADIAN_PROVINCES.map((p) => <option key={p.code} value={p.code}>{p.name}</option>)}
+    </SelectField>
+    <Field label="Postal code" value={postalCode} missing={missingGeneralFieldSet.has("postalCode")} onChange={(e) => setPostalCode(e.target.value.toUpperCase())} maxLength={7} autoComplete="postal-code" />
+  </div>;
 
   return (
-    <div className={`${styles.settings} max-w-[1200px] mx-auto space-y-6`}>
+    <div className={`${styles.settings} ${styles.page}`}>
       <Modal isOpen={leaveOpen} onClose={() => setLeaveOpen(false)} title="Leave without saving?" subtitle={brandingBusy ? "Wait for the upload to finish, then save your profile before leaving." : "Your account has changes that haven’t been saved."} size="sm">
         <div className="grid gap-2">
           <button type="button" className="btn-primary w-full" onClick={() => setLeaveOpen(false)}>Keep editing</button>
           <button type="button" className="btn-secondary w-full" disabled={brandingBusy} onClick={() => { setLeaveOpen(false); pendingLeave.current?.(); pendingLeave.current = null; }}>Leave without saving</button>
         </div>
       </Modal>
-      <header className={styles.pageHeader}>
-        <div><h1>Settings</h1><p>Manage your account.</p></div>
-        <span className={styles.workspaceBadge}><Snowflake size={17} aria-hidden="true" /> snowd<span className={styles.badgeDivider} />{isOperator ? "Operator" : "Personal"} account</span>
-      </header>
-      <section className={styles.overview} aria-label="Saved profile overview">
-        <div className={styles.identity}>
-          <div className={styles.avatar}>{profile?.avatar ? <Image src={profile.avatar} alt="Saved profile photo" width={60} height={60} unoptimized /> : profileInitials}</div>
-          <div><span className={styles.eyebrow}>YOUR SAVED PROFILE</span><h2>{profile?.displayName || "Make yourself at home"}</h2><p>{profile?.email || user?.email}</p><span className={styles.visibility}><span />{isOperator ? isOperatorPublic(operatorProfile) ? "Visible to nearby clients" : "Not visible in nearby searches" : "Personal account"}</span></div>
-        </div>
-        <div className={styles.completion}>
-          <div><span>Account details</span><strong>{completionPercent}% complete</strong></div>
-          <div className={styles.progress} role="progressbar" aria-label="Saved account details completed" aria-valuenow={completionPercent} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${completionPercent}%` }} /></div>
-          <p>{accountComplete ? "Your essential details are all filled in." : `${savedMissingFields.length} details left. Save your changes to update progress.`}</p>
-        </div>
-      </section>
-      <div className={styles.layout}>
-        <aside className={styles.sidebar}>
-          <p className={styles.navLabel}>ACCOUNT SETTINGS</p>
-          <label className={styles.mobileSelectLabel} htmlFor="settings-section">Settings section</label>
-          <select id="settings-section" className={styles.mobileSelect} value={activeTab} onChange={event => router.push(`/dashboard/settings/${event.target.value}`)}>{TABS.map(tab => <option key={tab.key} value={tab.key}>{tab.label}</option>)}</select>
-          <nav aria-label="Settings sections" className={styles.navigation}>
+      {feedback && <Notification message={feedback} type="error" onClose={() => setFeedback("")} />}
+      <DeleteConfirmPopup isOpen={deleteOpen} onCancel={() => { if (!deletingAccount) setDeleteOpen(false); }} onConfirm={handleDeleteAccount} loading={deletingAccount} title="Delete your account?" message="This permanently removes your sign-in and profile. Job, payment and conversation records may remain. You cannot undo this." confirmLabel="Delete account" />
+
+      {!activeTab ? <>
+        <header className={styles.profileHeader}>
+          <UserAvatar photoURL={profile?.avatar} logoURL={isOperator ? operatorProfile?.logoUrl : undefined} role={profile?.role} displayName={headerName} size={112} rounded="full" className={styles.profileLogo} />
+          <h1>{headerName}</h1>
+          <p>{profile?.email || user?.email}</p>
+          {basedIn && <p className={styles.profileLocation}><MapPin size={15} aria-hidden="true" />{basedIn}</p>}
+          <div className={styles.profileActions}>
+            <Link href="/dashboard/settings/general" className={`${styles.pill} ${styles.pillPrimary}`}><Pencil size={15} aria-hidden="true" />Edit profile</Link>
+            {profile?.uid && <Link href={`/dashboard/u/${profile.uid}`} className={styles.pill}>View profile</Link>}
+          </div>
+          {!accountComplete && firstMissingSection && <Link href={`/dashboard/settings/${firstMissingSection}`} className={styles.profileProgress}>
+            <span><span>Profile {completionPercent}% complete</span><ChevronRight size={16} aria-hidden="true" /></span>
+            <span className={styles.progress} role="progressbar" aria-label="Profile completed" aria-valuenow={completionPercent} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${completionPercent}%` }} /></span>
+          </Link>}
+        </header>
+
+        <section className={styles.menu} aria-labelledby="account-settings-title">
+          <h2 id="account-settings-title" className={styles.menuLabel}>ACCOUNT SETTINGS</h2>
+          <nav aria-label="Settings sections">
             {TABS.map((tab) => {
               const Icon = tab.icon;
-              return <Link key={tab.key} href={`/dashboard/settings/${tab.key}`} aria-current={activeTab === tab.key ? "page" : undefined} className={styles.navButton}><IconSwap icon={<Icon size={18} aria-hidden="true" />}>
-                <Icon size={18} aria-hidden="true" /><span>{tab.label}<small>{sectionStatus[tab.key]}</small></span><ChevronRight size={15} className={styles.chevron} aria-hidden="true" />
-              </IconSwap></Link>;
+              return <Link key={tab.key} href={`/dashboard/settings/${tab.key}`} className={styles.menuItem}>
+                <span className={styles.menuIcon}><Icon size={19} aria-hidden="true" /></span>
+                <span className={styles.menuText}><strong>{tab.label}</strong><small>{sectionStatus[tab.key]}</small></span>
+                <ChevronRight size={18} className={styles.chevron} aria-hidden="true" />
+              </Link>;
             })}
           </nav>
-
-          <button type="button" onClick={handleSignOut} className={styles.sidebarSignOut}><IconSwap icon={<LogOut size={16} />}><LogOut size={16} /> Sign out</IconSwap></button>
-        </aside>
+          <button type="button" onClick={handleSignOut} className={styles.signOut}><LogOut size={18} aria-hidden="true" /> Sign out</button>
+        </section>
+        <p className={styles.version}>snowd.ca v0.1.0</p>
+      </> : <>
+        <Link href="/dashboard/settings" className={styles.back}><ArrowLeft size={17} aria-hidden="true" />Settings</Link>
         <section className={styles.content} aria-labelledby="settings-section-title">
           <div className="space-y-6">
             <div className={styles.sectionHeading}>
-              <div><h2 id="settings-section-title">{activeTabMeta?.label || "Settings"}</h2><p>{TAB_DESCRIPTIONS[activeTab]}</p></div>
-              <span role="status" className={saved ? styles.saved : styles.sectionMeta}>{saved ? <><CheckCircle size={15} /> Saved</> : activeTab === "notifications" ? savingEmailPreferences ? "Saving…" : "Saves automatically" : (activeTab === "general" && generalDirty) || (activeTab === "branding" && brandingDirty) ? "Unsaved changes" : ""}</span>
+              <div><h1 id="settings-section-title">{activeTabMeta?.label || "Settings"}</h1><p>{TAB_DESCRIPTIONS[activeTab]}</p></div>
+              <span role="status" className={saved ? styles.saved : styles.sectionMeta}>{saved ? <><CheckCircle size={15} /> Saved</> : activeTab === "notifications" ? savingEmailPreferences ? "Saving…" : "Saves automatically" : (["general", "properties", "service-areas"].includes(activeTab) && generalDirty) || (activeTab === "branding" && brandingDirty) ? "Unsaved changes" : ""}</span>
             </div>
-            {savedMissingFields.length > 0 && activeTab !== "general" && <Link href="/dashboard/settings/general" className={styles.incompleteNotice}><IconSwap icon={<AlertCircle size={17} />}><AlertCircle size={17} /><span>Finish your account details</span><ChevronRight size={17} /></IconSwap></Link>}
+            {firstMissingSection && missingIn(activeTab) === 0 && <Link href={`/dashboard/settings/${firstMissingSection}`} className={styles.incompleteNotice}><AlertCircle size={17} /><span>Finish your {firstMissingSection === "general" ? "account details" : firstMissingSection === "properties" ? "main house address" : "base location"}</span><ChevronRight size={17} /></Link>}
 
-      {/* General Settings */}
-      {activeTab === "general" && !isOperator && <SavedProperties />}
+      {/* Account */}
       {activeTab === "general" && (
         <div className="space-y-6">
           {!isOperator && (
             <section className={styles.card}>
-              <h3 className="min-h-11 text-lg font-semibold text-[var(--ink)] flex items-center gap-2">
-                <Camera className="w-5 h-5 text-[var(--accent)]" />
-                Profile photo
-              </h3>
+              <h2 className={styles.cardTitle}>Profile photo</h2>
               <p className={styles.sectionDescription}>Shown on your contact card and in Messages. Saves as soon as you choose it.</p>
               <ProfilePhotoPicker value={profile?.avatar || ""} name={profile?.displayName} onChange={saveClientPhoto} />
             </section>
           )}
-          {/* Profile Info */}
           <section className={styles.card}>
-            <h3 className="min-h-11 text-lg font-semibold text-[var(--ink)] flex items-center gap-2">
-              <User className="w-5 h-5 text-[var(--accent)]" />
-              Your contact details
-            </h3>
-            <p className={styles.sectionDescription}>How we address you and keep in touch. Fields marked “Required” complete your account.</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-display-name">Display Name <span className={styles.required}>Required</span></label>
-                <input
-                  type="text"
-                  id="settings-display-name"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  className={`w-full px-4 py-2.5 border-[3px] rounded-2xl text-sm focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none ${
-                    missingGeneralFieldSet.has("displayName") ? "border-amber-300 bg-amber-50" : "border-[var(--border)]"
-                  }`}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-email">Email</label>
-                <input
-                  type="email"
-                  id="settings-email"
-                  value={user?.email || ""}
-                  disabled
-                  className="w-full px-4 py-2.5 border-[3px] border-[var(--border)] rounded-xl text-sm bg-[var(--bg-primary)] text-[var(--text-muted)]"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-phone">Phone <span className={styles.required}>Required</span></label>
-                <input
-                  type="tel"
-                  id="settings-phone"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className={`w-full px-4 py-2.5 border-[3px] rounded-2xl text-sm focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none ${
-                    missingGeneralFieldSet.has("phone") ? "border-amber-300 bg-amber-50" : "border-[var(--border)]"
-                  }`}
-                />
-              </div>
-              {!isOperator && (
-                <div>
-                  <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-age">Age <span className={styles.required}>Optional</span></label>
-                  <input
-                    type="number"
-                    min={13}
-                    max={120}
-                    id="settings-age"
-                  value={age ?? ""}
-                    onChange={(e) => {
-                      const next = parseInt(e.target.value, 10);
-                      setAge(Number.isNaN(next) ? undefined : next);
-                    }}
-                    className="w-full px-4 py-2.5 border-[3px] border-[var(--border)] rounded-xl text-sm focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none"
-                  />
-                  <p className="mt-1 text-xs text-[var(--text-muted)]">55+ enables the simplified dashboard experience.</p>
-                </div>
-              )}
-              {isOperator && (
-                <div>
-                  <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-business-name">Business Name <span className={styles.required}>Required</span></label>
-                  <input
-                    type="text"
-                    id="settings-business-name"
-                  value={businessName}
-                    onChange={(e) => setBusinessName(e.target.value)}
-                    className={`w-full px-4 py-2.5 border-[3px] rounded-2xl text-sm focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none ${
-                      missingGeneralFieldSet.has("businessName") ? "border-amber-300 bg-amber-50" : "border-[var(--border)]"
-                    }`}
-                  />
-                </div>
-              )}
+            <h2 className={styles.cardTitle}>Your details</h2>
+            <div className={styles.fields}>
+              <Field label="Full name" value={displayName} missing={missingGeneralFieldSet.has("displayName")} onChange={(e) => setDisplayName(e.target.value)} autoComplete="name" />
+              <Field label="Phone number" type="tel" value={phone} missing={missingGeneralFieldSet.has("phone")} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" />
+              <Field wide label="Email" type="email" value={user?.email || ""} disabled />
+              {!isOperator && <Field label="Age (optional)" type="number" min={13} max={120} value={age ?? ""} onChange={(e) => { const next = parseInt(e.target.value, 10); setAge(Number.isNaN(next) ? undefined : next); }} />}
+              {isOperator && <Field wide label="Business name" value={businessName} missing={missingGeneralFieldSet.has("businessName")} onChange={(e) => setBusinessName(e.target.value)} autoComplete="organization" />}
+              {isOperator && <TextAreaField label="Short bio for clients" value={bio} missing={missingGeneralFieldSet.has("bio")} onChange={(e) => setBio(e.target.value)} rows={3} />}
             </div>
-            {isOperator && (
-              <div className="mt-4">
-                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-bio">Bio <span className={styles.required}>Required</span></label>
-                <textarea
-                  id="settings-bio"
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
-                  rows={3}
-                  className={`w-full px-4 py-2.5 border-[3px] rounded-2xl text-sm focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none resize-none ${
-                    missingGeneralFieldSet.has("bio") ? "border-amber-300 bg-amber-50" : "border-[var(--border)]"
-                  }`}
-                />
-              </div>
-            )}
+            {!isOperator && <p className={styles.hint}>Ages 55+ get the simplified dashboard.</p>}
           </section>
 
           {isOperator && (
             <section className={styles.card}>
-              <h3 className="mb-1 min-h-11 text-lg font-semibold text-[var(--ink)]">Your services & prices</h3>
-              <p className="mb-4 text-sm text-[var(--text-muted)]">Set the amount you receive for each area. New work orders use these rates; existing orders keep their agreed price.</p>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <h2 className={styles.cardTitle}>Your prices</h2>
+              <p className={styles.sectionDescription}>What you receive for each area. Front porch and sidewalk share one price. Existing orders keep their agreed price.</p>
+              <div className={styles.fields}>
                 {([
-                  ["small", "1-car driveway", "Fits one car"],
-                  ["medium", "2-car driveway", "Fits two cars"],
-                  ["large", "3+ car driveway", "Fits three or more cars"],
-                  ["walkway", "Walkway", "Paths and front steps"],
-                  ["sidewalk", "Sidewalk", "Public sidewalk frontage"],
-                  ["backyardPatio", "Backyard patio", "Rear patio area"],
-                  ["porch", "Porch", "Front porch and steps"],
-                ] as const).map(([key, label, description]) => (
-                  <label key={key} className="flex min-h-20 items-center justify-between gap-4 rounded-2xl border border-[var(--border-color)] bg-[var(--sky)] p-4">
-                    <span>
-                      <span className="block font-semibold">{label}</span>
-                      <span className="block text-xs text-[var(--text-muted)]">{description}</span>
-                    </span>
-                    <span className="relative w-28 shrink-0">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 font-semibold" aria-hidden="true">$</span>
-                      <input
-                        type="number"
-                        inputMode="decimal"
-                        aria-label={`${label} price in CAD`}
-                        min="0.01"
-                        max="10000"
-                        step="0.01"
-                        value={pricing[key]}
-                        onChange={event => setPricing(current => ({ ...current, [key]: Number(event.target.value) }))}
-                        className="w-full border py-2 pl-7 pr-2 text-right font-semibold"
-                      />
-                    </span>
-                  </label>
+                  ["small", "1-car driveway"],
+                  ["medium", "2-car driveway"],
+                  ["large", "3+ car driveway"],
+                  ["sidewalk", "Front porch & sidewalk"],
+                  ["backyardPatio", "Backyard patio"],
+                ] as const).map(([key, label]) => (
+                  <Field key={key} label={`${label} ($ CAD)`} type="number" inputMode="decimal" min="0.01" max="10000" step="0.01" value={pricing[key]} onChange={event => setPricing(current => ({ ...current, [key]: Number(event.target.value), ...(key === "sidewalk" ? { porch: Number(event.target.value) } : {}) }))} />
                 ))}
               </div>
-              <p className="mt-3 text-xs text-[var(--text-muted)]">When a customer selects more than one area, the applicable rates are added together.</p>
             </section>
           )}
 
-          {/* Location */}
-          <section className={styles.card}>
-            <h3 className="min-h-11 text-lg font-semibold text-[var(--ink)] flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-[var(--accent)]" />
-              Your location
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-              <div className="sm:col-span-2">
-                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-street-address">Street Address <span className={styles.required}>Required</span></label>
-                <input
-                  type="text"
-                  id="settings-street-address"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className={`w-full px-4 py-2.5 border-[3px] rounded-2xl text-sm focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none ${
-                    missingGeneralFieldSet.has("address") ? "border-amber-300 bg-amber-50" : "border-[var(--border)]"
-                  }`}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-city">City <span className={styles.required}>Required</span></label>
-                <input
-                  type="text"
-                  id="settings-city"
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  className={`w-full px-4 py-2.5 border-[3px] rounded-2xl text-sm focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none ${
-                    missingGeneralFieldSet.has("city") ? "border-amber-300 bg-amber-50" : "border-[var(--border)]"
-                  }`}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-province">Province <span className={styles.required}>Required</span></label>
-                <select
-                  id="settings-province"
-                  value={province}
-                  onChange={(e) => setProvince(e.target.value)}
-                  className={`w-full px-4 py-2.5 border-[3px] rounded-2xl text-sm bg-white focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none ${
-                    missingGeneralFieldSet.has("province") ? "border-amber-300 bg-amber-50" : "border-[var(--border)]"
-                  }`}
-                >
-                  <option value="">Choose a province</option>
-                  {CANADIAN_PROVINCES.map((p) => (
-                    <option key={p.code} value={p.code}>{p.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-[var(--text-muted)] mb-1 block" htmlFor="settings-postal-code">Postal Code <span className={styles.required}>Required</span></label>
-                <input
-                  type="text"
-                  id="settings-postal-code"
-                  value={postalCode}
-                  onChange={(e) => setPostalCode(e.target.value.toUpperCase())}
-                  maxLength={7}
-                  className={`w-full px-4 py-2.5 border-[3px] rounded-2xl text-sm focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent outline-none ${
-                    missingGeneralFieldSet.has("postalCode") ? "border-amber-300 bg-amber-50" : "border-[var(--border)]"
-                  }`}
-                />
-              </div>
-            </div>
+          {saveBar}
 
-            {/* Map Preview  */}
-            {isOperator && (
-              <div className="mt-4">
-                <ServiceAreaEditor location={{ address, city, province, postalCode }} mode={serviceAreaMode} radius={serviceRadius} cities={serviceAreas} onChange={patch => {
-                  if (patch.serviceAreaMode) setServiceAreaMode(patch.serviceAreaMode);
-                  if (patch.serviceRadius !== undefined) setServiceRadius(patch.serviceRadius);
-                  if (patch.serviceAreas) setServiceAreas(patch.serviceAreas);
-                }} />
-              </div>
-            )}
-
-            {/* Client location map */}
-            {!isOperator && address && city && (
-              <div className="mt-4">
-                <label className="text-sm font-medium text-[var(--text-muted)] mb-2 block flex items-center gap-2"><IconSwap icon={<MapPin className="w-4 h-4 text-[var(--accent)]" />}>
-                  <MapPin className="w-4 h-4 text-[var(--accent)]" />
-                  Your Location on Map
-                </IconSwap></label>
-                <div className="rounded-xl overflow-hidden border-[3px] border-[var(--border)]">
-                  <iframe
-                    title="Your service location"
-                    width="100%"
-                    height="250"
-                    style={{ border: 0 }}
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                    src={buildGoogleMapsEmbedUrl(`${address}, ${city}, ${province} ${postalCode}, Canada`, 15)}
-                  />
-                </div>
-                <p className="text-xs text-[var(--text-muted)] mt-2">
-                  📍 {address}, {city}, {province} {postalCode}
-                </p>
-              </div>
-            )}
-
-            {!isOperator && (
-              <section className="mt-5 border-t border-[var(--border-color)] pt-5" aria-labelledby="property-photos-heading">
-                <h4 id="property-photos-heading" className="font-semibold">Expected clearing photos</h4>
-                <p className="mt-1 text-sm text-[var(--text-muted)]">Add driveway or clearing-area photos so the operator knows what to expect before arriving.</p>
-                {propertyPhotos.length > 0 && <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">{propertyPhotos.map((url, index) => <figure key={url} className="overflow-hidden rounded-xl border bg-white"><Image src={url} alt={`Property clearing area ${index + 1}`} width={480} height={320} unoptimized className="aspect-[3/2] w-full object-cover" /><button type="button" disabled={uploadingPropertyPhotos} onClick={() => removePropertyPhoto(index)} className="min-h-11 w-full text-sm font-semibold text-red-700 disabled:opacity-50">Remove photo</button></figure>)}</div>}
-                {propertyPhotos.length < 6 && <label className="mt-3 inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-[var(--ink)] px-4 py-2 text-sm font-semibold">
-                  <ImagePlus className="h-4 w-4" /> {uploadingPropertyPhotos ? "Uploading…" : "Add property photos"}
-                  <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={uploadingPropertyPhotos} onChange={handlePropertyPhotoUpload} className="sr-only" />
-                </label>}
-              </section>
-            )}
-          </section>
-
-          {saveError && <p role="alert" className="text-sm text-red-700">{saveError}</p>}
-          {/* Save */}
-          <div className={styles.saveBar}><div><strong>{generalDirty ? "You have unsaved changes" : "Your account details"}</strong><p>Save to update your profile and completion status.</p></div>
-          <button
-            onClick={handleSave}
-            disabled={saving || brandingBusy}
-            className={`mobile-save-action btn-primary w-full flex items-center justify-center gap-2 px-6 py-3 text-white rounded-xl font-semibold text-sm transition disabled:opacity-50 ${
-              saved ? "bg-green-600 hover:bg-green-700" : "bg-[var(--accent)] hover:bg-[var(--accent-dark)]"
-            }`}
-          >
-            {saving ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : saved ? (
-              <CheckCircle className="w-4 h-4" />
-            ) : (
-              <Save className="w-4 h-4" />
-            )}
-            {saving ? "Saving changes..." : saved ? "Saved" : "Save Changes"}
-          </button>
-
-          </div>
-          {/* Delete Account */}
           <section className={styles.dangerZone}>
-            <h3 className="min-h-11 text-sm font-semibold">Account removal</h3>
-            <div className="rounded-xl border border-red-200 bg-red-50/60 p-4 mb-3">
-              <div className="flex items-start gap-3">
-                <Trash2 className="w-5 h-5 text-red-600 mt-0.5 shrink-0" />
-                <div>
-                  <h3 className="text-sm font-semibold text-red-800">Delete your account</h3>
-                  <p className="text-xs text-red-700 mt-1 leading-5">
-                    This removes your profile and sign-in permanently. Shared job, payment, and support records may be retained for service and legal purposes.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <button
-              onClick={() => setDeleteOpen(true)}
-              disabled={deletingAccount}
-              className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm border border-red-200 text-red-600 hover:bg-red-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
-            >
+            <h2 className={styles.cardTitle}>Delete account</h2>
+            <p className={styles.sectionDescription}>Permanently removes your profile and sign-in. Shared job, payment and support records may be kept for service and legal purposes.</p>
+            <button type="button" onClick={() => setDeleteOpen(true)} disabled={deletingAccount} className={styles.dangerButton}>
               {deletingAccount ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-              {deletingAccount ? "Deleting account..." : "Delete account"}
+              {deletingAccount ? "Deleting account…" : "Delete account"}
             </button>
-            <p className="text-center text-xs text-[var(--text-muted)] mt-2">This cannot be undone.</p>
           </section>
-
-          <div className="text-center py-2">
-            <p className="text-xs text-[var(--text-muted)]">snowd.ca v0.1.0</p>
-          </div>
         </div>
       )}
 
+      {/* Properties — clients only */}
+      {activeTab === "properties" && !isOperator && (
+        <div className="space-y-6">
+          <section className={styles.card}>
+            <h2 className={styles.cardTitle}>Main house</h2>
+            <p className={styles.sectionDescription}>Your profile home. Operators see it when you book.</p>
+            {locationFields}
+            {address && city && (
+              <div className={styles.mapPreview}>
+                <iframe title="Your main house on the map" width="100%" height="220" style={{ border: 0 }} loading="lazy" referrerPolicy="no-referrer-when-downgrade" src={buildGoogleMapsEmbedUrl(`${address}, ${city}, ${province} ${postalCode}, Canada`, 15)} />
+              </div>
+            )}
+          </section>
+          {saveBar}
+          <SavedProperties />
+          <section className={styles.card} aria-labelledby="property-photos-heading">
+            <h2 id="property-photos-heading" className={styles.cardTitle}>Property photos</h2>
+            <p className={styles.sectionDescription}>Driveway or clearing-area photos so operators know what to expect.</p>
+            {propertyPhotos.length > 0 && <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{propertyPhotos.map((url, index) => <figure key={url} className="overflow-hidden rounded-xl border bg-white"><Image src={url} alt={`Property clearing area ${index + 1}`} width={480} height={320} unoptimized className="aspect-[3/2] w-full object-cover" /><button type="button" disabled={uploadingPropertyPhotos} onClick={() => removePropertyPhoto(index)} className="min-h-11 w-full font-semibold text-red-700 disabled:opacity-50">Remove photo</button></figure>)}</div>}
+            {propertyPhotos.length < 6 && <label className="btn-secondary mt-3 inline-flex cursor-pointer items-center gap-2">
+              <ImagePlus className="h-4 w-4" /> {uploadingPropertyPhotos ? "Uploading…" : "Add property photos"}
+              <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={uploadingPropertyPhotos} onChange={handlePropertyPhotoUpload} className="sr-only" />
+            </label>}
+          </section>
+        </div>
+      )}
+
+      {/* Service areas — operators only */}
+      {activeTab === "service-areas" && isOperator && (
+        <div className="space-y-6">
+          <section className={styles.card}>
+            <h2 className={styles.cardTitle}>Your base location</h2>
+            <p className={styles.sectionDescription}>Where you start from. Clients only see your city.</p>
+            {locationFields}
+          </section>
+          <section className={styles.card}>
+            <h2 className={styles.cardTitle}>Areas you serve</h2>
+            <p className={styles.sectionDescription}>Pick a travel radius, or add and remove the cities you work in.</p>
+            <ServiceAreaEditor location={{ address, city, province, postalCode }} mode={serviceAreaMode} radius={serviceRadius} cities={serviceAreas} onChange={patch => {
+              if (patch.serviceAreaMode) setServiceAreaMode(patch.serviceAreaMode);
+              if (patch.serviceRadius !== undefined) setServiceRadius(patch.serviceRadius);
+              if (patch.serviceAreas) setServiceAreas(patch.serviceAreas);
+            }} />
+          </section>
+          {saveBar}
+        </div>
+      )}
       {/* Payment Settings */}
       {activeTab === "payment" && (
         <div className="space-y-6">
@@ -1192,8 +1050,6 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {feedback && <Notification message={feedback} type="error" onClose={() => setFeedback("")} />}
-      <DeleteConfirmPopup isOpen={deleteOpen} onCancel={() => { if (!deletingAccount) setDeleteOpen(false); }} onConfirm={handleDeleteAccount} loading={deletingAccount} title="Delete your account?" message="This permanently removes your sign-in and profile. Job, payment and conversation records may remain. You cannot undo this." confirmLabel="Delete account" />
             {/* Notification Settings */}
       {activeTab === "notifications" && (
         <div className="space-y-6">
@@ -1455,31 +1311,13 @@ export default function SettingsPage() {
             {/* Tagline */}
             <div className="space-y-4">
               <div>
-                <label htmlFor="business-tagline" className="block text-sm font-medium text-[var(--ink)] mb-1">Business Tagline / Slogan</label>
-                <input
-                  id="business-tagline"
-                  type="text"
-                  value={brandingTagline}
-                  onChange={(e) => setBrandingTagline(e.target.value)}
-                  placeholder="e.g. Fast & Reliable Snow Removal"
-                  maxLength={80}
-                  className="w-full px-4 py-2.5 border-[3px] border-[var(--border)] rounded-xl focus:ring-2 focus:ring-[var(--accent)]/30 focus:border-[var(--accent)] outline-none text-sm"
-                />
-                <p className="text-xs text-[var(--text-muted)] mt-1">{brandingTagline.length}/80 characters</p>
+                <Field wide label="Business tagline" value={brandingTagline} onChange={(e) => setBrandingTagline(e.target.value)} maxLength={80} />
+                <p className={styles.hint}>{brandingTagline.length}/80 characters</p>
               </div>
 
               <div>
-                <label htmlFor="business-description" className="block text-sm font-medium text-[var(--ink)] mb-1">About Your Business</label>
-                <textarea
-                  id="business-description"
-                  value={brandingDescription}
-                  onChange={(e) => setBrandingDescription(e.target.value)}
-                  placeholder="Tell clients about your experience, services, and what makes you stand out..."
-                  rows={4}
-                  maxLength={500}
-                  className="w-full px-4 py-2.5 border-[3px] border-[var(--border)] rounded-xl focus:ring-2 focus:ring-[var(--accent)]/30 focus:border-[var(--accent)] outline-none text-sm resize-none"
-                />
-                <p className="text-xs text-[var(--text-muted)] mt-1">{brandingDescription.length}/500 characters</p>
+                <TextAreaField label="About your business" value={brandingDescription} onChange={(e) => setBrandingDescription(e.target.value)} rows={4} maxLength={500} />
+                <p className={styles.hint}>{brandingDescription.length}/500 characters</p>
               </div>
 
               <button
@@ -1567,7 +1405,7 @@ export default function SettingsPage() {
             </div>}
             </div>
           </section>
-      </div>
+      </>}
     </div>
   );
 }

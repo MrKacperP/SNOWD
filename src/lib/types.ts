@@ -26,6 +26,28 @@ export type ServiceType =
   | "porch"
   | "other";
 
+/** The only areas clients can book and operators can offer. Older orders may still carry retired types. */
+export const SHOVELING_SERVICES = [
+  ["driveway", "Driveway"],
+  ["porch", "Front porch"],
+  ["sidewalk", "Sidewalk"],
+  ["backyard-patio", "Backyard patio"],
+] as const satisfies readonly (readonly [ServiceType, string])[];
+
+export const SERVICE_LABELS: Record<ServiceType, string> = {
+  driveway: "Driveway",
+  porch: "Front porch",
+  sidewalk: "Sidewalk",
+  "backyard-patio": "Backyard patio",
+  walkway: "Walkway",
+  "parking-lot": "Parking lot",
+  roof: "Roof",
+  other: "Other",
+};
+
+export const isShovelingService = (service: string): service is ServiceType =>
+  SHOVELING_SERVICES.some(([value]) => value === service);
+
 export type PropertySize = "small" | "medium" | "large" | "commercial";
 
 export type ThemePreference = "light";
@@ -264,10 +286,13 @@ export interface ChatMessage {
     imageUrl?: string;
     audioUrl?: string;
     durationMs?: number;
+    peaks?: number[];
     paymentIntentId?: string;
     completionPhotoUrl?: string;
     progressStep?: string;
   };
+  replyTo?: { id: string; senderName: string; content: string };
+  reactions?: Record<string, string>; // uid -> emoji
   read: boolean;
   createdAt: Date;
 }

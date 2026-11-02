@@ -667,5 +667,5 @@ a.locationOpen:hover { color: var(--accent); }
 .companySummary[data-unread="true"] .companyMeta, .companySummary[data-unread="true"] .messagePreview { color: var(--ink); font-weight: 600; }
 .companySummary[data-unread="true"] .conversationTime { color: var(--accent); font-weight: 700; }
 
-.operatorDetail { display:grid; gap:12px; max-width:880px; margin:0 auto; }
+.operatorDetail { display:grid; gap:16px; width:100%; }
 .operatorDetail > :global(button:first-child) { justify-self:start; }

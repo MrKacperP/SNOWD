@@ -26,7 +26,7 @@
 .home :global(.visit-summary strong) { font-size:16px; font-weight:700; line-height:1.3; }
 .home :global(.visit-summary .payment-summary) { padding:0; border:0; background:transparent; min-width:0; gap:0; }
 .home :global(.visit-summary .payment-summary > span) { font-size:12px; color:var(--text-muted); }
-.home :global(.visit-summary .payment-summary > strong) { margin-top:4px; color:#1a7546; }
+.home :global(.visit-summary .payment-summary > strong) { margin-top:4px; color:#1a7546; font-size:clamp(28px,4vw,36px); font-weight:750; letter-spacing:-.03em; line-height:1.05; font-variant-numeric:tabular-nums; }
 .home :global(.visit-summary .payment-summary small) { font-size:12px; color:#1a7546; }
 .home :global(.visit-summary .payment-summary > small) { display:none; }
 .home :global(.job-widget--cancelled .visit-summary .payment-summary :is(strong, small)) { color:var(--text-muted); text-decoration:line-through; }
@@ -51,13 +51,4 @@
 .home :global(.dashboard-earnings .dashboard-earnings-value small) { color:var(--text-secondary); font-size:14px; }
 .home :global(.dashboard-earnings-meta) { margin-top:2px; color:var(--text-secondary); font-size:14px; }
 .home :global(.dashboard-earnings-link) { display:inline-flex; align-items:center; min-height:44px; padding:0 4px; color:var(--accent); font-size:14px; font-weight:650; }
-.home :global(.earnings-chart) { position:relative; height:190px; margin-inline:-20px; color:#16805d; cursor:crosshair; touch-action:pan-y; }
-.home :global(.earnings-chart[data-empty]) { color:#b8c6cd; cursor:default; }
-.home :global(.earnings-chart:focus-visible) { outline:2px solid var(--accent); outline-offset:-4px; border-radius:0 0 18px 18px; }
-.home :global(.earnings-chart-plot) { position:absolute; inset:48px 0 0; }
-.home :global(.earnings-chart svg) { display:block; width:100%; height:100%; overflow:visible; }
-.home :global(.earnings-chart polyline) { fill:none; stroke:currentColor; stroke-width:2.25; stroke-linecap:round; stroke-linejoin:round; }
-.home :global(.earnings-chart-guide) { position:absolute; top:0; bottom:0; width:1px; background:currentColor; opacity:.25; pointer-events:none; }
-.home :global(.earnings-chart-dot) { position:absolute; width:12px; height:12px; border:2px solid #fff; border-radius:50%; background:currentColor; box-shadow:0 1px 6px #0003; transform:translate(-50%,-50%); pointer-events:none; }
-.home :global(.earnings-chart-tip) { position:absolute; top:4px; display:grid; justify-items:center; padding:4px 10px; border-radius:10px; background:var(--bg-card-solid); color:var(--text-secondary); font-size:12px; white-space:nowrap; transform:translateX(-50%); pointer-events:none; }
-.home :global(.earnings-chart-tip strong) { color:var(--text-primary); font-size:15px; font-variant-numeric:tabular-nums; }
+.home :global(.earnings-chart) { margin-inline:-20px; }

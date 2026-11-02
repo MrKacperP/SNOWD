@@ -49,7 +49,7 @@ export function ClientHomeView({ locationLabel, activeJobs, profile, operatorNam
   const arrival = useArrivalLabel(nextJob);
   const next = nextJob ? workOrderPresentation(nextJob, nextJob.clientId) : null;
   const operator = nextJob ? operators[nextJob.operatorId] : undefined;
-  const business = operator?.businessName?.trim();
+  // The client knows their shoveler by name, not by business.
   const person = operator?.displayName?.trim();
   return (
     <div className={`app-page client-home dashboard-home ${styles.home} text-[var(--text-primary)]`}><header className="dashboard-overview"><div><h1>Your snow day</h1></div></header>
@@ -58,9 +58,8 @@ export function ClientHomeView({ locationLabel, activeJobs, profile, operatorNam
       {loading ? <p role="status">Loading your work orders…</p> : loadError ? <p role="alert">Could not load work orders. <Link href="/dashboard/jobs">Try again</Link></p> : nextJob && next ? <section className={`next-action job-widget job-widget--${nextJob.status}`}>
         <WorkOrderTimeline job={nextJob} />
         <h2>{next.title}</h2>
-        {next.description && <p>{next.description}</p>}
         <div className="visit-summary mt-5 grid grid-cols-2 gap-3 rounded-xl bg-white/75 p-4 sm:grid-cols-3">
-          <div><span className="text-xs text-[var(--text-muted)]">Your shoveler</span><strong className="mt-1 block">{business || person || operatorNames[nextJob.operatorId] || "Operator"}</strong>{business && person && business !== person && <span className="visit-person">{person}</span>}</div>
+          <div><span className="text-xs text-[var(--text-muted)]">Your shoveler</span><strong className="mt-1 block">{person || operatorNames[nextJob.operatorId] || "Operator"}</strong></div>
           <div className="col-span-2 sm:col-span-1"><span className="text-xs text-[var(--text-muted)]">When</span>{nextJob.status === "en-route" ? <strong className="eta-live mt-1"><span className="eta-live-badge"><span aria-hidden="true" />Live</span>{arrival}</strong> : <strong className="mt-1 block">{nextJob.status === "cancelled" ? "Cancelled" : nextJob.status === "in-progress" ? "Clearing now" : isAsap(nextJob) ? "As soon as possible" : scheduleText(nextJob)}</strong>}</div>
           <PaymentSummary job={nextJob} />
         </div>

@@ -6,7 +6,8 @@ import { orderRequest } from "@/components/work-orders/OrderActions";
 
 import Modal from "@/components/ui/Modal";
 import PageHeader from "@/components/ui/PageHeader";
-import PropertyMap from "@/components/PropertyMap";
+import SnowdMap, { type ServiceAreaShape } from "@/components/SnowdMap";
+import popup from "@/components/ui/popup.module.css";
 import ServiceLocationPicker from "@/components/ServiceLocationPicker";
 import { useServiceLocation } from "@/context/ServiceLocationContext";
 import { formatServiceAddress, sameServiceAddress } from "@/lib/serviceLocations";
@@ -24,7 +25,7 @@ getDistanceKm,
 isClientWithinOperatorRadius,
 isOperatorPublic,
 } from "@/lib/operatorDiscovery";
-import { ClientProfile,OperatorProfile,ServiceType } from "@/lib/types";
+import { ClientProfile,OperatorProfile,ServiceType,SERVICE_LABELS,SHOVELING_SERVICES,isShovelingService } from "@/lib/types";
 import { propertySizeLabel } from "@/lib/workOrders";
 import { addDays,addMonths,eachDayOfInterval,endOfMonth,endOfWeek,format,isBefore,isSameMonth,startOfMonth,startOfWeek } from "date-fns";
 import {
@@ -37,8 +38,12 @@ updateDoc,
 where,
 } from "firebase/firestore";
 import {
+ArrowRight,
 CalendarDays,
 Banknote,
+Check,
+ChevronLeft,
+Send,
 CreditCard,
 Filter,
 MapPin,
@@ -50,16 +55,13 @@ Zap
 import Link from "next/link";
 import { useEffect,useMemo,useState,useRef } from "react";
 
-const SERVICE_LABELS: Record<ServiceType, string> = {
-  driveway: "Driveway",
-  walkway: "Walkway",
-  sidewalk: "Sidewalk",
-  "parking-lot": "Parking Lot",
-  roof: "Roof",
-  "backyard-patio": "Backyard patio",
-  porch: "Porch",
-  other: "Other",
-};
+
+/** Pre-select the client's saved areas this operator offers, or the operator's first bookable area. */
+function startingServices(saved: ServiceType[], operator: OperatorProfile) {
+  const offered = operator.serviceTypes.filter(isShovelingService);
+  const matches = saved.filter(service => offered.includes(service));
+  return matches.length ? matches : offered.slice(0, 1);
+}
 
 function operatorServicePrice(operator: OperatorProfile, client: ClientProfile) {
   const size = (client?.propertyDetails?.propertySize || "medium") as "small" | "medium" | "large";
@@ -242,6 +244,13 @@ export default function FindOperatorsPage() {
   const addressConfirmed = !differentAddress || confirmedAddress === formatServiceAddress(serviceLocation);
   const locationReady = !!locations?.ready && !locations.error && Boolean(serviceLocation?.address?.trim() && serviceLocation?.city?.trim() && serviceLocation?.province?.trim() && /^[A-Z]\d[A-Z]\s?\d[A-Z]\d$/i.test(serviceLocation?.postalCode?.trim() || ""));
   const locationInRange = Boolean(schedulingOperator && isClientWithinOperatorRadius(clientProfile, schedulingOperator));
+  const operatorArea = useMemo<ServiceAreaShape | undefined>(() => {
+    if (!schedulingOperator) return undefined;
+    const outside = locationReady && !locationInRange;
+    if (schedulingOperator.serviceAreaMode === "cities" && schedulingOperator.serviceAreas?.length) return { mode: "cities", cities: schedulingOperator.serviceAreas, outside };
+    const center = Number.isFinite(schedulingOperator.lat) && Number.isFinite(schedulingOperator.lng) ? { lat: schedulingOperator.lat!, lng: schedulingOperator.lng! } : null;
+    return center ? { mode: "radius", center, radiusKm: Number(schedulingOperator.serviceRadius) || 10, outside } : undefined;
+  }, [schedulingOperator, locationReady, locationInRange]);
   const monthDays = eachDayOfInterval({ start: startOfWeek(startOfMonth(calendarMonth)), end: endOfWeek(endOfMonth(calendarMonth)) });
   const timeOptions = Array.from({ length: 25 }, (_, index) => { const minutes = 7 * 60 + index * 30; return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`; });
   const isScheduledTimePast = (time: string) => new Date(`${scheduledDate}T${time}:00`).getTime() <= Date.now();
@@ -259,9 +268,7 @@ export default function FindOperatorsPage() {
       setConfirmedAddress("");
       setEditingLocation(false);
       setTimingChosen(false);
-      setRequestedServices((clientProfile?.propertyDetails?.serviceTypes || ["driveway"]).filter(service => operator.serviceTypes.includes(service)).slice(0, 1).length
-        ? (clientProfile?.propertyDetails?.serviceTypes || ["driveway"]).filter(service => operator.serviceTypes.includes(service))
-        : operator.serviceTypes.slice(0, 1));
+      setRequestedServices(startingServices(clientProfile?.propertyDetails?.serviceTypes || ["driveway"], operator));
       setCashAcknowledged(false);
       setPaymentMethod("cash");
     }
@@ -276,9 +283,7 @@ export default function FindOperatorsPage() {
     setEditingLocation(false);
     setTimingChosen(false);
     setSchedulingOperator(operator);
-    setRequestedServices(selectedServices.filter(service => operator.serviceTypes.includes(service)).length
-      ? selectedServices.filter(service => operator.serviceTypes.includes(service))
-      : operator.serviceTypes.slice(0, 1));
+    setRequestedServices(startingServices(selectedServices, operator));
     setPaymentMethod("cash");
     const requestedDate = new URLSearchParams(window.location.search).get("date");
     const parsedRequestedDate = requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate)
@@ -442,7 +447,7 @@ export default function FindOperatorsPage() {
               <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Service</label>
               <select aria-label="Service" value={filterService} onChange={(e) => setFilterService(e.target.value as ServiceType | "all")} className="h-11 w-full rounded-xl border-[3px] border-[var(--border-color)] bg-white px-3 text-sm">
                 <option value="all">All Services</option>
-                {Object.entries(SERVICE_LABELS).map(([key, label]) => (
+                {SHOVELING_SERVICES.map(([key, label]) => (
                   <option key={key} value={key}>{label}</option>
                 ))}
               </select>
@@ -530,49 +535,55 @@ export default function FindOperatorsPage() {
         {schedulingOperator && createdJobId ? <ResultState title="Request sent." description={`${schedulingOperator.businessName || schedulingOperator.displayName} will review your request. We’ll let you know when they respond.`} actionHref={`/dashboard/jobs/${createdJobId}`} actionLabel="Track your work order">
           <div className="mt-6 flex items-center justify-center gap-2 rounded-xl bg-[var(--bg-secondary)] p-4 text-sm font-semibold"><CalendarDays size={18} />{scheduleType === "asap" ? "As soon as possible" : `${format(new Date(`${scheduledDate}T12:00:00`), "EEE, MMM d")} · ${format(new Date(`${scheduledDate}T${scheduledTime}:00`), "h:mm a")}`}</div>
           <p className="mt-3 text-center text-sm text-[var(--text-secondary)]">{requestedServices.map(item => item.replaceAll("-", " ")).join(" · ")} · {serviceLocation?.address} · {paymentMethod === "cash" ? "Cash" : "Card"}</p>
-        </ResultState> : schedulingOperator && <div className="space-y-5">
-          <div className="h-1.5 overflow-hidden rounded-full bg-[var(--bg-secondary)]"><div className="h-full rounded-full bg-[image:var(--accent-gradient)] transition-all" style={{ width: `${bookingStep * 25}%` }} /></div>
-          {bookingStep > 1 && <button type="button" onClick={() => { setBookingError(""); setBookingStep(current => current - 1); }} className="inline-flex min-h-10 items-center gap-2 rounded-full px-2 text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]">← Back</button>}
+        </ResultState> : schedulingOperator && <div className={popup.stack}>
+          <div className={popup.progress} aria-hidden="true">{[1, 2, 3, 4].map(step => <span key={step} data-done={step <= bookingStep || undefined} />)}</div>
+          {bookingStep > 1 && <button type="button" onClick={() => { setBookingError(""); setBookingStep(current => current - 1); }} className={popup.back}><ChevronLeft size={16} aria-hidden="true" />Back</button>}
           {bookingStep === 1 && <>
-          <h3 className="text-lg font-semibold">Choose your service</h3>
-          <div className="flex items-center justify-between gap-4 rounded-xl bg-[var(--bg-secondary)] p-4"><CompanyIdentity person={schedulingOperator} name={schedulingOperator.businessName || schedulingOperator.displayName} /><strong>${quoteMarketplace(calculateServicePrice(schedulingOperator.pricing, requestedServices, propertySize), paymentMethod).price.toFixed(2)} CAD</strong></div>
-          <fieldset className="rounded-xl bg-[var(--bg-secondary)] p-4"><legend className="text-sm font-semibold">Service</legend><div className="mt-2 flex flex-wrap gap-2">{schedulingOperator.serviceTypes.map(service => <label key={service} className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 font-semibold capitalize ${requestedServices.includes(service) ? "border-[var(--ink)] bg-[var(--accent-soft)]" : "border-[var(--border-color)] bg-white"}`}><input type="checkbox" className="h-4 w-4" checked={requestedServices.includes(service)} onChange={() => setRequestedServices(current => current.includes(service) ? current.filter(item => item !== service) : [...current, service])} />{service.replaceAll("-", " ")}</label>)}</div></fieldset>
-          <button type="button" onClick={() => setBookingStep(2)} disabled={!requestedServices.length} className="btn-primary w-full min-h-12">Continue with this shoveler</button>
+          <div className={popup.head}><h3>Choose your service</h3><p>Pick what you need cleared. The price updates as you go.</p></div>
+          <div className={`${popup.card} ${popup.row}`}><CompanyIdentity person={schedulingOperator} name={schedulingOperator.businessName || schedulingOperator.displayName} /><span className={popup.price}>${quoteMarketplace(calculateServicePrice(schedulingOperator.pricing, requestedServices, propertySize), paymentMethod).price.toFixed(2)}<small>CAD</small></span></div>
+          <fieldset><legend>Service</legend><div className={popup.options}>{schedulingOperator.serviceTypes.filter(isShovelingService).map(service => <label key={service} className={popup.option}><input type="checkbox" checked={requestedServices.includes(service)} onChange={() => setRequestedServices(current => current.includes(service) ? current.filter(item => item !== service) : [...current, service])} /><span className={popup.tick} aria-hidden="true"><Check size={13} strokeWidth={3} /></span>{SERVICE_LABELS[service]}</label>)}</div></fieldset>
+          <div className={popup.actions}><button type="button" onClick={() => setBookingStep(2)} disabled={!requestedServices.length} className="dialog-btn" data-tone="primary"><IconSwap icon={<ArrowRight />}>Continue with this shoveler</IconSwap></button></div>
           </>}
           {bookingStep === 2 && <>
-          <h3 className="text-lg font-semibold">Confirm your location</h3>
-          {serviceLocation?.address && <div className="h-48"><PropertyMap address={formatServiceAddress(serviceLocation)} /></div>}
-          <p>{formatServiceAddress(serviceLocation) || "Choose a service address"}</p>
-          <button type="button" className="btn-secondary" onClick={()=>setEditingLocation(true)}>Change address</button>
-          {locations?.error && <p role="alert">{locations.error} <button onClick={locations.reload}>Try again</button></p>}
-          {differentAddress && <label className="flex min-h-11 items-start gap-3 rounded-xl border p-4"><input type="checkbox" checked={addressConfirmed} onChange={e=>setConfirmedAddress(e.target.checked ? formatServiceAddress(serviceLocation) : "")} />This differs from my profile home. I confirm service at {formatServiceAddress(serviceLocation)}.</label>}
-          {locationReady && !locationInRange && <p role="alert" className="text-sm text-red-700">This address is outside this shoveler’s service area.</p>}
-          <button type="button" onClick={() => { setEditingLocation(false); setBookingStep(3); }} disabled={!locationReady || !locationInRange || !addressConfirmed} className="btn-primary w-full min-h-12">Continue</button>
+          <div className={popup.head}><h3>Confirm your location</h3><p>The shaded area is where {schedulingOperator.businessName || schedulingOperator.displayName} works.</p></div>
+          <div className={popup.mapCard}>
+            <div>{serviceLocation?.address ? <SnowdMap key={formatServiceAddress(serviceLocation)} location={Number.isFinite(serviceLocation.lat) && Number.isFinite(serviceLocation.lng) ? `${serviceLocation.lat},${serviceLocation.lng}` : formatServiceAddress(serviceLocation)} compact client markerAddress={formatServiceAddress(serviceLocation)} serviceArea={operatorArea} /> : <div className={popup.emptyMap}>Choose a service address to see it on the map.</div>}
+              {locationReady && <span className={popup.areaTag} data-outside={!locationInRange || undefined}>{locationInRange ? "Inside service area" : "Outside service area"}</span>}</div>
+            <div className={popup.mapFoot}><div><strong>{serviceLocation?.address || "No address yet"}</strong><span>{[serviceLocation?.city, serviceLocation?.province, serviceLocation?.postalCode].filter(Boolean).join(", ") || "Add where the work happens"}</span></div><button type="button" className="dialog-btn" data-tone="neutral" onClick={()=>setEditingLocation(true)}><IconSwap icon={<MapPin />}>Change address</IconSwap></button></div>
+          </div>
+          {locations?.error && <p role="alert" className={popup.alert}>{locations.error} <button type="button" className="font-semibold underline" onClick={locations.reload}>Try again</button></p>}
+          {differentAddress && <label className={popup.check}><input type="checkbox" checked={addressConfirmed} onChange={e=>setConfirmedAddress(e.target.checked ? formatServiceAddress(serviceLocation) : "")} /><span className={popup.tick} aria-hidden="true"><Check size={13} strokeWidth={3} /></span><span>This differs from my profile home. I confirm service at {formatServiceAddress(serviceLocation)}.</span></label>}
+          {locationReady && !locationInRange && <p role="alert" className={popup.alert}>This address is outside this shoveler’s service area. Change the address or choose another shoveler.</p>}
+          <div className={popup.actions}><button type="button" onClick={() => { setEditingLocation(false); setBookingStep(3); }} disabled={!locationReady || !locationInRange || !addressConfirmed} className="dialog-btn" data-tone="primary"><IconSwap icon={<ArrowRight />}>Continue</IconSwap></button></div>
           </>}
           {bookingStep === 3 && <>
-          <h3 className="text-lg font-semibold">When do you need help?</h3>
-          <div className="grid grid-cols-2 gap-2" aria-label="Choose timing">
-            <button type="button" aria-pressed={timingChosen && scheduleType === "asap"} onClick={() => { setScheduleType("asap"); setTimingChosen(true); }} className={`min-h-14 rounded-xl border px-3 text-sm font-semibold ${timingChosen && scheduleType === "asap" ? "border-[var(--ink)] bg-[var(--accent-soft)]" : "border-[var(--border-color)] bg-white"}`}><IconSwap icon={<Zap className="mr-2 inline h-4 w-4" />}><Zap className="mr-2 inline h-4 w-4" />ASAP</IconSwap></button>
-            <button type="button" aria-pressed={timingChosen && scheduleType === "scheduled"} onClick={() => { setScheduleType("scheduled"); setTimingChosen(true); }} className={`min-h-14 rounded-xl border px-3 text-sm font-semibold ${timingChosen && scheduleType === "scheduled" ? "border-[var(--ink)] bg-[var(--accent-soft)]" : "border-[var(--border-color)] bg-white"}`}><IconSwap icon={<CalendarDays className="mr-2 inline h-4 w-4" />}><CalendarDays className="mr-2 inline h-4 w-4" />Scheduled</IconSwap></button>
+          <div className={popup.head}><h3>When do you need help?</h3><p>Ask for the next available visit, or pick a time in the next 30 days.</p></div>
+          <div className={popup.options} role="group" aria-label="Choose timing">
+            <button type="button" aria-pressed={timingChosen && scheduleType === "asap"} onClick={() => { setScheduleType("asap"); setTimingChosen(true); }} className={popup.option}><IconSwap icon={<Zap />}><Zap size={16} aria-hidden="true" />ASAP</IconSwap></button>
+            <button type="button" aria-pressed={timingChosen && scheduleType === "scheduled"} onClick={() => { setScheduleType("scheduled"); setTimingChosen(true); }} className={popup.option}><IconSwap icon={<CalendarDays />}><CalendarDays size={16} aria-hidden="true" />Scheduled</IconSwap></button>
           </div>
-          {timingChosen && scheduleType === "asap" && <div className="rounded-2xl bg-[var(--accent-soft)] p-5 text-center"><Zap className="mx-auto mb-2 h-6 w-6 text-[var(--accent)]" /><strong className="block text-lg">As soon as possible</strong><span className="mt-1 block text-xs text-[var(--text-secondary)]">Arrival confirmed after the operator accepts</span></div>}
-          {timingChosen && scheduleType === "scheduled" && <div className="space-y-4 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4"><div className="flex items-center justify-between"><button type="button" aria-label="Previous month" onClick={() => setCalendarMonth(addMonths(calendarMonth, -1))} className="grid h-9 w-9 place-items-center rounded-lg bg-white">‹</button><strong>{format(calendarMonth, "MMMM yyyy")}</strong><button type="button" aria-label="Next month" onClick={() => setCalendarMonth(addMonths(calendarMonth, 1))} className="grid h-9 w-9 place-items-center rounded-lg bg-white">›</button></div><div className="grid grid-cols-7 gap-1 text-center text-xs">{["S", "M", "T", "W", "T", "F", "S"].map((day, index) => <span key={`${day}${index}`} className="py-1 text-[var(--text-muted)]">{day}</span>)}{monthDays.map(day => { const value = format(day, "yyyy-MM-dd"); const disabled = isBefore(day, new Date(new Date().setHours(0, 0, 0, 0))) || isBefore(addDays(new Date(), 30), day); return <button key={value} type="button" disabled={disabled} aria-pressed={value === scheduledDate} onClick={() => setScheduledDate(value)} className={`grid h-9 place-items-center rounded-lg ${value === scheduledDate ? "bg-[var(--ink)] text-white" : isSameMonth(day, calendarMonth) ? "bg-white" : "text-[var(--text-muted)]"} disabled:opacity-30`}>{format(day, "d")}</button>; })}</div><div><div className="mb-2 flex items-center justify-between text-sm"><span>Time</span><strong>{format(new Date(`2000-01-01T${scheduledTime}:00`), "h:mm a")}</strong></div><div className="flex max-h-28 flex-col gap-1 overflow-y-auto" role="listbox" aria-label="Choose visit time">{timeOptions.map(time => { const past = isScheduledTimePast(time); return <button key={time} type="button" role="option" aria-selected={scheduledTime === time} disabled={past} onClick={() => setScheduledTime(time)} className={`min-h-10 shrink-0 rounded-lg ${scheduledTime === time ? "bg-[var(--accent-soft)] font-semibold" : "bg-white"} disabled:cursor-not-allowed disabled:opacity-40`}>{format(new Date(`2000-01-01T${time}:00`), "h:mm a")}</button>; })}</div></div></div>}
-          <button type="button" onClick={() => setBookingStep(4)} disabled={!timingChosen || (scheduleType === "scheduled" && (!scheduledDate || new Date(`${scheduledDate}T${scheduledTime}`).getTime() <= Date.now()))} className="btn-primary w-full min-h-12">Review choices</button>
+          {timingChosen && scheduleType === "asap" && <div className={popup.highlight}><Zap className="h-6 w-6 text-[var(--accent)]" aria-hidden="true" /><strong>As soon as possible</strong><span>Arrival confirmed after the operator accepts</span></div>}
+          {timingChosen && scheduleType === "scheduled" && <div className={`${popup.card} ${popup.stack}`}>
+            <div><div className={popup.calendarHead}><button type="button" aria-label="Previous month" onClick={() => setCalendarMonth(addMonths(calendarMonth, -1))} className={popup.navBtn}>‹</button><strong>{format(calendarMonth, "MMMM yyyy")}</strong><button type="button" aria-label="Next month" onClick={() => setCalendarMonth(addMonths(calendarMonth, 1))} className={popup.navBtn}>›</button></div>
+            <div className={popup.days}>{["S", "M", "T", "W", "T", "F", "S"].map((day, index) => <span key={`${day}${index}`}>{day}</span>)}{monthDays.map(day => { const value = format(day, "yyyy-MM-dd"); const disabled = isBefore(day, new Date(new Date().setHours(0, 0, 0, 0))) || isBefore(addDays(new Date(), 30), day); return <button key={value} type="button" disabled={disabled} aria-pressed={value === scheduledDate} onClick={() => setScheduledDate(value)} className={popup.day} data-outside={!isSameMonth(day, calendarMonth) || undefined}>{format(day, "d")}</button>; })}</div></div>
+            <div><div className={popup.row}><span className={popup.eyebrow}>Time</span><strong className="text-sm">{format(new Date(`2000-01-01T${scheduledTime}:00`), "h:mm a")}</strong></div><div className={popup.slots} role="listbox" aria-label="Choose visit time">{timeOptions.map(time => { const past = isScheduledTimePast(time); return <button key={time} type="button" role="option" aria-selected={scheduledTime === time} disabled={past} onClick={() => setScheduledTime(time)} className={popup.option}>{format(new Date(`2000-01-01T${time}:00`), "h:mm a")}</button>; })}</div></div>
+          </div>}
+          <div className={popup.actions}><button type="button" onClick={() => setBookingStep(4)} disabled={!timingChosen || (scheduleType === "scheduled" && (!scheduledDate || new Date(`${scheduledDate}T${scheduledTime}`).getTime() <= Date.now()))} className="dialog-btn" data-tone="primary"><IconSwap icon={<ArrowRight />}>Review choices</IconSwap></button></div>
           </>}
           {bookingStep === 4 && <>
-          <h3 className="text-lg font-semibold">Review and request</h3>
-          <div className="detail-list text-sm">
-            <div className="flex items-start justify-between gap-4"><span className="text-xs text-[var(--text-muted)]">Shoveler</span><strong>{schedulingOperator.businessName || schedulingOperator.displayName}</strong></div>
-            <div className="flex items-start justify-between gap-4"><span className="text-xs text-[var(--text-muted)]">Service</span><strong className="capitalize">{requestedServices.map(item => item.replaceAll("-", " ")).join(" · ")}</strong></div>
-            <div className="flex items-start justify-between gap-4"><span className="text-xs text-[var(--text-muted)]">Location</span><strong className="text-right">{serviceLocation?.address}, {serviceLocation?.city}</strong></div>
-            <div className="flex items-start justify-between gap-4"><span className="text-xs text-[var(--text-muted)]">When</span><strong>{scheduleType === "asap" ? "As soon as possible" : `${format(new Date(`${scheduledDate}T12:00:00`), "EEE, MMM d")} · ${format(new Date(`${scheduledDate}T${scheduledTime}:00`), "h:mm a")}`}</strong></div>
+          <div className={popup.head}><h3>Review and request</h3><p>Nothing is charged until the work is done.</p></div>
+          <div className={`detail-list ${popup.review}`}>
+            <div><span>Shoveler</span><strong>{schedulingOperator.businessName || schedulingOperator.displayName}</strong></div>
+            <div><span>Service</span><strong>{requestedServices.map(item => SERVICE_LABELS[item]).join(" · ")}</strong></div>
+            <div><span>Location</span><strong>{serviceLocation?.address}, {serviceLocation?.city}</strong></div>
+            <div><span>When</span><strong>{scheduleType === "asap" ? "As soon as possible" : `${format(new Date(`${scheduledDate}T12:00:00`), "EEE, MMM d")} · ${format(new Date(`${scheduledDate}T${scheduledTime}:00`), "h:mm a")}`}</strong></div>
           </div>
-          <div className="flex items-center justify-between rounded-2xl bg-[var(--accent-soft)] p-4"><span className="text-sm font-semibold">Total</span><strong className="text-xl">${quoteMarketplace(calculateServicePrice(schedulingOperator.pricing, requestedServices, propertySize), paymentMethod).price.toFixed(2)} CAD</strong></div>
-          <fieldset><legend className="mb-2 text-sm font-semibold">Payment preference</legend><div className="grid grid-cols-2 gap-2"><button type="button" aria-pressed={paymentMethod === "cash"} onClick={() => { setPaymentMethod("cash"); setCashAcknowledged(false); }} className={`min-h-12 rounded-xl border px-3 ${paymentMethod === "cash" ? "border-[var(--ink)] bg-[var(--accent-soft)]" : "border-[var(--border-color)]"}`}><IconSwap icon={<Banknote className="mr-2 inline h-4 w-4" />}><Banknote className="mr-2 inline h-4 w-4" />Cash</IconSwap></button>{canAcceptPlatformPayments(schedulingOperator) && <button type="button" aria-pressed={paymentMethod === "credit"} onClick={() => { setPaymentMethod("credit"); setCashAcknowledged(false); }} className={`min-h-12 rounded-xl border px-3 ${paymentMethod === "credit" ? "border-[var(--ink)] bg-[var(--accent-soft)]" : "border-[var(--border-color)]"}`}><IconSwap icon={<CreditCard className="mr-2 inline h-4 w-4" />}><CreditCard className="mr-2 inline h-4 w-4" />Card</IconSwap></button>}</div></fieldset>
-          <div className="rounded-xl bg-[var(--bg-secondary)] p-4 text-sm text-[var(--text-secondary)]">{paymentMethod === "credit" ? "Authorize a card after acceptance. It is charged only after photo proof." : <label className="flex items-start gap-3"><input type="checkbox" checked={cashAcknowledged} onChange={event => setCashAcknowledged(event.target.checked)} className="mt-0.5 h-5 w-5 shrink-0" /><span>I’ll pay the operator in cash after the work is done.</span></label>}</div>
-          {bookingError && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{bookingError}</p>}
-          <button onClick={() => void confirmBooking()} disabled={booking || requestedServices.length === 0 || (paymentMethod === "cash" && !cashAcknowledged)} className="btn-primary action-shine w-full min-h-13">{booking ? "Sending request…" : "Request snow help"}</button>
-          <p className="text-center text-xs text-[var(--text-muted)]">The visit is confirmed when the operator accepts.</p>
+          <div className={popup.total}><span>Total</span><strong>${quoteMarketplace(calculateServicePrice(schedulingOperator.pricing, requestedServices, propertySize), paymentMethod).price.toFixed(2)} CAD</strong></div>
+          <fieldset><legend>Payment preference</legend><div className={popup.options}><button type="button" aria-pressed={paymentMethod === "cash"} onClick={() => { setPaymentMethod("cash"); setCashAcknowledged(false); }} className={popup.option}><IconSwap icon={<Banknote />}><Banknote size={16} aria-hidden="true" />Cash</IconSwap></button>{canAcceptPlatformPayments(schedulingOperator) && <button type="button" aria-pressed={paymentMethod === "credit"} onClick={() => { setPaymentMethod("credit"); setCashAcknowledged(false); }} className={popup.option}><IconSwap icon={<CreditCard />}><CreditCard size={16} aria-hidden="true" />Card</IconSwap></button>}</div></fieldset>
+          {paymentMethod === "credit" ? <p className="dialog-message">Authorize a card after acceptance. It is charged only after photo proof.</p> : <label className={popup.check}><input type="checkbox" checked={cashAcknowledged} onChange={event => setCashAcknowledged(event.target.checked)} /><span className={popup.tick} aria-hidden="true"><Check size={13} strokeWidth={3} /></span><span>I’ll pay the operator in cash after the work is done.</span></label>}
+          {bookingError && <p role="alert" className={popup.alert}>{bookingError}</p>}
+          <div className={popup.actions}><button type="button" onClick={() => void confirmBooking()} disabled={booking || requestedServices.length === 0 || (paymentMethod === "cash" && !cashAcknowledged)} className="dialog-btn action-shine" data-tone="primary"><IconSwap icon={<Send />}>{booking ? "Sending request…" : "Request snow help"}</IconSwap></button></div>
+          <p className={popup.note}>The visit is confirmed when the operator accepts.</p>
           </>}
         </div>}
       </Modal>

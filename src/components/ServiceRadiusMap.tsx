@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { GoogleMap, Circle, Marker, Rectangle, useJsApiLoader } from "@react-google-maps/api";
+import { GoogleMap, OverlayView, useJsApiLoader } from "@react-google-maps/api";
+import { AddressPin, SNOWD_MAP_OPTIONS, ServiceAreaShapes, type ServiceAreaShape } from "@/components/SnowdMap";
 import type { OperatorServiceArea } from "@/lib/types";
 import {
   GOOGLE_MAPS_LIBRARIES,
@@ -25,7 +26,6 @@ interface ServiceRadiusMapProps {
 const mapContainerStyle = {
   width: "100%",
   height: "400px",
-  borderRadius: "12px",
 };
 
 export default function ServiceRadiusMap({
@@ -147,79 +147,35 @@ function ServiceRadiusMapWithApi({
     fitCoverage(mapRef.current);
   }, [center, isLoaded, fitCoverage]);
 
-  if (loadError) {
-    return (
-      <div className="w-full h-[400px] bg-gray-100 rounded-xl flex items-center justify-center">
-        <p className="text-red-500">Error loading map</p>
-      </div>
-    );
-  }
+  const shell = "grid h-[400px] place-items-center rounded-[18px] border border-[#dce6eb] bg-[#edf2ef] p-6 text-center text-sm text-[var(--text-secondary)]";
+  if (loadError) return <div className={shell}><p role="alert">Map unavailable right now.</p></div>;
+  if (!isLoaded) return <div className={shell} role="status">Loading map…</div>;
+  if (!center) return <div className={shell}>{locationError ? serviceAreaMode === "cities" ? `Map unavailable. Selected cities: ${serviceAreas.map(area => area.city).join(", ") || "None yet"}.` : `Map unavailable. Service area: ${radiusKm} km around ${city}, ${province}.` : "Locating service area…"}</div>;
 
-  if (!isLoaded) {
-    return (
-      <div className="w-full h-[400px] bg-gray-100 rounded-xl flex items-center justify-center">
-        <p className="text-gray-500">Loading map...</p>
-      </div>
-    );
-  }
-
-  if (!center) return <div className="flex h-[400px] items-center justify-center rounded-xl bg-gray-100 p-6 text-center text-sm text-gray-600">{locationError ? serviceAreaMode === "cities" ? `Map unavailable. Selected cities: ${serviceAreas.map(area => area.city).join(", ") || "None yet"}.` : `Map unavailable. Service area: ${radiusKm} km around ${city}, ${province}.` : "Locating service area..."}</div>;
-
-  const mapOptions: google.maps.MapOptions = {
-    disableDefaultUI: false,
-    zoomControl: true,
-    mapTypeControl: false,
-    streetViewControl: false,
-    fullscreenControl: false,
-    styles: [
-      { featureType: "poi", stylers: [{ visibility: "off" }] },
-      { featureType: "transit", stylers: [{ visibility: "off" }] },
-    ],
-  };
-
-  const circleOptions = {
-    strokeColor: "#061321",
-    strokeOpacity: 0.8,
-    strokeWeight: 2,
-    fillColor: "#061321",
-    fillOpacity: 0.1,
-  };
-
+  const area: ServiceAreaShape = serviceAreaMode === "cities" ? { mode: "cities", cities: serviceAreas } : { mode: "radius", center, radiusKm };
   return (
     <div className="relative">
-      {isGeocoding && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white backdrop-blur-sm px-4 py-2 rounded-lg shadow-[var(--surface-shadow)] z-10">
-          <p className="text-sm text-gray-600">Locating address...</p>
-        </div>
-      )}
-
-      <GoogleMap
-        mapContainerStyle={mapContainerStyle}
-        center={center}
-        zoom={11}
-        options={mapOptions}
-        onLoad={(map) => {
-          mapRef.current = map;
-          fitCoverage(map);
-        }}
-      >
-        {serviceAreaMode === "radius" && <Circle
+      <div className="relative overflow-hidden rounded-[18px] border border-[#dce6eb]">
+        {isGeocoding && <p role="status" className="absolute left-1/2 top-3 z-10 -translate-x-1/2 rounded-full border border-[#dce6eb] bg-white px-4 py-2 text-sm text-[var(--text-secondary)]">Locating address…</p>}
+        <GoogleMap
+          mapContainerStyle={mapContainerStyle}
           center={center}
-          radius={radiusKm * 1000}
-          options={circleOptions}
-        />}
-        {serviceAreaMode === "cities" && serviceAreas.map(area => (
-          <React.Fragment key={area.placeId}>
-            {area.bounds && <Rectangle bounds={area.bounds} options={{ strokeColor: "#ff7a00", strokeWeight: 2, fillColor: "#ff7a00", fillOpacity: 0.14 }} />}
-            <Marker position={{ lat: area.lat, lng: area.lng }} label={{ text: area.city, color: "#061321", fontWeight: "700" }} title={`${area.city}, ${area.provinceCode}`} />
-          </React.Fragment>
-        ))}
-      </GoogleMap>
-
-      <div className="mt-2 text-xs text-gray-500 text-center">
-        {serviceAreaMode === "cities" ? `Selected cities: ${serviceAreas.map(area => area.city).join(", ") || "None yet"}. Shaded boxes show approximate city extents; coverage uses city names.` : `Service area: ${radiusKm} km home radius`}
-        {!address && " • Approximate service area"}
+          zoom={11}
+          options={{ ...SNOWD_MAP_OPTIONS, gestureHandling: "greedy" }}
+          onLoad={(map) => {
+            mapRef.current = map;
+            fitCoverage(map);
+          }}
+        >
+          <ServiceAreaShapes area={area} />
+          {serviceAreaMode === "radius" && <OverlayView position={center} mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET} getPixelPositionOffset={() => ({ x: -22, y: -22 })}><AddressPin address={[address, city].filter(Boolean).join(", ") || undefined} /></OverlayView>}
+        </GoogleMap>
       </div>
+
+      <p className="mt-2 text-center text-xs text-[var(--text-muted)]">
+        {serviceAreaMode === "cities" ? `Selected cities: ${serviceAreas.map(area => area.city).join(", ") || "None yet"}. Shaded areas show approximate city extents; coverage uses city names.` : `Service area: ${radiusKm} km home radius`}
+        {!address && " · Approximate service area"}
+      </p>
     </div>
   );
 }

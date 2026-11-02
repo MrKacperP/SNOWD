@@ -62,13 +62,14 @@ export default function PhonePhotoTransfer({ jobId, onPhoto, disabled, autoStart
     started.current = true;
     void create();
   }, [autoStart, create, disabled]);
-  return <div className="space-y-3 border-t pt-4">
-    <p className="font-semibold">Upload from your phone</p>
+  return <div className="grid justify-items-center gap-4 text-center">
     {qr ? <>
-      <Image unoptimized src={qr} alt="Scan this QR code to upload a completion photo from your phone" width={240} height={240} className="mx-auto" />
-      <p className="text-sm" role="status">Scan with your phone’s camera. Choose or take a photo, then send it here. Keep this window open. This link expires in 10 minutes.</p>
+      <div className="rounded-3xl border border-[var(--border-color)] bg-white p-3 shadow-[var(--surface-shadow)]">
+        <Image unoptimized src={qr} alt="Scan this QR code to upload a completion photo from your phone" width={240} height={240} className="block h-auto w-[min(240px,60vw)]" />
+      </div>
+      <p className="text-sm text-[var(--text-secondary)]" role="status">Scan with your phone. The camera opens right away. Keep this window open; the code expires in 10 minutes.</p>
     </> : autoStart ? <p role="status">{busy ? "Creating QR code…" : "Preparing phone upload…"}</p> : <button type="button" disabled={busy || disabled} onClick={create} className="min-h-12 rounded-xl border px-4 py-3 font-semibold disabled:opacity-50">{busy ? "Creating QR code…" : "Show QR code"}</button>}
-    {received && <p role="status">Photo received. Completing the work order…</p>}
+    {received && <p role="status" className="font-semibold">Photo received. Completing the work order…</p>}
     {error && <p role="alert" className="text-red-700">{error}</p>}
   </div>;
 }

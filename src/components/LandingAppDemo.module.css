@@ -1,10 +1,41 @@
-.section { position: relative; overflow: hidden; color: #fff; background: radial-gradient(1200px 520px at 80% 0%, #24557a 0%, transparent 60%), linear-gradient(180deg, #123346 0%, #0e2838 100%); border-radius: 48px 48px 0 0; scroll-margin-top: 0; }
-.inner { display: grid; justify-items: center; width: min(1240px, calc(100% - 96px)); margin-inline: auto; padding-block: 104px 120px; }
-.title { justify-self: start; font-size: clamp(40px, 5.4vw, 76px); font-weight: 800; line-height: 1.02; letter-spacing: -.055em; }
-.title span { color: #8fb8ff; }
+/* Sits on the page background, straight after "how it works", so the two read as one stretch. */
+.section { position: relative; color: var(--landing-ink, #123346); scroll-margin-top: 0; }
+.inner { display: grid; width: min(1240px, calc(100% - 96px)); margin-inline: auto; padding-block: 24px 112px; }
+.head { display: flex; justify-content: center; }
 
-.stage { position: relative; width: 100%; margin-top: 48px; padding-right: 230px; }
-.browser { overflow: hidden; border-radius: 18px; background: #f6f8fb; box-shadow: 0 40px 90px #02101a80, 0 0 0 1px #ffffff1f; }
+.roles { display: inline-flex; gap: 4px; padding: 5px; border: 1px solid var(--landing-line, #ccdde6); border-radius: 999px; background: #fff; }
+.roles button { display: inline-flex; align-items: center; gap: 8px; min-height: 46px; padding: 10px 18px; border: 0; border-radius: 999px; background: transparent; color: inherit; font: inherit; font-size: 16px; font-weight: 700; cursor: pointer; transition: background 250ms, color 250ms, box-shadow 250ms; }
+.roles button[aria-checked="true"] { background: var(--accent-gradient); color: #fff; box-shadow: var(--accent-shadow); }
+.roles button[aria-checked="false"]:hover { background: var(--accent-soft); color: var(--accent-dark); }
+
+/* Guide bar: "Your turn" when the visitor acts, "Hands off" while the other side plays itself. */
+.guide { position: absolute; left: 16px; bottom: 16px; z-index: 5; overflow: hidden; display: flex; align-items: center; gap: 12px; width: min(460px, calc(100% - 262px)); padding: 12px 14px 15px; border-radius: 18px; background: #fff; box-shadow: 0 10px 30px #1233460f, inset 0 0 0 1px var(--landing-line, #ccdde6); transition: background 300ms, box-shadow 300ms; }
+.guide[data-mode="you"] { background: #f2f5ff; box-shadow: 0 10px 30px #2350ff14, inset 0 0 0 1.5px var(--accent); }
+.guide[data-mode="done"] { background: #eefaf3; box-shadow: 0 10px 30px #1f9d5c14, inset 0 0 0 1px #9fd8b8; }
+.guideIcon { display: grid; flex: none; place-items: center; width: 42px; height: 42px; border-radius: 14px; background: #fff4e8; color: #d0681c; }
+.guide[data-mode="you"] .guideIcon { background: var(--accent); color: #fff; animation: nudge 1.6s ease-in-out infinite; }
+.guide[data-mode="done"] .guideIcon { background: #1f9d5c; color: #fff; }
+.guide[data-mode="auto"] .guideIcon svg { animation: wave 1.8s ease-in-out infinite; transform-origin: 70% 90%; }
+.guideText { display: grid; flex: 1; gap: 1px; min-width: 0; line-height: 1.4; }
+.guideText strong { color: #d0681c; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.guide[data-mode="you"] .guideText strong { color: var(--accent); }
+.guide[data-mode="done"] .guideText strong { color: #1a7a48; }
+.guideText span { font-size: 17px; font-weight: 600; }
+.guideText b { font-weight: 800; }
+.guideText small { color: var(--landing-muted, #4c6878); font-size: 13px; }
+.guideBar { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: #ffe3cc; }
+.guideBar i { display: block; height: 100%; background: linear-gradient(90deg, #ffad79, #f26a1b); transform-origin: left; animation: fill linear forwards; }
+.guideBar i[data-paused] { animation-play-state: paused; }
+.guideActions { display: flex; flex-wrap: wrap; gap: 8px; }
+.guideActions button, .guideRestart { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 8px 16px; border: 1px solid var(--landing-line, #ccdde6); border-radius: 999px; background: #fff; color: inherit; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; transition: background 160ms, transform 160ms; }
+.guideActions button:hover, .guideRestart:hover { background: #f3f8fb; }
+.guideActions button[data-primary] { border-color: transparent; background: var(--accent-gradient); color: #fff; box-shadow: var(--accent-shadow); }
+.guideActions button[data-primary]:hover { transform: translateY(-1px); }
+.guideRestart { flex: none; width: 44px; padding: 0; color: var(--landing-muted, #4c6878); }
+.guide :is(button):focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+
+.stage { position: relative; width: 100%; margin-top: 28px; padding-right: 230px; }
+.browser { overflow: hidden; border-radius: 18px; background: #f6f8fb; box-shadow: 0 30px 80px #1233462b, 0 0 0 1px #12334614; }
 .chrome { display: flex; align-items: center; gap: 14px; height: 40px; padding: 0 14px; background: #eaf0f4; }
 .dots { display: flex; gap: 6px; }
 .dots i { width: 11px; height: 11px; border-radius: 50%; background: #ff6159; }
@@ -14,7 +45,7 @@
 .webViewport { position: relative; overflow: hidden; }
 .webViewport iframe { position: absolute; top: 0; left: 0; border: 0; transform-origin: 0 0; }
 
-.phone { position: absolute; right: 0; bottom: -40px; width: 300px; padding: 12px; border-radius: 48px; background: #0b1620; box-shadow: 0 40px 80px #02101a99, inset 0 0 0 2px #2a3b48; }
+.phone { position: absolute; right: 0; bottom: -40px; width: 300px; padding: 12px; border-radius: 48px; background: #0b1620; box-shadow: 0 40px 80px #12334659, inset 0 0 0 2px #2a3b48; }
 .island { position: absolute; top: 22px; left: 50%; z-index: 2; width: 92px; height: 26px; border-radius: 999px; background: #0b1620; transform: translateX(-50%); }
 .phoneViewport { position: relative; overflow: hidden; height: 576px; border-radius: 37px; background: #f6f8fb; }
 /* Render at a real phone width so the app's own mobile layout kicks in, then shrink to fit. */
@@ -22,18 +53,27 @@
 .statusBar span:last-child { display: flex; align-items: center; gap: 5px; }
 .phoneViewport iframe { position: absolute; top: 40px; left: 0; width: 390px; height: 763px; border: 0; transform: scale(.7026); transform-origin: 0 0; }
 
-.restart { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-top: 72px; padding: 8px 18px; border: 1px solid #ffffff38; border-radius: 999px; background: transparent; color: #fff; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; }
-.restart:hover { background: #ffffff1a; }
-.restart:focus-visible { outline: 3px solid #ffad79; outline-offset: 3px; }
+@keyframes fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes wave { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-14deg); } 50% { transform: rotate(10deg); } 75% { transform: rotate(-6deg); } }
+@keyframes nudge { 0%, 100% { transform: none; } 50% { transform: translateY(-3px); } }
 
 @media (max-width: 1100px) {
   .inner { width: calc(100% - 64px); }
 }
 @media (max-width: 900px) {
-  .section { border-radius: 32px 32px 0 0; }
-  .inner { width: calc(100% - 32px); padding-block: 72px 80px; }
-  .stage { display: grid; justify-items: center; margin-top: 36px; padding-right: 0; }
+  .inner { width: calc(100% - 32px); padding-block: 0 72px; }
+  .roles { width: 100%; }
+  .roles button { flex: 1; justify-content: center; gap: 6px; padding-inline: 8px; font-size: 14px; white-space: nowrap; }
+  .guide { position: relative; left: auto; bottom: auto; flex-wrap: wrap; width: 100%; margin-bottom: 16px; }
+  .guideText { flex-basis: calc(100% - 60px); }
+  .guideText span { font-size: 15px; }
+  .guideActions { width: 100%; }
+  .guideActions button { flex: 1; }
+  .stage { display: grid; justify-items: center; margin-top: 20px; padding-right: 0; }
   .browser { display: none; }
   .phone { position: relative; bottom: 0; }
-  .restart { margin-top: 28px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .guide *, .guide *::before { animation-name: none !important; }
+  .guideBar { display: none; }
 }

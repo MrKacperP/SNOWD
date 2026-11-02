@@ -50,8 +50,11 @@ function Banner({ item, more }: { item: NotificationItem; more: number }) {
       transition={{ type: "spring", stiffness: 460, damping: 34 }}
       drag={reduceMotion ? false : "y"}
       dragConstraints={{ top: 0, bottom: 0 }}
-      dragElastic={{ top: 0.6, bottom: 0.1 }}
-      onDragEnd={(_, info) => { if (info.offset.y < -30 || info.velocity.y < -300) dismissToast(item.id); }}
+      dragElastic={{ top: 0.6, bottom: 0.5 }}
+      onDragEnd={(_, info) => {
+        if (info.offset.y < -30 || info.velocity.y < -300) dismissToast(item.id);
+        else if (info.offset.y > 40 || info.velocity.y > 300) setCenterOpen(true);
+      }}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}

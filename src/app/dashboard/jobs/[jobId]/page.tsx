@@ -10,7 +10,8 @@ import {
 import { db } from "@/lib/firebase";
 import { ClientProfile, Job, OperatorProfile } from "@/lib/types";
 import { useAuth } from "@/context/AuthContext";
-import OrderCard from "@/components/work-orders/OrderCard";
+import ClientWorkOrder from "@/components/work-orders/ClientWorkOrder";
+import PhotoViewer from "@/components/work-orders/PhotoViewer";
 import OperatorWorkOrder from "@/components/work-orders/OperatorWorkOrder";
 import styles from "@/components/work-orders/work-orders.module.css";
 export default function WorkOrderPage() {
@@ -64,34 +65,14 @@ export default function WorkOrderPage() {
     <div className={styles.operatorDetail}>
       <BackButton href="/dashboard/jobs" label="Back" />
       <OperatorWorkOrder job={job} name={name === "Company / customer" ? "Homeowner" : name} person={person} />
-      {job.completionPhotoUrl && <a className="inline-flex min-h-11 items-center underline" href={job.completionPhotoUrl} target="_blank" rel="noreferrer">View completion photo</a>}
+      {job.completionPhotoUrl && <PhotoViewer src={job.completionPhotoUrl} />}
     </div>
   );
+  // Clients get the same focused layout, tailored to them.
   return (
-    <div className={`${styles.detailPage} ${styles.openWorkOrder}`}>
+    <div className={styles.operatorDetail}>
       <BackButton href="/dashboard/jobs" label="Back" />
-      {error ? (
-        <p role="alert">{error}</p>
-      ) : !job ? (
-        <p role="status">Loading work order…</p>
-      ) : (
-        <>
-          <OrderCard job={job} name={name} person={person} detail />
-          {job.completionPhotoUrl && <section className={styles.detailSection} aria-labelledby="visit-notes-heading">
-            <h2 id="visit-notes-heading" className={styles.detailSummary}>Completion & history</h2>
-            {job.completionPhotoUrl && (
-              <a
-                className="mt-3 inline-flex min-h-11 items-center underline"
-                href={job.completionPhotoUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
-                View completion photo
-              </a>
-            )}
-          </section>}
-        </>
-      )}
+      {error ? <p role="alert">{error}</p> : !job ? <p role="status">Loading work order…</p> : <ClientWorkOrder job={job} name={name === "Company / customer" ? "Service provider" : name} person={person} />}
     </div>
   );
 }

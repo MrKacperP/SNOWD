@@ -26,14 +26,37 @@
 .offerPin:focus-visible { outline:3px solid var(--accent); outline-offset:3px; }
 @keyframes offer { 0% { transform:scale(.85); opacity:.9; } to { transform:scale(1.35); opacity:0; } }
 @media(prefers-reduced-motion:reduce) { .offerPin::before { animation:none; opacity:.6; } }
+.etaOnRoute { position:absolute; left:0; top:0; transform:translate(-50%,-50%); display:inline-flex; align-items:center; gap:4px; white-space:nowrap; padding:4px 9px; border:2px solid #287057; border-radius:999px; background:#fff; color:#214b3b; box-shadow:0 3px 10px #16372b24; font:700 12px/1.2 system-ui,sans-serif; font-variant-numeric:tabular-nums; pointer-events:none; }
 .routeChip { position:absolute; top:12px; right:12px; display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border:1px solid #d3e1d9; border-radius:999px; background:#fff; color:#214b3b; box-shadow:0 4px 16px #16372b16; font:700 12px/1.2 system-ui,sans-serif; font-variant-numeric:tabular-nums; pointer-events:none; }
 
 /* Several orders at once: smaller pins for the others; the order being hovered pings. */
-.smallPin { width:34px; height:34px; border-width:2px; border-radius:11px; opacity:.9; }
+.smallPin { width:30px; height:30px; border-width:2px; border-radius:11px; opacity:.9; }
 .smallPin[data-new] { background:var(--accent, #2350ff); }
 .marker[data-ping] { z-index:2; }
+.etaOnRoute { z-index:3; }
 .marker[data-ping] .operatorPin { position:relative; opacity:1; transform:scale(1.12); transition:transform .2s ease; }
 .marker[data-ping] .operatorPin::after { content:""; position:absolute; inset:-8px; border:3px solid #287057; border-radius:18px; animation:pinPing 1.2s ease-out infinite; pointer-events:none; }
 .marker[data-ping] .operatorPin[data-new]::after { border-color:var(--accent, #2350ff); }
 @keyframes pinPing { 0% { transform:scale(.9); opacity:.95; } to { transform:scale(1.6); opacity:0; } }
 @media(prefers-reduced-motion:reduce) { .marker[data-ping] .operatorPin::after { animation:none; opacity:.7; } }
+
+/* Orders outside the zoomed-in frame: a pinging arrow at the edge, pointing the way. */
+.edgeArrow { position:absolute; z-index:3; display:grid; place-items:center; width:32px; height:32px; margin:-16px 0 0 -16px; border:2px solid #fff; border-radius:50%; background:#287057; color:#fff; box-shadow:0 3px 10px #214b3b40; cursor:pointer; }
+.edgeArrow[data-new] { background:var(--accent, #2350ff); }
+.edgeArrow::after { content:""; position:absolute; inset:-4px; border:2px solid #287057; border-radius:50%; animation:arrowPing 1.4s ease-out infinite; pointer-events:none; }
+.edgeArrow[data-new]::after { border-color:var(--accent, #2350ff); }
+.edgeArrow[data-active]::after { animation-duration:.8s; }
+.edgeArrow:focus-visible { outline:3px solid var(--accent); outline-offset:3px; }
+@keyframes arrowPing { 0% { transform:scale(.9); opacity:.9; } to { transform:scale(1.8); opacity:0; } }
+@media(prefers-reduced-motion:reduce) { .edgeArrow::after { animation:none; } }
+
+/* The operator's own position, drawn like the blue dot on Google Maps. */
+.youDot { position:relative; display:block; width:18px; height:18px; border:3px solid #fff; border-radius:50%; background:#4285f4; box-shadow:0 0 0 1px #0000001f, 0 2px 6px #0003; }
+.youDot::before { content:""; position:absolute; inset:-14px; border-radius:50%; background:#4285f433; z-index:-1; }
+.youDot::after { content:""; position:absolute; inset:-3px; border:2px solid #4285f4; border-radius:50%; animation:youPulse 2s ease-out infinite; pointer-events:none; }
+@keyframes youPulse { 0% { transform:scale(1); opacity:.7; } to { transform:scale(2.4); opacity:0; } }
+@media(prefers-reduced-motion:reduce) { .youDot::after { animation:none; } }
+
+/* An operator's selected cities: a quiet name chip at each city's centre. */
+.cityChip { position:absolute; left:0; top:0; transform:translate(-50%,-50%); white-space:nowrap; padding:4px 10px; border:1px solid #cde5d9; border-radius:999px; background:#fffffff2; color:#214b3b; box-shadow:0 3px 10px #16372b14; font:700 12px/1.2 system-ui,sans-serif; pointer-events:none; }
+.cityChip[data-outside] { border-color:#f6d0cd; color:#a32217; }

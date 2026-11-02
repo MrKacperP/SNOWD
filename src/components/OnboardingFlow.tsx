@@ -3,25 +3,30 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { motion, useReducedMotion } from "framer-motion";
 import {
   ArrowRight,
   ArrowLeft,
   Check,
-  Home,
-  Truck,
-  Sparkles,
+  Car,
+  DoorOpen,
+  Footprints,
+  Trees,
+  type LucideIcon,
 } from "lucide-react";
 import OnboardingAddress, {
   type OnboardingLocation,
 } from "./OnboardingAddress";
 import ServiceAreaEditor from "./ServiceAreaEditor";
 import ProfilePhotoPicker from "./ProfilePhotoPicker";
-import type { OperatorServiceArea } from "@/lib/types";
+import SnowStorm from "./SnowStorm";
+import styles from "./onboarding.module.css";
 import {
+  type OperatorServiceArea,
   type PropertySize,
   type ServiceType,
   EQUIPMENT_OPTIONS,
+  SHOVELING_SERVICES,
+  isShovelingService,
 } from "@/lib/types";
 
 export type OnboardingDraft = {
@@ -36,94 +41,85 @@ export type OnboardingDraft = {
   serviceAreaMode: "radius" | "cities";
   serviceAreas: OperatorServiceArea[];
   operatorServiceTypes: ServiceType[];
+  /** Blank prices fall back to the suggested amount shown in the input. */
   pricingSmall: string;
   pricingMedium: string;
   pricingLarge: string;
-  pricingWalkway: string;
+  /** One price for both the front porch and the sidewalk. */
   pricingSidewalk: string;
   pricingBackyardPatio: string;
-  pricingPorch: string;
-  businessName: string;
-  bio: string;
   isStudent: boolean;
   phone: string;
   age: string;
   avatar: string;
 };
+
+export const SUGGESTED_PRICES = {
+  pricingSmall: 25,
+  pricingMedium: 40,
+  pricingLarge: 60,
+  pricingSidewalk: 15,
+  pricingBackyardPatio: 20,
+} as const;
+
 const defaults: OnboardingDraft = {
   role: null,
   step: 1,
   location: { address: "", city: "", province: "", postalCode: "" },
   propertySize: "medium",
-  serviceTypes: ["driveway", "walkway"],
+  serviceTypes: ["driveway"],
   specialInstructions: "",
   equipment: ["Snow Shovel"],
   serviceRadius: 10,
   serviceAreaMode: "radius",
   serviceAreas: [],
-  operatorServiceTypes: ["driveway", "walkway"],
-  pricingSmall: "25",
-  pricingMedium: "40",
-  pricingLarge: "60",
-  pricingWalkway: "15",
-  pricingSidewalk: "15",
-  pricingBackyardPatio: "15",
-  pricingPorch: "10",
-  businessName: "",
-  bio: "",
+  operatorServiceTypes: ["driveway", "porch", "sidewalk"],
+  pricingSmall: "",
+  pricingMedium: "",
+  pricingLarge: "",
+  pricingSidewalk: "",
+  pricingBackyardPatio: "",
   isStudent: false,
   phone: "",
   age: "",
   avatar: "",
 };
-const field =
-  "w-full min-h-12 rounded-xl border border-[var(--border-color)] bg-white px-3 text-base font-semibold outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/30";
-const services: [ServiceType, string][] = [
-  ["driveway", "Driveway"],
-  ["walkway", "Walkway"],
-  ["sidewalk", "Sidewalk"],
-  ["backyard-patio", "Backyard patio"],
-  ["porch", "Porch"],
-];
+
+const serviceIcons: Record<(typeof SHOVELING_SERVICES)[number][0], LucideIcon> = {
+  driveway: Car,
+  porch: DoorOpen,
+  sidewalk: Footprints,
+  "backyard-patio": Trees,
+};
+const serviceHints: Record<(typeof SHOVELING_SERVICES)[number][0], string> = {
+  driveway: "Priced by size",
+  porch: "Steps and landing",
+  sidewalk: "Along the street",
+  "backyard-patio": "Deck or patio out back",
+};
 const propertySizes: [PropertySize, string, string][] = [
   ["small", "1-car driveway", "Fits one car"],
   ["medium", "2-car driveway", "Fits two cars"],
-  ["large", "3+ car driveway", "Fits three or more cars"],
-  ["commercial", "Commercial", "Parking lot"],
+  ["large", "3+ car driveway", "Fits three or more"],
 ];
-const priceFields = [
-  ["pricingSmall", "1-car driveway", "25"],
-  ["pricingMedium", "2-car driveway", "40"],
-  ["pricingLarge", "3+ car driveway", "60"],
-  ["pricingWalkway", "Walkway", "15"],
-  ["pricingSidewalk", "Sidewalk", "15"],
-  ["pricingBackyardPatio", "Backyard patio", "15"],
-  ["pricingPorch", "Porch", "10"],
-] as const;
+type PriceKey = keyof typeof SUGGESTED_PRICES;
+const priceFields: { key: PriceKey; label: string; detail?: string; offered: (services: ServiceType[]) => boolean }[] = [
+  { key: "pricingSmall", label: "1-car driveway", offered: (s) => s.includes("driveway") },
+  { key: "pricingMedium", label: "2-car driveway", offered: (s) => s.includes("driveway") },
+  { key: "pricingLarge", label: "3+ car driveway", offered: (s) => s.includes("driveway") },
+  { key: "pricingSidewalk", label: "Front porch & sidewalk", detail: "One price for either area", offered: (s) => s.includes("porch") || s.includes("sidewalk") },
+  { key: "pricingBackyardPatio", label: "Backyard patio", detail: "Set your own rate", offered: (s) => s.includes("backyard-patio") },
+];
+const validPrice = (value: string) =>
+  !value || (/^\d+(\.\d{1,2})?$/.test(value) && Number(value) > 0 && Number(value) <= 10000);
+const stepNames = ["Your role", "Your address", "Your services"];
 
-function Choice({
-  selected,
-  children,
-  onClick,
-}: {
-  selected: boolean;
-  children: React.ReactNode;
-  onClick: () => void;
-}) {
+function OptionButton({ selected, onClick, icon: Icon, label, hint }: { selected: boolean; onClick: () => void; icon?: LucideIcon; label: string; hint?: string }) {
   return (
-    <button
-      type="button"
-      aria-pressed={selected}
-      onClick={onClick}
-      className={`flex min-h-14 items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${selected ? "border-[var(--ink)] bg-[var(--accent-soft)]" : "border-[var(--border-color)] bg-white hover:bg-[var(--bg-primary)]"}`}
-    >
-      {children}
-      <span
-        aria-hidden="true"
-        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--ink)] ${selected ? "bg-[var(--accent)] text-white" : "bg-white"}`}
-      >
-        {selected && <Check size={15} strokeWidth={3} />}
-      </span>
+    <button type="button" aria-pressed={selected} onClick={onClick} className={styles.option}>
+      {Icon && <span className={styles.optionIcon} aria-hidden="true"><Icon size={18} /></span>}
+      <span>{label}{hint && <small>{hint}</small>}</span>
+      <span className={styles.check} aria-hidden="true">{selected && <Check size={14} strokeWidth={3} />}</span>
     </button>
   );
 }
@@ -143,7 +139,6 @@ export default function OnboardingFlow({
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
-  const reduceMotion = useReducedMotion();
   const { role, step, location } = draft;
   const update = (patch: Partial<OnboardingDraft>) => {
     setDraft((d) => ({ ...d, ...patch }));
@@ -155,47 +150,36 @@ export default function OnboardingFlow({
       const stored = draftKey ? localStorage.getItem(draftKey) : null;
       if (stored) {
         const parsed = JSON.parse(stored);
-        // Only restore this version's complete draft shape; ignore obsolete or corrupt data.
+        const data = parsed?.data;
+        // Only restore the current draft shape; ignore obsolete or corrupt data.
         if (
-          (parsed.version === 2 || parsed.version === 3) &&
-          parsed.data &&
+          parsed.version === 4 &&
+          data &&
           Object.entries(defaults)
-            .filter(([key, value]) => typeof value === "string" && key !== "serviceAreaMode" && key !== "avatar")
-            .every(([key]) => typeof parsed.data[key] === "string") &&
-          ["small", "medium", "large", "commercial"].includes(
-            parsed.data.propertySize,
-          ) &&
-          typeof parsed.data.isStudent === "boolean" &&
-          (parsed.version === 2 || (
-            ["radius", "cities"].includes(parsed.data.serviceAreaMode) &&
-            Array.isArray(parsed.data.serviceAreas) &&
-            parsed.data.serviceAreas.every((area: OperatorServiceArea) => area && typeof area.placeId === "string" && typeof area.city === "string" && Number.isFinite(area.lat) && Number.isFinite(area.lng))
-          )) &&
-          Number.isFinite(parsed.data.serviceRadius) &&
-          parsed.data.serviceRadius >= 1 &&
-          parsed.data.serviceRadius <= 50 &&
-          ["address", "city", "province", "postalCode"].every(
-            (key) => typeof parsed.data.location?.[key] === "string",
-          ) &&
-          (parsed.data.role === "client" ||
-            parsed.data.role === "operator" ||
-            parsed.data.role === null) &&
-          [1, 2, 3].includes(parsed.data.step) &&
-          parsed.data.location &&
+            .filter(([key, value]) => typeof value === "string" && key !== "serviceAreaMode")
+            .every(([key]) => typeof data[key] === "string") &&
+          ["small", "medium", "large"].includes(data.propertySize) &&
+          typeof data.isStudent === "boolean" &&
+          ["radius", "cities"].includes(data.serviceAreaMode) &&
+          Array.isArray(data.serviceAreas) &&
+          data.serviceAreas.every((area: OperatorServiceArea) => area && typeof area.placeId === "string" && typeof area.city === "string" && Number.isFinite(area.lat) && Number.isFinite(area.lng)) &&
+          Number.isFinite(data.serviceRadius) &&
+          data.serviceRadius >= 1 &&
+          data.serviceRadius <= 50 &&
+          ["address", "city", "province", "postalCode"].every((key) => typeof data.location?.[key] === "string") &&
+          (data.role === "client" || data.role === "operator" || data.role === null) &&
+          [1, 2, 3].includes(data.step) &&
           ["serviceTypes", "operatorServiceTypes", "equipment"].every(
-            (key) =>
-              Array.isArray(parsed.data[key]) &&
-              parsed.data[key].every(
-                (item: unknown) => typeof item === "string",
-              ),
+            (key) => Array.isArray(data[key]) && data[key].every((item: unknown) => typeof item === "string"),
           )
         ) {
           setDraft({
             ...defaults,
-            ...parsed.data,
-            avatar: typeof parsed.data.avatar === "string" ? parsed.data.avatar : "",
-            role: initialRole || parsed.data.role,
-            step: initialRole && initialRole !== parsed.data.role ? 1 : parsed.data.role ? parsed.data.step : 1,
+            ...data,
+            serviceTypes: data.serviceTypes.filter(isShovelingService),
+            operatorServiceTypes: data.operatorServiceTypes.filter(isShovelingService),
+            role: initialRole || data.role,
+            step: initialRole && initialRole !== data.role ? 1 : data.role ? data.step : 1,
           });
         }
       }
@@ -208,85 +192,65 @@ export default function OnboardingFlow({
   useEffect(() => {
     if (!ready || !draftKey) return;
     try {
-      localStorage.setItem(
-        draftKey,
-        JSON.stringify({ version: 3, data: draft }),
-      );
+      localStorage.setItem(draftKey, JSON.stringify({ version: 4, data: draft }));
       setSaved(true);
     } catch {
       setSaved(false);
     }
   }, [draft, draftKey, ready]);
 
-  const visiblePrices = priceFields.filter(([key]) =>
-    key === "pricingWalkway"
-      ? draft.operatorServiceTypes.includes("walkway")
-      : key === "pricingSidewalk"
-        ? draft.operatorServiceTypes.includes("sidewalk")
-        : draft.operatorServiceTypes.includes("driveway"),
-  );
+  const visiblePrices = priceFields.filter((field) => field.offered(draft.operatorServiceTypes));
   const validAddress =
     location.address.trim().length > 4 &&
     location.city.trim().length > 0 &&
     Boolean(location.province) &&
     /^[A-Z]\d[A-Z]\s?\d[A-Z]\d$/i.test(location.postalCode.trim());
-  const validPrices = visiblePrices.every(
-    ([key]) =>
-      /^\d+(\.\d{1,2})?$/.test(draft[key]) &&
-      Number(draft[key]) > 0 &&
-      Number(draft[key]) <= 10000,
-  );
+  const validPrices = visiblePrices.every(({ key }) => validPrice(draft[key]));
   const validAge =
     !draft.age ||
-    (Number.isInteger(Number(draft.age)) &&
-      Number(draft.age) >= 13 &&
-      Number(draft.age) <= 120);
-  const validPhone =
-    !draft.phone || /^\+?1?\d{10}$/.test(draft.phone.replace(/[\s()-]/g, ""));
+    (Number.isInteger(Number(draft.age)) && Number(draft.age) >= 13 && Number(draft.age) <= 120);
+  const validPhone = !draft.phone || /^\+?1?\d{10}$/.test(draft.phone.replace(/[\s()-]/g, ""));
   const validDetails =
     validAge &&
     validPhone &&
     (role === "client"
       ? draft.serviceTypes.length > 0
-      : draft.operatorServiceTypes.length > 0 &&
-        draft.equipment.length > 0 &&
-        validPrices);
-  const canContinue =
-    step === 1 ? Boolean(role) : step === 2 ? validAddress && (role !== "operator" || draft.serviceAreaMode === "radius" || draft.serviceAreas.length > 0) : validDetails;
+      : draft.operatorServiceTypes.length > 0 && draft.equipment.length > 0 && validPrices);
+  const validArea = role !== "operator" || draft.serviceAreaMode === "radius" || draft.serviceAreas.length > 0;
+  const canContinue = step === 1 ? Boolean(role) : step === 2 ? validAddress && validArea : validDetails;
   const title =
     step === 1
-      ? "How can we help?"
+      ? "How can we help"
       : step === 2
-        ? "Where’s your snow?"
+        ? role === "operator" ? "Where you’ll work" : "Where’s your snow"
         : role === "client"
-          ? "What needs clearing?"
-          : "Your services. Your prices.";
+          ? "What needs clearing"
+          : "Your services, your prices";
+  const lede =
+    step === 1
+      ? "Choose what brings you to SNOWD."
+      : step === 2
+        ? role === "client"
+          ? "Find the home you’d like cleared."
+          : "Start with your home base, then set how far you’ll travel."
+        : role === "client"
+          ? "Pick the areas of your property to shovel. You can change these when you book."
+          : "Choose what you clear. Leave a price blank to use the suggestion.";
   const move = (next: number) => {
     update({ step: next });
     requestAnimationFrame(() => {
       heading.current?.focus();
-      window.scrollTo({ top: 0, behavior: "instant" });
+      heading.current?.closest(".auth-frame")?.scrollTo({ top: 0 });
     });
   };
-  const toggle = (
-    key: "serviceTypes" | "operatorServiceTypes",
-    value: ServiceType,
-  ) =>
+  const toggle = (key: "serviceTypes" | "operatorServiceTypes", value: ServiceType) =>
     update({
-      [key]: draft[key].includes(value)
-        ? draft[key].filter((v) => v !== value)
-        : [...draft[key], value],
+      [key]: draft[key].includes(value) ? draft[key].filter((v) => v !== value) : [...draft[key], value],
     });
   const submit = async () => {
     if (saving) return;
-    if (!role) {
-      move(1);
-      return;
-    }
-    if (!validAddress || (role === "operator" && draft.serviceAreaMode === "cities" && !draft.serviceAreas.length)) {
-      move(2);
-      return;
-    }
+    if (!role) return move(1);
+    if (!validAddress || !validArea) return move(2);
     if (!validDetails) return;
     setSaving(true);
     setError("");
@@ -298,9 +262,7 @@ export default function OnboardingFlow({
         } catch {}
       }
     } catch {
-      setError(
-        "We couldn’t finish setup. Your answers are still here. Please try again.",
-      );
+      setError("We couldn’t finish setup. Your answers are still here. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -308,456 +270,225 @@ export default function OnboardingFlow({
 
   if (!ready)
     return (
-      <main
-        className="flex min-h-dvh items-center justify-center bg-[#f3f8fb] text-[#061321]"
-        role="status"
-      >
+      <main className="flex min-h-dvh items-center justify-center bg-[#050b16] text-white" role="status">
         Getting your setup ready…
       </main>
     );
+  const selectedServices = role === "client" ? draft.serviceTypes : draft.operatorServiceTypes;
   return (
-    <main className="onboarding-flow min-h-dvh bg-[var(--bg-primary)] px-4 py-5 text-[var(--ink)] sm:px-6 sm:py-8">
-      <header className="mx-auto flex max-w-5xl items-center justify-between gap-4">
-        <Link
-          href="/"
-          aria-label="snowd home"
-          className="flex items-center gap-2"
-        >
-          <Image
-            src="/logo.png"
-            alt=""
-            width={40}
-            height={44}
-            className="h-auto w-10"
-          />
-          <span className="font-headline text-3xl font-semibold">
-            snowd<span className="text-[#ff820e]">.</span>
-          </span>
-        </Link>
-        <span className="text-xs font-bold text-[#061321]/65">
-          {saved ? "Progress saved" : "A few steps. A fresh start."}
-        </span>
-      </header>
-      <div className="onboarding-card mx-auto mt-6 max-w-5xl rounded-2xl border border-[var(--border-color)] bg-white shadow-[var(--surface-shadow-strong)] lg:grid lg:grid-cols-[0.64fr_1fr]">
-        <aside className="onboarding-aside relative hidden items-center gap-3 rounded-l-2xl border-r border-[var(--border-color)] bg-[var(--accent-soft)] p-8 lg:flex lg:flex-col lg:justify-center">
-          <motion.div
-            key={step}
-            initial={reduceMotion ? false : { scale: 0.97, y: 5 }}
-            animate={{ scale: 1, y: 0 }}
-            transition={{ type: "spring", stiffness: 220, damping: 15 }}
-            className="w-12 shrink-0 lg:w-full lg:max-w-64"
-          >
-            <Image
-              src="/logo.png"
-              alt=""
-              width={320}
-              height={342}
-              priority
-              className="h-auto w-full"
-            />
-          </motion.div>
-        </aside>
-        <section className="flex min-h-[calc(100dvh-10rem)] min-w-0 flex-col p-5 sm:p-8 lg:min-h-[620px]">
-          <div className="mb-6">
-            <div className="mb-2 flex justify-between text-xs font-semibold uppercase tracking-wider">
-              <span>
-                {["Your role", "Your address", "Your services"][step - 1]}
-              </span>
-              <span>Step {step} of 3</span>
-            </div>
-            <div
-              role="progressbar"
-              aria-label="Setup progress"
-              aria-valuemin={0}
-              aria-valuemax={3}
-              aria-valuenow={step}
-              className="h-2 overflow-hidden rounded-full bg-[var(--bg-secondary)]"
-            >
-              <div
-                className="h-full bg-[var(--accent)] text-white motion-safe:transition-all motion-safe:duration-300"
-                style={{ width: `${(step / 3) * 100}%` }}
-              />
-            </div>
-          </div>
-          <h1
-            ref={heading}
-            tabIndex={-1}
-            className="font-headline text-2xl font-semibold leading-tight outline-none sm:text-3xl"
-          >
-            {title}
-          </h1>
-          <p className="mb-6 mt-2 text-sm font-semibold leading-6 text-[#061321]/65">
-            {step === 1
-              ? "Choose what brings you to snowd."
-              : step === 2
-                ? role === "client"
-                  ? "Find the home you’d like cleared."
-                  : "Start with your home base. Set how far you’ll travel next."
-                : role === "client"
-                  ? "Pick what you need. You can change these details later."
-                  : "Choose your services, then keep or edit the starter prices."}
-          </p>
-          <fieldset disabled={saving} className="min-w-0 space-y-4">
-            <legend className="sr-only">{title}</legend>
-            {step === 1 && (
-              <div className="grid gap-4">
-                {(
-                  [
-                    [
-                      "client",
-                      Home,
-                      "I’m a homeowner",
-                      "Find friendly, local snow removal.",
-                    ],
-                    [
-                      "operator",
-                      Truck,
-                      "I’m an operator",
-                      "Earn money clearing snow nearby.",
-                    ],
-                  ] as const
-                ).map(([value, Icon, label, description]) => (
-                  <Choice
-                    key={value}
-                    selected={role === value}
-                    onClick={() => update({ role: value })}
-                  >
-                    <span className="flex items-center gap-3">
-                      <Icon size={30} strokeWidth={2.5} />
-                      <span>
-                        <span className="block text-lg font-semibold">
-                          {label}
-                        </span>
-                        <span className="mt-1 block text-sm font-medium text-[#061321]/65">
-                          {description}
-                        </span>
-                      </span>
-                    </span>
-                  </Choice>
-                ))}
+    <main className="onboarding-flow auth-page grid h-dvh place-items-center overflow-hidden px-4 py-4 sm:p-6">
+      <SnowStorm />
+      <div className="auth-frame auth-frame-split relative w-full max-w-[1040px]">
+        <section className="flex min-w-0 flex-col p-4 sm:p-7">
+          <Link href="/" className="inline-flex min-h-11 w-fit items-center gap-3" aria-label="SNOWD home">
+            <Image src="/logo.png" alt="" width={44} height={48} priority className="h-12 w-11 object-contain" />
+            <span className="font-headline text-3xl font-semibold">snowd<span className="text-[var(--accent-sun)]">.ca</span></span>
+          </Link>
+          <div className={`${styles.body} mx-auto w-full max-w-[480px] flex-1 py-4`}>
+            <div className="grid gap-2">
+              <div className={styles.top}>
+                <span>Step {step} of 3 · {stepNames[step - 1]}</span>
+                <span className={styles.saved}>{saved ? "Progress saved" : ""}</span>
               </div>
-            )}
-            {step === 2 && (
-              <>
-              <OnboardingAddress
-                value={location}
-                onChange={(location) => update({ location })}
-              />
-              {role === "operator" && validAddress && <ServiceAreaEditor location={location} mode={draft.serviceAreaMode} radius={draft.serviceRadius} cities={draft.serviceAreas} onChange={update} />}
-              </>
-            )}
-            {step === 3 && (
-              <>
-                {role === "client" && (
-                  <div>
-                    <h2 className="mb-2 text-sm font-semibold">Property size</h2>
-                    <div className="grid grid-cols-1 min-[400px]:grid-cols-2 gap-3">
-                      {propertySizes.map(([size, label, description]) => (
-                        <Choice
-                          key={size}
-                          selected={draft.propertySize === size}
-                          onClick={() =>
-                            update({
-                              propertySize: size,
-                              serviceTypes:
-                                size === "commercial"
-                                  ? ["parking-lot", "sidewalk"]
-                                  : ["driveway", "walkway"],
-                            })
-                          }
-                        >
-                          <span>
-                            <span className="block font-semibold">{label}</span>
-                            <span className="text-xs font-semibold">
-                              {description}
-                            </span>
-                          </span>
-                        </Choice>
+              <div role="progressbar" aria-label="Setup progress" aria-valuemin={0} aria-valuemax={3} aria-valuenow={step} className={styles.progress}>
+                <span style={{ width: `${(step / 3) * 100}%` }} />
+              </div>
+            </div>
+            <h1 ref={heading} tabIndex={-1} className={styles.title}>{title}<span>.</span></h1>
+            <p className={styles.lede}>{lede}</p>
+
+            <fieldset disabled={saving} className={styles.fields}>
+              <legend className="sr-only">{title}</legend>
+              {step === 1 && (
+                <div className={styles.roles}>
+                  {([
+                    ["client", "/landing/snowd-cleared-driveway.png", "I’m a homeowner", "Find friendly, local snow removal."],
+                    ["operator", "/landing/snowd-mascot-helper-cutout.png", "I’m an operator", "Earn money clearing snow nearby."],
+                  ] as const).map(([value, art, label, description]) => (
+                    <button key={value} type="button" data-kind={value} aria-pressed={role === value} onClick={() => update({ role: value })} className={styles.role}>
+                      <span className={styles.check} aria-hidden="true">{role === value && <Check size={15} strokeWidth={3} />}</span>
+                      <span className={styles.roleArt}><Image src={art} alt="" width={400} height={240} sizes="(min-width: 520px) 240px, 100vw" /></span>
+                      <span className={styles.roleCopy}><strong>{label}</strong><span>{description}</span></span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {step === 2 && (
+                <>
+                  <OnboardingAddress value={location} onChange={(location) => update({ location })} />
+                  {role === "operator" && validAddress && (
+                    <ServiceAreaEditor location={location} mode={draft.serviceAreaMode} radius={draft.serviceRadius} cities={draft.serviceAreas} onChange={update} />
+                  )}
+                </>
+              )}
+
+              {step === 3 && (
+                <>
+                  <section className={styles.card}>
+                    <div className={styles.cardHead}>
+                      <h2>{role === "client" ? "Areas to shovel" : "What do you clear?"}</h2>
+                      <p>{role === "client" ? "Choose every area you want cleared at this property." : "Clients can only book the areas you offer."}</p>
+                    </div>
+                    <div className={styles.options}>
+                      {SHOVELING_SERVICES.map(([value, label]) => (
+                        <OptionButton
+                          key={value}
+                          selected={selectedServices.includes(value)}
+                          onClick={() => toggle(role === "client" ? "serviceTypes" : "operatorServiceTypes", value)}
+                          icon={serviceIcons[value]}
+                          label={label}
+                          hint={serviceHints[value]}
+                        />
                       ))}
                     </div>
-                  </div>
-                )}
-                <div>
-                  <h2 className="mb-2 text-sm font-semibold">
-                    {role === "client"
-                      ? "Areas to clear"
-                      : "What do you offer?"}
-                  </h2>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {(role === "client"
-                      ? [
-                          ...services,
-                          ["parking-lot", "Parking lot"] as [
-                            ServiceType,
-                            string,
-                          ],
-                          ["roof", "Roof snow removal"] as [
-                            ServiceType,
-                            string,
-                          ],
-                          ["other", "Other"] as [ServiceType, string],
-                        ]
-                      : services
-                    ).map(([value, label]) => (
-                      <Choice
-                        key={value}
-                        selected={(role === "client"
-                          ? draft.serviceTypes
-                          : draft.operatorServiceTypes
-                        ).includes(value)}
-                        onClick={() =>
-                          toggle(
-                            role === "client"
-                              ? "serviceTypes"
-                              : "operatorServiceTypes",
-                            value,
-                          )
-                        }
-                      >
-                        <span className="text-sm font-bold">{label}</span>
-                      </Choice>
-                    ))}
-                  </div>
-                </div>
-                {role === "operator" && (
-                  <>
-                    <div className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] p-4">
-                      <h2 className="flex items-center gap-2 text-sm font-semibold">
-                        <Sparkles size={18} className="text-[#ff820e]" />
-                        Starter prices · CAD / visit
-                      </h2>
-                      <p className="mb-4 mt-1 text-xs leading-5 text-[#061321]/65">
-                        Suggested starting points, not market estimates. Charge
-                        what works for you.
-                      </p>
-                      <div className="space-y-3">
-                        {visiblePrices.map(([key, label, recommended]) => (
-                          <label
-                            key={key}
-                            className="flex items-center justify-between gap-3"
-                          >
-                            <span className="text-sm font-bold">
-                              {label}
-                              <span className="block text-xs font-medium text-[#061321]/60">
-                                Suggested ${recommended}
-                              </span>
-                            </span>
-                            <span className="relative w-28 shrink-0">
-                              <span
-                                className="absolute left-3 top-3 font-bold"
-                                aria-hidden="true"
-                              >
-                                $
-                              </span>
+                    {!selectedServices.length && <p className={styles.error}>Choose at least one area.</p>}
+                  </section>
+
+                  {role === "client" && draft.serviceTypes.includes("driveway") && (
+                    <section className={styles.card}>
+                      <div className={styles.cardHead}>
+                        <h2>Driveway size</h2>
+                        <p>Operators price driveways by size.</p>
+                      </div>
+                      <div className={styles.options}>
+                        {propertySizes.map(([size, label, hint]) => (
+                          <OptionButton key={size} selected={draft.propertySize === size} onClick={() => update({ propertySize: size })} label={label} hint={hint} />
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {role === "operator" && visiblePrices.length > 0 && (
+                    <section className={styles.card}>
+                      <div className={styles.cardHead}>
+                        <h2>Your prices · CAD per visit</h2>
+                        <p>Front porch and sidewalk share one price. You can change prices any time in settings.</p>
+                      </div>
+                      <div className={styles.prices}>
+                        {visiblePrices.map(({ key, label, detail }) => (
+                          <label key={key} className={styles.price}>
+                            <span>{label}{detail && <small>{detail}</small>}</span>
+                            <span className={styles.priceInput}>
+                              <span aria-hidden="true">$</span>
                               <input
                                 aria-label={`${label} price in CAD`}
-                                className={`${field} pl-7`}
+                                className={styles.input}
                                 inputMode="decimal"
                                 type="text"
+                                placeholder={`${SUGGESTED_PRICES[key]} suggested`}
                                 value={draft[key]}
-                                onChange={(e) =>
-                                  update({ [key]: e.target.value })
-                                }
+                                aria-invalid={!validPrice(draft[key]) || undefined}
+                                onChange={(e) => update({ [key]: e.target.value })}
                               />
                             </span>
                           </label>
                         ))}
                       </div>
-                      {!validPrices && (
-                        <p
-                          role="alert"
-                          className="mt-3 text-sm font-bold text-red-700"
-                        >
-                          Enter a price from $0.01 to $10,000, with up to two
-                          decimal places.
-                        </p>
-                      )}
-                      <button
-                        type="button"
-                        className="mt-3 min-h-11 text-xs font-bold underline underline-offset-4"
-                        onClick={() =>
-                          update({
-                            pricingSmall: "25",
-                            pricingMedium: "40",
-                            pricingLarge: "60",
-                            pricingWalkway: "15",
-                            pricingSidewalk: "15",
-                            pricingBackyardPatio: "15",
-                            pricingPorch: "10",
-                          })
-                        }
-                      >
-                        Use suggested prices
-                      </button>
-                    </div>
-                    <p className="text-xs leading-5 text-[#061321]/65">
-                      Your profile needs verification before you can accept
-                      jobs. We’ll guide you from your dashboard.
-                    </p>
-                  </>
-                )}
-                <section className="rounded-2xl border border-[var(--border-color)] p-3">
-                  <h3 className="py-2 text-sm font-bold">
-                    {role === "operator"
-                      ? "Your equipment & optional details"
-                      : "Add a note or contact details (optional)"}
-                  </h3>
-                  <div className="mt-3 space-y-3">
-                    {role === "operator" && (
-                      <>
-                        <p className="text-xs font-bold">
-                          Equipment · choose at least one
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          {EQUIPMENT_OPTIONS.map((item) => (
-                            <button
-                              type="button"
-                              key={item}
-                              aria-pressed={draft.equipment.includes(item)}
-                              className={`min-h-11 rounded-xl border border-[var(--border-color)] px-3 text-xs font-bold ${draft.equipment.includes(item) ? "bg-[var(--accent-soft)]" : "bg-white"}`}
-                              onClick={() =>
-                                update({
-                                  equipment: draft.equipment.includes(item)
-                                    ? draft.equipment.filter((e) => e !== item)
-                                    : [...draft.equipment, item],
-                                })
-                              }
-                            >
-                              {draft.equipment.includes(item) ? "✓ " : ""}
-                              {item}
+                      {!validPrices && <p role="alert" className={styles.error}>Enter a price from $0.01 to $10,000, with up to two decimal places.</p>}
+                    </section>
+                  )}
+
+                  {role === "operator" && (
+                    <section className={styles.card}>
+                      <div className={styles.cardHead}>
+                        <h2>Your equipment</h2>
+                        <p>Choose at least one.</p>
+                      </div>
+                      <div className={styles.chips}>
+                        {EQUIPMENT_OPTIONS.map((item) => {
+                          const on = draft.equipment.includes(item);
+                          return (
+                            <button type="button" key={item} aria-pressed={on} className={styles.chip} onClick={() => update({ equipment: on ? draft.equipment.filter((e) => e !== item) : [...draft.equipment, item] })}>
+                              {on ? "✓ " : ""}{item}
                             </button>
-                          ))}
-                        </div>
-                        <label className="flex min-h-11 items-center gap-2 text-sm font-bold">
-                          <input
-                            type="checkbox"
-                            checked={draft.isStudent}
-                            onChange={(e) =>
-                              update({ isStudent: e.target.checked })
-                            }
-                          />
-                          I’m a student operator
-                        </label>
-                        <label className="block text-sm font-bold">
-                          Business name (optional)
-                          <input
-                            className={field}
-                            value={draft.businessName}
-                            onChange={(e) =>
-                              update({ businessName: e.target.value })
-                            }
-                          />
-                        </label>
-                        <label className="block text-sm font-bold">
-                          A little about you (optional)
-                          <textarea
-                            className={`${field} py-3`}
-                            value={draft.bio}
-                            onChange={(e) => update({ bio: e.target.value })}
-                          />
-                        </label>
-                      </>
-                    )}
+                          );
+                        })}
+                      </div>
+                      {draft.equipment.length === 0 && <p className={styles.error}>Choose at least one item.</p>}
+                      <label className={styles.toggle}>
+                        <input type="checkbox" checked={draft.isStudent} onChange={(e) => update({ isStudent: e.target.checked })} />
+                        I’m a student operator
+                      </label>
+                    </section>
+                  )}
+
+                  <section className={styles.card}>
+                    <div className={styles.cardHead}>
+                      <h2>{role === "client" ? "A few extras" : "Contact details"}</h2>
+                      <p>All optional.</p>
+                    </div>
                     {role === "client" && (
-                      <label className="block text-sm font-bold">
-                        Anything we should know?
-                        <textarea
-                          className={`${field} py-3`}
-                          value={draft.specialInstructions}
-                          onChange={(e) =>
-                            update({ specialInstructions: e.target.value })
-                          }
-                          placeholder="A gate, steps, or a spot to watch out for…"
-                        />
+                      <label className={styles.label}>
+                        Anything your shoveler should know?
+                        <textarea className={styles.input} value={draft.specialInstructions} onChange={(e) => update({ specialInstructions: e.target.value })} placeholder="A gate, steps, or a spot to watch out for…" />
                       </label>
                     )}
                     {role === "client" && (
-                      <div className="text-sm font-bold">
-                        <span className="mb-2 block">Profile photo (optional)</span>
+                      <div className={styles.label}>
+                        Profile photo
                         <ProfilePhotoPicker value={draft.avatar} onChange={(avatar) => update({ avatar })} size={64} />
                       </div>
                     )}
-                    <label className="block text-sm font-bold">
-                      Phone (optional)
-                      <input
-                        className={field}
-                        type="tel"
-                        autoComplete="tel"
-                        value={draft.phone}
-                        onChange={(e) => update({ phone: e.target.value })}
-                      />
-                    </label>
-                    <label className="block text-sm font-bold">
-                      Age (optional)
-                      <input
-                        className={field}
-                        inputMode="numeric"
-                        value={draft.age}
-                        onChange={(e) => update({ age: e.target.value })}
-                      />
-                      <span className="text-xs font-medium">
-                        Helps us personalize your experience.
-                      </span>
-                    </label>
-                  </div>
-                </section>
-                {!validAge && (
-                  <p className="text-sm font-bold text-red-700">
-                    Enter an age between 13 and 120, or leave it blank.
-                  </p>
-                )}
-                {!validPhone && (
-                  <p className="text-sm font-bold text-red-700">
-                    Enter a 10-digit phone number, or leave it blank.
-                  </p>
-                )}
-                {role === "operator" && draft.equipment.length === 0 && (
-                  <p className="text-sm font-bold text-red-700">
-                    Choose at least one item under equipment.
-                  </p>
-                )}
-              </>
-            )}
-          </fieldset>
-          {error && (
-            <p
-              role="alert"
-              className="mt-4 rounded-xl bg-red-50 p-3 text-sm font-bold text-red-700"
-            >
-              {error}
-            </p>
-          )}
-          <div className="sticky bottom-0 z-10 mt-auto flex items-center gap-3 border-t border-[#061321]/10 bg-white py-4">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <label className={styles.label}>
+                        Phone
+                        <input className={styles.input} type="tel" autoComplete="tel" value={draft.phone} aria-invalid={!validPhone || undefined} onChange={(e) => update({ phone: e.target.value })} placeholder="(416) 555-0123" />
+                      </label>
+                      <label className={styles.label}>
+                        Age
+                        <input className={styles.input} inputMode="numeric" value={draft.age} aria-invalid={!validAge || undefined} onChange={(e) => update({ age: e.target.value })} />
+                      </label>
+                    </div>
+                    {!validPhone && <p className={styles.error}>Enter a 10-digit phone number, or leave it blank.</p>}
+                    {!validAge && <p className={styles.error}>Enter an age between 13 and 120, or leave it blank.</p>}
+                  </section>
+
+                  {role === "operator" && (
+                    <p className={styles.note}>Your profile needs verification before you can accept jobs. Add your business name and bio from settings once your account is open.</p>
+                  )}
+                </>
+              )}
+            </fieldset>
+
+            {error && <p role="alert" className={styles.alert}>{error}</p>}
+
+            <div className={styles.actions}>
+              {step > 1 && (
+                <button type="button" aria-label="Previous step" disabled={saving} onClick={() => move(step - 1)} className={`dialog-btn ${styles.back}`} data-tone="neutral">
+                  <ArrowLeft size={20} />
+                </button>
+              )}
               <button
                 type="button"
-                aria-label="Previous step"
-                aria-hidden={step === 1}
-                tabIndex={step === 1 ? -1 : 0}
-                disabled={saving || step === 1}
-                onClick={() => move(step - 1)}
-                className={`flex h-13 w-13 shrink-0 items-center justify-center rounded-xl border border-[var(--border-color)] bg-white disabled:opacity-50 ${step === 1 ? "invisible" : ""}`}
+                disabled={!canContinue || saving}
+                onClick={() => (step < 3 ? move(step + 1) : void submit())}
+                className={`dialog-btn ${styles.next} ${step === 3 ? "action-shine" : ""}`}
+                data-tone="primary"
               >
-                <ArrowLeft size={20} />
+                {saving ? "Getting things ready…" : step < 3 ? "Continue" : role === "client" ? "Find snow removal" : "Create my operator profile"}
+                {!saving && <ArrowRight size={20} />}
               </button>
-            <button
-              type="button"
-              disabled={!canContinue || saving}
-              onClick={() => (step < 3 ? move(step + 1) : void submit())}
-              className={`btn-primary flex min-h-13 flex-1 items-center justify-center gap-2 px-4 py-3 text-base disabled:opacity-45 ${step === 3 ? "action-shine" : ""}`}
-            >
-              {saving
-                ? "Getting things ready…"
-                : step < 3
-                  ? "Continue"
-                  : role === "client"
-                    ? "Find snow removal"
-                    : "Create my operator profile"}
-              {!saving && <ArrowRight size={20} />}
-            </button>
+            </div>
           </div>
         </section>
-      </div>
 
+        <aside className={`auth-aside ${styles.aside}`}>
+          <div className="auth-aside-inner">
+            <p className="auth-aside-kicker">Account setup</p>
+            <h2 className="auth-aside-title">A few steps. A fresh start<span className="text-[var(--accent-sun)]">.</span></h2>
+            <Image className={styles.asideArt} src="/landing/snowd-mascot-helper-cutout.png" alt="" width={220} height={220} />
+            <ol className={styles.asideSteps}>
+              {stepNames.map((name, i) => (
+                <li key={name} data-state={i + 1 < step ? "done" : i + 1 === step ? "current" : "next"} aria-current={i + 1 === step ? "step" : undefined}>
+                  <span className={styles.asideNum}>{i + 1 < step ? <Check size={14} strokeWidth={3} /> : `0${i + 1}`}</span>
+                  {name}
+                </li>
+              ))}
+            </ol>
+          </div>
+        </aside>
+      </div>
     </main>
   );
 }

@@ -9,10 +9,11 @@ import { db } from "@/lib/firebase";
 import { canAcceptPlatformPayments } from "@/lib/operatorDiscovery";
 import { Job, OperatorProfile, Transaction } from "@/lib/types";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
-import { ArrowRight, Banknote, Check, ChevronRight, CircleDollarSign, CreditCard, Settings2, Sparkles, TrendingUp, WalletCards } from "lucide-react";
+import { ArrowRight, Banknote, Check, ChevronRight, CircleDollarSign, CreditCard, Settings2, Sparkles, WalletCards } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
+import { earningPointsFrom } from "@/components/dashboard/EarningsChart";
+import EarningsCard from "./EarningsCard";
 import styles from "./transactions.module.css";
 
 function toDate(value: unknown) {
@@ -25,7 +26,6 @@ function toDate(value: unknown) {
 function dateMillis(value: unknown) { return toDate(value)?.getTime() || 0; }
 function dateText(value: unknown) { const date = toDate(value); return date ? date.toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" }) : "Date unavailable"; }
 const money = (cents: number) => new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD", maximumFractionDigits: 2 }).format(cents / 100);
-const compactMoney = (cents: number) => new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD", notation: cents >= 100000 ? "compact" : "standard", maximumFractionDigits: cents >= 100000 ? 1 : 0 }).format(cents / 100);
 const statusLabel: Record<Transaction["status"], string> = { paid: "Paid", held: "On hold", refunded: "Refunded", cancelled: "Cancelled" };
 
 export default function TransactionsPage() {
@@ -59,14 +59,10 @@ export default function TransactionsPage() {
   const cashOnly = isOperator && !canAcceptPlatformPayments(profile as OperatorProfile);
 
   const insights = useMemo(() => {
-    const now = new Date(); const currentStart = new Date(now.getFullYear(), now.getMonth(), 1); const previousStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const sumRange = (start: Date, end?: Date) => paidTransactions.reduce((sum, item) => { const date = toDate(item.completedAt || item.createdAt); return date && date >= start && (!end || date < end) ? sum + transactionDisplayAmount(item, isOperator) : sum; }, 0);
-    const currentMonth = sumRange(currentStart); const previousMonth = sumRange(previousStart, currentStart);
-    const growth = previousMonth > 0 ? Math.round(((currentMonth - previousMonth) / previousMonth) * 100) : null;
     const cash = paidTransactions.filter(item => item.paymentMethod === "cash").reduce((sum, item) => sum + transactionDisplayAmount(item, isOperator), 0); const card = paid - cash;
-    const chart = Array.from({ length: 6 }, (_, index) => { const date = new Date(now.getFullYear(), now.getMonth() - 5 + index, 1); const next = new Date(date.getFullYear(), date.getMonth() + 1, 1); return { month: date.toLocaleDateString("en-CA", { month: "short" }), amount: sumRange(date, next) / 100 }; });
-    return { currentMonth, growth, cash, card, chart };
+    return { cash, card };
   }, [isOperator, paid, paidTransactions]);
+  const earningPoints = useMemo(() => earningPointsFrom(transactions), [transactions]);
   const savedMinutes = estimatedTimeSaved(jobs);
   const completedVisits = jobs.filter(job => job.status === "completed").length;
   const empty = !loading && !error && transactions.length === 0;
@@ -74,17 +70,16 @@ export default function TransactionsPage() {
   return <div className={styles.page}>
     <header className={styles.header}><div><h1>{isOperator ? "Your money" : "Payments"}</h1></div><Link href="/dashboard/settings?tab=payment" className={styles.settingsButton}><IconSwap icon={<Settings2 aria-hidden="true" />}><Settings2 aria-hidden="true" /> Payment settings</IconSwap></Link></header>
     {(error || jobsError) && <div role="alert" className={styles.errorBanner}><span>Some payment information could not load.</span><button onClick={() => setRetry(value => value + 1)}>Try again</button></div>}
-    <section className={styles.heroGrid} aria-label="Payment summary">
-      {isOperator ? <div className={styles.balanceCard}><div className={styles.balanceTopline}><span>{isOperator ? "Total earned" : "Total paid"}</span><span className={styles.currency}>CAD</span></div><p className={styles.balance}>{loading || error ? "—" : money(paid)}</p><div className={styles.balanceFooter}><span className={styles.growthPill}><TrendingUp aria-hidden="true" />{insights.growth === null ? (insights.currentMonth > 0 ? "First earning month" : "Ready for your first payment") : `${insights.growth >= 0 ? "+" : ""}${insights.growth}% vs last month`}</span>{isOperator && <Link href="/dashboard/analytics"><IconSwap icon={<ArrowRight aria-hidden="true" />}>Full analytics <ArrowRight aria-hidden="true" /></IconSwap></Link>}</div></div> : <div className={styles.timeSavedCard}>
+    {isOperator ? <section className={styles.growthSection} aria-label="Earnings">
+      <EarningsCard points={earningPoints} total={paid} loading={loading} error={error} />
+      <div className={styles.sourcesCard}><div className={styles.sectionHeading}><div><p className={styles.eyebrow}>Payment mix</p><h2>By method</h2></div></div><div className={styles.sourceList}><div><span className={`${styles.sourceIcon} ${styles.cash}`}><Banknote aria-hidden="true" /></span><span><b>Cash</b></span><strong>{money(insights.cash)}</strong></div><div><span className={`${styles.sourceIcon} ${styles.card}`}><CreditCard aria-hidden="true" /></span><span><b>Card</b></span><strong>{money(insights.card)}</strong></div></div><div className={styles.mixBar} aria-label={`Cash ${paid ? Math.round(insights.cash / paid * 100) : 0} percent, card ${paid ? Math.round(insights.card / paid * 100) : 0} percent`}><span style={{ width: `${paid ? insights.cash / paid * 100 : 0}%` }} /></div></div>
+    </section> : <section className={styles.heroGrid} aria-label="Payment summary">
+      <div className={styles.timeSavedCard}>
         <span className={styles.eyebrow}>More winter, less work</span>
         <h2>{jobsLoading || jobsError ? "Your time saved" : savedMinutes > 0 ? <>You’ve saved <strong>{timeSavedLabel(savedMinutes)}</strong></> : "Make time for your snow day"}</h2>
         <p>{jobsError ? "Visit history is temporarily unavailable." : jobsLoading ? "Loading your visits…" : completedVisits ? `${completedVisits} completed ${completedVisits === 1 ? "visit" : "visits"} · estimated time saved from service duration.` : "Your time saved will appear after your first completed visit."}</p>
         <span className={styles.costNote}>{loading || error ? "Payment total unavailable" : <>For only <b>{money(paid)} CAD</b> paid in total</>}</span>
-      </div>}
-    </section>
-    {isOperator && <section className={styles.growthSection} aria-labelledby="growth-heading">
-      <div className={styles.chartCard}><div className={styles.sectionHeading}><div><p className={styles.eyebrow}>Last 6 months</p><h2 id="growth-heading">Earnings growth</h2></div><div className={styles.monthTotal}><span>This month</span><strong>{compactMoney(insights.currentMonth)}</strong></div></div><div className={styles.chart} aria-label="Monthly earnings chart"><ResponsiveContainer width="100%" height="100%"><AreaChart data={insights.chart} margin={{ top: 14, right: 2, left: 2, bottom: 0 }}><defs><linearGradient id="earningsFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#2350FF" stopOpacity={0.28} /><stop offset="100%" stopColor="#2350FF" stopOpacity={0.02} /></linearGradient></defs><XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: "#60717d", fontSize: 12 }} dy={10} /><Tooltip cursor={{ stroke: "#b9c9e8", strokeDasharray: "4 4" }} formatter={(value) => [money(Number(value || 0) * 100), "Earnings"]} contentStyle={{ border: "1px solid #dbe3e8", borderRadius: 14, boxShadow: "0 12px 30px rgba(17,43,59,.12)" }} /><Area type="monotone" dataKey="amount" stroke="#2350FF" strokeWidth={3} fill="url(#earningsFill)" activeDot={{ r: 5, fill: "#2350FF", stroke: "white", strokeWidth: 3 }} /></AreaChart></ResponsiveContainer></div></div>
-      <div className={styles.sourcesCard}><div className={styles.sectionHeading}><div><p className={styles.eyebrow}>Payment mix</p><h2>By method</h2></div></div><div className={styles.sourceList}><div><span className={`${styles.sourceIcon} ${styles.cash}`}><Banknote aria-hidden="true" /></span><span><b>Cash</b></span><strong>{money(insights.cash)}</strong></div><div><span className={`${styles.sourceIcon} ${styles.card}`}><CreditCard aria-hidden="true" /></span><span><b>Card</b></span><strong>{money(insights.card)}</strong></div></div><div className={styles.mixBar} aria-label={`Cash ${paid ? Math.round(insights.cash / paid * 100) : 0} percent, card ${paid ? Math.round(insights.card / paid * 100) : 0} percent`}><span style={{ width: `${paid ? insights.cash / paid * 100 : 0}%` }} /></div></div>
+      </div>
     </section>}
     <section className={styles.historyCard} aria-labelledby="history-heading"><div className={styles.historyHeader}><div><p className={styles.eyebrow}>Activity</p><h2 id="history-heading">Payment history</h2></div><div className={styles.filters} aria-label="Filter payment history">{(["all", "paid", "held", "refunded"] as const).map(value => <button key={value} aria-pressed={filter === value} onClick={() => setFilter(value)}>{value === "all" ? "All" : statusLabel[value]}</button>)}</div></div>
       {loading ? <div role="status" className={styles.emptyState}>Loading payments…</div> : list.length === 0 ? <div className={styles.emptyState}><span><WalletCards aria-hidden="true" /></span><h3>{error ? "Payment history is unavailable" : filter === "all" ? "Your payment history starts here" : `No ${filter} payments`}</h3><p>{error ? "Try loading the page again." : filter === "all" ? "Completed jobs and receipts will appear here automatically." : "Choose another filter to see more activity."}</p></div> : <div className={styles.transactionList}>{list.map(item => { const person = isOperator ? item.clientName || "Customer" : item.operatorName || "Operator"; return <Link key={item.id} href={item.jobId ? `/dashboard/jobs/${item.jobId}` : "/dashboard/transactions"} className={styles.transactionRow}><span className={`${styles.transactionIcon} ${item.paymentMethod === "cash" ? styles.cash : styles.card}`}>{item.paymentMethod === "cash" ? <Banknote aria-hidden="true" /> : <CreditCard aria-hidden="true" />}</span><span className={styles.transactionMain}><b>{person}</b><small>{item.description || "Snow removal"} · {dateText(item.createdAt)}</small></span><span className={`${styles.status} ${styles[item.status]}`}>{item.status === "paid" && <Check aria-hidden="true" />}{statusLabel[item.status]}</span><strong className={styles.transactionAmount}>{isOperator && item.status === "paid" ? "+" : ""}{money(transactionDisplayAmount(item, isOperator))}</strong><ChevronRight className={styles.rowChevron} aria-hidden="true" /></Link>; })}</div>}

@@ -5,7 +5,6 @@ export function validCompletionPhoto(value: unknown): value is string {
 }
 
 export async function prepareCompletionPhoto(file: File): Promise<string> {
-  if (file.size > 30 * 1024 * 1024) throw new Error("Choose a photo under 30 MB.");
   if (file.type && !file.type.startsWith("image/")) throw new Error("Choose an image file.");
   const url = URL.createObjectURL(file);
   try {

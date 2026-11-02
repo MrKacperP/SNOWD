@@ -17,6 +17,10 @@
 .properties li p { font-size:14px; color:var(--text-secondary); }
 .properties button { flex:none; }
 .actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; flex:none; }
+.kinds { display:flex; flex-wrap:wrap; gap:8px; }
+.kinds button { min-height:44px; padding:0 16px; border:1px solid var(--border-color); border-radius:999px; background:var(--bg-card-solid); color:var(--text-primary); font-size:14px; font-weight:600; cursor:pointer; }
+.kinds button[aria-pressed=true] { border-color:var(--accent); background:var(--accent-soft); color:var(--accent); }
+.kinds button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 .badge { display:inline-block; margin-left:8px; padding:2px 8px; border-radius:999px; background:var(--accent-soft); color:var(--accent); font-size:12px; font-weight:600; vertical-align:middle; }
 .offerDetails { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px 20px; border-top:1px solid var(--border-color); background:#28705710; }
 .offerDetails > div { display:grid; gap:3px; min-width:0; overflow-wrap:anywhere; }

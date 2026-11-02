@@ -20,6 +20,15 @@
 .strike { position: absolute; inset: 0; border-radius: 999px; background: #d92d20; box-shadow: 0 0 0 3px rgb(217 45 32 / 14%); transform: scaleX(0); transform-origin: left; animation: strike 650ms cubic-bezier(.7, 0, .3, 1) 150ms forwards; }
 .stamp { position: absolute; top: 50%; left: 50%; padding: 3px 12px; border: 2px solid #d92d20; border-radius: 999px; background: #fff; color: #d92d20; font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; opacity: 0; transform: translate(-50%, -50%) scale(1.4); animation: stamp 320ms ease-out 700ms forwards; }
 
+/* A finished order: one green sweep across every step, then a Completed stamp that stays. */
+.timeline[data-completed] .bar::after { background: #23955a; transform: scaleX(0); transition: none; }
+.timeline[data-completed] .bar::before { display: none; }
+.timeline[data-completed] .label { color: var(--text-secondary); }
+.timeline[data-completed] [data-state="current"] .label { color: #1a7546; }
+.complete { position: absolute; inset: 0 0 auto; height: 8px; }
+.sweep { position: absolute; inset: 0; border-radius: 999px; background: #23955a; box-shadow: 0 0 0 3px rgb(35 149 90 / 16%); transform: scaleX(0); transform-origin: left; animation: strike 650ms cubic-bezier(.7, 0, .3, 1) 150ms forwards; }
+.done { position: absolute; top: 50%; left: 50%; display: inline-flex; align-items: center; gap: 5px; padding: 3px 12px; border: 2px solid #23955a; border-radius: 999px; background: #fff; color: #1a7546; font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; opacity: 0; transform: translate(-50%, -50%) scale(1.4); animation: stamp 320ms ease-out 700ms forwards; }
+
 @keyframes shimmer { to { transform: translateX(100%); } }
 @keyframes strike { to { transform: scaleX(1); } }
 @keyframes stamp { to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
@@ -38,6 +47,6 @@
 @media (prefers-reduced-motion: reduce) {
   [data-state="current"] .bar::before { display: none; }
   .bar::after { transition: none; }
-  .strike, .stamp { animation: none; opacity: 1; transform: scaleX(1); }
-  .stamp { transform: translate(-50%, -50%); }
+  .strike, .stamp, .sweep, .done { animation: none; opacity: 1; transform: scaleX(1); }
+  .stamp, .done { transform: translate(-50%, -50%); }
 }

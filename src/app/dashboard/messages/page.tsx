@@ -132,6 +132,7 @@ export default function MessagesPage() {
                   <span className={styles.rowBody}>
                     <span className={styles.rowLine}>
                       <span className={styles.name}>{name}</span>
+                      {current && <span className={styles.activeTag}><i aria-hidden="true" />Active</span>}
                       {time > 0 && <time className={styles.time} dateTime={new Date(time).toISOString()}>{chatListTime(time)}</time>}
                     </span>
                     <span className={styles.rowLine}>

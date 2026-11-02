@@ -4,6 +4,7 @@ import { useDialogFocus } from "@/hooks/useDialogFocus";
 import { AnimatePresence,motion,useReducedMotion } from "framer-motion";
 import { X } from "lucide-react";
 import React,{ useEffect,useId,useRef } from "react";
+import { createPortal } from "react-dom";
 
 interface ModalProps {
   isOpen: boolean;
@@ -96,7 +97,9 @@ export default function Modal({
     return () => window.removeEventListener("keydown", handleEsc);
   }, [isOpen, onClose]);
 
-  return (
+  // Rendered at the page root so a card's overflow, transform or stacking never clips it.
+  if (typeof document === "undefined") return null;
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <motion.div
@@ -168,6 +171,7 @@ export default function Modal({
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }

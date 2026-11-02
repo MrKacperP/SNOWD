@@ -61,3 +61,11 @@ firebase-debug.log
 
 # Isolated mobile design verification builds
 /.next-mobile-*/
+
+# build artifacts
+mobile/android/.gradle/
+mobile/android/**/build/
+mobile/ios/**/build/
+firestore-debug.log
+*.tsbuildinfo
+.claude/

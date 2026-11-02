@@ -85,15 +85,11 @@
 @media (hover: hover) { .deckCard[data-pos="back"]:hover { transform: translate(-9%, 2%) rotate(-8deg) scale(.95); } }
 
 /* How it works */
-.how { padding-block: 112px 120px; }
+.how { padding-block: 72px 56px; }
 .how h2,.faq h2,.earn h2 { font-size: clamp(40px,5.2vw,72px); line-height: 1.02; }
-.steps { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 24px; list-style: none; padding: 0; margin-top: 56px; }
-.steps > li { display: grid; gap: 22px; padding: 28px; border: 1px solid var(--landing-line); border-radius: 28px; background: #fff; transition: transform 300ms ease, box-shadow 300ms ease; }
-@media (hover: hover) { .steps > li:hover { transform: translateY(-6px); box-shadow: 0 24px 50px #12334614; } }
-.steps > li { align-content: start; }
 
 /* Earn */
-.earn { display: grid; grid-template-columns: 1fr 1.05fr; align-items: center; gap: 80px; padding-block: 140px 120px; }
+.earn { display: grid; grid-template-columns: 1fr 1.05fr; align-items: center; gap: 80px; padding-block: 120px; }
 .earnImage { min-width: 0; overflow: hidden; border-radius: 28px; background: #dce8ed; }
 .earnImage img { display: block; width: 100%; height: auto; transition: transform 450ms ease; }
 @media (hover: hover) { .earnImage:hover img { transform: scale(1.035); } }
@@ -204,10 +200,7 @@
   .intro { margin-block: 22px; font-size: 19px; }
   .heroControls { margin-bottom: 24px; }
   .deck { width: min(100% - 28px, 480px); justify-self: center; margin-right: 0; aspect-ratio: 1 / 1.05; }
-  .how { padding-block: 72px; }
-  .steps { grid-template-columns: 1fr; gap: 16px; margin-top: 36px; }
-  .steps > li { gap: 18px; padding: 22px; }
-  .steps h3 { font-size: 23px; }
+  .how { padding-block: 48px 40px; }
   .earn { grid-template-columns: 1fr; padding-block: 88px 64px; gap: 32px; }
   .earnImage { max-width: 520px; }
   .earnCopy > p { font-size: 18px; }

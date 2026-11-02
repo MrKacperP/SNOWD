@@ -58,7 +58,9 @@
     ".next-workorder/types/**/*.ts",
     ".next-workorder/dev/types/**/*.ts",
     ".next-mobile-native/types/**/*.ts",
-    ".next-mobile-native/dev/types/**/*.ts"
+    ".next-mobile-native/dev/types/**/*.ts",
+    ".next-settings/types/**/*.ts",
+    ".next-settings/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

@@ -17,7 +17,7 @@ export default function SavedProperties() {
     finally { setBusy(false); }
   };
   const active=(value:ServiceLocation)=>sameServiceAddress(value,locations?.location);
-  return <section className={styles.properties} aria-labelledby="saved-properties-title"><h2 id="saved-properties-title">Your properties</h2>
+  return <section className={styles.properties} aria-labelledby="saved-properties-title"><h2 id="saved-properties-title">Other properties</h2>
     {locations?.error ? <p role="alert">{locations.error} <button onClick={locations.reload}>Try again</button></p> : !locations?.ready ? <p role="status">Loading properties…</p> : <>
       <ul>
         {locations.home && <li><div><strong>Profile home{active(locations.home) && <span className={styles.badge}>Service address</span>}</strong><p>{formatServiceAddress(locations.home)}</p></div>{!active(locations.home) && <button className="btn-secondary" disabled={busy} onClick={()=>setEditing({location:locations.home!,saveOnly:false})}>Use for service</button>}</li>}
@@ -27,7 +27,7 @@ export default function SavedProperties() {
         </li>)}
       </ul>
       {error && <p role="alert">{error}</p>}
-      {!locations.properties.length && <p className="my-4 text-sm">Own more than one house? Save each one here, then pick it when you book.</p>}
+      {!locations.properties.length && <p className="my-4 text-sm">Add a rental house or business property, then pick it when you book.</p>}
       <button className="btn-primary" disabled={busy} onClick={()=>setEditing({location:blank,saveOnly:true})}>Add a property</button>
     </>}
     {editing && <ServiceLocationPicker initialSaveFavorite={editing.saveOnly} saveOnly={editing.saveOnly} propertyId={editing.id} initial={editing.location} onClose={()=>setEditing(null)} />}

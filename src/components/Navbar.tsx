@@ -138,7 +138,7 @@ export default function Navbar() {
           <button
             data-tour="profile-menu"
             aria-expanded={profileMenuOpen}
-            onClick={() => setProfileMenuOpen((value) => !value)}
+            onClick={() => { setCenterOpen(false); setProfileMenuOpen((value) => !value); }}
             className="flex w-full items-center gap-3 rounded-[1.2rem] border border-[var(--ink)] bg-[var(--card)] px-4 py-3 shadow-[var(--surface-shadow)]"
           >
             <div className="relative">

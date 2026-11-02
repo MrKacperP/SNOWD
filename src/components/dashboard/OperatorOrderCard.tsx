@@ -1,12 +1,13 @@
 "use client";
 import WorkOrderTimeline from "@/components/work-orders/WorkOrderTimeline";
-import { orderRequest } from "@/components/work-orders/OrderActions";
+import OrderActions, { orderRequest } from "@/components/work-orders/OrderActions";
 import type { Route } from "@/components/SnowdMap";
 import IconSwap from "@/components/ui/IconSwap";
 import { arrivalLabel } from "@/lib/clientValue";
 import { jobDisplayPrice } from "@/lib/marketplacePricing";
 import { Job } from "@/lib/types";
 import { dateMillis, isAsap, orderActionNeeded, propertySizeLabel } from "@/lib/workOrders";
+import { workOrderPresentation } from "@/lib/workOrderPresentation";
 import { Check, MapPin, X } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState } from "react";
@@ -84,7 +85,7 @@ export function RequestReply({ job, large = false }: { job: Job; large?: boolean
   </div>;
 }
 
-const statusText = (job: Job) => job.status === "cancelled" ? job.declinedBy ? "Request declined" : "Visit cancelled" : job.status === "in-progress" ? "Clearing now" : job.status === "en-route" ? "On the way" : job.status === "pending" ? "Waiting on homeowner" : job.status === "completed" ? "Completed" : "Visit confirmed";
+const statusText = (job: Job) => job.declinedBy ? "Request declined" : "Visit cancelled";
 
 /** One work order as the operator sees it on the dashboard and in Jobs. */
 export default function OperatorOrderCard({ job, uid, clientName, trip, mapped, onHover }: {
@@ -94,23 +95,26 @@ export default function OperatorOrderCard({ job, uid, clientName, trip, mapped, 
   const isNew = job.status === "pending" && !!orderActionNeeded(job, uid);
   const name = clientName || "Homeowner";
   const showTrip = open && !["en-route", "in-progress", "completed"].includes(job.status) ? trip : null;
+  const canProgress = !job.scheduleProposal && ["accepted", "en-route", "in-progress"].includes(job.status);
   const approx = showTrip?.estimated ? "~" : "";
+  const next = workOrderPresentation(job, uid);
   return <article className={css.order} data-new={isNew || undefined} data-cancelled={!open || undefined} data-mapped={(open && mapped) || undefined}
     aria-label={`${isNew ? "New request" : "Work order"}: ${name}`}
     onMouseEnter={open && onHover ? () => onHover(job.id) : undefined} onFocus={open && onHover ? () => onHover(job.id) : undefined}>
     <Link href={`/dashboard/jobs/${job.id}`} className={css.overlay} aria-label={`Open work order: ${serviceSummary(job)} for ${name}`} />
-    <div className={css.head}>
-      <span className={css.tag} data-tone={isNew ? "new" : job.status}>{isNew ? "New request" : statusText(job)}</span>
-      <h3 className={css.name}>{name}</h3>
-      <p className={css.service}>{serviceSummary(job)}</p>
+    {/* Same shape as the client's widget: progress, a headline, then who / when / pay. */}
+    {isNew ? <span className={css.tag} data-tone="new">New request</span> : <div className={css.progress}><WorkOrderTimeline job={job} /></div>}
+    <div className={css.headline}>
+      <h3>{open ? next.title : statusText(job)}</h3>
     </div>
-    <div className={css.pay}><strong>${jobDisplayPrice(job, true).toFixed(2)}<small> CAD</small></strong><span>{paymentLabel(job)}</span></div>
-    {open && <p className={css.meta}>
-      {job.status === "en-route" ? <strong className={css.asap}>{arrivalLabel(job)}</strong> : <WhenText job={job} />}
-      {showTrip && <span className={css.trip}>{approx}{showTrip.trip.minutes} min drive · {approx}{distanceText(showTrip.trip.distanceKm)}</span>}
-    </p>}
-    {open && <p className={css.address}>{job.address ? <a href={directionsUrl(job)} target="_blank" rel="noopener noreferrer" aria-label={`Directions to ${fullAddress(job)} in Google Maps (opens in a new tab)`}><MapPin size={14} aria-hidden="true" />{job.address}</a> : "Address to be confirmed"}</p>}
-    {isNew ? <RequestReply job={job} /> : <div className={css.progress}><WorkOrderTimeline job={job} /></div>}
+    <dl className={css.summary}>
+      <div><dt>Customer</dt><dd><strong>{name}</strong><span className={css.service}>{serviceSummary(job)}</span></dd></div>
+      <div><dt>When</dt><dd>{job.status === "en-route" ? <strong className={css.asap}>{arrivalLabel(job)}</strong> : open ? <span className={css.when}><WhenText job={job} /></span> : "—"}</dd></div>
+      <div className={css.pay}><dt>{job.paymentMethod === "cash" ? "Cash" : "Card"} · {paymentLabel(job)}</dt><dd><strong>${jobDisplayPrice(job, true).toFixed(2)}<small> CAD</small></strong></dd></div>
+    </dl>
+    {open && <p className={css.address}>{job.address ? <a href={directionsUrl(job)} target="_blank" rel="noopener noreferrer" aria-label={`Directions to ${fullAddress(job)} in Google Maps (opens in a new tab)`}><MapPin size={14} aria-hidden="true" />{job.address}</a> : "Address to be confirmed"}{showTrip && <span className={css.trip}>ETA {approx}{showTrip.trip.minutes} min · {approx}{distanceText(showTrip.trip.distanceKm)}</span>}</p>}
+    {isNew && <RequestReply job={job} />}
+    {canProgress && <div className={css.actions}><OrderActions job={job} compact navigateOnUpdate={false} /></div>}
   </article>;
 }
 
@@ -121,8 +125,10 @@ export function OperatorOrderList({ orders, uid, names, tripTo, hoveredId, onHov
 }) {
   if (!orders.length) return null;
   const waiting = orders.filter(job => job.status === "pending" && orderActionNeeded(job, uid)).length;
-  return <section className={css.list} data-grouped={orders.length > 1 || undefined} aria-label={label} onMouseLeave={onHover ? () => onHover(null) : undefined}>
+  return <div className={css.listWrap} onMouseLeave={onHover ? () => onHover(null) : undefined}>
     {orders.length > 1 && <header className={css.listHead}><h2>{orders.length} work orders</h2>{waiting > 0 && <span>{waiting} {waiting === 1 ? "needs" : "need"} your reply</span>}</header>}
-    {orders.map(job => <OperatorOrderCard key={job.id} job={job} uid={uid} clientName={names[job.clientId]} trip={tripTo(job)} mapped={hoveredId === job.id} onHover={onHover} />)}
-  </section>;
+    <section className={css.list} data-grouped={orders.length > 1 || undefined} aria-label={label}>
+      {orders.map(job => <OperatorOrderCard key={job.id} job={job} uid={uid} clientName={names[job.clientId]} trip={tripTo(job)} mapped={hoveredId === job.id} onHover={onHover} />)}
+    </section>
+  </div>;
 }

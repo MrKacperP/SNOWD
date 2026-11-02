@@ -1,642 +1,181 @@
 "use client";
-import IconSwap from "@/components/ui/IconSwap";
-
 
 import BackButton from "@/components/BackButton";
-
-import { canAcceptPlatformPayments } from "@/lib/operatorDiscovery";
-
-import React, { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { doc, getDoc, collection, query, where, getDocs, limit } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { useAuth } from "@/context/AuthContext";
-import {
-  UserProfile,
-  OperatorProfile,
-  ClientProfile,
-  ServiceType,
-  Review,
-} from "@/lib/types";
+import ProfileMap, { type ProfilePlace } from "@/components/ProfileMap";
 import StarRating from "@/components/StarRating";
-import ServiceRadiusMap from "@/components/ServiceRadiusMap";
+import UserAvatar from "@/components/UserAvatar";
+import PhotoViewer from "@/components/work-orders/PhotoViewer";
+import { useAuth } from "@/context/AuthContext";
+import { useServiceLocation } from "@/context/ServiceLocationContext";
+import { db } from "@/lib/firebase";
+import { formatServiceAddress } from "@/lib/serviceLocations";
+import { SERVICE_LABELS, type ClientProfile, type OperatorProfile, type UserProfile } from "@/lib/types";
+import type { ProfileJob, ProfileReview } from "@/app/api/profiles/[uid]/route";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { Briefcase, MapPin, MessageSquare, Pencil, Snowflake } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import UserAvatar from "@/components/UserAvatar";
-import {
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import styles from "./profile.module.css";
 
-  MapPin,
-  Star,
-  Wrench,
-  DollarSign,
-  GraduationCap,
-  MessageSquare,
-  Briefcase,
-  Snowflake,
-  Camera,
-  ChevronRight,
-  Map,
-} from "lucide-react";
-
-const SERVICE_LABELS: Record<ServiceType, string> = {
-  driveway: "Driveway",
-  walkway: "Walkway",
-  sidewalk: "Sidewalk",
-  "parking-lot": "Parking Lot",
-  roof: "Roof",
-  "backyard-patio": "Backyard patio",
-  porch: "Porch",
-  other: "Other",
-};
-
-const SERVICE_EMOJI: Record<ServiceType, string> = {
-  driveway: "🚗",
-  walkway: "🚶",
-  sidewalk: "🛤️",
-  "parking-lot": "🅿️",
-  roof: "🏠",
-  "backyard-patio": "🌿",
-  porch: "🏡",
-  other: "❄️",
-};
+const formatDate = (ms: number | null) => ms ? new Date(ms).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "";
+// Other people only ever see roughly where someone is, never the exact address.
+const approx = (value?: number | null) => value == null || !Number.isFinite(value) ? undefined : Math.round(value * 100) / 100;
 
 export default function PublicProfilePage() {
-  const params = useParams();
-  const uid = params.uid as string;
+  const uid = useParams().uid as string;
   const router = useRouter();
-  const { profile: myProfile } = useAuth();
-  const [profileData, setProfileData] = useState<UserProfile | null>(null);
-  const [reviews, setReviews] = useState<Review[]>([]);
+  const { user, profile: me } = useAuth();
+  const locations = useServiceLocation();
+  const [person, setPerson] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"about" | "services" | "reviews">("about");
-  const [isFavorite, setIsFavorite] = useState(false);
-  const [togglingFavorite, setTogglingFavorite] = useState(false);
+  const [record, setRecord] = useState<{ reviews: ProfileReview[]; jobs: ProfileJob[]; completedJobs: number } | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const isOwnProfile = myProfile?.uid === uid;
-  const isOperator = profileData?.role === "operator";
-  const operatorProfile = profileData as OperatorProfile;
-  const clientProfile = profileData as ClientProfile;
-
-  // Distance calculation between viewer and profile user
-  const distance = React.useMemo(() => {
-    if (!myProfile || !profileData) return null;
-    const myLat = (myProfile as unknown as { lat?: number }).lat;
-    const myLng = (myProfile as unknown as { lng?: number }).lng;
-    const otherLat = (profileData as unknown as { lat?: number }).lat;
-    const otherLng = (profileData as unknown as { lng?: number }).lng;
-    if (myLat && myLng && otherLat && otherLng) {
-      const R = 6371;
-      const dLat = ((otherLat - myLat) * Math.PI) / 180;
-      const dLng = ((otherLng - myLng) * Math.PI) / 180;
-      const a =
-        Math.sin(dLat / 2) ** 2 +
-        Math.cos((myLat * Math.PI) / 180) *
-          Math.cos((otherLat * Math.PI) / 180) *
-          Math.sin(dLng / 2) ** 2;
-      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    }
-    return null;
-  }, [myProfile, profileData]);
+  const isOwn = me?.uid === uid;
+  const isOperator = person?.role === "operator";
+  const operator = person as OperatorProfile;
+  const client = person as ClientProfile;
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      if (!uid) return;
-      try {
-        const userDoc = await getDoc(doc(db, "users", uid));
-        if (userDoc.exists()) {
-          setProfileData(userDoc.data() as UserProfile);
-        }
-
-        // Check if this operator is favorited by current user
-        if (myProfile?.uid && myProfile.role === "client" && uid !== myProfile.uid) {
-          const myDoc = await getDoc(doc(db, "users", myProfile.uid));
-          if (myDoc.exists()) {
-            const myData = myDoc.data() as ClientProfile;
-            setIsFavorite(myData.savedOperators?.includes(uid) || myData.favoriteOperatorId === uid);
-          }
-        }
-
-        // Fetch reviews (bidirectional — reviews about this user)
-        try {
-          const reviewsQuery = query(
-            collection(db, "reviews"),
-            where("revieweeId", "==", uid),
-            limit(20)
-          );
-          const reviewsSnap = await getDocs(reviewsQuery);
-          let fetchedReviews = reviewsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Review));
-
-          // Also try legacy format where operatorId is the reviewee
-          if (fetchedReviews.length === 0) {
-            try {
-              const legacyQuery = query(
-                collection(db, "reviews"),
-                where("operatorId", "==", uid),
-                limit(20)
-              );
-              const legacySnap = await getDocs(legacyQuery);
-              fetchedReviews = legacySnap.docs.map((d) => ({ id: d.id, ...d.data() } as Review));
-            } catch {}
-          }
-
-          setReviews(fetchedReviews);
-        } catch {
-          // No reviews or index issue
-        }
-      } catch (error) {
-        console.error("Error fetching profile:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchProfile();
+    if (!uid) return;
+    let active = true;
+    getDoc(doc(db, "users", uid))
+      .then(snap => { if (active) setPerson(snap.exists() ? { ...(snap.data() as UserProfile), uid } : null); })
+      .catch(error => console.error("Error fetching profile:", error))
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, [uid]);
 
+  useEffect(() => {
+    if (!user || !isOperator) return;
+    let active = true;
+    user.getIdToken()
+      .then(token => fetch(`/api/profiles/${encodeURIComponent(uid)}`, { headers: { Authorization: `Bearer ${token}` } }))
+      .then(response => response.ok ? response.json() : null)
+      .then(data => { if (active) setRecord(data || { reviews: [], jobs: [], completedJobs: 0 }); })
+      .catch(() => { if (active) setRecord({ reviews: [], jobs: [], completedJobs: 0 }); });
+    return () => { active = false; };
+  }, [user, uid, isOperator]);
+
+  useEffect(() => {
+    if (me?.role !== "client" || isOwn) return;
+    const mine = me as ClientProfile;
+    setSaved(!!mine.savedOperators?.includes(uid) || mine.favoriteOperatorId === uid);
+  }, [me, uid, isOwn]);
+
+  // Your own profile shows your home and every saved property; anyone else's shows only their area.
+  const places = useMemo<ProfilePlace[]>(() => {
+    if (!person || isOperator || !isOwn) return [];
+    const home = locations?.home;
+    return [
+      ...(home ? [{ id: "home", label: "Home", address: formatServiceAddress(home), lat: home.lat, lng: home.lng, home: true }] : []),
+      ...(locations?.properties || []).map(p => ({ id: p.id, label: p.label, address: formatServiceAddress(p), lat: p.lat, lng: p.lng })),
+    ];
+  }, [person, isOperator, isOwn, locations?.home, locations?.properties]);
+
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-96 text-[var(--text-muted)] gap-3">
-        <div className="animate-spin-slow">
-          <Image src="/logo.png" alt="Loading" width={40} height={40} />
-        </div>
-        <p className="text-sm">Loading profile...</p>
-      </div>
-    );
+    return <div className={styles.notice} role="status">
+      <div className="animate-spin-slow"><Image src="/logo.png" alt="" width={40} height={40} /></div>
+      <p>Loading profile…</p>
+    </div>;
   }
-
-  if (!profileData) {
-    return (
-      <div className="flex flex-col items-center justify-center h-96 text-[var(--text-muted)]">
-        <Snowflake className="w-12 h-12 mb-3 opacity-30" />
-        <p className="text-lg font-semibold">User not found</p>
-        <BackButton href="/dashboard" label="Back" />
-      </div>
-    );
-  }
-
-  // Gate: profile only visible if approved & ID verified — unless viewer is the owner or admin
-  const rawProfileData = profileData as unknown as Record<string, unknown>;
-  const isIdVerified = rawProfileData.idVerified === true;
-  const isViewerAdmin = myProfile?.role === "admin";
-  if (!isOwnProfile && !isViewerAdmin && (profileData.role === "operator" && !isIdVerified)) {
-    return (
-      <div className="max-w-md mx-auto mt-16 flex flex-col items-center gap-4 text-center">
-        <BackButton href="/dashboard" label="Back" />
-        <div className="w-20 h-20 rounded-full bg-amber-100 flex items-center justify-center">
-          <Snowflake className="w-10 h-10 text-amber-500" />
-        </div>
-        <h2 className="text-xl font-bold text-gray-800">Profile Not Available</h2>
-        <p className="text-gray-500 text-sm max-w-xs">
-          This account is pending identity verification by our team. Once approved, their profile will be visible here.
-        </p>
-      </div>
-    );
-  }
-
-  const isOnline = profileData.role === "operator"
-    ? (profileData as OperatorProfile).isAvailable !== false
-    : profileData.isOnline !== false;
-  const memberSince = profileData.createdAt
-    ? new Date(
-        typeof profileData.createdAt === "object" && "seconds" in (profileData.createdAt as unknown as Record<string, unknown>)
-          ? ((profileData.createdAt as unknown as { seconds: number }).seconds * 1000)
-          : profileData.createdAt as unknown as string
-      ).getFullYear()
-    : new Date().getFullYear();
-
-  return (
-    <div className="mx-auto max-w-4xl">
-      {isOperator && <p className="mb-4 rounded-xl bg-blue-50 p-4 text-sm font-semibold">{canAcceptPlatformPayments(operatorProfile) ? "Cash or card payments available" : "Cash jobs only. Pay the operator in cash after the job."}</p>}
-      {/* Back button */}
+  if (!person) {
+    return <div className={styles.notice}>
+      <Snowflake className="h-12 w-12 opacity-30" aria-hidden="true" />
+      <h1>User not found</h1>
       <BackButton href="/dashboard" label="Back" />
+    </div>;
+  }
+  if (!isOwn && me?.role !== "admin" && isOperator && person.idVerified !== true) {
+    return <div className={styles.notice}>
+      <Snowflake className="h-12 w-12 text-amber-500" aria-hidden="true" />
+      <h1>Profile not available</h1>
+      <p>This account is pending identity verification by our team. Once approved, their profile will be visible here.</p>
+      <BackButton href="/dashboard" label="Back" />
+    </div>;
+  }
 
-      {/* Profile Header - Instagram-like */}
-      <div className="surface-card overflow-hidden">
-        <div className="relative h-20 bg-[var(--ink)]">
-          <div className="absolute inset-0 bg-[var(--bg-secondary)]" />
-        </div>
+  const name = (isOperator && operator.businessName) || person.displayName;
+  const basedIn = [person.city, person.province].filter(Boolean).join(", ");
+  const cityMode = isOperator && operator.serviceAreaMode === "cities" && !!operator.serviceAreas?.length;
+  const radiusKm = operator.serviceRadius || 10;
+  const areaAddress = [person.city, person.province, person.postalCode, "Canada"].filter(Boolean).join(", ");
+  const mapCaption = isOperator
+    ? cityMode ? `Works in ${operator.serviceAreas!.map(area => area.city).join(", ")}` : `Works within ${radiusKm} km of ${person.city || "their base"}`
+    : isOwn ? places.length > 1 ? `Your home and ${places.length - 1} saved ${places.length === 2 ? "property" : "properties"}` : "Your home"
+    : `Located in ${basedIn}`;
+  const propertyPhotos = client.propertyDetails?.photos || [];
+  const showPropertyPhotos = !isOperator && (isOwn || me?.role === "operator" || me?.role === "admin");
+  const reviews = record?.reviews || [];
+  const average = reviews.length ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : operator.rating || 0;
+  const jobPhotos = operator.portfolioPhotos || [];
 
-        <div className="-mt-12 px-6 pb-6">
-          <div className="flex flex-wrap items-end gap-4 mb-4">
-            <div className="relative">
-              <UserAvatar
-                photoURL={(profileData as unknown as Record<string, string>)?.avatar}
-                logoURL={isOperator ? operatorProfile.logoUrl : undefined}
-                role={profileData.role}
-                displayName={profileData.displayName}
-                size={96}
-                rounded="2xl"
-                className="border-4 border-white shadow-[var(--surface-shadow)]"
-              />
-              <div className={`absolute -bottom-1 -right-1 h-5 w-5 rounded-full border-2 border-white ${isOnline ? "bg-green-500" : "bg-gray-400"}`} />
-            </div>
-            <div className="flex-1 min-w-0 pb-1">
-              <h1 className="break-words text-2xl font-headline font-bold text-[var(--text-primary)]">{profileData.displayName}</h1>
-              <p className="flex items-center gap-1 text-sm text-[var(--text-muted)]">
-                <MapPin className="w-3.5 h-3.5" />
-                {profileData.city}, {profileData.province} area
-                {distance !== null && (
-                  <span className="ml-2 font-medium text-[var(--text-primary)]">
-                    • {distance.toFixed(1)} km away
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
+  const toggleSaved = async () => {
+    if (!me?.uid || saving) return;
+    setSaving(true);
+    try {
+      const mine = me as ClientProfile;
+      const current = [...new Set([...(mine.savedOperators || []), ...(mine.favoriteOperatorId ? [mine.favoriteOperatorId] : [])])];
+      await updateDoc(doc(db, "users", me.uid), { savedOperators: saved ? current.filter(id => id !== uid) : [...new Set([...current, uid])], favoriteOperatorId: null });
+      setSaved(!saved);
+    } catch (error) {
+      console.error("Error toggling favorite:", error);
+    } finally {
+      setSaving(false);
+    }
+  };
 
-          {isOperator && (operatorProfile.logoUrl || operatorProfile.tagline || operatorProfile.brandDescription) && (
-            <section aria-label="Business profile" className="mb-6 rounded-xl border border-[var(--border)] p-4">
-              <div className="flex items-center gap-4">
-                {operatorProfile.logoUrl && <img src={operatorProfile.logoUrl} alt={`${operatorProfile.businessName || profileData.displayName} logo`} className="h-20 w-20 rounded-xl object-contain" />}
-                <div>
-                  {operatorProfile.businessName && <h2 className="text-lg font-semibold">{operatorProfile.businessName}</h2>}
-                  {operatorProfile.tagline && <p className="whitespace-pre-wrap">{operatorProfile.tagline}</p>}
-                </div>
-              </div>
-              {operatorProfile.brandDescription && <p className="mt-4 whitespace-pre-wrap">{operatorProfile.brandDescription}</p>}
-            </section>
-          )}
-          {/* Stats Row */}
-          <div className="mb-5 flex flex-wrap items-center gap-5">
-            {isOperator && (
-              <>
-                <div className="text-center">
-                  <p className="text-lg font-bold text-[var(--text-primary)]">{operatorProfile.completedJobs || 0}</p>
-                  <p className="text-xs text-[var(--text-muted)]">Jobs</p>
-                </div>
-                <div className="text-center">
-                  <p className="flex items-center gap-1 text-lg font-bold text-[var(--text-primary)]">
-                    <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                    {operatorProfile.rating?.toFixed(1) || "–"}
-                  </p>
-                  <p className="text-xs text-[var(--text-muted)]">{operatorProfile.reviewCount || 0} reviews</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-lg font-bold text-[var(--text-primary)]">{operatorProfile.serviceAreaMode === "cities" ? operatorProfile.serviceAreas?.length || 0 : operatorProfile.serviceRadius || 0}</p>
-                  <p className="text-xs text-[var(--text-muted)]">{operatorProfile.serviceAreaMode === "cities" ? "service cities" : "km radius"}</p>
-                </div>
-              </>
-            )}
-            <div className="text-center">
-              <p className="text-lg font-bold text-[var(--text-primary)]">{memberSince}</p>
-              <p className="text-xs text-[var(--text-muted)]">Joined</p>
-            </div>
-          </div>
+  return <div className={styles.page}>
+    <div><BackButton href="/dashboard" label="Back" /></div>
 
-          <div className="flex flex-wrap gap-2 mb-4">
-            <span className="rounded-full bg-[var(--bg-secondary)] px-3 py-1 text-xs font-semibold capitalize text-[var(--text-primary)]">
-              {isOperator ? "Snow Removal Operator" : "Client"}
-            </span>
-            {isOperator && operatorProfile.isStudent && (
-              <span className="px-3 py-1 bg-purple-50 text-purple-600 rounded-full text-xs font-semibold flex items-center gap-1">
-                <GraduationCap className="w-3 h-3" />
-                Student
-              </span>
-            )}
-            {isOperator && operatorProfile.verified && (
-              <span className="px-3 py-1 bg-green-50 text-green-600 rounded-full text-xs font-semibold">
-                ✓ Verified
-              </span>
-            )}
-            {isOnline && (
-              <span className="px-3 py-1 bg-green-50 text-green-600 rounded-full text-xs font-semibold">
-                {isOperator ? "Available for jobs" : "Online"}
-              </span>
-            )}
-          </div>
-
-          {/* Action Buttons */}
-          {!isOwnProfile && (
-            <div className="flex flex-wrap gap-3">
-              {myProfile?.role === "client" && isOperator && (
-                <>
-                  <button
-                    onClick={() => {
-                      router.push(`/dashboard/find?operator=${encodeURIComponent(uid)}`);
-                    }}
-                    className="btn-primary flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold"
-                  ><IconSwap icon={<Briefcase className="w-4 h-4" />}>
-                    <Briefcase className="w-4 h-4" />
-                    Hire
-                  </IconSwap></button>
-                  <button
-                    onClick={async () => {
-                      if (!myProfile?.uid || togglingFavorite) return;
-                      setTogglingFavorite(true);
-                      try {
-                        const myDocRef = doc(db, "users", myProfile.uid);
-                        const myDoc = await getDoc(myDocRef);
-                        if (myDoc.exists()) {
-                          const myData = myDoc.data() as ClientProfile;
-                          const savedOps = [...new Set([...(myData.savedOperators || []), ...(myData.favoriteOperatorId ? [myData.favoriteOperatorId] : [])])];
-                          const { updateDoc: ud } = await import("firebase/firestore");
-                          if (isFavorite) {
-                            await ud(myDocRef, {
-                              savedOperators: savedOps.filter(id => id !== uid), favoriteOperatorId: null
-                            });
-                            setIsFavorite(false);
-                          } else {
-                            await ud(myDocRef, {
-                              savedOperators: [...new Set([...savedOps, uid])], favoriteOperatorId: null
-                            });
-                            setIsFavorite(true);
-                          }
-                        }
-                      } catch (error) {
-                        console.error("Error toggling favorite:", error);
-                      } finally {
-                        setTogglingFavorite(false);
-                      }
-                    }}
-                    aria-label={isFavorite ? "Unpin favorite operator" : "Pin favorite operator"}
-                    aria-pressed={isFavorite}
-                    disabled={togglingFavorite}
-                    className={`rounded-xl border px-4 py-2.5 text-sm font-semibold transition ${
-                      isFavorite
-                        ? "bg-red-50 border-red-200 text-red-600 hover:bg-red-100"
-                        : "border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
-                    } disabled:opacity-50`}
-                  >
-                    <span className="text-xl text-amber-600">{isFavorite ? "★" : "☆"}</span>
-                  </button>
-                </>
-              )}
-              <button
-                onClick={() => router.push("/dashboard/messages")}
-                className="btn-secondary flex items-center justify-center gap-2 rounded-xl border-[3px] border-[var(--border-color)] px-4 py-2.5 text-sm font-semibold"
-              ><IconSwap icon={<MessageSquare className="w-4 h-4" />}>
-                <MessageSquare className="w-4 h-4" />
-                Message
-              </IconSwap></button>
-            </div>
-          )}
-          {isOwnProfile && (
-            <Link
-              href="/dashboard/settings"
-              className="btn-secondary flex w-full items-center justify-center gap-2 rounded-xl border-[3px] border-[var(--border-color)] px-4 py-2.5 text-sm font-semibold"
-            ><IconSwap icon={<ChevronRight className="w-4 h-4" />}>
-              Edit Profile
-              <ChevronRight className="w-4 h-4" />
-            </IconSwap></Link>
-          )}
-        </div>
+    <header className={styles.header}>
+      <UserAvatar photoURL={person.avatar} logoURL={isOperator ? operator.logoUrl : undefined} role={person.role} displayName={name} size={112} rounded="full" className={styles.logo} />
+      <h1 className={styles.name}>{name}</h1>
+      {basedIn && <p className={styles.location}><MapPin size={15} aria-hidden="true" />{basedIn}</p>}
+      <div className={styles.actions}>
+        {isOwn && <Link href="/dashboard/settings" className={styles.action}><Pencil size={15} aria-hidden="true" />Edit profile</Link>}
+        {!isOwn && me?.role === "client" && isOperator && <>
+          <button type="button" className={`${styles.action} ${styles.primary}`} onClick={() => router.push(`/dashboard/find?operator=${encodeURIComponent(uid)}`)}><Briefcase size={15} aria-hidden="true" />Hire</button>
+          <button type="button" className={styles.action} onClick={toggleSaved} disabled={saving} aria-pressed={saved}>{saved ? "★ Saved" : "☆ Save"}</button>
+        </>}
+        {!isOwn && <button type="button" className={styles.action} onClick={() => router.push("/dashboard/messages")}><MessageSquare size={15} aria-hidden="true" />Message</button>}
       </div>
+    </header>
 
-      {/* Tab Navigation */}
-      {isOperator ? (
-        <div className="mt-4 flex gap-1 rounded-xl border-[3px] border-[var(--border-color)] bg-white p-1">
-          {[
-            { key: "about" as const, label: "About" },
-            { key: "services" as const, label: "Services" },
-            { key: "reviews" as const, label: `Reviews (${reviews.length})` },
-          ].map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition ${
-                activeTab === tab.key
-                  ? "bg-[var(--accent)] text-white"
-                  : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      ) : (
-        <div className="mt-4 flex gap-1 rounded-xl border-[3px] border-[var(--border-color)] bg-white p-1">
-          {[
-            { key: "about" as const, label: "About" },
-            { key: "reviews" as const, label: `Reviews (${reviews.length})` },
-          ].map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition ${
-                activeTab === tab.key
-                  ? "bg-[var(--accent)] text-white"
-                  : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Tab Content */}
-      <div className="mt-4 space-y-4">
-        {/* About Tab */}
-        {(activeTab === "about") && (
-          <>
-            {/* Distance Map — show both locations when viewing another user, not own profile */}
-            {!isOwnProfile && distance !== null && myProfile?.city && profileData.city && (
-              <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
-                <h3 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-3 flex items-center gap-2">
-                  <Map className="w-4 h-4" />
-                  Distance — {distance.toFixed(1)} km apart
-                </h3>
-                <div className="flex items-center justify-between mt-3 text-xs">
-                  <span className="text-[var(--text-muted)]">
-                    <MapPin className="w-3 h-3 inline mr-0.5" />
-                    You: {myProfile.city}, {myProfile.province}
-                  </span>
-                  <span className="text-[var(--accent)] font-semibold">{distance.toFixed(1)} km</span>
-                  <span className="text-[var(--text-muted)]">
-                    <MapPin className="w-3 h-3 inline mr-0.5" />
-                    {profileData.displayName}: {profileData.city}, {profileData.province}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Service Area Map — show approximate radius, never exact address */}
-            {profileData.city && (
-              <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
-                <h3 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-3 flex items-center gap-2">
-                  <Map className="w-4 h-4" />
-                  Service Area
-                </h3>
-                <div className="rounded-xl overflow-hidden border-[3px] border-[var(--border)]">
-                  <ServiceRadiusMap
-                    address=""
-                    city={profileData.city}
-                    province={profileData.province}
-                    postalCode={profileData.postalCode}
-                    lat={profileData.lat == null ? undefined : Math.round(profileData.lat * 100) / 100}
-                    lng={profileData.lng == null ? undefined : Math.round(profileData.lng * 100) / 100}
-                    serviceAreaMode={isOperator ? operatorProfile.serviceAreaMode : "radius"}
-                    serviceAreas={isOperator ? operatorProfile.serviceAreas : []}
-                    radiusKm={isOperator ? (operatorProfile.serviceRadius || 10) : 5}
-                  />
-                </div>
-                <p className="text-xs text-[var(--text-muted)] mt-2 text-center">
-                  {isOperator
-                    ? operatorProfile.serviceAreaMode === "cities" ? `Serves ${operatorProfile.serviceAreas?.map(area => area.city).join(", ")}` : `Serves within ${operatorProfile.serviceRadius || 10} km of ${profileData.city}`
-                    : `Located in ${profileData.city}, ${profileData.province}`}
-                </p>
-              </div>
-            )}
-
-            {isOperator && operatorProfile.bio && (
-              <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
-                <h3 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-2">About</h3>
-                <p className="text-sm text-[var(--ink)] leading-relaxed">{operatorProfile.bio}</p>
-              </div>
-            )}
-
-            {isOperator && operatorProfile.equipment?.length > 0 && (
-              <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
-                <h3 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-3 flex items-center gap-2">
-                  <Wrench className="w-4 h-4" />
-                  Equipment
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {operatorProfile.equipment.map((eq) => (
-                    <span key={eq} className="px-3 py-1.5 bg-[var(--bg-primary)] border-[3px] border-[var(--border)] rounded-full text-sm text-[var(--ink)] font-medium">
-                      {eq}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Portfolio Photos */}
-            {isOperator && operatorProfile.portfolioPhotos && operatorProfile.portfolioPhotos.length > 0 && (
-              <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
-                <h3 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-3 flex items-center gap-2">
-                  <Camera className="w-4 h-4" />
-                  Work Photos
-                </h3>
-                <div className="grid grid-cols-3 gap-2">
-                  {operatorProfile.portfolioPhotos.map((photo, i) => (
-                    <div key={i} className="aspect-square rounded-xl overflow-hidden bg-[var(--bg-primary)]">
-                      <img src={photo} alt={`Work ${i + 1}`} className="w-full h-full object-cover" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Client property details (visible to the client themselves and operators viewing them) */}
-            {!isOperator && (isOwnProfile || myProfile?.role === "operator") && (
-              <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
-                <h3 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-3">Property Details</h3>
-                <div className="space-y-2 text-sm">
-                  <p>
-                    <span className="text-[var(--text-muted)]">Size:</span>{" "}
-                    <span className="font-medium text-[var(--ink)]">{clientProfile.propertyDetails?.propertySize === "small" ? "1-car driveway" : clientProfile.propertyDetails?.propertySize === "medium" ? "2-car driveway" : clientProfile.propertyDetails?.propertySize === "large" ? "3+ car driveway" : clientProfile.propertyDetails?.propertySize === "commercial" ? "Commercial property" : "Not set"}</span>
-                  </p>
-                  <p>
-                    <span className="text-[var(--text-muted)]">Services:</span>{" "}
-                    <span className="font-medium text-[var(--ink)]">
-                      {clientProfile.propertyDetails?.serviceTypes?.map((s) => SERVICE_LABELS[s]).join(", ") || "Not set"}
-                    </span>
-                  </p>
-                  {clientProfile.propertyDetails?.specialInstructions && (
-                    <p>
-                      <span className="text-[var(--text-muted)]">Notes:</span>{" "}
-                      <span className="font-medium text-[var(--ink)]">
-                        {clientProfile.propertyDetails.specialInstructions}
-                      </span>
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* Services Tab */}
-        {activeTab === "services" && isOperator && (
-          <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6">
-            <h3 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-4 flex items-center gap-2">
-              <DollarSign className="w-4 h-4" />
-              Services & Pricing (CAD)
-            </h3>
-            <div className="space-y-3">
-              {operatorProfile.serviceTypes?.map((s) => (
-                <div key={s} className="flex items-center justify-between p-4 bg-[var(--bg-primary)] rounded-xl">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl">{SERVICE_EMOJI[s]}</span>
-                    <span className="font-medium text-[var(--ink)]">{SERVICE_LABELS[s]}</span>
-                  </div>
-                  <span className="font-bold text-[var(--accent)]">
-                    {s === "driveway"
-                      ? `$${operatorProfile.pricing?.driveway?.small || "–"} – $${operatorProfile.pricing?.driveway?.large || "–"}`
-                      : s === "walkway"
-                      ? `$${operatorProfile.pricing?.walkway || "–"}`
-                      : `$${operatorProfile.pricing?.sidewalk || "–"}`}
-                  </span>
-                </div>
-              ))}
-            </div>
-            {operatorProfile.pricing?.hourlyRate && (
-              <div className="mt-4 p-4 bg-[#D6E8F5] rounded-xl text-center">
-                <p className="text-sm text-[var(--accent)]">Hourly Rate</p>
-                <p className="text-2xl font-bold text-[var(--accent)]">${operatorProfile.pricing.hourlyRate}/hr</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Reviews Tab */}
-        {activeTab === "reviews" && (
-          <div className="space-y-4">
-            {/* Rating Summary */}
-            {isOperator && (
-              <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6 text-center">
-                <p className="text-4xl font-bold text-[var(--ink)]">{operatorProfile.rating?.toFixed(1) || "0.0"}</p>
-                <div className="flex justify-center mt-1">
-                  <StarRating rating={operatorProfile.rating || 0} size="md" />
-                </div>
-                <p className="text-sm text-[var(--text-muted)] mt-1">
-                  Based on {reviews.length || operatorProfile.reviewCount || 0} reviews
-                </p>
-              </div>
-            )}
-
-            {!isOperator && reviews.length > 0 && (
-              <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-6 text-center">
-                <p className="text-4xl font-bold text-[var(--ink)]">
-                  {(reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)}
-                </p>
-                <div className="flex justify-center mt-1">
-                  <StarRating rating={reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length} size="md" />
-                </div>
-                <p className="text-sm text-[var(--text-muted)] mt-1">
-                  Based on {reviews.length} reviews
-                </p>
-              </div>
-            )}
-
-            {/* Individual Reviews */}
-            {reviews.length > 0 ? (
-              reviews.map((review) => (
-                <div key={review.id} className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <StarRating rating={review.rating} size="sm" />
-                    <span className="text-xs text-[var(--text-muted)]">
-                      {review.createdAt
-                        ? new Date(
-                            typeof review.createdAt === "object" && "seconds" in (review.createdAt as unknown as Record<string, unknown>)
-                              ? ((review.createdAt as unknown as { seconds: number }).seconds * 1000)
-                              : review.createdAt as unknown as string
-                          ).toLocaleDateString()
-                        : ""}
-                    </span>
-                  </div>
-                  <p className="text-sm text-[var(--ink)]">{review.comment}</p>
-                </div>
-              ))
-            ) : (
-              <div className="bg-white rounded-2xl border-[3px] border-[var(--border)] p-8 text-center text-[var(--text-muted)]">
-                <Star className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">No reviews yet</p>
-              </div>
-            )}
-          </div>
-        )}
+    <section className={styles.card} aria-label={isOperator ? "Work area" : "Location"}>
+      <div className={styles.map}>
+        {isOperator
+          ? cityMode ? <ProfileMap cities={operator.serviceAreas} /> : <ProfileMap area={{ lat: approx(person.lat), lng: approx(person.lng), address: areaAddress, radiusKm }} />
+          : isOwn ? <ProfileMap places={places} /> : <ProfileMap area={{ lat: approx(person.lat), lng: approx(person.lng), address: areaAddress, radiusKm: 1 }} />}
       </div>
-    </div>
-  );
+      <p className={styles.caption}>{mapCaption}</p>
+    </section>
+
+    {showPropertyPhotos && <section className={`${styles.card} ${styles.section}`}>
+      <div className={styles.sectionHead}><h2>Property photos</h2>{propertyPhotos.length > 0 && <span>{propertyPhotos.length}</span>}</div>
+      {propertyPhotos.length ? <div className={styles.photos}>{propertyPhotos.map((src, i) => <PhotoViewer key={src} src={src} title={`Property photo ${i + 1}`} className={styles.photo} />)}</div>
+        : <p className={styles.empty}>{isOwn ? <>No property photos yet. <Link href="/dashboard/settings/properties" className="underline">Add photos</Link></> : "No property photos yet."}</p>}
+    </section>}
+
+    {isOperator && <section className={`${styles.card} ${styles.section}`}>
+      <div className={styles.sectionHead}><h2>Jobs</h2><span>{Math.max(record?.completedJobs || 0, operator.completedJobs || 0)} completed</span></div>
+      {jobPhotos.length > 0 && <div className={styles.photos}>{jobPhotos.map((src, i) => <PhotoViewer key={src} src={src} title={`Job photo ${i + 1}`} className={styles.photo} />)}</div>}
+      {record?.jobs.length ? <ul className={styles.list}>{record.jobs.map(job => <li key={job.id}>
+        <div className={styles.row}><strong>{job.serviceTypes.map(s => SERVICE_LABELS[s] || s).join(", ") || "Snow removal"}</strong><span className={styles.muted}>{formatDate(job.completedAt)}</span></div>
+        <div className={styles.row}><span className={styles.muted}>{job.city}</span>{job.rating ? <StarRating rating={job.rating} size="sm" /> : null}</div>
+      </li>)}</ul> : !jobPhotos.length && <p className={styles.empty}>No completed jobs yet.</p>}
+    </section>}
+
+    {isOperator && <section className={`${styles.card} ${styles.section}`}>
+      <div className={styles.sectionHead}><h2>Reviews</h2>{reviews.length > 0 && <span>{reviews.length}</span>}</div>
+      {reviews.length > 0 && <div className={styles.score}><b>{average.toFixed(1)}</b><StarRating rating={average} size="md" /></div>}
+      {reviews.length ? <ul className={styles.list}>{reviews.map(review => <li key={review.id}>
+        <div className={styles.row}><StarRating rating={review.rating} size="sm" /><span className={styles.muted}>{review.reviewer} · {formatDate(review.createdAt)}</span></div>
+        {review.comment && <p className={styles.comment}>{review.comment}</p>}
+      </li>)}</ul> : <p className={styles.empty}>{record ? "No reviews yet." : "Loading reviews…"}</p>}
+    </section>}
+  </div>;
 }

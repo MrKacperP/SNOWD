@@ -1,0 +1,12 @@
+.player { display: flex; align-items: center; gap: 10px; width: min(280px, 100%); padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 22px; background: #fff; color: var(--text-primary); touch-action: pan-y; }
+.player[data-own="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.play { display: grid; place-items: center; flex: none; width: 36px; height: 36px; min-height: 36px !important; border-radius: 999px; background: var(--accent); color: #fff; }
+.player[data-own="true"] .play { background: #fff; color: var(--accent); }
+.wave { display: flex; align-items: center; gap: 2px; flex: 1; min-width: 0; height: 34px; cursor: pointer; touch-action: none; }
+.wave span { flex: 1; min-width: 2px; border-radius: 2px; background: currentColor; opacity: .3; transition: opacity .1s ease; }
+.wave span[data-played="true"] { opacity: 1; }
+.wave:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; border-radius: 6px; }
+.side { display: grid; justify-items: center; gap: 2px; flex: none; }
+.speed { min-height: 22px !important; min-width: 36px; padding: 0 8px; border-radius: 999px; background: rgba(17,43,59,.08); font-size: 11px; font-weight: 700; color: inherit; }
+.player[data-own="true"] .speed { background: rgba(255,255,255,.22); }
+.time { font-size: 10px; font-variant-numeric: tabular-nums; opacity: .7; }

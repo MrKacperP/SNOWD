@@ -84,9 +84,6 @@ button.head:hover { background: var(--bg-secondary); }
 /* Messages exchanged while an order was active */
 .section {
   flex: 0 0 auto;
-  border-left: 3px solid var(--surface-blue-border);
-  padding-left: 8px;
-  margin-left: 2px;
 }
 
 .end {
@@ -132,3 +129,17 @@ button.head:hover { background: var(--bg-secondary); }
 .pin strong { display: block; font-size: 13px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pin[data-attention="true"] strong { color: var(--accent); }
 .pin > span:first-child { min-width: 0; }
+
+/* Simple tappable work order card */
+.simple { flex: 0 0 auto; display: grid; gap: 12px; margin: 14px auto; width: 100%; max-width: 420px; padding: 14px 16px; border: 1px solid var(--border-color); border-radius: 18px; background: var(--bg-card-solid, #fff); box-shadow: var(--glass-shadow); color: inherit; text-decoration: none; scroll-margin-top: 80px; transition: transform .12s ease, border-color .12s ease; }
+.simple:hover { border-color: var(--surface-blue-border); }
+.simple:active { transform: scale(.99); }
+.simple[data-open="true"] { border-color: var(--surface-blue-border); }
+.simpleTop { display: flex; align-items: center; gap: 10px; }
+.simpleTop > span:first-child { flex: 1; }
+.simple .meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.simple .chevron { margin: 0; }
+.bar { display: flex; gap: 5px; }
+.bar i { flex: 1; height: 6px; border-radius: 999px; background: var(--accent-soft); }
+.bar i[data-on="true"] { background: var(--accent); }
+.cancelled { font-size: 12px; font-weight: 600; color: var(--text-muted); }

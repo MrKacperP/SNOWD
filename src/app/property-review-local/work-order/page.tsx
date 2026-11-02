@@ -8,7 +8,7 @@ const base={id:"order-1049",orderNumber:1049,operatorId:"operator",clientId:"cli
 function Review(){
  const state=useSearchParams().get("state")||"pending";
  const job={...base,status:state==="scheduled"?"accepted":state,...(state==="scheduled"?{scheduleMode:"scheduled",scheduledTime:"7:00 AM",scheduledDate:new Date(Date.now()+86400000).toISOString()}:{})} as unknown as Job;
- return <main style={{padding:16,maxWidth:920,margin:"auto"}}><OperatorWorkOrder job={job} name="Adam Cosza" operator={operator} /></main>;
+ return <main style={{padding:16,maxWidth:1090,margin:"auto"}}><OperatorWorkOrder job={job} name="Adam Cosza" operator={operator} /></main>;
 }
 // Sample work order for design checks: ?state=pending | accepted | scheduled | en-route | in-progress
 export default function WorkOrderReview(){ return <Suspense><Review /></Suspense>; }

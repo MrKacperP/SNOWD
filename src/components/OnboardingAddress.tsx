@@ -17,8 +17,9 @@ export type OnboardingLocation = {
   provider?: "google" | "mapbox" | "manual";
 };
 const token = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || "";
+// Matches the dashboard's address editor inputs.
 const field =
-  "w-full min-h-12 rounded-2xl border-[3px] border-[#061321] bg-white px-4 text-base font-bold outline-none focus-visible:ring-4 focus-visible:ring-[#ff820e]/40";
+  "w-full min-h-[46px] rounded-xl border border-[var(--border-color)] bg-[var(--bg-card-solid)] px-3 text-[15px] font-medium text-[var(--text-primary)] placeholder:text-[#8a9ba4] outline-none focus-visible:border-[var(--accent)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]";
 type MapboxFeature = {
   id: string;
   geometry: { coordinates: [number, number] };
@@ -112,7 +113,7 @@ export default function OnboardingAddress({
   };
   return (
     <div className={compact ? "booking-address-editor space-y-3" : "space-y-4"}>
-      <label className="block text-sm font-black">
+      <label className="block text-sm font-semibold">
         {manual ? "Street address" : "Your address"}
         <div className="mt-2">
           {provider === "google" && !manual ? (
@@ -164,20 +165,20 @@ export default function OnboardingAddress({
         </div>
       </label>
       {status && (
-        <p role="status" className="text-sm font-semibold">
+        <p role="status" className="text-sm text-[var(--text-secondary)]">
           {status}
         </p>
       )}
       {results.length > 0 && (
         <ul
           aria-label="Address suggestions"
-          className="overflow-hidden rounded-2xl border-[3px] border-[#061321] bg-white"
+          className="overflow-hidden rounded-[14px] border border-[var(--border-color)] bg-white shadow-[0_10px_24px_rgb(17_43_59/8%)]"
         >
           {results.map((result) => (
             <li key={result.id}>
               <button
                 type="button"
-                className="min-h-12 w-full border-b border-[#061321]/10 p-3 text-left text-sm font-bold hover:bg-[#dfeef8] focus-visible:bg-[#dfeef8]"
+                className="min-h-12 w-full border-b border-[var(--border-color)] p-3 text-left text-sm font-medium last:border-b-0 hover:bg-[var(--accent-soft)] focus-visible:bg-[var(--accent-soft)]"
                 onClick={() => {
                   revision.current += 1;
                   const { context } = result.properties;
@@ -201,47 +202,47 @@ export default function OnboardingAddress({
         </ul>
       )}
       {!manual && (
-        <p className="text-xs font-semibold text-[#061321]/65">
+        <p className="text-xs text-[var(--text-secondary)]">
           Select a suggestion to fill in your city, province, and postal code.
         </p>
       )}
-      {!compact && selected && !manual ? (
-        <div className="overflow-hidden rounded-2xl border-[3px] border-[#061321] bg-[#dfeef8]">
-          {value.provider === "mapbox" &&
-          value.lat !== undefined &&
-          value.lng !== undefined &&
-          !mapFailed ? (
-            // Mapbox's static map includes its logo and attribution by default.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              alt={`Map of ${value.address}`}
-              className="h-[210px] w-full object-cover"
-              onError={() => setMapFailed(true)}
-              src={`https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-s+ff820e(${value.lng},${value.lat})/${value.lng},${value.lat},15/600x260?access_token=${encodeURIComponent(token)}`}
-            />
-          ) : value.provider === "google" &&
-            value.lat !== undefined &&
-            value.lng !== undefined ? (
-            <div className="h-[210px]"><SnowdMap location={`${value.lat},${value.lng}`} client label="Your selected address" /></div>
-          ) : null}
-          <p className="flex items-center gap-2 p-3 text-sm font-bold">
-            <CheckCircle2 size={18} />
-            {mapFailed
-              ? "Address selected. Map preview unavailable."
-              : "Looking good! Check that this is your address."}
-          </p>
-        </div>
-      ) : (
-        !compact && !manual && (
-          <div className="flex min-h-36 flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#061321]/25 bg-[#dfeef8]/50 px-4 text-center">
-            <MapPin className="text-[#ff820e]" size={32} />
-            <p className="text-sm font-bold">Your location will appear here</p>
+      {!compact && !manual && (
+        <section className="dashboard-location" aria-label="Selected address preview">
+          <div className="dashboard-location-map">
+            {selected && value.provider === "mapbox" && value.lat !== undefined && value.lng !== undefined && !mapFailed ? (
+              // Mapbox's static map includes its logo and attribution by default.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                alt={`Map of ${value.address}`}
+                className="h-full w-full object-cover"
+                onError={() => setMapFailed(true)}
+                src={`https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-s+2350ff(${value.lng},${value.lat})/${value.lng},${value.lat},15/600x260?access_token=${encodeURIComponent(token)}`}
+              />
+            ) : selected && value.provider === "google" && value.lat !== undefined && value.lng !== undefined ? (
+              <SnowdMap location={`${value.lat},${value.lng}`} client compact label="Your home" markerAddress={[value.address, value.city, value.province].filter(Boolean).join(", ")} />
+            ) : (
+              <div className="dashboard-location-unset">
+                <span className="grid justify-items-center gap-2"><MapPin className="text-[var(--accent)]" size={28} />Your location will appear here</span>
+              </div>
+            )}
           </div>
-        )
+          <div className="dashboard-location-footer">
+            <div>
+              <strong>{selected ? "Your home" : "No address yet"}</strong>
+              <span>{selected ? [value.address, value.city, value.province, value.postalCode].filter(Boolean).join(", ") : "Search for your street address above."}</span>
+            </div>
+            {selected && (
+              <p className="inline-flex flex-none items-center gap-1.5 text-[13px] font-semibold text-[var(--accent-mint)]">
+                <CheckCircle2 size={16} />
+                {mapFailed ? "Selected" : "Found"}
+              </p>
+            )}
+          </div>
+        </section>
       )}
       <button
         type="button"
-        className="min-h-11 text-sm font-bold underline underline-offset-4"
+        className="min-h-11 w-fit text-sm font-semibold text-[var(--accent)] underline-offset-4 hover:underline"
         onClick={() => {
           setManual(!manual);
           setResults([]);
@@ -255,7 +256,7 @@ export default function OnboardingAddress({
       </button>
       {manual && (
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="text-sm font-bold">
+          <label className="text-sm font-semibold">
             City
             <input
               className={`${field} mt-1`}
@@ -272,7 +273,7 @@ export default function OnboardingAddress({
               }
             />
           </label>
-          <label className="text-sm font-bold">
+          <label className="text-sm font-semibold">
             Province
             <select
               className={`${field} mt-1`}
@@ -296,7 +297,7 @@ export default function OnboardingAddress({
               ))}
             </select>
           </label>
-          <label className="text-sm font-bold">
+          <label className="text-sm font-semibold">
             Postal code
             <input
               className={`${field} mt-1`}
@@ -320,7 +321,7 @@ export default function OnboardingAddress({
       {hasGoogleMapsApiKey && token && !manual && (
         <button
           type="button"
-          className="block min-h-11 text-xs font-bold underline"
+          className="block min-h-11 text-xs font-semibold text-[var(--text-secondary)] hover:underline"
           onClick={() => {
             setProvider(provider === "google" ? "mapbox" : "google");
             edit("");
@@ -329,7 +330,7 @@ export default function OnboardingAddress({
           Try {provider === "google" ? "Mapbox" : "Google"} search
         </button>
       )}
-      <p className="text-xs leading-5 text-[#061321]/65">
+      <p className="text-xs leading-5 text-[var(--text-secondary)]">
         {value.provider === "mapbox" || provider === "mapbox"
           ? "Search powered by Mapbox. "
           : ""}

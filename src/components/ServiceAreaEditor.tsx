@@ -12,10 +12,10 @@ export default function ServiceAreaEditor({ location, mode, radius, cities, onCh
   cities: OperatorServiceArea[];
   onChange: (patch: { serviceAreaMode?: "radius" | "cities"; serviceRadius?: number; serviceAreas?: OperatorServiceArea[] }) => void;
 }) {
-  return <section className="space-y-4 rounded-2xl border border-[var(--border-color)] p-4">
-    <h3 className="font-semibold">Where will you shovel?</h3>
+  return <section className="space-y-4 rounded-[22px] border border-[#dce6eb] bg-white p-[18px] shadow-[0_5px_24px_#17344306]">
+    <h3 className="text-base font-semibold">Where will you shovel?</h3>
     <div className="grid grid-cols-2 gap-2" aria-label="Service area method">
-      {([['radius', 'Around my address'], ['cities', 'Selected cities']] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={mode === value} onClick={() => onChange({ serviceAreaMode: value })} className={`min-h-12 rounded-xl border px-3 font-semibold ${mode === value ? 'border-[var(--accent)] bg-[var(--accent-soft)]' : 'bg-white'}`}>{label}</button>)}
+      {([['radius', 'Around my address'], ['cities', 'Selected cities']] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={mode === value} onClick={() => onChange({ serviceAreaMode: value })} className={`min-h-12 rounded-[14px] border px-3 text-sm font-semibold transition hover:-translate-y-px hover:border-[#b9c9d2] ${mode === value ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent-dark)]' : 'border-[var(--border-color)] bg-white'}`}>{label}</button>)}
     </div>
     {mode === "radius" ? <label className="block text-sm font-semibold">
       Travel radius: {radius} km

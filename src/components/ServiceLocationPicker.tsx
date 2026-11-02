@@ -6,7 +6,9 @@ import SnowdMap from "@/components/SnowdMap";
 import { useServiceLocation } from "@/context/ServiceLocationContext";
 import { formatServiceAddress, sameServiceAddress, type ServiceLocation } from "@/lib/serviceLocations";
 import type { PropertySize } from "@/lib/types";
-import styles from "./service-location.module.css";
+import IconSwap from "@/components/ui/IconSwap";
+import popup from "@/components/ui/popup.module.css";
+import { Building2, Car, Check, House, KeyRound, MapPin, RotateCcw } from "lucide-react";
 
 export default function ServiceLocationPicker({onClose,initial,onPreview,existingOrder=false,initialSaveFavorite=false,saveOnly=false,propertyId}:{onClose:()=>void;initial?:ServiceLocation | null;onPreview?:(location:ServiceLocation | null)=>void;existingOrder?:boolean;initialSaveFavorite?:boolean;saveOnly?:boolean;propertyId?:string}) {
   const locations = useServiceLocation();
@@ -29,24 +31,31 @@ export default function ServiceLocationPicker({onClose,initial,onPreview,existin
     } catch(e) {setError(e instanceof Error ? e.message : "Could not save this address. Try again.");}
     finally {setBusy(false);}
   };
-  return <Modal isOpen onClose={()=>{if(!busy)onClose();}} title={saveOnly ? propertyId ? "Edit property" : "Add a property" : "Service location"} size="lg"><div className={styles.editor}>
-    {locations?.error && <p role="alert">{locations.error} <button type="button" onClick={locations.reload}>Try again</button></p>}
-    {!locations?.ready && !locations?.error && <p role="status">Loading your properties…</p>}
-    {existingOrder && <p className={styles.note}>This selection is for your next booking. Your current work order keeps its address.</p>}
-    {!saveOnly && locations?.home && <button className="btn-secondary" type="button" disabled={busy} onClick={()=>{edit(locations.home!);setMakeHome(false);setSaveFavorite(false);}}>Use profile home</button>}
-    {!saveOnly && !!locations?.properties.length && <label>Saved properties<select value="" disabled={busy} onChange={e=>{const property=locations.properties.find(p=>p.id===e.target.value);if(property){edit(property);setLabel(property.label);setSaveFavorite(false);setMakeHome(false);}}}><option value="" disabled>Choose a property</option>{locations.properties.map(p=><option value={p.id} key={p.id}>{p.label} · {p.address}</option>)}</select></label>}
-    <fieldset disabled={busy} className={styles.fields}>
+  return <Modal isOpen onClose={()=>{if(!busy)onClose();}} title={saveOnly ? propertyId ? "Edit property" : "Add a property" : "Service location"} size="lg"><div className={popup.stack}>
+    {locations?.error && <p role="alert" className={popup.alert}>{locations.error} <button type="button" className="font-semibold underline" onClick={locations.reload}>Try again</button></p>}
+    {!locations?.ready && !locations?.error && <p role="status" className={popup.note}>Loading your properties…</p>}
+    {existingOrder && <p className="dialog-message">This selection is for your next booking. Your current work order keeps its address.</p>}
+    {!saveOnly && (locations?.home || !!locations?.properties.length) && <div className={popup.options}>
+      {locations?.home && <button className={popup.option} type="button" disabled={busy} aria-pressed={sameServiceAddress(draft,locations.home)} onClick={()=>{edit(locations.home!);setMakeHome(false);setSaveFavorite(false);}}><IconSwap icon={<House />}><House size={16} aria-hidden="true" />Use profile home</IconSwap></button>}
+      {!!locations?.properties.length && <label className={popup.field}><span className="sr-only">Saved properties</span><select aria-label="Saved properties" value="" disabled={busy} onChange={e=>{const property=locations.properties.find(p=>p.id===e.target.value);if(property){edit(property);setLabel(property.label);setSaveFavorite(false);setMakeHome(false);}}}><option value="" disabled>Saved properties…</option>{locations.properties.map(p=><option value={p.id} key={p.id}>{p.label} · {p.address}</option>)}</select></label>}
+    </div>}
+    <fieldset disabled={busy} className={popup.form}>
       <OnboardingAddress compact value={draft} onChange={edit} note={makeHome ? "This will replace the home address on your profile." : saveOnly ? "Saved properties are private. Choose one when you book." : "Operators see this address for your next booking."} />
-      <label>Driveway size<select value={draft.propertySize || "medium"} onChange={e=>edit({...draft,propertySize:e.target.value as PropertySize})}><option value="small">1-car driveway</option><option value="medium">2-car driveway</option><option value="large">3+ car driveway</option></select></label>
-      <div className={styles.preview} aria-label="Selected address preview">{valid ? <SnowdMap key={formatServiceAddress(draft)} location={mapped ? `${draft.lat},${draft.lng}` : formatServiceAddress(draft)} compact client markerAddress={formatServiceAddress(draft)} onLocationResolved={resolve} /> : <p>Choose an address to preview its location.</p>}</div>
-      {valid && !mapped && <p role="status">Waiting for the map location. Select an address suggestion if the preview is unavailable.</p>}
-      {!saveOnly && <label className={styles.check}><input type="checkbox" checked={saveFavorite} onChange={e=>setSaveFavorite(e.target.checked)} />Save as a favourite property</label>}
+      <div className={popup.mapCard} aria-label="Selected address preview">
+        <div>{valid ? <SnowdMap key={formatServiceAddress(draft)} location={mapped ? `${draft.lat},${draft.lng}` : formatServiceAddress(draft)} compact client markerAddress={formatServiceAddress(draft)} onLocationResolved={resolve} /> : <div className={popup.emptyMap}>Choose an address to preview its location.</div>}</div>
+        <div className={popup.mapFoot}><div><strong>{draft.address || "No address yet"}</strong><span>{valid && !mapped ? "Finding it on the map… Select a suggestion if this takes long." : [draft.city, draft.province, draft.postalCode].filter(Boolean).join(", ") || "Start typing to search"}</span></div></div>
+      </div>
+      <fieldset><legend>Driveway size</legend><div className={popup.options}>{([["small","1-car"],["medium","2-car"],["large","3+ car"]] as const).map(([size,text])=><button type="button" key={size} className={popup.option} aria-pressed={(draft.propertySize || "medium") === size} onClick={()=>edit({...draft,propertySize:size as PropertySize})}><IconSwap icon={<Car />}>{text}</IconSwap></button>)}</div></fieldset>
+      {!saveOnly && <label className={popup.check}><input type="checkbox" checked={saveFavorite} onChange={e=>setSaveFavorite(e.target.checked)} /><span className={popup.tick} aria-hidden="true"><Check size={13} strokeWidth={3} /></span><span>Save as a favourite property</span></label>}
+      {saveFavorite && <fieldset><legend>Property type</legend><div className={popup.options}>{([["Main house",House],["Rental house",KeyRound],["Business",Building2]] as const).map(([kind,Icon])=><button type="button" key={kind} className={popup.option} aria-pressed={label === kind} onClick={()=>setLabel(kind)}><IconSwap icon={<Icon />}><Icon size={16} aria-hidden="true" />{kind}</IconSwap></button>)}</div></fieldset>}
       {saveFavorite && <label>Property name<input value={label} maxLength={60} onChange={e=>setLabel(e.target.value)} placeholder="For example, Lake house" /></label>}
-      <label className={styles.check}><input type="checkbox" checked={makeHome} onChange={e=>setMakeHome(e.target.checked)} />Make this my profile home</label>
-      {different && valid && <div className={styles.confirm}><p>This differs from your profile home{locations?.home ? ` (${formatServiceAddress(locations.home)})` : ""}.</p><label className={styles.check}><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)} />Yes, I want service at {formatServiceAddress(draft)}{makeHome ? " and to make it my new home" : ""}.</label></div>}
+      <label className={popup.check}><input type="checkbox" checked={makeHome} onChange={e=>setMakeHome(e.target.checked)} /><span className={popup.tick} aria-hidden="true"><Check size={13} strokeWidth={3} /></span><span>Make this my profile home</span></label>
+      {different && valid && <label className={popup.check}><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)} /><span className={popup.tick} aria-hidden="true"><Check size={13} strokeWidth={3} /></span><span>This differs from your profile home{locations?.home ? ` (${formatServiceAddress(locations.home)})` : ""}. Yes, I want service at {formatServiceAddress(draft)}{makeHome ? " and to make it my new home" : ""}.</span></label>}
     </fieldset>
-    {error && <p role="alert">{error}</p>}
-    <button type="button" className="btn-primary" disabled={busy || !locations?.ready || !valid || !mapped || (different && !confirmed) || (saveFavorite && !label.trim())} onClick={()=>void submit()}>{busy ? "Saving…" : saveOnly ? "Save property" : "Use this location"}</button>
-    {!saveOnly && locations?.selectedLocation && <button type="button" className="btn-secondary" disabled={busy} onClick={()=>void submit(true)}>Reset to profile home</button>}
+    {error && <p role="alert" className={popup.alert}>{error}</p>}
+    <div className={popup.actions}>
+      {!saveOnly && locations?.selectedLocation && <button type="button" className="dialog-btn" data-tone="neutral" disabled={busy} onClick={()=>void submit(true)}><IconSwap icon={<RotateCcw />}>Reset to profile home</IconSwap></button>}
+      <button type="button" className="dialog-btn action-shine" data-tone="primary" disabled={busy || !locations?.ready || !valid || !mapped || (different && !confirmed) || (saveFavorite && !label.trim())} onClick={()=>void submit()}><IconSwap icon={<MapPin />}>{busy ? "Saving…" : saveOnly ? "Save property" : "Use this location"}</IconSwap></button>
+    </div>
   </div></Modal>;
 }

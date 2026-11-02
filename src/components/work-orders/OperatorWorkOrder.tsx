@@ -1,4 +1,5 @@
 "use client";
+import PhotoViewer from "./PhotoViewer";
 import DashboardMap from "@/components/dashboard/DashboardMap";
 import { RequestReply, RequestWhen, directionsUrl, distanceText, estimateTrip, fullAddress, paymentLabel, pointOf, serviceSummary } from "@/components/dashboard/OperatorOrderCard";
 import { useOperatorPosition } from "@/components/dashboard/OperatorLocationTracker";
@@ -40,7 +41,7 @@ export default function OperatorWorkOrder({ job, name, person, operator }: { job
   const chatHref = job.chatId ? `/dashboard/messages/${job.chatId}#order-${job.id}` : "";
 
   return <div className={styles.page} data-reply={needsReply || undefined}>
-    {open && <div className={styles.map}><DashboardMap profile={profile} job={job} role="operator" onRoute={onRoute} showVisitLink={false} /></div>}
+    {open && job.completionPhotoUrl ? <div className={`${styles.map} ${styles.proof}`}><PhotoViewer src={job.completionPhotoUrl} /></div> : open && <div className={styles.map}><DashboardMap profile={profile} job={job} role="operator" onRoute={onRoute} showVisitLink={false} /></div>}
 
     <article className={styles.sheet} aria-labelledby="work-order-client">
       <header className={styles.head}>

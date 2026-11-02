@@ -8,6 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { sendAdminNotif } from "@/lib/adminNotifications";
 import { stripeConnectFetch } from "@/lib/stripeConnectClient";
 import OnboardingFlow, {
+  SUGGESTED_PRICES,
   type OnboardingDraft,
 } from "@/components/OnboardingFlow";
 
@@ -31,9 +32,7 @@ function OnboardingPageInner() {
       propertySize,
       serviceTypes,
       specialInstructions,
-      businessName,
       isStudent,
-      bio,
       equipment,
       serviceRadius,
       operatorServiceTypes,
@@ -46,13 +45,12 @@ function OnboardingPageInner() {
       Number(value) <= 10000
         ? Number(value)
         : fallback;
-    const pricingSmall = price(draft.pricingSmall, 25),
-      pricingMedium = price(draft.pricingMedium, 40),
-      pricingLarge = price(draft.pricingLarge, 60),
-      pricingWalkway = price(draft.pricingWalkway, 15),
-      pricingSidewalk = price(draft.pricingSidewalk, 15),
-      pricingBackyardPatio = price(draft.pricingBackyardPatio, 15),
-      pricingPorch = price(draft.pricingPorch, 10);
+    // A blank price means the operator kept the suggestion shown in the input.
+    const pricingSmall = price(draft.pricingSmall, SUGGESTED_PRICES.pricingSmall),
+      pricingMedium = price(draft.pricingMedium, SUGGESTED_PRICES.pricingMedium),
+      pricingLarge = price(draft.pricingLarge, SUGGESTED_PRICES.pricingLarge),
+      pricingSidewalk = price(draft.pricingSidewalk, SUGGESTED_PRICES.pricingSidewalk),
+      pricingBackyardPatio = price(draft.pricingBackyardPatio, SUGGESTED_PRICES.pricingBackyardPatio);
     const displayName = user.displayName || "User";
     const normalizedEmail = (user.email || "").trim().toLowerCase();
     let deletedAccountIds: string[] = [];
@@ -115,9 +113,10 @@ function OnboardingPageInner() {
         accountApproved: false,
         idVerified: false,
         verificationStatus: "not-submitted",
-        businessName,
+        // Business name and bio are added later from settings.
+        businessName: "",
         isStudent,
-        bio,
+        bio: "",
         equipment,
         serviceRadius,
         serviceAreaMode: draft.serviceAreaMode,
@@ -129,10 +128,11 @@ function OnboardingPageInner() {
             medium: pricingMedium,
             large: pricingLarge,
           },
-          walkway: pricingWalkway,
+          walkway: pricingSidewalk,
           sidewalk: pricingSidewalk,
           backyardPatio: pricingBackyardPatio,
-          porch: pricingPorch,
+          // Front porch and sidewalk share one price.
+          porch: pricingSidewalk,
         },
         rating: 0,
         reviewCount: 0,
@@ -172,7 +172,7 @@ function OnboardingPageInner() {
     return (
       <main
         role="status"
-        className="flex min-h-dvh items-center justify-center bg-[#f3f8fb] text-[#061321]"
+        className="flex min-h-dvh items-center justify-center bg-[#050b16] text-white"
       >
         Getting your account ready…
       </main>

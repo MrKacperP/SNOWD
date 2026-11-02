@@ -11,7 +11,8 @@ import {
 CANADIAN_PROVINCES,
 ClientProfile,
 OperatorProfile,
-ServiceType
+SERVICE_LABELS,
+isShovelingService
 } from "@/lib/types";
 import { doc,updateDoc } from "firebase/firestore";
 import {
@@ -36,17 +37,6 @@ Wrench,
 import Link from "next/link";
 
 import { useState } from "react";
-
-const SERVICE_LABELS: Record<ServiceType, string> = {
-  driveway: "Driveway",
-  walkway: "Walkway",
-  sidewalk: "Sidewalk",
-  "parking-lot": "Parking Lot",
-  roof: "Roof",
-  "backyard-patio": "Backyard patio",
-  porch: "Porch",
-  other: "Other",
-};
 
 export default function ProfilePage() {
   const { profile, refreshProfile } = useAuth();
@@ -452,7 +442,7 @@ export default function ProfilePage() {
                   <DollarSign className="w-4 h-4" /> Services & Pricing (CAD)
                 </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {operatorProfile.serviceTypes?.map((s) => (
+                  {operatorProfile.serviceTypes?.filter(isShovelingService).map((s) => (
                     <div key={s} className="p-3 bg-gray-50 rounded-xl text-center">
                       <p className="text-xs text-gray-500">{SERVICE_LABELS[s]}</p>
                       <p className="font-semibold text-gray-900 mt-0.5">
@@ -460,9 +450,9 @@ export default function ProfilePage() {
                           ? `$${operatorProfile.pricing?.driveway?.small || "–"} – $${
                               operatorProfile.pricing?.driveway?.large || "–"
                             }`
-                          : s === "walkway"
-                          ? `$${operatorProfile.pricing?.walkway || "–"}`
-                          : `$${operatorProfile.pricing?.sidewalk || "–"}`}
+                          : s === "backyard-patio"
+                          ? `$${operatorProfile.pricing?.backyardPatio || "–"}`
+                          : `$${operatorProfile.pricing?.sidewalk || operatorProfile.pricing?.porch || "–"}`}
                       </p>
                     </div>
                   ))}

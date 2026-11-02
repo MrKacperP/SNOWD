@@ -1,0 +1,60 @@
+.steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; list-style: none; padding: 0; margin: 0; }
+.steps > li { display: grid; }
+.card { display: grid; align-content: start; gap: 22px; width: 100%; padding: 28px; border: 1px solid var(--landing-line); border-radius: 28px; background: #fff; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: transform 300ms ease, box-shadow 300ms ease, border-color 300ms ease; }
+@media (hover: hover) { .card:hover { transform: translateY(-6px); border-color: #b9cfdc; box-shadow: 0 24px 50px #12334614; } }
+.card:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; }
+.copy { display: block; }
+.copy small { color: var(--accent); font-size: 14px; font-weight: 800; letter-spacing: .08em; }
+.copy h3 { margin-top: 4px; font-size: 28px; line-height: 1.15; }
+.copy p { margin-top: 10px; color: var(--landing-muted); font-size: 17px; line-height: 1.6; }
+.more { display: inline-flex; align-items: center; gap: 7px; justify-self: start; margin-top: -6px; padding: 6px 12px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-dark); font-size: 14px; font-weight: 700; transition: background 200ms, color 200ms; }
+.card:hover .more { background: var(--accent); color: #fff; }
+
+/* The closer look: animation on top, three plain-language points under it. */
+.dialog { width: min(560px, calc(100% - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 0; overflow: auto; border: 0; border-radius: 28px; background: #fff; color: var(--landing-ink, #123346); box-shadow: 0 40px 100px #0b223159; }
+.dialog::backdrop { background: #0e2838a6; backdrop-filter: blur(4px); }
+.dialog[open] { animation: popIn 380ms cubic-bezier(.16,1,.3,1); }
+.dialog[open]::backdrop { animation: fadeIn 300ms ease; }
+.panel { position: relative; }
+.close { position: absolute; top: 14px; right: 14px; z-index: 3; display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 50%; background: #ffffffe6; color: var(--landing-ink, #123346); box-shadow: 0 6px 18px #12334626; cursor: pointer; transition: transform 160ms; }
+.close:hover { transform: rotate(90deg); }
+.visual > div { height: 260px; border-radius: 0; }
+.body { padding: 24px 28px 24px; }
+.count { color: var(--accent); font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.body h3 { margin-top: 4px; font-size: 34px; line-height: 1.1; }
+.tagline { margin-top: 6px; color: var(--landing-muted, #4c6878); font-size: 19px; font-weight: 600; font-style: italic; }
+.points { display: grid; gap: 16px; margin: 22px 0 0; padding: 0; list-style: none; }
+.points li { display: flex; gap: 14px; animation: pointIn 500ms cubic-bezier(.16,1,.3,1) both; }
+.points li > span { display: grid; flex: none; place-items: center; width: 42px; height: 42px; border-radius: 14px; background: var(--accent-soft); color: var(--accent); }
+.points strong { font-size: 17px; font-weight: 800; }
+.points p { margin-top: 2px; color: var(--landing-muted, #4c6878); font-size: 15px; line-height: 1.5; }
+.nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--landing-line, #ccdde6); }
+.nav button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-width: 48px; min-height: 48px; padding: 0 14px; border: 1px solid var(--landing-line, #ccdde6); border-radius: 999px; background: #fff; color: inherit; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; transition: background 160ms, transform 160ms; }
+.nav button:hover:not(:disabled) { background: #f3f8fb; }
+.nav button:disabled { opacity: .35; cursor: default; }
+.nav button[data-primary] { padding-inline: 20px; border-color: transparent; background: var(--accent-gradient); color: #fff; box-shadow: var(--accent-shadow); }
+.nav button[data-primary]:hover { background: var(--accent-gradient-hover); transform: translateY(-1px); }
+.dialog :is(button):focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.dots { display: flex; gap: 6px; }
+.dots i { width: 8px; height: 8px; border-radius: 999px; background: var(--landing-line, #ccdde6); transition: width 250ms, background 250ms; }
+.dots i[data-on] { width: 24px; background: var(--accent); }
+
+@keyframes popIn { from { opacity: 0; transform: translateY(24px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes fadeIn { from { opacity: 0; } }
+@keyframes pointIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+@media (max-width: 900px) {
+  .steps { grid-template-columns: 1fr; gap: 16px; }
+  .card { gap: 18px; padding: 22px; }
+  .copy h3 { font-size: 23px; }
+}
+@media (max-width: 520px) {
+  .visual > div { height: 210px; }
+  .body { padding: 20px; }
+  .body h3 { font-size: 28px; }
+  .tagline { font-size: 17px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dialog[open], .dialog[open]::backdrop, .points li { animation: none; }
+  .card, .close { transition: none; }
+}

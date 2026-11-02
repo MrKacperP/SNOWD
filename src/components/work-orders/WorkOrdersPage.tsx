@@ -3,23 +3,20 @@ import IconSwap from "@/components/ui/IconSwap";
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, MapPin, Search, CalendarDays, Banknote, CreditCard } from "lucide-react";
-import CompanyIdentity from "@/components/CompanyIdentity";
+import { ArrowRight, Search, CalendarDays, Banknote, CreditCard } from "lucide-react";
 import { useWorkOrders } from "@/hooks/useWorkOrders";
 import { jobDisplayPrice } from "@/lib/marketplacePricing";
-import { dateMillis, isAsap, orderNumber, orderLabel, orderActionNeeded, propertySizeLabel, scheduleText, terminalOrderDateText } from "@/lib/workOrders";
+import { dateMillis, isAsap, orderNumber, orderActionNeeded, propertySizeLabel, scheduleText } from "@/lib/workOrders";
 import styles from "./work-orders.module.css";
 import ui from "./order-list.module.css";
-import { useNotifications } from "@/context/NotificationContext";
-import { NewChip } from "@/components/ui/UnreadBadge";
 import { OperatorOrderList, estimateTrip, pointOf } from "@/components/dashboard/OperatorOrderCard";
+import { ClientOrderList } from "@/components/dashboard/ClientOrderCard";
 import { useOperatorPosition } from "@/components/dashboard/OperatorLocationTracker";
 import { useAuth } from "@/context/AuthContext";
 
 export default function WorkOrdersPage({ history = false, schedule = false }: { history?: boolean; schedule?: boolean }) {
   const data = useWorkOrders();
-  const { jobs, names, people, uid, isOperator, loading, error } = data;
-  const { unreadByJob } = useNotifications();
+  const { jobs, names, uid, isOperator, loading, error } = data;
   const { profile } = useAuth();
   const { position } = useOperatorPosition();
   const tripStart = pointOf(position?.lat, position?.lng) || pointOf(profile?.lat, profile?.lng);
@@ -32,13 +29,16 @@ export default function WorkOrdersPage({ history = false, schedule = false }: { 
   const closed = (job: typeof jobs[number]) => ["completed", "cancelled"].includes(job.status);
   // Unsettled completed orders stay visible until the outstanding step is done.
   const current = (job: typeof jobs[number]) => !closed(job) || !!orderActionNeeded(job, uid);
-  const rank = (job: typeof jobs[number]) => orderActionNeeded(job, uid) ? 0 : job.status === "in-progress" ? 1 : job.status === "en-route" ? 2 : 3;
+  // Closest to done first: finished-but-unsettled, clearing, on the way, confirmed, then requests.
+  const stages = ["completed", "cancelled", "in-progress", "en-route", "accepted", "pending"];
+  const rank = (job: typeof jobs[number]) => stages.indexOf(job.status);
   const query = search.trim().toLowerCase();
   const visible = jobs.filter(job => view === "current" ? current(job) : closed(job))
     .filter(job => [names[isOperator ? job.clientId : job.operatorId], job.address, orderNumber(job), job.serviceTypes?.join(" ").replaceAll("-", " ")].filter(Boolean).join(" ").toLowerCase().includes(query))
     .sort((a, b) => view === "history"
       ? dateMillis(b.completionTime || b.cancelledAt || b.updatedAt || b.createdAt) - dateMillis(a.completionTime || a.cancelledAt || a.updatedAt || a.createdAt)
-      : rank(a) - rank(b) || (dateMillis(a.scheduledDate) || dateMillis(a.createdAt)) - (dateMillis(b.scheduledDate) || dateMillis(b.createdAt)));
+      // Same stage: the older order comes first.
+      : rank(a) - rank(b) || dateMillis(a.createdAt) - dateMillis(b.createdAt));
 
   if (!schedule) return <div className={ui.page}>
     <header className={ui.heading}>
@@ -53,36 +53,13 @@ export default function WorkOrdersPage({ history = false, schedule = false }: { 
         </div>
         <label className={ui.search}><Search size={17} aria-hidden="true" /><input aria-label="Search work orders" type="search" placeholder="Search orders" value={search} onChange={event => setSearch(event.target.value)} /></label>
       </div>
-      {loading ? <p className={ui.empty} role="status">Loading work orders…</p> : error ? <p className={ui.empty} role="alert">{error}</p> : visible.length && isOperator && view === "current"
-        // Operators see live orders exactly as the dashboard shows them: timing, pay, trip and reply.
-        ? <OperatorOrderList orders={visible} uid={uid} names={names} tripTo={tripTo} label="Current work orders" />
-        : visible.length ? <ul className={ui.list}>
-        {visible.map(job => {
-          const personId = isOperator ? job.clientId : job.operatorId;
-          const action = orderActionNeeded(job, uid);
-          const actionLabel = action === "Accept or decline request" ? "Review request" : action === "Review proposed time" ? "Review new time" : action || (isOperator && job.status === "in-progress" ? "Continue job" : "View order");
-          const timing = closed(job) ? terminalOrderDateText(job) : isAsap(job) ? "As soon as possible" : scheduleText(job);
-          const updates = unreadByJob[job.id] || 0;
-          return <li key={job.id}><Link href={`/dashboard/jobs/${job.id}`} className={ui.order} data-unread={updates > 0} aria-label={`${actionLabel}: order ${orderNumber(job)}${updates ? `, ${updates} new ${updates === 1 ? "update" : "updates"}` : ""}`} >
-            <div className={ui.identity}>
-              <CompanyIdentity person={people[personId]} name={names[personId] || (isOperator ? "Customer" : "Service provider")} />
-              <span className={ui.status} data-status={job.status}>{orderLabel(job)}</span>
-            </div>
-            <div className={ui.details}>
-              <div className={ui.description}>
-                <h2>{[propertySizeLabel(job.propertySize), ...(job.serviceTypes?.filter(service => service !== "driveway").map(service => service.replaceAll("-", " ")) ?? [])].join(" + ")}</h2>
-                <p><MapPin size={15} aria-hidden="true" /><span>{job.address || "Address to be confirmed"}</span></p>
-                <p><CalendarDays size={15} aria-hidden="true" /><span>{timing}</span></p>
-              </div>
-              <div className={ui.price}>${jobDisplayPrice(job, isOperator).toFixed(2)} <span>CAD</span><small>{isOperator ? "Your earnings" : "Total"} · {job.paymentMethod === "cash" ? "Cash" : "Card"}</small></div>
-            </div>
-            <footer className={ui.footer}>
-              <span className={ui.reference}>Order #{orderNumber(job)}{updates > 0 && <NewChip>{updates === 1 ? "New update" : `${updates} new updates`}</NewChip>}</span>
-              <span className={ui.openHint}>{actionLabel}<ArrowRight size={18} aria-hidden="true" /></span>
-            </footer>
-          </Link></li>;
-        })}
-      </ul> : <div className={ui.empty}>
+      {loading ? <p className={ui.empty} role="status">Loading work orders…</p> : error ? <p className={ui.empty} role="alert">{error}</p> : visible.length && isOperator
+        // Operators see orders exactly as the dashboard shows them: progress, timing, pay, trip and reply.
+        ? <OperatorOrderList orders={visible} uid={uid} names={names} tripTo={tripTo} label={view === "history" ? "Past work orders" : "Current work orders"} />
+        : visible.length
+        // Clients get the same card, tailored to them.
+        ? <ClientOrderList orders={visible} names={names} />
+        : <div className={ui.empty}>
         <h2>{query ? "No matching orders" : view === "history" ? "No past work orders" : "No current work orders"}</h2>
         <p>{query ? "Try a name, address or order number." : view === "history" ? "Completed and cancelled visits will appear here." : isOperator ? "New requests and upcoming visits will appear here." : "Book snow help to arrange your next visit."}</p>
         {query && <button className={ui.secondary} type="button" onClick={() => setSearch("")}>Clear search</button>}

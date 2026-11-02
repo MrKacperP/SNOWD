@@ -1,13 +1,28 @@
 "use client";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
+import { transactionDisplayAmount } from "@/lib/marketplacePricing";
+import type { Transaction } from "@/lib/types";
+import { dateMillis } from "@/lib/workOrders";
 
 export type EarningPoint = { at: number; total: number };
+
+/** Running total of an operator's paid transactions, oldest first. */
+export function earningPointsFrom(transactions: Transaction[]): EarningPoint[] {
+  const points = transactions.filter(item => item.status === "paid")
+    .map(item => ({ at: dateMillis(item.completedAt || item.createdAt), amount: transactionDisplayAmount(item, true) }))
+    .sort((a, b) => a.at - b.at)
+    .reduce<EarningPoint[]>((points, { at, amount }) => [...points, { at, total: (points.at(-1)?.total || 0) + amount }], []);
+  // Start the line from zero just before the first payment so the climb reads from the ground up.
+  if (points.length) points.unshift({ at: points[0].at - 86400000, total: 0 });
+  return points;
+}
 
 const money = (cents: number) => new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(cents / 100);
 const day = (at: number) => new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", year: "numeric" }).format(at);
 
-/** Running total of paid work over time: a quiet line at rest, the date and total under the pointer on hover. */
-export default function EarningsChart({ points }: { points: EarningPoint[] }) {
+/** Running total of paid work over time: a quiet line at rest, the date and total under the pointer on hover.
+ *  With `onActive`, the hovered point is handed to the caller (to show in its own headline) instead of a tooltip. */
+export default function EarningsChart({ points, onActive }: { points: EarningPoint[]; onActive?: (point: EarningPoint | null) => void }) {
   const gradient = useId();
   const [active, setActive] = useState<number | null>(null);
   const first = points[0]?.at ?? 0;
@@ -18,7 +33,8 @@ export default function EarningsChart({ points }: { points: EarningPoint[] }) {
   const y = (total: number) => 92 - total / top * 80;
   const line = points.length > 1 ? points.map(point => `${x(point.at)},${y(point.total)}`).join(" ") : "0,92 100,92";
   const nearest = (fraction: number) => points.reduce((best, point, index) => Math.abs(x(point.at) / 100 - fraction) < Math.abs(x(points[best].at) / 100 - fraction) ? index : best, 0);
-  const shown = active === null ? null : points[active];
+  const shown = active === null ? null : points[active] ?? null;
+  useEffect(() => { onActive?.(shown); }, [shown, onActive]);
 
   if (points.length < 2) return <div className="earnings-chart" data-empty="true"><div className="earnings-chart-plot"><svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><polyline points={line} vectorEffect="non-scaling-stroke" /></svg></div></div>;
   return <div
@@ -46,7 +62,7 @@ export default function EarningsChart({ points }: { points: EarningPoint[] }) {
       <span className="earnings-chart-dot" style={{ left: `${x(shown.at)}%`, top: `${y(shown.total)}%` }} aria-hidden="true" />
     </>}
     </div>
-    {shown && <>
+    {shown && !onActive && <>
       <span className="earnings-chart-tip" style={{ left: `clamp(56px, ${x(shown.at)}%, calc(100% - 56px))` }} role="status"><strong>{money(shown.total)}</strong>{day(shown.at)}</span>
     </>}
   </div>;

@@ -2,9 +2,9 @@
 import IconSwap from "@/components/ui/IconSwap";
 
 
-import { dateMillis, isOpenOrder, orderNumber } from "@/lib/workOrders";
+import { dateMillis, isOpenOrder, orderLabel, orderNumber } from "@/lib/workOrders";
 import { buildTimeline } from "@/lib/messageTimeline";
-import { OrderChatEnd, OrderChatPinned, OrderChatWidget } from "@/components/work-orders/OrderChatWidget";
+import { OrderChatEnd, OrderChatWidget } from "@/components/work-orders/OrderChatWidget";
 import orderChatStyles from "@/components/work-orders/order-chat.module.css";
 import { orderRequest } from "@/components/work-orders/OrderActions";
 import { stripeConnectFetch } from "@/lib/stripeConnectClient";
@@ -61,6 +61,7 @@ Phone,
 Send,
 Shield,
 Square,
+Trash2,
 Star,
 X,
 } from "lucide-react";
@@ -69,6 +70,8 @@ import Link from "next/link";
 import { useParams,useRouter } from "next/navigation";
 import React,{ useCallback,useEffect,useRef,useState } from "react";
 import "./chat.css";
+import VoiceMessage from "@/components/VoiceMessage";
+import PhotoViewer from "@/components/work-orders/PhotoViewer";
 import ConversationLoading from "@/components/ConversationLoading";
 import { useArchivedChats } from "@/hooks/useArchivedChats";
 import { formatPhone, hasCompletedJobWith, telHref } from "@/lib/contacts";
@@ -79,6 +82,9 @@ type QuickCommConfirmation = {
   confirmLabel: string;
   onConfirm: () => Promise<void> | void;
 };
+
+const isPersonType = (type: ChatMessage["type"]) => ["text", "image", "voice"].includes(type);
+const REACTIONS = ["👍", "❤️", "😂", "😮", "🙏"];
 
 // Haversine distance between two coords
 function getDistanceKm(
@@ -119,6 +125,10 @@ export default function ChatPage() {
   const [cashActionBusy, setCashActionBusy] = useState(false);
   const [showCashPayment, setShowCashPayment] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
+  const [actionMenu, setActionMenu] = useState<{ msg: ChatMessage; x: number; y: number } | null>(null);
+  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     const textarea = composerRef.current;
@@ -126,6 +136,24 @@ export default function ChatPage() {
     textarea.style.height = "auto";
     textarea.style.height = `${Math.min(textarea.scrollHeight, 128)}px`;
   }, [newMessage]);
+
+  // The on-screen keyboard shrinks the visual viewport; hide floating chrome while it is open.
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    const update = () => setKeyboardOpen(window.innerHeight - viewport.height > 150);
+    update();
+    viewport.addEventListener("resize", update);
+    return () => viewport.removeEventListener("resize", update);
+  }, []);
+
+  useEffect(() => {
+    if (!actionMenu) return;
+    const close = () => setActionMenu(null);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => { window.removeEventListener("scroll", close, true); window.removeEventListener("resize", close); };
+  }, [actionMenu]);
 
   // Stripe state
   const [showCheckout, setShowCheckout] = useState(false);
@@ -141,6 +169,11 @@ export default function ChatPage() {
   const recordingChunksRef = useRef<Blob[]>([]);
   const recordingStartedAtRef = useRef<number>(0);
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const [recLevels, setRecLevels] = useState<number[]>([]);
+  const [recSeconds, setRecSeconds] = useState(0);
+  const recLevelsRef = useRef<number[]>([]);
+  const recCancelledRef = useRef(false);
+  const recMeterRef = useRef<{ timer: ReturnType<typeof setInterval>; ctx: AudioContext } | null>(null);
 
   // Review state
   const [reviewRating, setReviewRating] = useState(0);
@@ -245,6 +278,10 @@ export default function ChatPage() {
       }
       if (recordingStreamRef.current) {
         recordingStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+      if (recMeterRef.current) {
+        clearInterval(recMeterRef.current.timer);
+        void recMeterRef.current.ctx.close().catch(() => {});
       }
     };
   }, []);
@@ -484,6 +521,13 @@ export default function ChatPage() {
         const activeOrder = openJobs.at(-1);
         if (activeOrder) messageData.jobId = activeOrder.id;
         if (metadata !== undefined) messageData.metadata = metadata;
+        if (replyTo && isPersonType(type)) {
+          messageData.replyTo = {
+            id: replyTo.id,
+            senderName: replyTo.senderName || "User",
+            content: replyTo.type === "text" ? replyTo.content.slice(0, 140) : `[${replyTo.type}]`,
+          };
+        }
 
         const chatDocRef = doc(db, "chats", chatId);
         const chatSnap = await getDoc(chatDocRef);
@@ -508,6 +552,7 @@ export default function ChatPage() {
         batch.set(doc(collection(db, "messages")), messageData);
         batch.update(chatDocRef, updateData);
         await batch.commit();
+        if (isPersonType(type)) setReplyTo(null);
         if (type === "text") setNewMessage(current => current === content ? "" : current);
         if (type === "text") {
           void sendAdminNotif({
@@ -537,7 +582,7 @@ export default function ChatPage() {
         if (trackSendingState) { sendingLock.current = false; setSendingMessage(false); }
       }
     },
-    [user, chatId, profile?.displayName, openJobs, notify]
+    [user, chatId, profile?.displayName, openJobs, notify, replyTo]
   );
 
   // Operator actions
@@ -702,6 +747,19 @@ export default function ChatPage() {
     }
   };
 
+  const stopMeter = () => {
+    if (recMeterRef.current) {
+      clearInterval(recMeterRef.current.timer);
+      void recMeterRef.current.ctx.close().catch(() => {});
+      recMeterRef.current = null;
+    }
+  };
+
+  const cancelVoiceRecorder = () => {
+    recCancelledRef.current = true;
+    stopVoiceRecorder();
+  };
+
   const stopVoiceRecorder = () => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
@@ -719,6 +777,28 @@ export default function ChatPage() {
       recordingStreamRef.current = stream;
       recordingChunksRef.current = [];
       recordingStartedAtRef.current = Date.now();
+      recCancelledRef.current = false;
+      recLevelsRef.current = [];
+      setRecLevels([]);
+      setRecSeconds(0);
+
+      // Live level meter feeding the waveform shown while recording.
+      const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const ctx = new Ctx();
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 512;
+      ctx.createMediaStreamSource(stream).connect(analyser);
+      const samples = new Uint8Array(analyser.fftSize);
+      const timer = setInterval(() => {
+        analyser.getByteTimeDomainData(samples);
+        let sum = 0;
+        for (const v of samples) sum += ((v - 128) / 128) ** 2;
+        const level = Math.min(1, Math.sqrt(sum / samples.length) * 3.2);
+        recLevelsRef.current.push(level);
+        setRecLevels(recLevelsRef.current.slice(-44));
+        setRecSeconds(Math.floor((Date.now() - recordingStartedAtRef.current) / 1000));
+      }, 70);
+      recMeterRef.current = { timer, ctx };
 
       const recorder = new MediaRecorder(stream);
       mediaRecorderRef.current = recorder;
@@ -731,6 +811,7 @@ export default function ChatPage() {
 
       recorder.onstop = async () => {
         setIsRecordingVoice(false);
+        stopMeter();
 
         const streamToStop = recordingStreamRef.current;
         if (streamToStop) {
@@ -739,14 +820,22 @@ export default function ChatPage() {
         }
 
         const blob = new Blob(recordingChunksRef.current, { type: recorder.mimeType || "audio/webm" });
-        if (blob.size === 0) return;
+        if (blob.size === 0 || recCancelledRef.current) return;
+
+        // Resample the recorded levels to the bar count the player draws.
+        const levels = recLevelsRef.current;
+        const bars = 44;
+        const bucket = Math.max(1, levels.length / bars);
+        const raw = Array.from({ length: bars }, (_, i) => Math.max(0, ...levels.slice(Math.floor(i * bucket), Math.ceil((i + 1) * bucket))));
+        const top = Math.max(...raw, 0.0001);
+        const peaks = raw.map((v) => Math.round(Math.max(0.12, v / top) * 100) / 100);
 
         const durationMs = Math.max(1000, Date.now() - recordingStartedAtRef.current);
 
         const reader = new FileReader();
         reader.onloadend = async () => {
           const audioUrl = reader.result as string;
-          await sendMessage("Sent a voice clip", "voice", { audioUrl, durationMs });
+          await sendMessage("Sent a voice clip", "voice", { audioUrl, durationMs, peaks });
         };
         reader.readAsDataURL(blob);
       };
@@ -992,6 +1081,25 @@ export default function ChatPage() {
     return null;
   }, [messages, user?.uid]);
 
+  const toggleReaction = async (msg: ChatMessage, emoji: string) => {
+    if (!user?.uid) return;
+    setActionMenu(null);
+    const next = { ...(msg.reactions || {}) };
+    if (next[user.uid] === emoji) delete next[user.uid];
+    else next[user.uid] = emoji;
+    try {
+      await updateDoc(doc(db, "messages", msg.id), { reactions: next });
+    } catch {
+      notify("Could not add reaction. Try again.");
+    }
+  };
+
+  const openActionMenu = (msg: ChatMessage, x: number, y: number) => {
+    const width = 260;
+    setActionMenu({ msg, x: Math.max(8, Math.min(x - width / 2, window.innerWidth - width - 8)), y: Math.max(8, y - 64) });
+  };
+  const cancelPress = () => { if (pressTimer.current) { clearTimeout(pressTimer.current); pressTimer.current = null; } };
+
   // Message rendering
   const renderMessage = (msg: ChatMessage) => {
     const isOwn = msg.senderId === user?.uid;
@@ -1040,21 +1148,12 @@ export default function ChatPage() {
           key={msg.id}
           className={`mb-4 flex ${isOwn ? "justify-end" : "justify-start"} chat-bubble`}
         >
-          <div
-            className={`max-w-[78%] rounded-[1.4rem] border px-3 py-2.5 shadow-[var(--surface-shadow)] ${
-              isOwn
-                ? "border-[var(--ink)] bg-[var(--ink)] text-white rounded-tr-sm"
-                : "border-[var(--border-color)] bg-white rounded-tl-sm"
-            }`}
-          >
-            <audio controls preload="metadata" className="w-full h-10">
-              <source src={msg.metadata.audioUrl} />
-            </audio>
-            <div className={`mt-1 flex items-center justify-end gap-1.5 text-[10px] ${isOwn ? "text-white/65" : "text-[var(--text-muted)]"}`}>
-              <span>{msg.metadata.durationMs ? `${Math.max(1, Math.round(msg.metadata.durationMs / 1000))}s` : "Voice"}</span>
+          <div className="max-w-[88%]">
+            <VoiceMessage src={msg.metadata.audioUrl} id={msg.id} durationMs={msg.metadata.durationMs} peaks={msg.metadata.peaks} own={isOwn} />
+            <div className={`mt-1 flex items-center gap-1.5 px-2 text-[10px] text-[var(--text-muted)] ${isOwn ? "justify-end" : ""}`}>
               <span>{formatTimestamp(msg.createdAt)}</span>
               {showDeliveryState && (
-                <span className={`inline-flex items-center gap-1 font-semibold ${msg.read ? "text-emerald-300" : "text-white/65"}`} aria-label={msg.read ? "Read receipt" : "Sent receipt"}>
+                <span className={`inline-flex items-center gap-1 font-semibold ${msg.read ? "text-emerald-600" : ""}`} aria-label={msg.read ? "Read receipt" : "Sent receipt"}>
                   <CheckCheck className="h-3.5 w-3.5" aria-hidden="true" />{msg.read ? "Read" : "Sent"}
                 </span>
               )}
@@ -1101,13 +1200,7 @@ export default function ChatPage() {
               </div>
             </div>
             {msg.metadata?.completionPhotoUrl && (
-              <img
-                src={msg.metadata.completionPhotoUrl}
-                alt="Job completion"
-                className="w-full rounded-xl cursor-pointer object-cover"
-                style={{ maxHeight: 200 }}
-                onClick={() => window.open(msg.metadata!.completionPhotoUrl!, "_blank")}
-              />
+              <PhotoViewer src={msg.metadata.completionPhotoUrl} />
             )}
             <p className="text-xs text-green-700 font-medium mt-2">{msg.content}</p>
           </div>
@@ -1206,36 +1299,40 @@ export default function ChatPage() {
       {feedback && <Notification message={feedback.message} type={feedback.type} onClose={() => setFeedback(null)} />}
       {/* Chat Column */}
       <div className="conversation-panel flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-y border-r border-[var(--border-color)] bg-[var(--bg-card-solid)] xl:border-l">
-        {/* Chat Header */}
-        <div className="conversation-header flex shrink-0 items-center gap-3 border-b border-[var(--border-soft)] bg-white/95 px-3 py-3 backdrop-blur sm:px-4">
-          <Link
-            href="/dashboard/messages"
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]"
-            aria-label="Back to messages"
-          >
-            <ArrowLeft className="w-5 h-5" />
+        {/* Floating glass header */}
+        <div className="chat-float-top">
+          <Link href="/dashboard/messages" className="glass-pill glass-icon" aria-label="Back to messages">
+            <ArrowLeft className="h-5 w-5" />
           </Link>
-          <button type="button" onClick={() => { setRightPanelView("profile"); setShowMobileTasksSheet(true); }} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={`View ${otherUser?.displayName || "user"} profile details`}>
-            <UserAvatar photoURL={(otherUser as unknown as Record<string, string> | null)?.avatar} logoURL={(otherUser as unknown as Record<string, string> | null)?.logoUrl} role={otherUser?.role} displayName={otherUser?.displayName} size={40} />
-            <span className="min-w-0"><span className="block truncate font-semibold">{otherUser?.displayName || "User"}</span><span className="block truncate text-xs text-[var(--text-muted)]">{[otherUser?.city, otherUser?.province].filter(Boolean).join(", ") || "View profile"}</span></span>
+          <button type="button" onClick={() => { setRightPanelView("profile"); setShowMobileTasksSheet(true); }} className="glass-pill glass-contact" aria-label={`View ${otherUser?.displayName || "user"} profile details`}>
+            <UserAvatar photoURL={(otherUser as unknown as Record<string, string> | null)?.avatar} logoURL={(otherUser as unknown as Record<string, string> | null)?.logoUrl} role={otherUser?.role} displayName={otherUser?.displayName} size={34} />
+            <span className="truncate text-sm font-semibold">{otherUser?.displayName || "User"}</span>
           </button>
           {callHref
-            ? <a href={callHref} className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[var(--border-soft)] text-[#14734f] transition hover:bg-[var(--bg-secondary)]" aria-label={`Call ${otherUser?.displayName || "contact"} at ${formatPhone(otherUser?.phone)}`} title={formatPhone(otherUser?.phone)}><Phone className="h-5 w-5" /></a>
-            : <span role="img" className="grid h-10 w-10 shrink-0 cursor-not-allowed place-items-center rounded-full border border-[var(--border-soft)] text-[#c3cbd0]" aria-label="Phone number shared after a completed job" title="Phone number shared after a completed job"><Phone className="h-5 w-5" /></span>}
-          <button type="button" onClick={() => setChatArchived(chatId, !chatArchived).then(() => notify(chatArchived ? "Chat moved back to Messages." : "Chat archived.", "success"), () => notify("Could not update archive. Try again.", "error"))} className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[var(--text-muted)] transition hover:bg-[var(--bg-secondary)]" aria-label={chatArchived ? "Unarchive chat" : "Archive chat"} title={chatArchived ? "Unarchive" : "Archive"}>
-            {chatArchived ? <ArchiveRestore className="h-5 w-5" /> : <Archive className="h-5 w-5" />}
-          </button>
-          <SupportChatButton inline />
-          <button type="button" onClick={() => { setRightPanelView("updates"); setShowMobileTasksSheet(true); }} className="rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-[var(--bg-secondary)]" aria-label="Conversation options">
+            ? <a href={callHref} className="glass-pill glass-icon glass-call" aria-label={`Call ${otherUser?.displayName || "contact"} at ${formatPhone(otherUser?.phone)}`} title={formatPhone(otherUser?.phone)}><Phone className="h-5 w-5" /></a>
+            : <span role="img" className="glass-pill glass-icon glass-disabled" aria-label="Phone number shared after a completed job" title="Phone number shared after a completed job"><Phone className="h-5 w-5" /></span>}
+          <button type="button" onClick={() => { setRightPanelView("updates"); setShowMobileTasksSheet(true); }} className="glass-pill glass-icon" aria-label="Conversation options">
             <MoreHorizontal className="h-5 w-5" />
           </button>
         </div>
 
-        <OrderChatPinned jobs={openJobs} uid={user?.uid || ""} />
+        {openJobs.length > 0 && !keyboardOpen && (
+          <a
+            href={`#order-${openJobs.at(-1)!.id}`}
+            className="chat-float-order glass-pill"
+            onClick={(event) => {
+              event.preventDefault();
+              document.getElementById(`order-${openJobs.at(-1)!.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+          >
+            <Briefcase className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span className="truncate text-xs font-semibold">Order #{orderNumber(openJobs.at(-1)!)} · {orderLabel(openJobs.at(-1)!)}</span>
+          </a>
+        )}
 
         {(chatLoadError || messageLoadError) && <div role="alert" className="shrink-0 border-b border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{chatLoadError || messageLoadError} <button type="button" className="min-h-11 font-semibold underline" onClick={() => window.location.reload()}>Reload</button></div>}
         {/* Messages */}
-        <div role="log" aria-label="Conversation" className="chat-history min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain bg-[var(--bg-primary)] p-3 sm:p-5">
+        <div role="log" aria-label="Conversation" className="chat-history min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain bg-[var(--bg-primary)] p-3 pt-[76px] sm:p-5 sm:pt-[84px]">
           {timeline.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center py-12 text-[var(--text-muted)]">
               <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border-[3px] border-[var(--border-soft)] bg-white shadow-[var(--surface-shadow)]">
@@ -1395,7 +1492,34 @@ export default function ChatPage() {
                   </div>
                 )}
                 <div className={item.job ? orderChatStyles.section : undefined} data-order={item.job?.id}>
-                  {renderMessage(message)}
+                  {isPersonType(message.type) ? (
+                    <div
+                      className="msg-actionable"
+                      onContextMenu={(e) => { e.preventDefault(); openActionMenu(message, e.clientX, e.clientY); }}
+                      onTouchStart={(e) => {
+                        const t = e.touches[0];
+                        cancelPress();
+                        pressTimer.current = setTimeout(() => { navigator.vibrate?.(10); openActionMenu(message, t.clientX, t.clientY); }, 450);
+                      }}
+                      onTouchMove={cancelPress}
+                      onTouchEnd={cancelPress}
+                      onTouchCancel={cancelPress}
+                    >
+                      {message.replyTo && (
+                        <div className={`msg-quote ${message.senderId === user?.uid ? "self" : ""}`}>
+                          <strong>{message.replyTo.senderName}</strong> {message.replyTo.content}
+                        </div>
+                      )}
+                      {renderMessage(message)}
+                      {message.reactions && Object.keys(message.reactions).length > 0 && (
+                        <div className={`msg-reactions ${message.senderId === user?.uid ? "self" : ""}`}>
+                          {Object.entries(Object.values(message.reactions).reduce<Record<string, number>>((acc, e) => ({ ...acc, [e]: (acc[e] || 0) + 1 }), {})).map(([emoji, n]) => (
+                            <button key={emoji} type="button" onClick={() => toggleReaction(message, emoji)} data-mine={message.reactions?.[user?.uid || ""] === emoji}>{emoji}{n > 1 ? ` ${n}` : ""}</button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : renderMessage(message)}
                 </div>
               </React.Fragment>
             );
@@ -1404,7 +1528,7 @@ export default function ChatPage() {
         </div>
 
         {/* Message Input */}
-        <div className="conversation-composer sticky bottom-0 z-20 shrink-0 border-t border-[var(--border-soft)] bg-white/95 px-2.5 pb-[max(10px,env(safe-area-inset-bottom))] pt-2.5 shadow-[var(--surface-shadow)] backdrop-blur sm:px-4">
+        <div className={`conversation-composer ${keyboardOpen ? "kb-open" : ""} sticky bottom-0 z-20 shrink-0 border-t border-[var(--border-soft)] bg-white/95 px-2.5 pb-[max(10px,env(safe-area-inset-bottom))] pt-2.5 shadow-[var(--surface-shadow)] backdrop-blur sm:px-4`}>
           <input
             ref={chatAttachInputRef}
             type="file"
@@ -1421,9 +1545,28 @@ export default function ChatPage() {
             className="hidden"
           />
 
-          <div className="quick-replies" aria-label="Quick replies">{quickReplies.map(reply => <button key={reply} type="button" onClick={() => { setNewMessage(reply); composerRef.current?.focus(); }}>{reply}</button>)}</div>
-          {isRecordingVoice && <p role="status" className="mb-2 text-sm font-semibold text-red-600">Recording… Tap stop to send your voice message.</p>}
+          <div className="quick-replies hidden sm:flex" aria-label="Quick replies">{quickReplies.map(reply => <button key={reply} type="button" onClick={() => { setNewMessage(reply); composerRef.current?.focus(); }}>{reply}</button>)}</div>
+          {replyTo && (
+            <div className="reply-bar">
+              <span className="min-w-0 truncate"><strong>Replying to {replyTo.senderId === user?.uid ? "yourself" : replyTo.senderName}</strong> {replyTo.type === "text" ? replyTo.content : `[${replyTo.type}]`}</span>
+              <button type="button" onClick={() => setReplyTo(null)} aria-label="Cancel reply"><X className="h-4 w-4" /></button>
+            </div>
+          )}
           {sendError && <p role="alert" className="mb-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{sendError}</p>}
+          {isRecordingVoice ? (
+            <div className="rec-bar" role="status" aria-label="Recording voice message">
+              <button type="button" className="rec-cancel" onClick={cancelVoiceRecorder} aria-label="Discard recording"><Trash2 className="h-5 w-5" /></button>
+              <span className="rec-dot" aria-hidden="true" />
+              <span className="rec-time">{Math.floor(recSeconds / 60)}:{String(recSeconds % 60).padStart(2, "0")}</span>
+              <div className="rec-wave" aria-hidden="true">
+                {Array.from({ length: 44 }, (_, i) => {
+                  const level = recLevels[recLevels.length - 44 + i];
+                  return <span key={i} data-live={level !== undefined} style={{ height: `${Math.round(Math.max(0.12, level ?? 0.12) * 100)}%` }} />;
+                })}
+              </div>
+              <button type="button" className="rec-send" onClick={stopVoiceRecorder} aria-label="Send voice message"><Send className="h-5 w-5" /></button>
+            </div>
+          ) : (
           <form onSubmit={handleSubmit} className="flex items-end gap-1 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card-solid)] p-1.5">
             <button type="button" onClick={() => chatAttachInputRef.current?.click()} className="min-h-11 rounded-xl px-2.5 text-[var(--text-muted)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]" aria-label="Attach photo" title="Attach photo"><Paperclip className="h-5 w-5" /></button>
             <button type="button" onClick={handleOpenCameraUpload} disabled={creatingGuestUploadLink} className="min-h-11 rounded-xl px-2.5 text-[var(--text-muted)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] disabled:opacity-50" aria-label="Take photo" title="Take photo"><Camera className="h-5 w-5" /></button>
@@ -1466,14 +1609,35 @@ export default function ChatPage() {
               </button>
             )}
           </form>
+          )}
           <p className="mt-1.5 hidden text-center text-[11px] text-[var(--text-muted)] xl:block">
             Press Enter to send. Shift + Enter adds a line.
           </p>
         </div>
       </div>
 
+      {actionMenu && (
+        <>
+          <div className="msg-menu-backdrop" onClick={() => setActionMenu(null)} onContextMenu={(e) => { e.preventDefault(); setActionMenu(null); }} />
+          <div className="msg-menu" style={{ left: actionMenu.x, top: actionMenu.y }} role="menu">
+            <div className="msg-menu-emojis">
+              {REACTIONS.map((emoji) => (
+                <button key={emoji} type="button" role="menuitem" onClick={() => toggleReaction(actionMenu.msg, emoji)} aria-label={`React ${emoji}`}>{emoji}</button>
+              ))}
+            </div>
+            <button type="button" role="menuitem" className="msg-menu-reply" onClick={() => { setReplyTo(actionMenu.msg); setActionMenu(null); composerRef.current?.focus(); }}>Reply</button>
+          </div>
+        </>
+      )}
+
       <Modal isOpen={showMobileTasksSheet && !showCashPayment && !showCancelPopup && !quickCommConfirmation && !showMapModal && !showCheckout && !showReportModal && !showCameraQrModal} onClose={() => setShowMobileTasksSheet(false)} title="Conversation details" size="lg">
         <div className="chat-details">
+            <div className="mb-4 flex items-center gap-2">
+              <button type="button" onClick={() => setChatArchived(chatId, !chatArchived).then(() => notify(chatArchived ? "Chat moved back to Messages." : "Chat archived.", "success"), () => notify("Could not update archive. Try again.", "error"))} className="btn-secondary inline-flex flex-1 items-center justify-center gap-2 px-3 py-2.5 text-sm">
+                {chatArchived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}{chatArchived ? "Unarchive" : "Archive"}
+              </button>
+              <SupportChatButton inline />
+            </div>
             <div className="mb-4 flex items-center gap-2 rounded-xl border-[3px] border-[var(--border-soft)] bg-[var(--bg-secondary)] p-1">
               <button
                 type="button"
