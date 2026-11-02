@@ -1,0 +1,27 @@
+{
+	"appId": "ca.snowd.app",
+	"appName": "SNOWD",
+	"webDir": "www",
+	"server": {
+		"url": "https://www.snowd.ca/mobile",
+		"errorPath": "offline.html",
+		"cleartext": false
+	},
+	"ios": {
+		"contentInset": "never",
+		"backgroundColor": "#050b16",
+		"preferredContentMode": "mobile"
+	},
+	"android": {
+		"allowMixedContent": false
+	},
+	"plugins": {
+		"FirebaseAuthentication": {
+			"skipNativeAuth": true,
+			"providers": [
+				"google.com",
+				"apple.com"
+			]
+		}
+	}
+}

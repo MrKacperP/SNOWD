@@ -69,3 +69,8 @@ mobile/ios/**/build/
 firestore-debug.log
 *.tsbuildinfo
 .claude/
+local.properties
+xcuserdata/
+**/public/
+mobile/node_modules/
+Pods/
