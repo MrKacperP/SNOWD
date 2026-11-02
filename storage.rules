@@ -2,7 +2,8 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     function isSignedIn() {
-      return request.auth != null;
+      return request.auth != null
+        && !firestore.exists(/databases/(default)/documents/accountDeletionTombstones/$(request.auth.uid));
     }
 
     function isSelf(uid) {
@@ -32,19 +33,19 @@ service firebase.storage {
     // Branding assets (logo, portfolio via settings page)
     match /branding/{userId}/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow write: if isSelf(userId);
     }
 
     // Portfolio photos
     match /portfolio/{userId}/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow write: if isSelf(userId);
     }
     
     // Avatars
     match /avatars/{userId}/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow write: if isSelf(userId);
     }
 
     // Client property photos shown only to signed-in marketplace participants.

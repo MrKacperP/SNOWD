@@ -1,6 +1,12 @@
 /** User-facing recovery guidance shared by Google login and signup. */
-export function googleSignInError(error: unknown): string {
+export function googleSignInError(error: unknown, native = false): string {
   const code = typeof error === "object" && error !== null && "code" in error ? error.code : "";
+  if (native) {
+    if (code === "auth/network-request-failed") return "Google sign-in couldn’t connect. Check your connection and try again.";
+    if (code === "auth/account-exists-with-different-credential") return "This email already has an account. Sign in using the method you used before.";
+    if (code === "auth/operation-not-allowed") return "Google sign-in is unavailable right now. Please contact support.";
+    return "Google sign-in couldn’t finish in the app. Please try again.";
+  }
   switch (code) {
     case "auth/popup-closed-by-user":
       return "Google sign-in was closed before it finished. Select Continue with Google to try again.";

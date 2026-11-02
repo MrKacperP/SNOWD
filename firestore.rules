@@ -4,7 +4,9 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     function isSignedIn() {
-      return request.auth != null && (!exists(/databases/$(database)/documents/users/$(request.auth.uid)) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get("disabled", false) != true);
+      return request.auth != null
+        && !exists(/databases/$(database)/documents/accountDeletionTombstones/$(request.auth.uid))
+        && (!exists(/databases/$(database)/documents/users/$(request.auth.uid)) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get("disabled", false) != true);
     }
 
     function isSelf(uid) {
@@ -139,6 +141,21 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Blocking is enforced for both participants, not only hidden in the app.
+    match /userBlocks/{ownerId}/users/{blockedId} {
+      allow read: if isSelf(ownerId);
+      allow create: if isSelf(ownerId) && blockedId != ownerId
+        && request.resource.data.keys().hasOnly(["createdAt"]);
+      allow delete: if isSelf(ownerId);
+      allow update: if false;
+    }
+    function chatAllowsMessages(chatId) {
+      let chat = getAfter(/databases/$(database)/documents/chats/$(chatId)).data;
+      return chat.participants.size() == 2
+        && !exists(/databases/$(database)/documents/userBlocks/$(chat.participants[0])/users/$(chat.participants[1]))
+        && !exists(/databases/$(database)/documents/userBlocks/$(chat.participants[1])/users/$(chat.participants[0]));
+    }
+
     // ── Messages ───────────────────────────────────────────────────────────
     match /messages/{messageId} {
       allow read: if isSignedIn() && (
@@ -153,6 +170,7 @@ service cloud.firestore {
           request.resource.data.senderId in [request.auth.uid, "system"])
       ) &&
       (request.resource.data.chatId is string &&
+        (isAdminOrEmployee() || chatAllowsMessages(request.resource.data.chatId)) &&
         isParticipant(getAfter(/databases/$(database)/documents/chats/$(request.resource.data.chatId)).data) &&
         getAfter(/databases/$(database)/documents/chats/$(request.resource.data.chatId)).data.get("legacyHistory", false) != true &&
         // One chat per pair: a message belongs to one of the chat's work orders, or to none.
@@ -171,6 +189,7 @@ service cloud.firestore {
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(["reactions"])
         ) ||
         (resource.data.senderId is string && resource.data.senderId == request.auth.uid &&
+          chatAllowsMessages(resource.data.chatId) &&
           !request.resource.data.diff(resource.data).affectedKeys().hasAny(["chatId", "jobId", "senderId"]) &&
           get(/databases/$(database)/documents/chats/$(resource.data.chatId)).data.get("legacyHistory", false) != true);
       allow delete: if isAdminOrEmployee() ||

@@ -1,0 +1,16 @@
+{
+  "appleSigningAndBundleId": "",
+  "applePayMerchantAndCertificate": "",
+  "googlePayProductionApproval": "",
+  "firebaseNativeProviders": "",
+  "appleTokenRevocationOnDeletion": "",
+  "deletionProcessAndRetentionApproved": "",
+  "storageAccessRulesAudited": "",
+  "moderationProcessReady": "",
+  "firestoreRulesDeployed": "",
+  "iosDeviceEndToEnd": "",
+  "androidDeviceEndToEnd": "",
+  "privacyLabelsAndDataSafety": "",
+  "storeScreenshotsAndReviewAccounts": "",
+  "signedArchivesValidated": ""
+}

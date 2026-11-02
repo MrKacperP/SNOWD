@@ -9,6 +9,8 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { sendPasswordResetEmail, setPersistence, browserLocalPersistence, browserSessionPersistence } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import AuthPageShell from "@/components/AuthPageShell";
+import AppleSignInButton from "@/components/native/AppleSignInButton";
+import { useNativeApp } from "@/hooks/useNativeApp";
 import AuthStepsAside from "@/components/AuthStepsAside";
 import LoadingScreen from "@/components/LoadingScreen";
 import { ArrowRight, Eye, EyeOff } from "lucide-react";
@@ -18,6 +20,7 @@ const ADMIN_EMAILS = ["kacperprymicz@gmail.com"];
 
 function LoginPageInner() {
   const { user, profile, loading: authLoading, signInWithGoogle, signInWithEmailPassword } = useAuth();
+  const native = useNativeApp();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -96,7 +99,7 @@ function LoginPageInner() {
       const [, googleUser] = await Promise.all([persistence, signInWithGoogle()]);
       await checkProfileAndRedirect(googleUser.uid);
     } catch (err: unknown) {
-      setError(googleSignInError(err));
+      setError(googleSignInError(err, native));
     } finally {
       setLoading(false);
     }
@@ -213,6 +216,7 @@ function LoginPageInner() {
               </svg>
               Continue with Google
             </button>
+            <AppleSignInButton onSuccess={checkProfileAndRedirect} />
 
             <p className="mt-3 text-sm font-bold text-[#061321]/62">
               Don&apos;t have an account?{" "}

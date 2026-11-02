@@ -14,6 +14,8 @@ import Notification from "@/components/Notification";
 
 
 import StripeOnboarding from "@/components/StripeOnboarding";
+import NativeSettingsLink from "@/components/native/NativeSettingsLink";
+import { isNativeApp } from "@/lib/native";
 import { stripeConnectFetch } from "@/lib/stripeConnectClient";
 
 import ServiceAreaEditor from "@/components/ServiceAreaEditor";
@@ -847,10 +849,12 @@ export default function SettingsPage() {
 
           {saveBar}
 
+          <NativeSettingsLink />
+
           <section className={styles.dangerZone}>
             <h2 className={styles.cardTitle}>Delete account</h2>
             <p className={styles.sectionDescription}>Permanently removes your profile and sign-in. Shared job, payment and support records may be kept for service and legal purposes.</p>
-            <button type="button" onClick={() => setDeleteOpen(true)} disabled={deletingAccount} className={styles.dangerButton}>
+            <button type="button" onClick={() => { if (isNativeApp()) router.push("/account/delete"); else setDeleteOpen(true); }} disabled={deletingAccount} className={styles.dangerButton}>
               {deletingAccount ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
               {deletingAccount ? "Deleting account…" : "Delete account"}
             </button>

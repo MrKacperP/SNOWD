@@ -1,0 +1,28 @@
+{
+  "name": "snowd-native",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "sync": "node scripts/prepare-offline.mjs && cap sync && node scripts/post-sync.mjs",
+    "ios": "cap open ios",
+    "android": "cap open android",
+    "check": "node scripts/release-check.mjs"
+  },
+  "dependencies": {
+    "@capacitor/core": "8.6.0",
+    "@capacitor/ios": "8.6.0",
+    "@capacitor/android": "8.6.0",
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/network": "^8.0.0",
+    "@capacitor/preferences": "^8.0.0",
+    "@capacitor/browser": "^8.0.0",
+    "@capacitor/geolocation": "^8.0.0",
+    "@capacitor/haptics": "^8.0.0",
+    "@capacitor-community/stripe": "8.3.0",
+    "@capacitor-firebase/authentication": "8.5.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.6.0",
+    "typescript": "^5.0.0"
+  }
+}

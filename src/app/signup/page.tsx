@@ -8,12 +8,15 @@ import { googleSignInError } from "@/lib/authErrors";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import AuthPageShell from "@/components/AuthPageShell";
+import AppleSignInButton from "@/components/native/AppleSignInButton";
+import { useNativeApp } from "@/hooks/useNativeApp";
 import AuthStepsAside from "@/components/AuthStepsAside";
 import { ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 
 function SignUpPageInner() {
   const { user, profile, loading: authLoading, signInWithGoogle } = useAuth();
+  const native = useNativeApp();
   const router = useRouter();
   const params = useSearchParams();
   const role = params.get("role");
@@ -50,7 +53,7 @@ function SignUpPageInner() {
       const googleUser = await signInWithGoogle();
       await checkExistingProfile(googleUser.uid);
     } catch (err: unknown) {
-      setError(googleSignInError(err));
+      setError(googleSignInError(err, native));
     } finally {
       setLoading(false);
     }
@@ -91,6 +94,7 @@ function SignUpPageInner() {
                 <ArrowRight className="ml-2 h-5 w-5" strokeWidth={3} />
               ) : null}
             </button>
+            <AppleSignInButton onSuccess={checkExistingProfile} />
           </div>
 
 

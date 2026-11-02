@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     }
 
     const stripe = getStripe();
-    const { accountId } = await req.json();
+    const { accountId, native } = await req.json();
 
     if (!accountId) {
       return NextResponse.json({ error: "Missing accountId" }, { status: 400 });
@@ -27,8 +27,8 @@ export async function POST(req: NextRequest) {
     const origin = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
-      refresh_url: `${origin}/dashboard/settings?stripe=refresh`,
-      return_url: `${origin}/dashboard/settings?stripe=success&account=${accountId}`,
+      refresh_url: native === true ? `${origin}/mobile/connect-return` : `${origin}/dashboard/settings?stripe=refresh`,
+      return_url: native === true ? `${origin}/mobile/connect-return` : `${origin}/dashboard/settings?stripe=success&account=${accountId}`,
       type: "account_onboarding",
     });
 

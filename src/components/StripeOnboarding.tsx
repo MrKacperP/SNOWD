@@ -1,11 +1,13 @@
 "use client";
 
+import NativeStripeOnboarding from "@/components/native/NativeStripeOnboarding";
+import { useNativeApp } from "@/hooks/useNativeApp";
 import { useState } from "react";
 import { loadConnectAndInitialize } from "@stripe/connect-js/pure";
 import { ConnectAccountOnboarding, ConnectComponentsProvider } from "@stripe/react-connect-js";
 import { stripeConnectFetch } from "@/lib/stripeConnectClient";
 
-export default function StripeOnboarding({ accountId, onExit }: { accountId: string; onExit: () => void }) {
+function WebStripeOnboarding({ accountId, onExit }: { accountId: string; onExit: () => void }) {
   const [error, setError] = useState("");
   const [instance] = useState(() => loadConnectAndInitialize({
     publishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "",
@@ -30,4 +32,8 @@ export default function StripeOnboarding({ accountId, onExit }: { accountId: str
     </ConnectComponentsProvider>
     <button onClick={onExit} className="mt-3 text-sm underline">Close setup and check payment status</button>
   </div>;
+}
+
+export default function StripeOnboarding(props: { accountId: string; onExit: () => void }) {
+  return useNativeApp() ? <NativeStripeOnboarding {...props} /> : <WebStripeOnboarding {...props} />;
 }

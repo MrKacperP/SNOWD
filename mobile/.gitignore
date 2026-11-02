@@ -1,0 +1,11 @@
+node_modules/
+ios/App/GoogleService-Info.plist
+ios/App/App/GoogleService-Info.plist
+android/app/google-services.json
+android/local.properties
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+build/
+release-evidence.local.json

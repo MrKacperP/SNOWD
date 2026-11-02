@@ -1,0 +1,50 @@
+html[data-native-app] { overscroll-behavior-y: none; }
+html[data-native-app] body { -webkit-tap-highlight-color: transparent; }
+html[data-native-app] input, html[data-native-app] select, html[data-native-app] textarea { font-size: max(16px, 1em); }
+.native-connection { position:fixed; z-index:10000; top:env(safe-area-inset-top,0px); left:12px; right:12px; padding:14px 18px; background:var(--ink); color:white; border-radius:14px; font-size:14px; box-shadow:0 4px 24px #142e3522; }
+.native-connection button { margin-left:12px; text-decoration:underline; min-height:44px; }
+.native-page { min-height:100dvh; background:var(--bg-primary); color:var(--ink); padding:max(20px, env(safe-area-inset-top)) 24px max(28px, env(safe-area-inset-bottom)); }
+.native-content { max-width:480px; margin:auto; }
+.native-header { display:flex; align-items:center; justify-content:space-between; gap:16px; min-height:48px; margin-bottom:30px; }
+.native-header a { display:inline-flex; align-items:center; min-height:44px; gap:8px; }
+.native-brand { font-size:27px; font-weight:800; letter-spacing:-1px; }
+.native-brand span { color:var(--accent); }
+.native-page h1 { font-size:clamp(32px,8vw,44px); font-weight:700; line-height:1.1; letter-spacing:-1.4px; margin:16px 0; }
+.native-page h2 { font-size:20px; font-weight:650; margin:0 0 8px; }
+.native-page p { line-height:1.65; color:var(--text-secondary); margin:12px 0; }
+.native-page .native-intro { font-size:18px; }
+.native-card { padding:20px; background:white; border:1px solid #dce5eb; border-radius:22px; margin:16px 0; }
+.native-card a { text-decoration:underline; text-underline-offset:4px; }
+.native-choice { display:flex; width:100%; align-items:center; text-align:left; gap:16px; border-radius:20px; background:white; border:1px solid #cddce5; padding:20px; margin:12px 0; min-height:88px; }
+.native-choice strong { display:block; font-size:18px; }.native-choice small { color:var(--text-secondary); display:block; margin-top:3px; }
+.native-primary { display:flex; align-items:center; justify-content:center; gap:10px; width:100%; min-height:52px; border-radius:16px; color:var(--ink); background:var(--accent); font-weight:750; padding:14px 20px; margin:16px 0; }
+.native-primary:disabled { opacity:.5; }
+.native-onboarding { padding-bottom:140px; }
+.native-onboarding-actions { position:fixed; z-index:40; bottom:0; left:0; right:0; padding:12px 24px max(20px,env(safe-area-inset-bottom)); background:linear-gradient(transparent,var(--bg-primary) 12px); }
+.native-onboarding-actions .native-primary { max-width:480px; margin:0 auto; box-shadow:0 4px 16px #142e3518; }
+.native-secondary { display:flex; align-items:center; justify-content:center; min-height:48px; padding:12px; width:100%; text-decoration:underline; }
+.native-links { display:flex; flex-wrap:wrap; justify-content:center; gap:8px 20px; font-size:14px; margin-top:24px; }
+.native-links a { display:inline-flex; align-items:center; min-height:44px; text-decoration:underline; }
+.native-policy { max-width:680px; }.native-policy section { margin:32px 0; }.native-policy ul { padding-left:24px; list-style:disc; color:var(--text-secondary); line-height:1.7; }
+.native-auth-page { display:flex; min-height:100dvh; }
+.native-auth-page .native-content { display:flex; flex:1; flex-direction:column; width:100%; }
+.native-auth-intro { margin:auto 0; }
+.native-auth-intro > p:first-of-type { color:var(--accent); font-size:14px; font-weight:700; }
+.native-auth-check { display:inline-flex; justify-content:center; align-items:center; width:64px; height:64px; border-radius:20px; background:#e8f5ec; color:#136d36; font-size:32px; }
+.native-auth-actions { margin-top:auto; }
+.native-auth-actions .native-primary { margin:12px 0 0; }
+.native-auth-actions > div { margin:0; }
+.native-auth-actions > div button { min-height:52px; width:100%; border-radius:16px; }
+.native-auth-error { padding:12px; border-radius:12px; background:#fff0ef; color:#9f2424!important; }
+.native-auth-terms { margin:12px 0 0!important; font-size:12px; text-align:center; }
+.native-auth-terms a { text-decoration:underline; }
+.native-email-login { margin-top:14px; }
+.native-email-login summary { min-height:44px; padding:12px 0; text-align:center; text-decoration:underline; }
+.native-email-login label { display:block; margin:12px 0; font-size:14px; font-weight:600; }
+.native-email-login input { display:block; width:100%; min-height:52px; margin-top:6px; padding:12px; border:1px solid #b9cbd6; border-radius:12px; background:white; }
+@media (prefers-reduced-motion: reduce) { html[data-native-app] *, html[data-native-app] *::before, html[data-native-app] *::after { scroll-behavior:auto!important; animation-duration:.01ms!important; transition-duration:.01ms!important; } }
+html[data-native-app], html[data-native-app] body { background:var(--bg-primary); overscroll-behavior:none; }
+/* Development controls never cover the installed app's navigation. */
+html[data-native-app] nextjs-portal { display:none!important; }
+/* Scrolling pages must not paint text behind the phone's status bar/cutout. */
+html[data-native-app] body::before { content:""; position:fixed; inset-inline:0; top:0; height:env(safe-area-inset-top); background:var(--bg-primary); z-index:60; pointer-events:none; }

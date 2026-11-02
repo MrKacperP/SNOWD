@@ -1,4 +1,5 @@
 // Firebase Configuration
+import { isNativeApp } from "@/lib/native";
 import { initializeApp, getApps, FirebaseApp } from "firebase/app";
 import { getAuth, Auth, connectAuthEmulator } from "firebase/auth";
 import { getFirestore, initializeFirestore, Firestore, connectFirestoreEmulator } from "firebase/firestore";
@@ -97,7 +98,7 @@ export const storage: FirebaseStorage = storageInstance!;
 
 // Initialize Analytics (only in browser)
 export const analytics: Promise<Analytics | null> | null = 
-  typeof window !== 'undefined' && app! && canUseAnalytics
+  typeof window !== 'undefined' && !isNativeApp() && app! && canUseAnalytics
     ? isSupported().then(yes => yes ? getAnalytics(app!) : null)
     : null;
 

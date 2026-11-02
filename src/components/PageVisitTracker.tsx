@@ -7,6 +7,7 @@
  * Renders nothing — purely a side-effect component.
  */
 
+import { isNativeApp } from "@/lib/native";
 import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { sendAdminNotif } from "@/lib/adminNotifications";
@@ -20,7 +21,7 @@ export default function PageVisitTracker() {
   const reportedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    if (!pathname) return;
+    if (!pathname || isNativeApp()) return;
     if (IGNORED_PREFIXES.some((p) => pathname.startsWith(p))) return;
     if (reportedRef.current.has(pathname)) return;
 

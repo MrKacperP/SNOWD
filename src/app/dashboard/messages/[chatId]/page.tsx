@@ -13,6 +13,7 @@ import CancellationPopup from "@/components/CancellationPopup";
 import StatusBadge from "@/components/StatusBadge";
 import StripeCheckout from "@/components/StripeCheckout";
 import SupportChatButton from "@/components/SupportChatButton";
+import NativeSafetyLink from "@/components/native/NativeSafetyLink";
 import Notification from "@/components/Notification";
 import Modal from "@/components/ui/Modal";
 import UserAvatar from "@/components/UserAvatar";
@@ -1638,6 +1639,7 @@ export default function ChatPage() {
               </button>
               <SupportChatButton inline />
             </div>
+            <NativeSafetyLink uid={otherUser?.uid} />
             <div className="mb-4 flex items-center gap-2 rounded-xl border-[3px] border-[var(--border-soft)] bg-[var(--bg-secondary)] p-1">
               <button
                 type="button"

@@ -5,6 +5,7 @@ import SnowHaze from "@/components/SnowHaze";
 import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import BrowserSupport from "@/components/support/BrowserSupport";
+import NativeShell from "@/components/native/NativeShell";
 import PageVisitTracker from "@/components/PageVisitTracker";
 import PrimaryActionShine from "@/components/ui/PrimaryActionShine";
 import { Instrument_Sans, Space_Grotesk } from "next/font/google";
@@ -66,6 +67,7 @@ export default function RootLayout({
         <SnowHaze />
         <ThemeProvider><AuthProvider>
           <BrowserSupport>
+            <NativeShell />
             <PageVisitTracker />
             <PrimaryActionShine />
             {children}

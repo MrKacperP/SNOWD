@@ -13,6 +13,7 @@ import {
 import { arrayUnion, deleteDoc, doc, getDoc, onSnapshot, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db, isFirebaseConfigured } from "@/lib/firebase";
 import { UserProfile, ClientProfile, OperatorProfile } from "@/lib/types";
+import { isNativeApp, nativeSignIn, NativeAuth } from "@/lib/native";
 import { sendAdminNotif } from "@/lib/adminNotifications";
 
 interface AuthContextType {
@@ -135,7 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const provider = new GoogleAuthProvider();
-    const cred = await signInWithPopup(auth, provider);
+    const cred = isNativeApp() ? await nativeSignIn("google") : await signInWithPopup(auth, provider);
     sendAdminNotif({
       type: "login",
       message: `User logged in: ${cred.user.email ?? "Google user"}`,
@@ -176,6 +177,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setProfile(null);
     await firebaseSignOut(auth);
+    if (isNativeApp()) await NativeAuth.signOut().catch(() => {});
   };
 
   const deleteAccount = async () => {

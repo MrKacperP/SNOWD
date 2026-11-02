@@ -1,5 +1,7 @@
 "use client";
 
+import NativeCheckout from "@/components/native/NativeCheckout";
+import { useNativeApp } from "@/hooks/useNativeApp";
 import React, { useState, useRef, useMemo } from "react";
 import {
   Elements,
@@ -135,7 +137,7 @@ interface StripeCheckoutProps {
   onCancel: () => void;
 }
 
-export default function StripeCheckout({
+function WebStripeCheckout({
   clientSecret,
   stripeAccount,
   amount,
@@ -178,4 +180,8 @@ export default function StripeCheckout({
           </Elements>
     </Modal>
   );
+}
+
+export default function StripeCheckout(props: StripeCheckoutProps) {
+  return useNativeApp() ? <NativeCheckout {...props} /> : <WebStripeCheckout {...props} />;
 }
