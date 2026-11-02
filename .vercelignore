@@ -10,3 +10,4 @@ firestore-debug.log
 *.dst
 *.swift
 wordmark-paths.json
+mobile
