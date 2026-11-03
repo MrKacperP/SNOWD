@@ -1,0 +1,84 @@
+{
+  "expo": {
+    "name": "SNOWD",
+    "slug": "snowd",
+    "scheme": "snowd",
+    "version": "2.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#f6f8fb",
+    "ios": {
+      "bundleIdentifier": "ca.snowd.app",
+      "appleTeamId": "9LS8P5N78V",
+      "supportsTablet": false,
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "SNOWD uses your location to show nearby shovelers and to share your ETA with customers.",
+        "NSCameraUsageDescription": "SNOWD uses the camera to send photos in chat and to confirm finished jobs.",
+        "NSPhotoLibraryUsageDescription": "SNOWD lets you choose photos to send in chat and to confirm finished jobs.",
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.119102068229-6fd835k0ef8a72mur4lcbn19rgf5lflc"
+            ]
+          }
+        ]
+      }
+    },
+    "android": {
+      "package": "ca.snowd.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#f6f8fb",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "CAMERA"
+      ],
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      "expo-router",
+      "expo-image",
+      "expo-web-browser",
+      "expo-font",
+      "expo-apple-authentication",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "SNOWD uses your location to show nearby shovelers and to share your ETA with customers."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "SNOWD lets you choose photos to send in chat and to confirm finished jobs.",
+          "cameraPermission": "SNOWD uses the camera to send photos in chat and to confirm finished jobs."
+        }
+      ],
+      [
+        "@stripe/stripe-react-native",
+        {
+          "enableGooglePay": true
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "dynamic",
+            "deploymentTarget": "16.4"
+          }
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": false,
+      "tsconfigPaths": true
+    }
+  }
+}
