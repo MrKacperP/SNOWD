@@ -24,6 +24,7 @@ import { ArrowLeft,Camera,Shield } from "lucide-react";
 import Link from "next/link";
 import { usePathname,useRouter,useSearchParams } from "next/navigation";
 import React,{ Suspense,useEffect,useRef,useState } from "react";
+import { IMAGE_ACCEPT, prepareImageUpload } from "@/lib/imageUpload";
 
 function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const { user, profile, loading, refreshProfile } = useAuth();
@@ -69,12 +70,13 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     if (!file || !user?.uid) return;
     setUploadingId(true);
     try {
-      if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 10 * 1024 * 1024) {
-        setUploadError("Choose a clear JPG, PNG, or WebP image under 10 MB.");
+      if (file.type && !file.type.startsWith("image/")) {
+        setUploadError("Choose a clear photo of your ID.");
         return;
       }
       const storageRef = ref(storage, `verification/${user.uid}/id-photo`);
-      await uploadBytes(storageRef, file);
+      const photo = await prepareImageUpload(file, 3200);
+      await uploadBytes(storageRef, photo, { contentType: photo.type });
       const downloadURL = await getDownloadURL(storageRef);
       await updateDoc(doc(db, "users", user.uid), {
         idPhotoUrl: downloadURL,
@@ -152,7 +154,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                     <div className="mt-3 flex flex-wrap items-center gap-3">
                       {!verificationPending && (
                         <>
-                          <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleIdUpload} className="hidden" />
+                          <input ref={fileInputRef} type="file" accept={IMAGE_ACCEPT} onChange={handleIdUpload} className="hidden" />
                           <button onClick={() => fileInputRef.current?.click()} disabled={uploadingId} className="inline-flex min-h-11 items-center gap-2 btn-cta rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
                             {uploadingId ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" /> : <Camera className="h-4 w-4" />}
                             {uploadingId ? "Submitting…" : verificationRejected ? "Submit a new ID" : "Submit government ID"}

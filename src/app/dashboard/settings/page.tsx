@@ -63,6 +63,7 @@ User
 import { usePathname,useRouter,useSearchParams } from "next/navigation";
 import React,{ useEffect,useState,useRef } from "react";
 import styles from "./settings.module.css";
+import { IMAGE_ACCEPT, prepareImageUpload } from "@/lib/imageUpload";
 
 const SECTIONS = ["general", "properties", "service-areas", "payment", "verification", "notifications", "branding"] as const;
 type Section = typeof SECTIONS[number];
@@ -178,14 +179,15 @@ export default function SettingsPage() {
     const files = Array.from(event.target.files || []);
     if (!profile?.uid || !files.length) return;
     if (propertyPhotos.length + files.length > 6) { setFeedback("You can add up to 6 property photos."); return; }
-    if (files.some(file => !["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024)) { setFeedback("Choose JPG, PNG or WebP images under 5 MB each."); return; }
+    if (files.some(file => file.type && !file.type.startsWith("image/"))) { setFeedback("Choose image files only."); return; }
     setUploadingPropertyPhotos(true);
     setFeedback("");
     try {
       const uploaded: string[] = [];
       for (const file of files) {
         const storageRef = ref(storage, `property-photos/${profile.uid}/${crypto.randomUUID()}`);
-        await uploadBytes(storageRef, file);
+        const photo = await prepareImageUpload(file);
+        await uploadBytes(storageRef, photo, { contentType: photo.type });
         uploaded.push(await getDownloadURL(storageRef));
       }
       const next = [...propertyPhotos, ...uploaded];
@@ -317,7 +319,8 @@ export default function SettingsPage() {
     setUploadingId(true);
     try {
       const storageRef = ref(storage, `verification/${profile.uid}/id-photo`);
-      await uploadBytes(storageRef, file);
+      const photo = await prepareImageUpload(file, 3200);
+      await uploadBytes(storageRef, photo, { contentType: photo.type });
       const url = await getDownloadURL(storageRef);
       await updateDoc(doc(db, "users", profile.uid), {
         idPhotoUrl: url,
@@ -376,11 +379,12 @@ export default function SettingsPage() {
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>, kind: "logo" | "avatar" = "logo") => {
     const file = e.target.files?.[0];
     if (!file || !profile?.uid) return;
-    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) { setFeedback("Choose a JPG, PNG or WebP image under 5 MB."); return; }
+    if (file.type && !file.type.startsWith("image/")) { setFeedback("Choose an image file."); return; }
     setUploadingLogo(true);
     try {
       const storageRef = ref(storage, `branding/${profile.uid}/${kind}/${crypto.randomUUID()}`);
-      await uploadBytes(storageRef, file);
+      const photo = await prepareImageUpload(file);
+      await uploadBytes(storageRef, photo, { contentType: photo.type });
       const url = await getDownloadURL(storageRef);
       if (kind === "avatar") setAvatarUrl(url); else setLogoUrl(url);
       setSaved(false);
@@ -397,14 +401,15 @@ export default function SettingsPage() {
     const files = e.target.files;
     if (!files || files.length === 0 || !profile?.uid) return;
     if (portfolioPhotos.length + files.length > 12) { setFeedback("You can add up to 12 portfolio photos."); return; }
-    if (Array.from(files).some(file => !["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024)) { setFeedback("Choose JPG, PNG or WebP images under 5 MB each."); return; }
+    if (Array.from(files).some(file => file.type && !file.type.startsWith("image/"))) { setFeedback("Choose image files only."); return; }
     setUploadingPortfolio(true);
     try {
       const newUrls: string[] = [];
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const storageRef = ref(storage, `branding/${profile.uid}/portfolio/${crypto.randomUUID()}`);
-        await uploadBytes(storageRef, file);
+        const photo = await prepareImageUpload(file);
+        await uploadBytes(storageRef, photo, { contentType: photo.type });
         const url = await getDownloadURL(storageRef);
         newUrls.push(url);
       }
@@ -883,7 +888,7 @@ export default function SettingsPage() {
             {propertyPhotos.length > 0 && <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{propertyPhotos.map((url, index) => <figure key={url} className="overflow-hidden rounded-xl border bg-white"><Image src={url} alt={`Property clearing area ${index + 1}`} width={480} height={320} unoptimized className="aspect-[3/2] w-full object-cover" /><button type="button" disabled={uploadingPropertyPhotos} onClick={() => removePropertyPhoto(index)} className="min-h-11 w-full font-semibold text-red-700 disabled:opacity-50">Remove photo</button></figure>)}</div>}
             {propertyPhotos.length < 6 && <label className="btn-secondary mt-3 inline-flex cursor-pointer items-center gap-2">
               <ImagePlus className="h-4 w-4" /> {uploadingPropertyPhotos ? "Uploading…" : "Add property photos"}
-              <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={uploadingPropertyPhotos} onChange={handlePropertyPhotoUpload} className="sr-only" />
+              <input type="file" accept={IMAGE_ACCEPT} multiple disabled={uploadingPropertyPhotos} onChange={handlePropertyPhotoUpload} className="sr-only" />
             </label>}
           </section>
         </div>
@@ -1280,9 +1285,9 @@ export default function SettingsPage() {
               <h3 className="mb-2 text-lg font-semibold">Profile photo</h3>
               {avatarUrl && <img src={avatarUrl} alt="Your profile photo" className="mb-3 h-20 w-20 rounded-full object-cover" />}
               <label className="block text-sm font-medium">Upload profile photo
-                <input type="file" accept="image/jpeg,image/png,image/webp" onChange={event => handleLogoUpload(event, "avatar")} className="mt-2 block w-full text-sm" />
+                <input type="file" accept={IMAGE_ACCEPT} onChange={event => handleLogoUpload(event, "avatar")} className="mt-2 block w-full text-sm" />
               </label>
-              <p className="mt-2 text-xs">JPG, PNG or WebP, up to 5 MB. Save to publish.</p>
+              <p className="mt-2 text-xs">Any photo from your camera or library. Save to publish.</p>
             </div>
             <h3 className="text-lg font-semibold text-[var(--ink)] mb-4 flex items-center gap-2">
               <Briefcase className="w-5 h-5 text-[var(--accent)]" />
@@ -1300,14 +1305,14 @@ export default function SettingsPage() {
               </div>
               <div>
                 <p className="text-sm font-medium text-[var(--ink)]">Business Logo</p>
-                <p className="text-xs text-[var(--text-muted)] mb-2">Shown on your public profile after you save. JPG, PNG or WebP, up to 5 MB.</p>
+                <p className="text-xs text-[var(--text-muted)] mb-2">Shown on your public profile after you save. Any photo from your camera or library.</p>
                 <label className="inline-flex items-center gap-2 px-3 py-1.5 bg-[var(--accent)]/10 text-[var(--accent)] rounded-lg text-xs font-semibold cursor-pointer hover:bg-[var(--accent)]/20 transition">
                   {uploadingLogo ? (
                     <><Loader2 className="w-3 h-3 animate-spin" /> Uploading...</>
                   ) : (
                     <><Upload className="w-3 h-3" /> {logoUrl ? "Change Logo" : "Upload Logo"}</>
                   )}
-                  <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={handleLogoUpload} disabled={uploadingLogo} />
+                  <input type="file" accept={IMAGE_ACCEPT} className="sr-only" onChange={handleLogoUpload} disabled={uploadingLogo} />
                 </label>
               </div>
             </div>
@@ -1398,7 +1403,7 @@ export default function SettingsPage() {
                 disabled={uploadingPortfolio}
               />
             </label>
-            <p className="text-xs text-[var(--text-muted)] mt-2">Up to 12 photos, 5 MB each. Save your changes to publish them on your public profile.</p>
+            <p className="text-xs text-[var(--text-muted)] mt-2">Up to 12 photos. Save your changes to publish them on your public profile.</p>
           </div>
         </fieldset>
       )}

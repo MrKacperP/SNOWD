@@ -5,8 +5,7 @@ import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { storage } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import UserAvatar from "@/components/UserAvatar";
-
-const TYPES = ["image/jpeg", "image/png", "image/webp"];
+import { IMAGE_ACCEPT, prepareImageUpload } from "@/lib/imageUpload";
 
 /** Round profile photo picker. Any image shape is cropped to fill the circle, exactly as contacts and chats show it. */
 export default function ProfilePhotoPicker({ value, onChange, name, size = 72 }: {
@@ -22,11 +21,12 @@ export default function ProfilePhotoPicker({ value, onChange, name, size = 72 }:
 
   async function upload(file?: File) {
     if (!file || !user) return;
-    if (!TYPES.includes(file.type) || file.size > 5 * 1024 * 1024) { setError("Choose a JPG, PNG or WebP image under 5 MB."); return; }
+    if (file.type && !file.type.startsWith("image/")) { setError("Choose an image file."); return; }
     setBusy(true); setError("");
     try {
       const storageRef = ref(storage, `avatars/${user.uid}/${crypto.randomUUID()}`);
-      await uploadBytes(storageRef, file, { contentType: file.type });
+      const photo = await prepareImageUpload(file, 1024);
+      await uploadBytes(storageRef, photo, { contentType: photo.type });
       await onChange(await getDownloadURL(storageRef));
     } catch (uploadError) {
       console.error("Profile photo upload failed:", uploadError);
@@ -57,10 +57,10 @@ export default function ProfilePhotoPicker({ value, onChange, name, size = 72 }:
           <button type="button" className="btn-secondary px-4 py-2 text-sm" disabled={busy} onClick={() => input.current?.click()}>{value ? "Change photo" : "Upload photo"}</button>
           {value && <button type="button" className="px-2 py-2 text-sm font-semibold text-[var(--text-muted)] underline" disabled={busy} onClick={remove}>Remove</button>}
         </div>
-        <p className="mt-1.5 text-xs text-[var(--text-muted)]">JPG, PNG or WebP, up to 5 MB. Wide or tall photos are centred to fit the circle.</p>
+        <p className="mt-1.5 text-xs text-[var(--text-muted)]">Any photo from your camera or library. Wide or tall photos are centred to fit the circle.</p>
         {error && <p role="alert" className="mt-1 text-xs font-semibold text-red-700">{error}</p>}
       </div>
-      <input ref={input} type="file" accept={TYPES.join(",")} className="hidden" onChange={(event) => upload(event.target.files?.[0])} />
+      <input ref={input} type="file" accept={IMAGE_ACCEPT} className="hidden" onChange={(event) => upload(event.target.files?.[0])} />
     </div>
   );
 }

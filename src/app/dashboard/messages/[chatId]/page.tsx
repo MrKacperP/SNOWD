@@ -76,6 +76,7 @@ import PhotoViewer from "@/components/work-orders/PhotoViewer";
 import ConversationLoading from "@/components/ConversationLoading";
 import { useArchivedChats } from "@/hooks/useArchivedChats";
 import { formatPhone, hasCompletedJobWith, telHref } from "@/lib/contacts";
+import { prepareImageDataUrl } from "@/lib/imageUpload";
 
 type QuickCommConfirmation = {
   title: string;
@@ -735,14 +736,11 @@ export default function ChatPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64 = reader.result as string;
-        await sendMessage("Sent a photo", "image", { imageUrl: base64 });
-      };
-      reader.readAsDataURL(file);
+      const imageUrl = await prepareImageDataUrl(file);
+      await sendMessage("Sent a photo", "image", { imageUrl });
     } catch (error) {
       console.error("Chat photo upload error:", error);
+      notify(error instanceof Error ? error.message : "The photo could not be sent. Please try again.");
     } finally {
       e.target.value = "";
     }
