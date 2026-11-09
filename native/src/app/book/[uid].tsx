@@ -4,7 +4,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, Switch, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { formatServiceAddress, profileLocation } from "@/lib/serviceLocations";
+import { formatServiceAddress, profileLocation, type ServiceLocation } from "@/lib/serviceLocations";
 import { SHOVELING_SERVICES, type ClientProfile, type OperatorProfile, type ServiceType } from "@/lib/types";
 import { Avatar, Button, Card, Chip, Icon, Loading, Notice } from "~/components/ui";
 import { useAuth } from "~/context/auth";
@@ -12,6 +12,7 @@ import { api, requestId } from "~/lib/api";
 import { db } from "~/lib/firebase";
 import { money } from "~/lib/format";
 import { quoteFor } from "~/lib/operators";
+import { useProperties } from "~/lib/properties";
 import { colors, radius, space, type } from "~/lib/theme";
 
 const DAYS = Array.from({ length: 7 }, (_, i) => {
@@ -37,7 +38,14 @@ export default function Book() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const attempt = useRef<{ key: string; id: string } | null>(null);
-  const location = profileLocation(profile as Partial<ClientProfile> | null);
+  const home = profileLocation(profile as Partial<ClientProfile> | null);
+  // Book at the main house or any saved property, as on the website.
+  const { properties } = useProperties(profile?.role === "client");
+  const [placeId, setPlaceId] = useState("home");
+  const place = properties.find((p) => p.id === placeId);
+  const location: ServiceLocation | null = place
+    ? { address: place.address, city: place.city, province: place.province, postalCode: place.postalCode, ...(place.lat != null && place.lng != null ? { lat: place.lat, lng: place.lng } : {}), propertySize: place.propertySize || "medium" }
+    : home;
 
   useEffect(() => {
     if (!uid) return;
@@ -52,14 +60,14 @@ export default function Book() {
   const offered = useMemo(() => SHOVELING_SERVICES.filter(([value]) => !operator?.serviceTypes?.length || operator.serviceTypes.includes(value)), [operator]);
   if (!operator) return <Loading />;
 
-  const quote = quoteFor(operator, profile, services);
+  const quote = quoteFor(operator, place ? { ...profile!, propertyDetails: { ...profile?.propertyDetails, propertySize: location?.propertySize || "medium" } } as typeof profile : profile, services);
   const total = method === "credit" && quote.credit != null ? quote.credit : quote.cash;
   const now = new Date();
   const hoursForDay = HOURS.filter((h) => day > 0 || h > now.getHours());
 
   const submit = async () => {
     setError("");
-    if (!location) return setError("Add your home address in Profile before booking.");
+    if (!location) return setError("Add your home address in Profile → Properties before booking.");
     if (!services.length) return setError("Choose at least one area to clear.");
     if (!asap && hour == null) return setError("Choose a time for the visit.");
     if (method === "cash" && !cashOk) return setError("Confirm you’ll pay the shoveler in cash.");
@@ -102,6 +110,19 @@ export default function Book() {
             <Text style={type.caption} numberOfLines={1}>{formatServiceAddress(location) || "No address on file"}</Text>
           </View>
         </View>
+
+        {properties.length ? (
+          <Card>
+            <Text style={type.headline}>Where?</Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+              <Chip label="Main house" icon="house.fill" selected={placeId === "home"} onPress={() => setPlaceId("home")} />
+              {properties.map((p) => (
+                <Chip key={p.id} label={p.label} selected={placeId === p.id} onPress={() => { setPlaceId(p.id); if (p.serviceTypes?.length) setServices(p.serviceTypes); }} />
+              ))}
+            </View>
+            <Text style={type.caption}>{formatServiceAddress(location)}</Text>
+          </Card>
+        ) : null}
 
         <Card>
           <Text style={type.headline}>What should be cleared?</Text>

@@ -1,17 +1,16 @@
 import { Stack, useRouter } from "expo-router";
-import * as WebBrowser from "expo-web-browser";
 import { doc, updateDoc } from "firebase/firestore";
 import { useMemo } from "react";
-import { Switch, Text, View } from "react-native";
+import { Pressable, Switch, Text, View } from "react-native";
 import { jobDisplayPrice } from "@/lib/marketplacePricing";
 import { isOpenOrder, orderActionNeeded } from "@/lib/workOrders";
 import { JobCard } from "~/components/JobCard";
 import { Button, Card, Empty, Icon, Notice, Screen, SectionTitle } from "~/components/ui";
 import { useAuth } from "~/context/auth";
-import { API_URL } from "~/lib/api";
 import { useJobs, usePeople } from "~/lib/data";
 import { db } from "~/lib/firebase";
 import { money } from "~/lib/format";
+import { useNotifications } from "~/lib/notifications";
 import { colors, radius, space, type } from "~/lib/theme";
 
 const greeting = () => {
@@ -30,10 +29,20 @@ export default function Home() {
   const attention = open.filter((j) => orderActionNeeded(j, uid)).length + jobs.filter((j) => j.status === "completed" && orderActionNeeded(j, uid)).length;
   const earned = jobs.filter((j) => j.status === "completed").reduce((sum, j) => sum + jobDisplayPrice(j, true), 0);
   const firstName = (profile?.displayName || "").split(" ")[0];
+  const { unread } = useNotifications(uid);
 
   return (
     <>
-      <Stack.Screen options={{ title: firstName ? `${greeting()}, ${firstName}` : greeting() }} />
+      <Stack.Screen
+        options={{
+          title: firstName ? `${greeting()}, ${firstName}` : greeting(),
+          headerRight: () => (
+            <Pressable hitSlop={10} accessibilityLabel={unread ? `${unread} unread updates` : "Updates"} onPress={() => router.push("/notifications")} style={{ paddingHorizontal: 6 }}>
+              <Icon name={unread ? "bell.badge.fill" : "bell"} size={20} color={colors.accent} />
+            </Pressable>
+          ),
+        }}
+      />
       <Screen>
         {operator && !profile?.idVerified ? (
           <Card style={{ backgroundColor: colors.sunSoft, borderColor: "#ffd9bf" }}>
@@ -44,7 +53,7 @@ export default function Home() {
             <Text style={type.callout}>
               {profile?.verificationStatus === "pending" ? "Your ID is being reviewed. We’ll let you know as soon as you’re approved." : "Customers can find you once your ID is verified and payouts are connected."}
             </Text>
-            {profile?.verificationStatus !== "pending" ? <Button title="Verify my ID" variant="dark" small onPress={() => void WebBrowser.openBrowserAsync(`${API_URL}/dashboard/settings`, { presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET })} /> : null}
+            {profile?.verificationStatus !== "pending" ? <Button title="Verify my ID" variant="dark" small onPress={() => router.push("/settings/verification")} /> : null}
           </Card>
         ) : null}
 

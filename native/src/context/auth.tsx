@@ -1,10 +1,14 @@
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as Crypto from "expo-crypto";
+import { Alert } from "react-native";
 import {
+  EmailAuthProvider,
   GoogleAuthProvider,
   OAuthProvider,
   createUserWithEmailAndPassword,
   onAuthStateChanged,
+  reauthenticateWithCredential,
+  revokeAccessToken,
   sendPasswordResetEmail,
   signInWithCredential,
   signInWithEmailAndPassword,
@@ -31,7 +35,32 @@ type AuthState = {
   signInWithGoogleToken: (idToken: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
+  /**
+   * Confirms the person's identity again (Apple or password) right before a sensitive action.
+   * With revokeApple, also revokes SNOWD's Sign in with Apple access, as Apple requires for account deletion.
+   * Returns false if they cancelled.
+   */
+  confirmIdentity: (options?: { revokeApple?: boolean }) => Promise<boolean>;
 };
+
+async function appleCredential() {
+  const rawNonce = Crypto.randomUUID();
+  const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce);
+  const apple = await AppleAuthentication.signInAsync({
+    requestedScopes: [AppleAuthentication.AppleAuthenticationScope.FULL_NAME, AppleAuthentication.AppleAuthenticationScope.EMAIL],
+    nonce: hashedNonce,
+  });
+  if (!apple.identityToken) throw new Error("Apple did not return a sign-in token. Please try again.");
+  return { apple, credential: new OAuthProvider("apple.com").credential({ idToken: apple.identityToken, rawNonce }) };
+}
+
+const askPassword = () =>
+  new Promise<string | null>((resolve) =>
+    Alert.prompt("Confirm your password", "For your security, enter your SNOWD password to continue.", [
+      { text: "Cancel", style: "cancel", onPress: () => resolve(null) },
+      { text: "Continue", onPress: (value?: string) => resolve(value || null) },
+    ], "secure-text"),
+  );
 
 const AuthContext = createContext<AuthState | null>(null);
 
@@ -86,17 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       signInWithApple: async () => {
         // Apple signs a hash of the nonce; Firebase checks it against the raw value.
-        const rawNonce = Crypto.randomUUID();
-        const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce);
-        const apple = await AppleAuthentication.signInAsync({
-          requestedScopes: [
-            AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-            AppleAuthentication.AppleAuthenticationScope.EMAIL,
-          ],
-          nonce: hashedNonce,
-        });
-        if (!apple.identityToken) throw new Error("Apple did not return a sign-in token. Please try again.");
-        const credential = new OAuthProvider("apple.com").credential({ idToken: apple.identityToken, rawNonce });
+        const { apple, credential } = await appleCredential();
         const result = await signInWithCredential(auth, credential);
         // Apple shares the name only on the very first sign-in, so keep it.
         const fullName = [apple.fullName?.givenName, apple.fullName?.familyName].filter(Boolean).join(" ");
@@ -107,6 +126,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       resetPassword: async (email) => {
         await sendPasswordResetEmail(auth, email.trim());
+      },
+      confirmIdentity: async ({ revokeApple } = {}) => {
+        const current = auth.currentUser;
+        if (!current) throw new Error("Please sign in again.");
+        const providers = current.providerData.map((p) => p.providerId);
+        try {
+          if (providers.includes("apple.com")) {
+            const { apple, credential } = await appleCredential();
+            await reauthenticateWithCredential(current, credential);
+            if (revokeApple && apple.authorizationCode) await revokeAccessToken(auth, apple.authorizationCode);
+          } else if (providers.includes("password") && current.email) {
+            const password = await askPassword();
+            if (!password) return false;
+            await reauthenticateWithCredential(current, EmailAuthProvider.credential(current.email, password));
+          } else {
+            // Google sign-ins confirm by signing in again from the login screen.
+            return true;
+          }
+          await current.getIdToken(true);
+          return true;
+        } catch (error) {
+          if ((error as { code?: string })?.code === "ERR_REQUEST_CANCELED") return false;
+          throw error;
+        }
       },
       signOut: async () => {
         if (user) await updateDoc(doc(db, "users", user.uid), { isOnline: false }).catch(() => {});

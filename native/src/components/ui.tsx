@@ -7,6 +7,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -209,6 +210,57 @@ export function Loading() {
   );
 }
 
+
+/** A white card holding a list of Rows, like an iOS grouped table section. */
+export function Group({ children }: { children: ReactNode }) {
+  return <View style={[styles.card, { padding: 0, gap: 0, overflow: "hidden" }]}>{children}</View>;
+}
+
+/** A labelled switch with a sentence of explanation underneath. */
+export function ToggleRow({ title, body, value, onValueChange, disabled, last }: { title: string; body?: string; value: boolean; onValueChange: (value: boolean) => void; disabled?: boolean; last?: boolean }) {
+  return (
+    <View style={[styles.row, { alignItems: "flex-start", paddingVertical: 14 }, !last && styles.rowBorder]}>
+      <View style={{ flex: 1, gap: 3 }}>
+        <Text style={type.headline}>{title}</Text>
+        {body ? <Text style={type.caption}>{body}</Text> : null}
+      </View>
+      <Switch value={value} disabled={disabled} onValueChange={onValueChange} trackColor={{ true: colors.accent }} />
+    </View>
+  );
+}
+
+/** Square photo thumbnails with a remove button, plus an "add" tile while there is room. */
+export function PhotoGrid({ photos, max, onAdd, onRemove, busy, addLabel = "Add photo" }: { photos: string[]; max: number; onAdd: () => void; onRemove: (index: number) => void; busy?: boolean; addLabel?: string }) {
+  return (
+    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+      {photos.map((uri, index) => (
+        <View key={uri} style={styles.photo}>
+          <Image source={{ uri }} style={{ width: "100%", height: "100%" }} contentFit="cover" transition={150} />
+          <Pressable accessibilityLabel={`Remove photo ${index + 1}`} hitSlop={8} disabled={busy} onPress={() => onRemove(index)} style={styles.photoRemove}>
+            <Icon name="xmark" size={11} color="#fff" weight="bold" />
+          </Pressable>
+        </View>
+      ))}
+      {photos.length < max ? (
+        <Pressable disabled={busy} onPress={onAdd} style={({ pressed }) => [styles.photo, styles.photoAdd, pressed && styles.pressed]}>
+          {busy ? <ActivityIndicator color={colors.accent} /> : <Icon name="photo.badge.plus" size={22} color={colors.accent} />}
+          <Text style={{ color: colors.accent, fontSize: 12, fontWeight: "700" }}>{busy ? "Uploading…" : addLabel}</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+/** Pinned bottom bar with the screen's main action, used on edit screens. */
+export function SaveBar({ dirty, saving, onSave, title = "Save changes", bottomInset = 0 }: { dirty: boolean; saving: boolean; onSave: () => void; title?: string; bottomInset?: number }) {
+  return (
+    <View style={[styles.saveBar, { paddingBottom: bottomInset + space.md }]}>
+      <Text style={[type.caption, { flex: 1 }]}>{saving ? "Saving…" : dirty ? "You have unsaved changes" : "All changes saved"}</Text>
+      <Button title={title} small icon="checkmark" loading={saving} disabled={!dirty} onPress={onSave} style={{ paddingHorizontal: 18 }} />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   card: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: space.lg, gap: space.md, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border, ...shadow },
   pressed: { opacity: 0.85, transform: [{ scale: 0.985 }] },
@@ -221,5 +273,9 @@ const styles = StyleSheet.create({
   chipOn: { backgroundColor: colors.ink, borderColor: colors.ink },
   row: { flexDirection: "row", alignItems: "center", gap: space.md, paddingVertical: 13, paddingHorizontal: space.lg, minHeight: 50 },
   rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  photo: { width: 100, height: 100, borderRadius: radius.md, overflow: "hidden", backgroundColor: colors.surfaceAlt },
+  photoAdd: { alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1.5, borderStyle: "dashed", borderColor: "#b9c6ff", backgroundColor: colors.accentSoft },
+  photoRemove: { position: "absolute", top: 6, right: 6, width: 24, height: 24, borderRadius: 12, backgroundColor: "rgba(17,43,59,0.75)", alignItems: "center", justifyContent: "center" },
+  saveBar: { flexDirection: "row", alignItems: "center", gap: space.md, paddingHorizontal: space.lg, paddingTop: space.md, backgroundColor: colors.surface, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   rowIcon: { width: 30, height: 30, borderRadius: 8, backgroundColor: colors.surfaceAlt, alignItems: "center", justifyContent: "center" },
 });

@@ -273,7 +273,7 @@ export default function Onboarding() {
                     <Field label="Backyard patio" value={prices.backyardPatio} keyboardType="number-pad" onChangeText={(v) => setPrices({ ...prices, backyardPatio: v.replace(/\D/g, "") })} />
                   </View>
                 </View>
-                <Notice tone="blue" text="After setup, verify your ID and connect payouts on snowd.ca so customers can find you." />
+                <Notice tone="blue" text="After setup, verify your ID in Profile → Verification so customers can find you. You can connect card payouts there too." />
               </>
             ) : null}
           </View>
