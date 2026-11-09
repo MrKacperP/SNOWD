@@ -5,6 +5,7 @@ import { useNativeApp } from "@/hooks/useNativeApp";
 import { NativeApp, NativeBrowser, NativeNetwork, NativeStripe, nativePlatform } from "@/lib/native";
 import { nativeBackDestination, nativeCallback } from "@/lib/nativeNavigation";
 import type { PluginListenerHandle } from "@capacitor/core";
+import PullToRefresh from "./PullToRefresh";
 import "./native.css";
 
 export default function NativeShell() {
@@ -63,8 +64,11 @@ export default function NativeShell() {
     document.addEventListener("click", external);
     return () => { disposed = true; listeners.forEach(handle => void handle.remove()); document.removeEventListener("click", external); };
   }, [native, pathname, router]);
-  if (!native || (!offline && !error)) return null;
-  return <aside className="native-connection" role="status">{offline ? "You’re offline. Reconnect to update jobs, messages, or payments." : error}
-    {error && !offline && <button type="button" onClick={() => setError("")}>Dismiss</button>}
-  </aside>;
+  if (!native) return null;
+  return <>
+    <PullToRefresh />
+    {(offline || error) && <aside className="native-connection" role="status">{offline ? "You’re offline. Reconnect to update jobs, messages, or payments." : error}
+      {error && !offline && <button type="button" onClick={() => setError("")}>Dismiss</button>}
+    </aside>}
+  </>;
 }

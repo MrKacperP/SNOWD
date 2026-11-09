@@ -975,7 +975,9 @@ html { scroll-padding-top: 6rem; }
 @media (min-width: 1024px) { .dashboard-main { padding-top: 24px; } }
 @media (max-width: 1023px) {
   .dashboard-shell { --app-header-height: 0px; }
-  .dashboard-main { padding-top: 0 !important; }
+  /* Start content below the status bar; pages under a tab also clear the floating back button. */
+  .dashboard-main { padding-top: calc(env(safe-area-inset-top, 0px) + 12px) !important; }
+  .dashboard-shell:has([data-app-back]) .dashboard-main { padding-top: calc(env(safe-area-inset-top, 0px) + 60px) !important; }
 }
 @media (max-width: 639px) {
   .app-toast { left: 16px; right: 16px; }

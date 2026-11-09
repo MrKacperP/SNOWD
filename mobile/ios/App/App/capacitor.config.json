@@ -9,7 +9,7 @@
 	},
 	"ios": {
 		"contentInset": "never",
-		"backgroundColor": "#050b16",
+		"backgroundColor": "#f4f7fa",
 		"preferredContentMode": "mobile"
 	},
 	"android": {

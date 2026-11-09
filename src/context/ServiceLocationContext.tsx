@@ -1,9 +1,9 @@
 "use client";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useAuth } from "./AuthContext";
-import { profileLocation, type PropertyState, type ServiceLocation } from "@/lib/serviceLocations";
+import { profileLocation, type PropertyDetails, type PropertyState, type ServiceLocation } from "@/lib/serviceLocations";
 import type { ClientProfile } from "@/lib/types";
-export type PropertyUpdate = { location?: ServiceLocation; label?: string; saveFavorite?: boolean; makeHome?: boolean; restoreHome?: boolean; confirmDifferent?: boolean; select?: boolean; propertyId?: string; removePropertyId?: string };
+export type PropertyUpdate = { location?: ServiceLocation; label?: string; saveFavorite?: boolean; makeHome?: boolean; restoreHome?: boolean; confirmDifferent?: boolean; select?: boolean; propertyId?: string; removePropertyId?: string; details?: PropertyDetails };
 type Context = PropertyState & { home: ServiceLocation | null; location: ServiceLocation | null; ready: boolean; error: string; reload:()=>void; update:(value:PropertyUpdate)=>Promise<void> };
 export const ServiceLocationContext = createContext<Context | null>(null);
 export const useServiceLocation = () => useContext(ServiceLocationContext);

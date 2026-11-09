@@ -60,7 +60,9 @@
     ".next-mobile-native/types/**/*.ts",
     ".next-mobile-native/dev/types/**/*.ts",
     ".next-settings/types/**/*.ts",
-    ".next-settings/dev/types/**/*.ts"
+    ".next-settings/dev/types/**/*.ts",
+    ".next-popups/types/**/*.ts",
+    ".next-popups/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

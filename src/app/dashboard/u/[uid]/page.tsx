@@ -12,7 +12,7 @@ import { formatServiceAddress } from "@/lib/serviceLocations";
 import { SERVICE_LABELS, type ClientProfile, type OperatorProfile, type UserProfile } from "@/lib/types";
 import type { ProfileJob, ProfileReview } from "@/app/api/profiles/[uid]/route";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { Briefcase, MapPin, MessageSquare, Pencil, Snowflake } from "lucide-react";
+import { Briefcase, ChevronRight, House, MapPin, MessageSquare, Pencil, Snowflake } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -149,9 +149,14 @@ export default function PublicProfilePage() {
       <div className={styles.map}>
         {isOperator
           ? cityMode ? <ProfileMap cities={operator.serviceAreas} /> : <ProfileMap area={{ lat: approx(person.lat), lng: approx(person.lng), address: areaAddress, radiusKm }} />
-          : isOwn ? <ProfileMap places={places} /> : <ProfileMap area={{ lat: approx(person.lat), lng: approx(person.lng), address: areaAddress, radiusKm: 1 }} />}
+          : isOwn ? <ProfileMap places={places} onSelectPlace={id => router.push(`/dashboard/properties/${encodeURIComponent(id)}`)} /> : <ProfileMap area={{ lat: approx(person.lat), lng: approx(person.lng), address: areaAddress, radiusKm: 1 }} />}
       </div>
-      <p className={styles.caption}>{mapCaption}</p>
+      <p className={styles.caption}>{mapCaption}{isOwn && places.length > 0 && " · Tap a property to edit it"}</p>
+      {isOwn && places.length > 0 && <ul className={styles.places}>{places.map(place => <li key={place.id}>
+        <Link href={`/dashboard/properties/${encodeURIComponent(place.id)}`} className={styles.place}>
+          <House size={16} aria-hidden="true" /><span><strong>{place.label}</strong><small>{place.address}</small></span><ChevronRight size={16} aria-hidden="true" />
+        </Link>
+      </li>)}</ul>}
     </section>
 
     {showPropertyPhotos && <section className={`${styles.card} ${styles.section}`}>

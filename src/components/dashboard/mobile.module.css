@@ -108,3 +108,99 @@
 .bookingCard .mainAction { margin-top:20px; }
 .shortcuts a:is(:hover,:focus-visible) .shortcutTitle { opacity:1; transform:none; }
 .shortcuts a:is(:hover,:focus-visible) .shortcutHoverAsset { opacity:0; }
+
+/* ── Liquid Glass tab bar ──
+   A clear, refracting capsule; the selected tab sits under a glass lens that
+   follows a finger scrubbing across the bar and snaps to the nearest tab. */
+.bottomNav {
+  isolation: isolate;
+  overflow: visible;
+  border: 0;
+  border-radius: 32px;
+  background: linear-gradient(180deg, rgb(255 255 255 / 42%), rgb(255 255 255 / 22%));
+  -webkit-backdrop-filter: blur(14px) saturate(190%) brightness(1.04);
+  backdrop-filter: blur(14px) saturate(190%) brightness(1.04);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 85%),
+    inset 0 -1px 1px rgb(255 255 255 / 30%),
+    inset 0 0 0 .5px rgb(255 255 255 / 55%),
+    0 10px 34px rgb(17 43 59 / 16%),
+    0 1px 3px rgb(17 43 59 / 10%);
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  transition: transform 320ms cubic-bezier(.2,.9,.25,1.25), box-shadow 220ms ease;
+}
+/* Specular rim: a bright edge on top-left, a cooler one bottom-right. */
+.bottomNav::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgb(255 255 255 / 95%), rgb(255 255 255 / 15%) 38%, rgb(255 255 255 / 5%) 62%, rgb(190 214 255 / 70%));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  pointer-events: none;
+}
+.bottomNav[data-pressed] { transform: scale(1.015); }
+.bottomNav[data-dragging] { transform: scale(1.03); box-shadow: inset 0 1px 0 rgb(255 255 255 / 90%), inset 0 0 0 .5px rgb(255 255 255 / 60%), 0 16px 44px rgb(17 43 59 / 22%), 0 1px 3px rgb(17 43 59 / 10%); }
+.bottomNav > :is(a,button) { z-index: 3; -webkit-user-drag: none; transition: color 180ms ease; }
+.bottomNav [aria-current="page"], .bottomNav [aria-expanded="true"] { background: none; box-shadow: none; }
+.bottomNav .navIcon { transition: transform 260ms cubic-bezier(.2,.9,.25,1.4); }
+.bottomNav [data-hover] .navIcon { transform: scale(1.14) translateY(-1px); }
+.bottomNav[data-dragging] [data-hover] { color: var(--accent); }
+
+.navLens {
+  position: absolute;
+  z-index: 1;
+  top: 6px;
+  bottom: 6px;
+  left: 0;
+  border-radius: 24px;
+  background:
+    radial-gradient(120% 90% at 30% 0%, rgb(255 255 255 / 75%), transparent 60%),
+    linear-gradient(180deg, rgb(229 236 255 / 70%), rgb(214 225 255 / 45%));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 100%),
+    inset 0 -1px 2px rgb(35 80 255 / 10%),
+    inset 0 0 0 .5px rgb(255 255 255 / 80%),
+    0 2px 8px rgb(35 80 255 / 10%);
+  pointer-events: none;
+  will-change: transform, width;
+  transition: transform 420ms cubic-bezier(.2,.9,.25,1.18), width 300ms ease, top 220ms ease, bottom 220ms ease, background 220ms ease, box-shadow 220ms ease;
+}
+/* While scrubbing the lens lifts out of the bar as a magnifying droplet. */
+.bottomNav[data-dragging] .navLens {
+  top: -7px;
+  bottom: -7px;
+  border-radius: 30px;
+  background:
+    radial-gradient(110% 80% at 30% 0%, rgb(255 255 255 / 70%), transparent 55%),
+    linear-gradient(180deg, rgb(255 255 255 / 30%), rgb(220 232 255 / 22%));
+  -webkit-backdrop-filter: blur(2px) saturate(220%) contrast(1.05);
+  backdrop-filter: blur(2px) saturate(220%) contrast(1.05);
+  box-shadow:
+    inset 0 1.5px 0 rgb(255 255 255 / 100%),
+    inset 0 -2px 6px rgb(255 255 255 / 55%),
+    inset 2px 0 4px rgb(255 255 255 / 35%),
+    inset 0 0 0 1px rgb(255 255 255 / 75%),
+    0 10px 26px rgb(17 43 59 / 22%);
+  transition: top 220ms cubic-bezier(.2,.9,.25,1.3), bottom 220ms cubic-bezier(.2,.9,.25,1.3), width 160ms ease, background 220ms ease, box-shadow 220ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bottomNav, .navLens, .bottomNav .navIcon { transition: none; }
+  .bottomNav[data-pressed], .bottomNav[data-dragging], .bottomNav [data-hover] .navIcon { transform: none; }
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .bottomNav { background: #fff; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .navLens, .bottomNav[data-dragging] .navLens { background: var(--accent-soft); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+
+/* Floating glass back button for pages below the tab bar's top level. */
+.backButton { position: fixed; z-index: 61; top: calc(env(safe-area-inset-top, 0px) + 10px); left: max(12px, env(safe-area-inset-left)); display: grid; width: 44px; height: 44px; place-items: center; border-radius: 999px; color: var(--text-primary); background: linear-gradient(180deg, rgb(255 255 255 / 62%), rgb(255 255 255 / 38%)); -webkit-backdrop-filter: blur(14px) saturate(190%); backdrop-filter: blur(14px) saturate(190%); box-shadow: inset 0 1px 0 rgb(255 255 255 / 85%), inset 0 0 0 .5px rgb(255 255 255 / 55%), 0 6px 20px rgb(17 43 59 / 14%); transition: transform 180ms ease; }
+.backButton:active { transform: scale(.92); }
+@media (min-width: 1024px) { .backButton { display: none; } }

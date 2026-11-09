@@ -16,6 +16,8 @@ type Props = {
   area?: { lat?: number; lng?: number; address?: string; radiusKm: number };
   /** An operator's selected cities, outlined along their real borders. */
   cities?: OperatorServiceArea[];
+  /** Makes each pin a button, e.g. to open that property's editor. */
+  onSelectPlace?: (id: string) => void;
 };
 type Geometry = { type: "Polygon" | "MultiPolygon"; coordinates: unknown };
 
@@ -47,7 +49,7 @@ export default function ProfileMap(props: Props) {
   </div>;
 }
 
-function LiveProfileMap({ places = [], area: areaProp, cities = [] }: Props) {
+function LiveProfileMap({ places = [], area: areaProp, cities = [], onSelectPlace }: Props) {
   const { isLoaded, loadError } = useJsApiLoader({ googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: GOOGLE_MAPS_LIBRARIES });
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const placeKey = places.map(p => `${p.id}:${p.lat},${p.lng}:${p.address}`).join("|");
@@ -128,7 +130,7 @@ function LiveProfileMap({ places = [], area: areaProp, cities = [] }: Props) {
     {/* A city OpenStreetMap has no border for falls back to its extent. */}
     {cities.filter(city => outlines[city.placeId] === null && city.bounds).map(city => <Rectangle key={city.placeId} bounds={city.bounds!} options={{ strokeColor: GREEN, strokeWeight: 2, strokeOpacity: .8, fillColor: GREEN, fillOpacity: .1, clickable: false }} />)}
     {pins.map(pin => <OverlayView key={pin.id} position={pin.at} mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET} getPixelPositionOffset={offset}>
-      <div className={`${styles.anchor} ${styles.marker}`}><AddressPin address={`${pin.label} · ${pin.address}`} small={!pin.home} /></div>
+      <div className={`${styles.anchor} ${styles.marker}`}><AddressPin address={`${pin.label} · ${pin.address}`} small={!pin.home} onSelect={onSelectPlace ? () => onSelectPlace(pin.id) : undefined} actionLabel={onSelectPlace ? `Edit ${pin.label}: ${pin.address}` : undefined} /></div>
     </OverlayView>)}
   </GoogleMap>;
 }

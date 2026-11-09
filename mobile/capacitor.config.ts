@@ -20,7 +20,7 @@ const config: CapacitorConfig = {
     errorPath: 'offline.html',
     cleartext: !!developmentUrl,
   },
-  ios: { contentInset: 'never', backgroundColor: '#f8f8f2', preferredContentMode: 'mobile' },
+  ios: { contentInset: 'never', backgroundColor: '#f4f7fa', preferredContentMode: 'mobile' },
   android: { allowMixedContent: false },
   plugins: {
     FirebaseAuthentication: { skipNativeAuth: true, providers: ['google.com', 'apple.com'] },

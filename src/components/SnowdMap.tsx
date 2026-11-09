@@ -239,7 +239,7 @@ function LiveMap({ onSelect, selectedId, mainId, pins = [], pingMain = false, lo
   const start = route?.path[0];
   const mid = layout.mid;
   return <>
-    <GoogleMap mapContainerStyle={containerStyle} center={point} zoom={16} onLoad={setMap} options={compact ? { ...SNOWD_MAP_OPTIONS, zoomControl: false, keyboardShortcuts: false, gestureHandling: "none" } : SNOWD_MAP_OPTIONS}>
+    <GoogleMap mapContainerStyle={containerStyle} center={point} zoom={16} onLoad={setMap} options={{ ...(compact ? { ...SNOWD_MAP_OPTIONS, zoomControl: false, keyboardShortcuts: false, gestureHandling: "none" } : SNOWD_MAP_OPTIONS), ...(serviceArea && { isFractionalZoomEnabled: true }) }}>
       {client && approximateArea && <PulsingArea area={approximateArea} />}
       {serviceArea && <ServiceAreaShapes area={serviceArea} />}
       {!client && map && route && <RouteLine map={map} route={route} />}
@@ -276,11 +276,11 @@ function RouteLine({ map, route }: { map: google.maps.Map; route: RoutePath }) {
   return null;
 }
 
-export function AddressPin({address,small,isNew,selected,onSelect}:{address?:string;small?:boolean;isNew?:boolean;selected?:boolean;onSelect?:()=>void}) {
+export function AddressPin({address,small,isNew,selected,onSelect,actionLabel}:{address?:string;small?:boolean;isNew?:boolean;selected?:boolean;onSelect?:()=>void;actionLabel?:string}) {
   const [open,setOpen]=useState(false);
   const id=useId();
   return <div className={styles.addressMarker} onMouseEnter={()=>setOpen(true)} onMouseLeave={()=>setOpen(false)}>
-    <button type="button" className={`${styles.operatorPin} ${small ? styles.smallPin : ""}`} data-new={isNew || undefined} aria-label={address ? `Show address: ${address}` : "Service property"} aria-expanded={open} aria-pressed={onSelect ? !!selected : undefined} aria-describedby={open && address ? id : undefined} onClick={()=>{setOpen(true);onSelect?.();}} onFocus={()=>setOpen(true)} onBlur={()=>setOpen(false)} onKeyDown={e=>{if(e.key === "Escape"){e.stopPropagation();setOpen(false);}}}><House size={small ? 16 : 20} /></button>
+    <button type="button" className={`${styles.operatorPin} ${small ? styles.smallPin : ""}`} data-new={isNew || undefined} aria-label={actionLabel || (address ? `Show address: ${address}` : "Service property")} aria-expanded={actionLabel ? undefined : open} aria-pressed={onSelect && !actionLabel ? !!selected : undefined} aria-describedby={open && address ? id : undefined} onClick={()=>{setOpen(true);onSelect?.();}} onFocus={()=>setOpen(true)} onBlur={()=>setOpen(false)} onKeyDown={e=>{if(e.key === "Escape"){e.stopPropagation();setOpen(false);}}}><House size={small ? 16 : 20} /></button>
     {open && address && <span id={id} role="tooltip" className={styles.addressTooltip}>{address}</span>}
   </div>;
 }

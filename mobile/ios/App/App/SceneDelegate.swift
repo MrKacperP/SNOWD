@@ -29,12 +29,14 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 class SnowdBridgeViewController: CAPBridgeViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
-        let background = UIColor(red: 248/255, green: 248/255, blue: 242/255, alpha: 1)
+        let background = UIColor(red: 244/255, green: 247/255, blue: 250/255, alpha: 1)
         view.backgroundColor = background
         webView?.backgroundColor = background
         webView?.isOpaque = false
         webView?.scrollView.bounces = false
         webView?.scrollView.alwaysBounceVertical = false
         webView?.scrollView.contentInsetAdjustmentBehavior = .never
+        // Edge swipe back/forward through in-app history, like any iOS navigation stack.
+        webView?.allowsBackForwardNavigationGestures = true
     }
 }

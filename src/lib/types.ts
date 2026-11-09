@@ -50,6 +50,15 @@ export const isShovelingService = (service: string): service is ServiceType =>
 
 export type PropertySize = "small" | "medium" | "large" | "commercial";
 
+export type PropertyUse = "home" | "rental" | "business" | "cottage" | "other";
+export const PROPERTY_USES = [
+  ["home", "Main home"],
+  ["rental", "Rental property"],
+  ["business", "Business"],
+  ["cottage", "Cottage"],
+  ["other", "Other"],
+] as const satisfies readonly (readonly [PropertyUse, string])[];
+
 export type ThemePreference = "light";
 
 export type ClaimStatus = "open" | "under-review" | "resolved" | "dismissed";
@@ -127,6 +136,8 @@ export interface ClientProfile extends UserProfile {
     serviceTypes: ServiceType[];
     specialInstructions?: string;
     photos?: string[];
+    use?: PropertyUse;
+    areaSqft?: number;
   };
   savedOperators: string[]; // operator UIDs
   favoriteOperatorId?: string; // primary favorite operator UID

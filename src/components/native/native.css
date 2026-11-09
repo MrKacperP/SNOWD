@@ -43,8 +43,15 @@ html[data-native-app] input, html[data-native-app] select, html[data-native-app]
 .native-email-login label { display:block; margin:12px 0; font-size:14px; font-weight:600; }
 .native-email-login input { display:block; width:100%; min-height:52px; margin-top:6px; padding:12px; border:1px solid #b9cbd6; border-radius:12px; background:white; }
 @media (prefers-reduced-motion: reduce) { html[data-native-app] *, html[data-native-app] *::before, html[data-native-app] *::after { scroll-behavior:auto!important; animation-duration:.01ms!important; transition-duration:.01ms!important; } }
-html[data-native-app], html[data-native-app] body { background:var(--bg-primary); overscroll-behavior:none; }
+html[data-native-app], html[data-native-app] body { background:var(--glass-wallpaper, #f4f7fa); overscroll-behavior:none; }
 /* Development controls never cover the installed app's navigation. */
 html[data-native-app] nextjs-portal { display:none!important; }
-/* Scrolling pages must not paint text behind the phone's status bar/cutout. */
-html[data-native-app] body::before { content:""; position:fixed; inset-inline:0; top:0; height:env(safe-area-inset-top); background:var(--bg-primary); z-index:60; pointer-events:none; }
+/* A solid status-bar backdrop: scrolled content slides cleanly under the clock
+   instead of showing through a blur. A short fade softens its lower edge. */
+html[data-native-app] body::before { content:""; position:fixed; inset-inline:0; top:0; height:calc(env(safe-area-inset-top) + 12px); background:linear-gradient(to bottom, var(--glass-wallpaper, #f4f7fa) calc(100% - 12px), color-mix(in srgb, var(--glass-wallpaper, #f4f7fa) 0%, transparent)); z-index:60; pointer-events:none; }
+/* Conversations draw their own floating glass controls over the status-bar area. */
+html[data-native-app] body:has(.conversation-shell)::before { display:none; }
+/* Pull-to-refresh spinner: drops from under the status bar as the page is pulled. */
+.native-pull { position:fixed; z-index:70; top:env(safe-area-inset-top,0px); left:50%; display:grid; width:40px; height:40px; place-items:center; border-radius:999px; color:var(--accent); background:color-mix(in srgb, var(--card, #fff) 88%, transparent); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); box-shadow:0 4px 16px rgb(17 43 59 / 16%), inset 0 0 0 .5px rgb(255 255 255 / 60%); pointer-events:none; }
+.native-pull-spin { animation:native-pull-spin .8s linear infinite; }
+@keyframes native-pull-spin { to { transform:rotate(360deg); } }

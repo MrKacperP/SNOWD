@@ -14,6 +14,15 @@
 .card { overflow:hidden; border:1px solid var(--border-color); border-radius:22px; background:var(--bg-card-solid); box-shadow:0 5px 24px #17344306; }
 .map { position:relative; height:clamp(220px,32vw,300px); background:#edf3f1; }
 .caption { margin:0; padding:14px 20px; color:var(--text-secondary); font-size:13px; }
+.places { display:grid; margin:0; padding:0 8px 8px; list-style:none; }
+.place { display:flex; align-items:center; gap:12px; min-height:52px; padding:8px 12px; border-radius:14px; color:var(--text-primary); text-decoration:none; transition:background .15s ease; }
+.place:hover { background:var(--bg-secondary); }
+.place:focus-visible { outline:3px solid var(--accent); outline-offset:-3px; }
+.place > svg:first-child { flex:none; color:#287057; }
+.place > svg:last-child { flex:none; margin-left:auto; color:var(--text-secondary); }
+.place span { display:grid; min-width:0; }
+.place strong { font-size:14px; font-weight:650; }
+.place small { overflow:hidden; color:var(--text-secondary); font-size:13px; text-overflow:ellipsis; white-space:nowrap; }
 
 .section { display:grid; gap:14px; padding:20px; }
 .sectionHead { display:flex; align-items:baseline; justify-content:space-between; gap:12px; }

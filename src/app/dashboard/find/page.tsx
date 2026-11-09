@@ -5,7 +5,6 @@ import { calculateServicePrice, quoteMarketplace } from "@/lib/marketplacePricin
 import { orderRequest } from "@/components/work-orders/OrderActions";
 
 import Modal from "@/components/ui/Modal";
-import PageHeader from "@/components/ui/PageHeader";
 import SnowdMap, { type ServiceAreaShape } from "@/components/SnowdMap";
 import popup from "@/components/ui/popup.module.css";
 import ServiceLocationPicker from "@/components/ServiceLocationPicker";
@@ -25,7 +24,7 @@ getDistanceKm,
 isClientWithinOperatorRadius,
 isOperatorPublic,
 } from "@/lib/operatorDiscovery";
-import { ClientProfile,OperatorProfile,ServiceType,SERVICE_LABELS,SHOVELING_SERVICES,isShovelingService } from "@/lib/types";
+import { ClientProfile,OperatorProfile,ServiceType,SERVICE_LABELS,isShovelingService } from "@/lib/types";
 import { propertySizeLabel } from "@/lib/workOrders";
 import { addDays,addMonths,eachDayOfInterval,endOfMonth,endOfWeek,format,isBefore,isSameMonth,startOfMonth,startOfWeek } from "date-fns";
 import {
@@ -45,9 +44,7 @@ Check,
 ChevronLeft,
 Send,
 CreditCard,
-Filter,
 MapPin,
-Search,
 Snowflake,
 Star,
 Zap
@@ -76,15 +73,8 @@ export default function FindOperatorsPage() {
   const [operators, setOperators] = useState<OperatorProfile[]>([]);
   const [filteredOperators, setFilteredOperators] = useState<OperatorProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
   const [cardsOnly, setCardsOnly] = useState(false);
   useEffect(() => { setCardsOnly(new URLSearchParams(window.location.search).get("payment") === "credit"); }, []);
-  const [filterService, setFilterService] = useState<ServiceType | "all">("all");
-  const [filterStudents, setFilterStudents] = useState(false);
-  const [filterVerified, setFilterVerified] = useState(false);
-  const [filterEquipment, setFilterEquipment] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<"rating" | "price" | "distance">("rating");
   const [booking, setBooking] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [favoriteBusy, setFavoriteBusy] = useState(false);
@@ -152,81 +142,20 @@ export default function FindOperatorsPage() {
     // Show every operator inside the client's discoverable service radius.
     results = results.filter((op) => isClientWithinOperatorRadius(clientProfile, op));
 
-    // Text search
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      results = results.filter(
-        (op) =>
-          op.displayName.toLowerCase().includes(term) ||
-          op.businessName?.toLowerCase().includes(term) ||
-          op.city.toLowerCase().includes(term) ||
-          (op.bio || "").toLowerCase().includes(term)
-      );
-    }
-
     if (cardsOnly) results = results.filter(canAcceptPlatformPayments);
 
-    // Service filter
-    if (filterService !== "all") {
-      results = results.filter((op) => op.serviceTypes.includes(filterService));
-    }
-
-    // Student filter
-    if (filterStudents) {
-      results = results.filter((op) => op.isStudent);
-    }
-
-    // Verified filter
-    if (filterVerified) {
-      results = results.filter((op) => op.idVerified);
-    }
-
-    // Equipment filter
-    if (filterEquipment !== "all") {
-      results = results.filter((op) => op.equipment?.includes(filterEquipment));
-    }
-
-    // Sort
-    if (sortBy === "rating") {
-      results.sort((a, b) => {
-        // Favorite operator always first
-        const pinned = Number(favorites.includes(b.uid)) - Number(favorites.includes(a.uid));
-        if (pinned) return pinned;
-        return b.rating - a.rating;
-      });
-    } else if (sortBy === "price") {
-      results.sort(
-        (a, b) => {
-          // Favorite operator always first
-          const pinned = Number(favorites.includes(b.uid)) - Number(favorites.includes(a.uid));
-        if (pinned) return pinned;
-          return operatorServicePrice(a, clientProfile) - operatorServicePrice(b, clientProfile);
-        }
-      );
-    } else if (sortBy === "distance") {
-      results.sort((a, b) => {
-        const pinned = Number(favorites.includes(b.uid)) - Number(favorites.includes(a.uid));
-        if (pinned) return pinned;
-
-        const aDistance = getDistanceKm(clientProfile, a);
-        const bDistance = getDistanceKm(clientProfile, b);
-        const aVal = aDistance == null ? Number.POSITIVE_INFINITY : aDistance;
-        const bVal = bDistance == null ? Number.POSITIVE_INFINITY : bDistance;
-        return aVal - bVal;
-      });
-    }
+    // Favorites first, then nearest.
+    results.sort((a, b) => {
+      const pinned = Number(favorites.includes(b.uid)) - Number(favorites.includes(a.uid));
+      if (pinned) return pinned;
+      return (getDistanceKm(clientProfile, a) ?? Number.POSITIVE_INFINITY) - (getDistanceKm(clientProfile, b) ?? Number.POSITIVE_INFINITY);
+    });
 
     setFilteredOperators(results);
   }, [
     operators,
     clientProfile,
-    searchTerm,
-    filterService,
     cardsOnly,
-    filterStudents,
-    filterVerified,
-    filterEquipment,
-    sortBy,
     favorites,
   ]);
 
@@ -241,6 +170,7 @@ export default function FindOperatorsPage() {
   const [confirmedAddress,setConfirmedAddress] = useState("");
   const serviceLocation = locations?.location || clientProfile;
   const differentAddress = !sameServiceAddress(serviceLocation,profile);
+  const locationLabel = locations?.properties.find(property => sameServiceAddress(property, serviceLocation))?.label || (differentAddress ? "Service location" : "Home");
   const addressConfirmed = !differentAddress || confirmedAddress === formatServiceAddress(serviceLocation);
   const locationReady = !!locations?.ready && !locations.error && Boolean(serviceLocation?.address?.trim() && serviceLocation?.city?.trim() && serviceLocation?.province?.trim() && /^[A-Z]\d[A-Z]\s?\d[A-Z]\d$/i.test(serviceLocation?.postalCode?.trim() || ""));
   const locationInRange = Boolean(schedulingOperator && isClientWithinOperatorRadius(clientProfile, schedulingOperator));
@@ -248,8 +178,8 @@ export default function FindOperatorsPage() {
     if (!schedulingOperator) return undefined;
     const outside = locationReady && !locationInRange;
     if (schedulingOperator.serviceAreaMode === "cities" && schedulingOperator.serviceAreas?.length) return { mode: "cities", cities: schedulingOperator.serviceAreas, outside };
-    const center = Number.isFinite(schedulingOperator.lat) && Number.isFinite(schedulingOperator.lng) ? { lat: schedulingOperator.lat!, lng: schedulingOperator.lng! } : null;
-    return center ? { mode: "radius", center, radiusKm: Number(schedulingOperator.serviceRadius) || 10, outside } : undefined;
+    if (!Number.isFinite(schedulingOperator.lat) || !Number.isFinite(schedulingOperator.lng)) return undefined;
+    return { mode: "radius", center: { lat: schedulingOperator.lat!, lng: schedulingOperator.lng! }, radiusKm: schedulingOperator.serviceRadius || 10, outside };
   }, [schedulingOperator, locationReady, locationInRange]);
   const monthDays = eachDayOfInterval({ start: startOfWeek(startOfMonth(calendarMonth)), end: endOfWeek(endOfMonth(calendarMonth)) });
   const timeOptions = Array.from({ length: 25 }, (_, index) => { const minutes = 7 * 60 + index * 30; return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`; });
@@ -408,84 +338,17 @@ export default function FindOperatorsPage() {
   return (
     <div className="mx-auto max-w-[1040px] space-y-5">
       {favoriteError && <p role="alert">{favoriteError}</p>}
-      <PageHeader title="Find a shoveler" description={`Choose snow help in ${clientProfile?.city || "your neighbourhood"}.`} />
-      <div className="rounded-2xl bg-[var(--accent-soft)] px-4 py-3 text-sm text-[var(--text-secondary)]"><MapPin className="mr-2 inline h-4 w-4" />{clientProfile?.address || "Add your service address"} <Link href="/dashboard/settings" className="ml-2 inline-flex min-h-11 items-center font-semibold underline">Change</Link></div>
-
-      <section className="surface-panel p-4 md:p-5">
-        <div className="flex items-center gap-2">
-          <div className="relative min-w-0 flex-1">
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--text-muted)]" />
-            <input
-              type="search"
-              aria-label="Search operators"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search shovelers"
-              className="h-13 w-full rounded-[1.3rem] border-[3px] border-[var(--border-color)] bg-[var(--card)] pl-12 pr-4 text-[var(--text-primary)] outline-none transition focus:border-[var(--ink)]"
-            />
-          </div>
-          <button
-            aria-label="Filters"
-            aria-expanded={showFilters}
-            aria-controls="operator-filters"
-            onClick={() => setShowFilters(!showFilters)}
-            className={`inline-flex h-13 items-center justify-center gap-2 rounded-[1.3rem] border px-4 font-semibold transition ${
-              showFilters
-                ? "border-[var(--accent)] bg-[var(--accent)] text-white"
-                : "border-[var(--border-color)] bg-white text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
-            }`}
-          ><IconSwap icon={<Filter className="h-4 w-4" />}>
-            <Filter className="h-4 w-4" />
-            <span className="hidden sm:inline">Filters</span>
-          </IconSwap></button>
+      <header className="pt-1">
+        <h1 className="text-[1.75rem] font-semibold leading-tight tracking-tight text-[var(--text-primary)]">Choose SNOWD help in {serviceLocation?.city || clientProfile?.city || "your area"}</h1>
+      </header>
+      <section aria-label="Your service location" className="sticky top-[env(safe-area-inset-top,0px)] z-20 -mx-[var(--container-gutter)] border-y border-[var(--border-color)] bg-[var(--glass-wallpaper,var(--bg-primary))] px-[var(--container-gutter)] py-2.5 sm:mx-0 sm:rounded-xl sm:px-4 sm:border lg:top-0">
+        <div className="flex items-center gap-2 text-sm">
+          <MapPin size={16} aria-hidden="true" className="shrink-0 text-[var(--accent)]" />
+          <span className="shrink-0 font-semibold text-[var(--text-primary)]">{locationLabel}</span>
+          <span className="min-w-0 flex-1 truncate text-[var(--text-secondary)]">{serviceLocation?.address || "No service address yet"}</span>
+          <span className="shrink-0 rounded-full bg-[var(--accent-soft)] px-2.5 py-1 text-xs font-semibold text-[var(--accent)]">{propertySizeLabel(propertySize)}</span>
         </div>
-
-        <label className="flex min-h-12 items-center gap-3"><input type="checkbox" checked={cardsOnly} onChange={event => setCardsOnly(event.target.checked)} />Operators who accept cards</label>
-        {showFilters ? (
-          <div id="operator-filters" className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-[1.2rem] bg-[var(--bg-secondary)] p-3">
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Service</label>
-              <select aria-label="Service" value={filterService} onChange={(e) => setFilterService(e.target.value as ServiceType | "all")} className="h-11 w-full rounded-xl border-[3px] border-[var(--border-color)] bg-white px-3 text-sm">
-                <option value="all">All Services</option>
-                {SHOVELING_SERVICES.map(([key, label]) => (
-                  <option key={key} value={key}>{label}</option>
-                ))}
-              </select>
-            </div>
-            <div className="rounded-[1.2rem] bg-[var(--bg-secondary)] p-3">
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Sort</label>
-              <select aria-label="Sort" value={sortBy} onChange={(e) => setSortBy(e.target.value as "rating" | "price" | "distance")} className="h-11 w-full rounded-xl border-[3px] border-[var(--border-color)] bg-white px-3 text-sm">
-                <option value="rating">Highest Rated</option>
-                <option value="price">Lowest Price</option>
-                <option value="distance">Nearest First</option>
-              </select>
-            </div>
-            <div className="rounded-[1.2rem] bg-[var(--bg-secondary)] p-3">
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Equipment</label>
-              <select aria-label="Equipment" value={filterEquipment} onChange={(e) => setFilterEquipment(e.target.value)} className="h-11 w-full rounded-xl border-[3px] border-[var(--border-color)] bg-white px-3 text-sm">
-                <option value="all">Any Equipment</option>
-                <option value="Shovel">Shovel</option>
-                <option value="Snow Blower">Snow Blower</option>
-                <option value="Plow Truck">Plow Truck</option>
-                <option value="Salt Spreader">Salt Spreader</option>
-                <option value="ATV/UTV Plow">ATV/UTV Plow</option>
-              </select>
-            </div>
-            <div className="rounded-[1.2rem] bg-[var(--bg-secondary)] p-3">
-              <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Filters</div>
-              <div className="space-y-3 pt-1">
-                <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
-                  <input type="checkbox" checked={filterStudents} onChange={(e) => setFilterStudents(e.target.checked)} className="h-4 w-4 rounded" />
-                  Students only
-                </label>
-                <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
-                  <input type="checkbox" checked={filterVerified} onChange={(e) => setFilterVerified(e.target.checked)} className="h-4 w-4 rounded" />
-                  ID verified
-                </label>
-              </div>
-            </div>
-          </div>
-        ) : null}
+        <p className="mt-1 text-xs text-[var(--text-muted)]">All prices are for a {[propertySizeLabel(propertySize).toLowerCase(), ...selectedServices.filter(service => service !== "driveway").map(service => SERVICE_LABELS[service].toLowerCase())].join(" + ")}.</p>
       </section>
 
       {loading ? (
@@ -499,10 +362,10 @@ export default function FindOperatorsPage() {
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">No operators found</h3>
           <p className="mt-2 text-sm text-[var(--text-muted)]">
             {clientHasCoordinates
-              ? "Try adjusting your search or filters, or check back later."
+              ? "No one is serving your area right now. Check back later."
               : "Add your exact address in settings to unlock nearby operator matching."}
           </p>
-          <button type="button" className="mt-3 min-h-11 underline" onClick={() => { setSearchTerm(""); setFilterService("all"); setFilterEquipment("all"); setFilterStudents(false); setFilterVerified(false); setCardsOnly(false); }}>Clear search and filters</button>
+          {cardsOnly && <button type="button" className="mt-3 min-h-11 underline" onClick={() => setCardsOnly(false)}>Show cash operators too</button>}
           {!clientHasCoordinates && <Link className="ml-4 inline-flex min-h-11 items-center underline" href="/dashboard/settings">Update address</Link>}
         </div>
       ) : (
@@ -511,18 +374,22 @@ export default function FindOperatorsPage() {
             const cashOnly = !canAcceptPlatformPayments(op);
             const price = operatorServicePrice(op, clientProfile);
             const distance = getDistanceKm(clientProfile, op);
+            const company = op.businessName?.trim();
+            const name = op.displayName?.trim();
             return <article key={op.uid} className="operator-card app-card p-4 sm:p-5">
               <div className="flex items-start gap-3">
-                <UserAvatar photoURL={op.avatar} logoURL={op.logoUrl} role="operator" displayName={op.businessName || op.displayName} size={44} />
-                <div className="min-w-0 flex-1"><h2 className="text-lg font-semibold break-words"><Link href={`/dashboard/u/${op.uid}?returnTo=${encodeURIComponent(`/dashboard/find`)}`} className="rounded underline-offset-4 hover:underline">{op.businessName || op.displayName}</Link></h2><p className="mt-1 text-sm text-[var(--text-secondary)]">{op.rating ? `${op.rating.toFixed(1)} ★` : "New operator"}{distance !== null ? ` · ${distance.toFixed(1)} km away` : ` · ${op.city}`}</p></div>
-                <button type="button" onClick={() => toggleFavorite(op.uid)} disabled={favoriteBusy} aria-pressed={favorites.includes(op.uid)} aria-label={favorites.includes(op.uid) ? `Unsave ${op.businessName || op.displayName}` : `Save ${op.businessName || op.displayName}`} className="-mr-1 -mt-1 grid h-11 w-11 shrink-0 place-items-center rounded-xl text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"><Star size={19} fill={favorites.includes(op.uid) ? "currentColor" : "none"} className={favorites.includes(op.uid) ? "text-amber-600" : ""} /></button>
+                <UserAvatar photoURL={op.avatar} logoURL={op.logoUrl} role="operator" displayName={company || name} size={44} />
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-lg font-semibold leading-snug break-words"><Link href={`/dashboard/u/${op.uid}?returnTo=${encodeURIComponent(`/dashboard/find`)}`} className="rounded underline-offset-4 hover:underline">{company || name}</Link></h2>
+                  {company && name && company !== name && <p className="text-sm text-[var(--text-secondary)]">{name}</p>}
+                  <p className="mt-0.5 text-sm text-[var(--text-muted)]">{distance !== null ? `${distance.toFixed(1)} km away` : op.city}</p>
+                </div>
+                <button type="button" onClick={() => toggleFavorite(op.uid)} disabled={favoriteBusy} aria-pressed={favorites.includes(op.uid)} aria-label={favorites.includes(op.uid) ? `Unsave ${company || name}` : `Save ${company || name}`} className="-mr-1 -mt-1 grid h-11 w-11 shrink-0 place-items-center rounded-xl text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"><Star size={19} fill={favorites.includes(op.uid) ? "currentColor" : "none"} className={favorites.includes(op.uid) ? "text-amber-600" : ""} /></button>
               </div>
-              <p className="mt-4 text-sm capitalize text-[var(--text-secondary)]">{[propertySizeLabel(propertySize), ...selectedServices.filter(service => service !== "driveway").map(service => service.replaceAll("-", " "))].join(" · ")}</p>
-              <div className={`mt-3 grid gap-2 ${cashOnly ? "" : "grid-cols-2"}`}>
-                {!cashOnly && <div className="rounded-xl bg-[var(--accent-soft)] p-3"><p className="flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)]"><CreditCard size={15} />Card</p><p className="mt-1 text-xl font-semibold">${quoteMarketplace(price, "credit").price.toFixed(2)} <span className="text-xs font-normal">CAD</span></p></div>}
-                <div className="rounded-xl bg-[var(--bg-secondary)] p-3"><p className="flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)]"><Banknote size={15} />Cash{cashOnly ? " only" : ""}</p><p className="mt-1 text-xl font-semibold">${price.toFixed(2)} <span className="text-xs font-normal">CAD</span></p></div>
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <div className="rounded-xl bg-[var(--bg-secondary)] p-3"><p className="flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]"><Banknote size={14} aria-hidden="true" />Cash</p><p className="mt-0.5 text-xl font-semibold">${price.toFixed(2)}</p></div>
+                <div className={`rounded-xl p-3 ${cashOnly ? "border border-dashed border-[var(--border-color)]" : "bg-[var(--accent-soft)]"}`}><p className="flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]"><CreditCard size={14} aria-hidden="true" />Card</p>{cashOnly ? <p className="mt-1.5 text-sm text-[var(--text-muted)]">Not accepted</p> : <p className="mt-0.5 text-xl font-semibold">${quoteMarketplace(price, "credit").price.toFixed(2)}</p>}</div>
               </div>
-              <p className="mt-2 text-xs leading-5 text-[var(--text-secondary)]">{cashOnly ? "Pay directly after the work." : "Card charged after photo proof. Cash paid directly."}</p>
               <button onClick={() => bookOperator(op)} disabled={booking} className="btn-primary mt-4 min-h-12 w-full px-4 py-3">Request help</button>
             </article>;
           })}
@@ -545,11 +412,11 @@ export default function FindOperatorsPage() {
           <div className={popup.actions}><button type="button" onClick={() => setBookingStep(2)} disabled={!requestedServices.length} className="dialog-btn" data-tone="primary"><IconSwap icon={<ArrowRight />}>Continue with this shoveler</IconSwap></button></div>
           </>}
           {bookingStep === 2 && <>
-          <div className={popup.head}><h3>Confirm your location</h3><p>The shaded area is where {schedulingOperator.businessName || schedulingOperator.displayName} works.</p></div>
+          <div className={popup.head}><h3>Confirm your location</h3><p>Check the pin is where the work happens.</p></div>
           <div className={popup.mapCard}>
             <div>{serviceLocation?.address ? <SnowdMap key={formatServiceAddress(serviceLocation)} location={Number.isFinite(serviceLocation.lat) && Number.isFinite(serviceLocation.lng) ? `${serviceLocation.lat},${serviceLocation.lng}` : formatServiceAddress(serviceLocation)} compact client markerAddress={formatServiceAddress(serviceLocation)} serviceArea={operatorArea} /> : <div className={popup.emptyMap}>Choose a service address to see it on the map.</div>}
-              {locationReady && <span className={popup.areaTag} data-outside={!locationInRange || undefined}>{locationInRange ? "Inside service area" : "Outside service area"}</span>}</div>
-            <div className={popup.mapFoot}><div><strong>{serviceLocation?.address || "No address yet"}</strong><span>{[serviceLocation?.city, serviceLocation?.province, serviceLocation?.postalCode].filter(Boolean).join(", ") || "Add where the work happens"}</span></div><button type="button" className="dialog-btn" data-tone="neutral" onClick={()=>setEditingLocation(true)}><IconSwap icon={<MapPin />}>Change address</IconSwap></button></div>
+              {locationReady && operatorArea && <span className={popup.areaTag} data-outside={!locationInRange || undefined}>{locationInRange ? "Inside service area" : "Outside service area"}</span>}</div>
+            <div className={popup.mapFoot}><div><strong>{serviceLocation?.address || "No address yet"}</strong><span>{[serviceLocation?.city, serviceLocation?.province, serviceLocation?.postalCode].filter(Boolean).join(", ") || "Add where the work happens"}</span></div><button type="button" className="dialog-btn" data-tone="neutral" onClick={()=>setEditingLocation(true)}><IconSwap icon={<MapPin />}>{(locations?.properties.length || 0) > 1 ? "Change property" : "Change address"}</IconSwap></button></div>
           </div>
           {locations?.error && <p role="alert" className={popup.alert}>{locations.error} <button type="button" className="font-semibold underline" onClick={locations.reload}>Try again</button></p>}
           {differentAddress && <label className={popup.check}><input type="checkbox" checked={addressConfirmed} onChange={e=>setConfirmedAddress(e.target.checked ? formatServiceAddress(serviceLocation) : "")} /><span className={popup.tick} aria-hidden="true"><Check size={13} strokeWidth={3} /></span><span>This differs from my profile home. I confirm service at {formatServiceAddress(serviceLocation)}.</span></label>}

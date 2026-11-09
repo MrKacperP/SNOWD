@@ -29,7 +29,10 @@ CANADIAN_PROVINCES,
 ClientProfile,
 OperatorProfile,
 OperatorServiceArea,
+SHOVELING_SERVICES,
 UserProfile,
+isShovelingService,
+type ServiceType,
 } from "@/lib/types";
 import { deleteField,doc,updateDoc } from "firebase/firestore";
 import { getDownloadURL,ref,uploadBytes } from "firebase/storage";
@@ -149,6 +152,7 @@ export default function SettingsPage() {
   const [serviceAreaMode, setServiceAreaMode] = useState<"radius" | "cities">(operatorProfile?.serviceAreaMode || (operatorProfile?.serviceAreas?.length ? "cities" : "radius"));
   const [serviceRadius, setServiceRadius] = useState(operatorProfile?.serviceRadius || 10);
   const [serviceAreas, setServiceAreas] = useState<OperatorServiceArea[]>(operatorProfile?.serviceAreas || []);
+  const [offeredServices, setOfferedServices] = useState<ServiceType[]>(() => (operatorProfile?.serviceTypes || []).filter(isShovelingService));
   const [pricing, setPricing] = useState(() => ({
     small: operatorProfile?.pricing?.driveway?.small || 25,
     medium: operatorProfile?.pricing?.driveway?.medium || 40,
@@ -288,7 +292,7 @@ export default function SettingsPage() {
   }, [profile]);
   const brandingDirty = isOperator && (avatarUrl !== (profile?.avatar || "") || logoUrl !== (operatorProfile?.logoUrl || "") || brandingTagline !== (operatorProfile?.tagline || "") || brandingDescription !== (operatorProfile?.brandDescription || "") || JSON.stringify(portfolioPhotos) !== JSON.stringify(operatorProfile?.portfolioPhotos || []));
   const brandingBusy = uploadingLogo || uploadingPortfolio;
-  const generalDirty = Boolean(profile) && (requiredGeneralFields.some(field => field.value !== String((profile as unknown as Record<string, unknown>)?.[field.key] || "")) || (!isOperator && age !== (profile as ClientProfile)?.age) || (isOperator && (serviceRadius !== (operatorProfile.serviceRadius || 10) || serviceAreaMode !== (operatorProfile.serviceAreaMode || (operatorProfile.serviceAreas?.length ? "cities" : "radius")) || JSON.stringify(serviceAreas) !== JSON.stringify(operatorProfile.serviceAreas || []) || pricing.small !== (operatorProfile.pricing?.driveway?.small || 25) || pricing.medium !== (operatorProfile.pricing?.driveway?.medium || 40) || pricing.large !== (operatorProfile.pricing?.driveway?.large || 60) || pricing.walkway !== (operatorProfile.pricing?.walkway || 15) || pricing.sidewalk !== (operatorProfile.pricing?.sidewalk || 15) || pricing.backyardPatio !== (operatorProfile.pricing?.backyardPatio || 15) || pricing.porch !== (operatorProfile.pricing?.porch || 10))));
+  const generalDirty = Boolean(profile) && (requiredGeneralFields.some(field => field.value !== String((profile as unknown as Record<string, unknown>)?.[field.key] || "")) || (!isOperator && age !== (profile as ClientProfile)?.age) || (isOperator && (serviceRadius !== (operatorProfile.serviceRadius || 10) || serviceAreaMode !== (operatorProfile.serviceAreaMode || (operatorProfile.serviceAreas?.length ? "cities" : "radius")) || JSON.stringify(serviceAreas) !== JSON.stringify(operatorProfile.serviceAreas || []) || pricing.small !== (operatorProfile.pricing?.driveway?.small || 25) || pricing.medium !== (operatorProfile.pricing?.driveway?.medium || 40) || pricing.large !== (operatorProfile.pricing?.driveway?.large || 60) || pricing.walkway !== (operatorProfile.pricing?.walkway || 15) || pricing.sidewalk !== (operatorProfile.pricing?.sidewalk || 15) || pricing.backyardPatio !== (operatorProfile.pricing?.backyardPatio || 15) || pricing.porch !== (operatorProfile.pricing?.porch || 10) || offeredServices.join() !== (operatorProfile.serviceTypes || []).filter(isShovelingService).join())));
   useEffect(() => {
     if (!generalDirty && !brandingDirty && !brandingBusy) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
@@ -575,6 +579,7 @@ export default function SettingsPage() {
         setServiceRadius(op.serviceRadius || 10);
         setServiceAreas(op.serviceAreas || []);
         setServiceAreaMode(op.serviceAreaMode || (op.serviceAreas?.length ? "cities" : "radius"));
+        setOfferedServices((op.serviceTypes || []).filter(isShovelingService));
         setPricing({
           small: op.pricing?.driveway?.small || 25,
           medium: op.pricing?.driveway?.medium || 40,
@@ -595,6 +600,10 @@ export default function SettingsPage() {
     if (!profile?.uid || brandingBusy || saving) return;
     if (isOperator && Object.values(pricing).some(value => !Number.isFinite(value) || value < 0.01 || value > 10000)) {
       setSaveError("Enter each service price from $0.01 to $10,000 CAD.");
+      return;
+    }
+    if (isOperator && !offeredServices.length) {
+      setSaveError("Choose at least one area you shovel.");
       return;
     }
     if (isOperator && serviceAreaMode === "cities" && !serviceAreas.length) {
@@ -622,6 +631,7 @@ export default function SettingsPage() {
         updates.serviceRadius = serviceRadius;
         updates.serviceAreaMode = serviceAreaMode;
         updates.serviceAreas = serviceAreaMode === "cities" ? serviceAreas : [];
+        updates.serviceTypes = offeredServices;
         updates.pricing = {
           driveway: { small: pricing.small, medium: pricing.medium, large: pricing.large },
           walkway: pricing.walkway,
@@ -836,16 +846,26 @@ export default function SettingsPage() {
 
           {isOperator && (
             <section className={styles.card}>
-              <h2 className={styles.cardTitle}>Your prices</h2>
-              <p className={styles.sectionDescription}>What you receive for each area. Front porch and sidewalk share one price. Existing orders keep their agreed price.</p>
+              <h2 className={styles.cardTitle}>Areas and prices</h2>
+              <p className={styles.sectionDescription}>Pick the areas you shovel, then set what you receive for each. Front porch and sidewalk share one price. Existing orders keep their agreed price.</p>
+              <div className={styles.areaChips} role="group" aria-label="Areas you shovel">
+                {SHOVELING_SERVICES.map(([value, label]) => {
+                  const on = offeredServices.includes(value);
+                  return (
+                    <button key={value} type="button" className={styles.areaChip} aria-pressed={on} onClick={() => setOfferedServices(current => on ? current.filter(item => item !== value) : SHOVELING_SERVICES.map(([item]) => item).filter(item => item === value || current.includes(item)))}>
+                      {on && <CheckCircle size={16} aria-hidden="true" />}{label}
+                    </button>
+                  );
+                })}
+              </div>
               <div className={styles.fields}>
                 {([
-                  ["small", "1-car driveway"],
-                  ["medium", "2-car driveway"],
-                  ["large", "3+ car driveway"],
-                  ["sidewalk", "Front porch & sidewalk"],
-                  ["backyardPatio", "Backyard patio"],
-                ] as const).map(([key, label]) => (
+                  ["small", "1-car driveway", "driveway"],
+                  ["medium", "2-car driveway", "driveway"],
+                  ["large", "3+ car driveway", "driveway"],
+                  ["sidewalk", "Front porch & sidewalk", "porch|sidewalk"],
+                  ["backyardPatio", "Backyard patio", "backyard-patio"],
+                ] as const).filter(([, , areas]) => areas.split("|").some(area => offeredServices.includes(area as ServiceType))).map(([key, label]) => (
                   <Field key={key} label={`${label} ($ CAD)`} type="number" inputMode="decimal" min="0.01" max="10000" step="0.01" value={pricing[key]} onChange={event => setPricing(current => ({ ...current, [key]: Number(event.target.value), ...(key === "sidewalk" ? { porch: Number(event.target.value) } : {}) }))} />
                 ))}
               </div>
