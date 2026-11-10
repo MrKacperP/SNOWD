@@ -27,28 +27,30 @@ export default function Notifications() {
           return (
             <Pressable
               key={item.id}
+              accessibilityRole="button"
+              accessibilityLabel={`${item.read ? "" : "New. "}${view.title}. ${view.detail || ""}`}
               onPress={() => {
                 void markRead(item.id);
                 if (route) router.push(route);
               }}
               style={({ pressed }) => [
-                { flexDirection: "row", gap: 12, padding: space.md, borderRadius: radius.lg, backgroundColor: item.read ? colors.surface : "#f3f6ff", borderWidth: 0.5, borderColor: item.read ? colors.border : "#d6defe" },
+                { flexDirection: "row", gap: 12, padding: space.lg, borderRadius: radius.lg, backgroundColor: item.read ? colors.surface : "#f3f6ff", borderWidth: 0.5, borderColor: item.read ? colors.border : colors.accentBorder },
                 pressed && { opacity: 0.85 },
               ]}
             >
-              <View style={{ width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: view.needsAction ? colors.sunSoft : colors.accentSoft }}>
-                <Icon name={KIND_ICONS[view.kind]} size={17} color={view.needsAction ? "#c25a12" : colors.accent} />
+              <View style={{ width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: view.needsAction ? colors.sunSoft : colors.accentSoft }}>
+                <Icon name={KIND_ICONS[view.kind]} size={20} color={view.needsAction ? colors.sunText : colors.accent} />
               </View>
               <View style={{ flex: 1, gap: 3 }}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                  <Text style={[type.headline, { flex: 1, fontSize: 16 }]} numberOfLines={1}>{view.title}</Text>
+                  <Text style={[type.headline, { flex: 1 }]} numberOfLines={2}>{view.title}</Text>
                   <Text style={type.caption}>{shortTime(item.createdAt)}</Text>
                 </View>
                 {view.context ? <Text style={[type.caption, { fontWeight: "600" }]}>{view.context}</Text> : null}
                 {view.detail ? <Text style={type.callout} numberOfLines={2}>{view.detail}</Text> : null}
-                {route ? <Text style={{ color: view.needsAction ? "#c25a12" : colors.accent, fontWeight: "700", fontSize: 14, marginTop: 2 }}>{view.action}</Text> : null}
+                {route ? <Text style={{ color: view.needsAction ? colors.sunText : colors.accent, fontWeight: "700", fontSize: 15, marginTop: 4 }}>{view.action} ›</Text> : null}
               </View>
-              {!item.read ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent, marginTop: 6 }} /> : null}
+              {!item.read ? <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.accent, marginTop: 6 }} /> : null}
             </Pressable>
           );
         })}

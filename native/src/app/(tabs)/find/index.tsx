@@ -45,9 +45,9 @@ export default function Find() {
         </Marker>
         {shown.map((op, i) =>
           typeof op.lat === "number" && typeof op.lng === "number" ? (
-            <Marker key={op.uid} coordinate={{ latitude: op.lat, longitude: op.lng }} onPress={() => focus(i)} tracksViewChanges={false}>
+            <Marker key={op.uid} coordinate={{ latitude: op.lat, longitude: op.lng }} onPress={() => focus(i)} tracksViewChanges={false} accessibilityLabel={`${op.businessName || op.displayName}, ${money(quoteFor(op, profile).cash)}`}>
               <View style={[styles.pricePin, i === selected && { backgroundColor: colors.ink }]}>
-                <Text style={{ color: i === selected ? "#fff" : colors.ink, fontWeight: "800", fontSize: 13 }}>{money(quoteFor(op, profile).cash).replace(".00", "")}</Text>
+                <Text style={{ color: i === selected ? "#fff" : colors.ink, fontWeight: "800", fontSize: 15 }}>{money(quoteFor(op, profile).cash).replace(".00", "")}</Text>
               </View>
             </Marker>
           ) : null,
@@ -57,7 +57,7 @@ export default function Find() {
       <View style={[styles.top, { paddingTop: insets.top + 8 }]}>
         <View style={styles.titleBar}>
           <Icon name="magnifyingglass" size={16} color={colors.muted} />
-          <Text style={[type.headline, { flex: 1 }]}>Shovelers near {profile?.city || "you"}</Text>
+          <Text accessibilityRole="header" style={[type.headline, { flex: 1 }]} numberOfLines={1}>Shovelers near {profile?.city || "you"}</Text>
           <Text style={type.caption}>{loading ? "…" : `${shown.length} found`}</Text>
         </View>
         <View style={{ flexDirection: "row", gap: 8 }}>
@@ -92,13 +92,13 @@ export default function Find() {
             renderItem={({ item }) => {
               const quote = quoteFor(item, profile);
               return (
-                <Pressable onPress={() => router.push(`/operator/${item.uid}`)} style={({ pressed }) => [styles.card, { width: CARD_WIDTH }, pressed && { transform: [{ scale: 0.98 }] }]}>
+                <Pressable accessibilityRole="button" accessibilityLabel={`${item.businessName || item.displayName}, ${money(quote.cash)} cash. View profile`} onPress={() => router.push(`/operator/${item.uid}`)} style={({ pressed }) => [styles.card, { width: CARD_WIDTH }, pressed && { transform: [{ scale: 0.98 }] }]}>
                   <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
                     <Avatar uri={item.logoUrl || item.avatar} name={item.businessName || item.displayName} size={50} />
                     <View style={{ flex: 1, gap: 2 }}>
                       <Text style={type.headline} numberOfLines={1}>{item.businessName || item.displayName}</Text>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                        <Icon name="star.fill" size={12} color={colors.sun} />
+                        <Icon name="star.fill" size={13} color={colors.sun} />
                         <Text style={type.caption}>
                           {item.reviewCount ? `${item.rating.toFixed(1)} (${item.reviewCount})` : "New"}
                           {item.distanceKm != null ? ` · ${item.distanceKm.toFixed(1)} km` : ""}
@@ -108,12 +108,12 @@ export default function Find() {
                     </View>
                     <View style={{ alignItems: "flex-end" }}>
                       <Text style={type.title}>{money(quote.cash)}</Text>
-                      <Text style={type.caption}>cash</Text>
+                      <Text style={type.caption}>{quote.card ? "cash or card" : "cash only"}</Text>
                     </View>
                   </View>
                   <View style={{ flexDirection: "row", gap: 10 }}>
                     <Button title="View profile" variant="secondary" small style={{ flex: 1 }} onPress={() => router.push(`/operator/${item.uid}`)} />
-                    <Button title="Book" small style={{ flex: 1 }} disabled={!item.servesYou} onPress={() => router.push(`/book/${item.uid}`)} />
+                    <Button title="Request" icon="paperplane.fill" small style={{ flex: 1 }} disabled={!item.servesYou} onPress={() => router.push(`/book/${item.uid}`)} />
                   </View>
                   {!item.servesYou ? <Text style={[type.caption, { textAlign: "center" }]}>Doesn’t serve your address</Text> : null}
                 </Pressable>
@@ -128,8 +128,8 @@ export default function Find() {
 
 const styles = StyleSheet.create({
   top: { position: "absolute", left: 0, right: 0, paddingHorizontal: space.lg, gap: 10 },
-  titleBar: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: space.lg, height: 48, ...shadow, shadowOpacity: 0.12 },
+  titleBar: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: space.lg, minHeight: 52, ...shadow, shadowOpacity: 0.12 },
   card: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: space.lg, gap: space.md, ...shadow, shadowOpacity: 0.14, shadowRadius: 18 },
-  pricePin: { backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 6, ...shadow, shadowOpacity: 0.2 },
+  pricePin: { backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 8, ...shadow, shadowOpacity: 0.2 },
   homePin: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.accent, borderWidth: 3, borderColor: "#fff", alignItems: "center", justifyContent: "center" },
 });

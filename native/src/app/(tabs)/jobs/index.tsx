@@ -8,7 +8,7 @@ import { useAuth } from "~/context/auth";
 import { useJobs, usePeople } from "~/lib/data";
 
 const SECTIONS = [
-  ["attention", "Needs your attention"],
+  ["attention", "Needs your reply"],
   ["progress", "Happening now"],
   ["upcoming", "Confirmed"],
   ["waiting", "Waiting for a reply"],
@@ -38,15 +38,15 @@ export default function Jobs() {
     <>
       <Stack.Screen options={{ title: operator ? "Jobs" : "Orders" }} />
       <Screen>
-        <View style={{ flexDirection: "row", gap: 8 }}>
-          <Chip label="Open" selected={filter === "open"} onPress={() => setFilter("open")} />
-          <Chip label="History" selected={filter === "history"} onPress={() => setFilter("history")} />
+        <View accessibilityRole="tablist" style={{ flexDirection: "row", gap: 8 }}>
+          <Chip label="Current" icon="clock" selected={filter === "open"} onPress={() => setFilter("open")} />
+          <Chip label="Past" icon="checkmark.circle" selected={filter === "history"} onPress={() => setFilter("history")} />
         </View>
         {!loading && !grouped.length ? (
           <Empty
             icon="list.clipboard"
-            title={filter === "open" ? "No open orders" : "No past orders yet"}
-            body={operator ? "New requests from customers appear here." : "Find a shoveler near you to book your first clearing."}
+            title={filter === "open" ? (operator ? "No current jobs" : "No current orders") : operator ? "No past jobs yet" : "No past orders yet"}
+            body={filter === "history" ? "Finished and cancelled visits are kept here." : operator ? "New requests from customers appear here." : "Find a shoveler near you to book a visit."}
             action={!operator && filter === "open" ? <Button title="Find a shoveler" icon="map.fill" onPress={() => router.push("/find")} /> : undefined}
           />
         ) : null}

@@ -79,8 +79,8 @@ export default function VerificationSettings() {
       <Stack.Screen options={{ title: "Verification" }} />
       <Screen>
         {operator ? (
-          <Card style={{ backgroundColor: isPublic ? colors.mintSoft : colors.sunSoft, borderColor: isPublic ? "#bfe3d5" : "#ffd9bf", flexDirection: "row", alignItems: "center" }}>
-            <Icon name={isPublic ? "checkmark.shield.fill" : "shield.lefthalf.filled"} size={26} color={isPublic ? colors.mint : "#c25a12"} />
+          <Card style={{ backgroundColor: isPublic ? colors.mintSoft : colors.sunSoft, borderColor: isPublic ? "#bfe3d5" : colors.sunBorder, flexDirection: "row", alignItems: "center" }}>
+            <Icon name={isPublic ? "checkmark.shield.fill" : "shield.lefthalf.filled"} size={26} color={isPublic ? colors.mint : colors.sunText} />
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={type.headline}>{isPublic ? "Your account is public" : "Not public yet"}</Text>
               <Text style={type.caption}>{isPublic ? "You’re verified and visible to customers. You can receive jobs." : publicNote}</Text>

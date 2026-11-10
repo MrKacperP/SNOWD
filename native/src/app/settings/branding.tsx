@@ -90,18 +90,18 @@ export default function BrandingSettings() {
             ] as const
           ).map(([kind, label, uri, note]) => (
             <View key={kind} style={{ flexDirection: "row", alignItems: "center", gap: space.md }}>
-              <Pressable onPress={() => void upload(kind)} disabled={!!uploading}>
+              <Pressable accessibilityRole="button" hitSlop={12} onPress={() => void upload(kind)} disabled={!!uploading}>
                 <Avatar uri={uri} name={kind === "logo" ? profile?.businessName : profile?.displayName} size={64} />
               </Pressable>
               <View style={{ flex: 1, gap: 2 }}>
                 <Text style={type.headline}>{label}</Text>
                 <Text style={type.caption}>{note}</Text>
                 <View style={{ flexDirection: "row", gap: 16, marginTop: 4 }}>
-                  <Pressable onPress={() => void upload(kind)} disabled={!!uploading}>
+                  <Pressable accessibilityRole="button" hitSlop={12} onPress={() => void upload(kind)} disabled={!!uploading}>
                     <Text style={{ color: colors.accent, fontWeight: "700" }}>{uploading === kind ? "Uploading…" : uri ? "Change" : "Upload"}</Text>
                   </Pressable>
                   {uri ? (
-                    <Pressable onPress={() => (kind === "logo" ? setLogo("") : setAvatar(""))}>
+                    <Pressable accessibilityRole="button" hitSlop={12} onPress={() => (kind === "logo" ? setLogo("") : setAvatar(""))}>
                       <Text style={{ color: colors.danger, fontWeight: "700" }}>Remove</Text>
                     </Pressable>
                   ) : null}

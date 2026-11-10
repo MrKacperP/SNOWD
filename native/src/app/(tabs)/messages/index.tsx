@@ -54,7 +54,12 @@ export default function Messages() {
           )
         }
         renderItem={({ item }) => (
-          <Pressable onPress={() => router.push(`/chat/${item.chat.id}`)} style={({ pressed }) => [styles.row, pressed && { backgroundColor: colors.surfaceAlt }]}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${personName(item.other)}. ${item.unread ? `${item.unread} unread. ` : ""}${item.chat.lastMessage || "No messages yet"}`}
+            onPress={() => router.push(`/chat/${item.chat.id}`)}
+            style={({ pressed }) => [styles.row, pressed && { backgroundColor: colors.surfaceAlt }]}
+          >
             <View>
               <Avatar uri={item.other?.logoUrl || item.other?.avatar} name={personName(item.other)} size={54} />
               {item.other?.isOnline ? <View style={styles.online} /> : null}
@@ -66,15 +71,15 @@ export default function Messages() {
               </View>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                 <Text style={[type.callout, { flex: 1 }, item.unread ? { color: colors.ink, fontWeight: "600" } : null]} numberOfLines={2}>
-                  {item.chat.lastMessage || "Say hello 👋"}
+                  {item.chat.lastMessage || "No messages yet. Tap to say hello."}
                 </Text>
                 {item.unread ? (
                   <View style={styles.unread}>
-                    <Text style={{ color: "#fff", fontSize: 12, fontWeight: "700" }}>{item.unread}</Text>
+                    <Text style={{ color: "#fff", fontSize: 13, fontWeight: "700" }}>{item.unread > 99 ? "99+" : item.unread}</Text>
                   </View>
                 ) : null}
               </View>
-              {item.openJob ? <Text style={{ color: colors.accent, fontSize: 12, fontWeight: "700" }}>● {orderLabel(item.openJob)}</Text> : null}
+              {item.openJob ? <Text style={{ color: colors.accent, fontSize: 14, fontWeight: "700" }}>● {orderLabel(item.openJob)}</Text> : null}
             </View>
           </Pressable>
         )}
@@ -84,7 +89,7 @@ export default function Messages() {
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.md, backgroundColor: colors.bg },
+  row: { flexDirection: "row", alignItems: "center", gap: space.md, minHeight: 80, paddingHorizontal: space.lg, paddingVertical: 14, backgroundColor: colors.bg },
   online: { position: "absolute", right: 1, bottom: 1, width: 14, height: 14, borderRadius: 7, backgroundColor: "#22c55e", borderWidth: 2, borderColor: colors.bg },
-  unread: { minWidth: 22, height: 22, borderRadius: 11, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center", paddingHorizontal: 6 },
+  unread: { minWidth: 24, height: 24, borderRadius: 12, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center", paddingHorizontal: 6 },
 });

@@ -113,7 +113,7 @@ export default function Transactions() {
             {cashOnly ? <Notice tone="blue" text="You’re taking cash jobs. Connect Stripe in Payouts to also accept cards and Apple Pay." /> : null}
           </>
         ) : (
-          <Card style={{ backgroundColor: colors.accentSoft, borderColor: "#d6defe" }}>
+          <Card style={{ backgroundColor: colors.accentSoft, borderColor: colors.accentBorder }}>
             <Text style={type.overline}>More winter, less work</Text>
             <Text style={type.title}>{saved > 0 ? `You’ve saved ${timeSavedLabel(saved)}` : "Make time for your snow day"}</Text>
             <Text style={type.callout}>{completed ? `${completed} completed ${completed === 1 ? "visit" : "visits"} · estimated from service time.` : "Your time saved appears after your first completed visit."}</Text>
@@ -149,7 +149,7 @@ export default function Transactions() {
         {list.length ? (
           <View style={{ backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 0.5, borderColor: colors.border, overflow: "hidden" }}>
             {list.map((t, i) => (
-              <Pressable key={t.id} onPress={() => t.jobId && router.push(`/job/${t.jobId}`)} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 12, padding: space.md, borderBottomWidth: i === list.length - 1 ? 0 : 0.5, borderBottomColor: colors.border }, pressed && { backgroundColor: colors.surfaceAlt }]}>
+              <Pressable key={t.id} accessibilityRole="button" onPress={() => t.jobId && router.push(`/job/${t.jobId}`)} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 12, padding: space.md, borderBottomWidth: i === list.length - 1 ? 0 : 0.5, borderBottomColor: colors.border }, pressed && { backgroundColor: colors.surfaceAlt }]}>
                 <View style={{ width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: t.paymentMethod === "cash" ? colors.mintSoft : colors.accentSoft }}>
                   <Icon name={t.paymentMethod === "cash" ? "banknote.fill" : "creditcard.fill"} size={16} color={t.paymentMethod === "cash" ? colors.mint : colors.accent} />
                 </View>

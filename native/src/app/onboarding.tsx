@@ -5,11 +5,11 @@ import { Pressable, Text, View } from "react-native";
 import { KeyboardAwareScrollView, KeyboardStickyView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CANADIAN_PROVINCES, SHOVELING_SERVICES, type PropertySize, type ServiceType } from "@/lib/types";
-import { Button, Card, Chip, Field, Icon, Notice } from "~/components/ui";
+import { Button, Chip, Field, Icon, Notice, OptionCard, StepHeader } from "~/components/ui";
 import { useAuth } from "~/context/auth";
 import { api } from "~/lib/api";
 import { db } from "~/lib/firebase";
-import { colors, radius, space, type } from "~/lib/theme";
+import { colors, space, type } from "~/lib/theme";
 
 type Role = "client" | "operator";
 const SIZES: [PropertySize, string, string][] = [
@@ -162,6 +162,11 @@ export default function Onboarding() {
   };
 
   const titles = ["How will you use SNOWD?", "About you", role === "operator" ? "Your services" : "Your property"];
+  const intros = [
+    "Pick one to get started. Setup takes about two minutes.",
+    role === "operator" ? "Customers see your name. Your address sets where you work from." : "Your shoveler needs to know where to go and how to reach you.",
+    role === "operator" ? "Choose what you offer and what you charge. You can change all of this later." : "This gives you accurate prices. You can change it later.",
+  ];
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -170,42 +175,35 @@ export default function Onboarding() {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingTop: insets.top + space.lg, paddingHorizontal: space.xl, paddingBottom: 140, gap: space.lg }}
       >
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-          {step > 0 ? (
-            <Pressable hitSlop={12} onPress={() => setStep(step - 1)}>
-              <Icon name="chevron.left" size={20} color={colors.accent} />
-            </Pressable>
-          ) : (
-            <Pressable hitSlop={12} onPress={() => void signOut()}>
-              <Text style={{ color: colors.accent, fontWeight: "600" }}>Sign out</Text>
-            </Pressable>
-          )}
-          <Text style={type.caption}>Step {step + 1} of 3</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={step > 0 ? "Back to the previous step" : "Sign out"}
+          hitSlop={8}
+          onPress={() => {
+            setError("");
+            if (step > 0) setStep(step - 1);
+            else void signOut();
+          }}
+          style={{ flexDirection: "row", alignItems: "center", gap: 6, minHeight: 44, alignSelf: "flex-start" }}
+        >
+          {step > 0 ? <Icon name="chevron.left" size={17} color={colors.accent} /> : null}
+          <Text style={{ color: colors.accent, fontWeight: "600", fontSize: 17 }}>{step > 0 ? "Back" : "Sign out"}</Text>
+        </Pressable>
+        <StepHeader step={step} labels={["Your role", "About you", role === "operator" ? "Your services" : "Your property"]} />
+        <View style={{ gap: 6 }}>
+          <Text accessibilityRole="header" style={type.largeTitle}>{titles[step]}</Text>
+          <Text style={type.callout}>{intros[step]}</Text>
         </View>
-        <View style={{ flexDirection: "row", gap: 6 }}>
-          {[0, 1, 2].map((i) => (
-            <View key={i} style={{ flex: 1, height: 4, borderRadius: 2, backgroundColor: i <= step ? colors.accent : colors.border }} />
-          ))}
-        </View>
-        <Text style={type.largeTitle}>{titles[step]}</Text>
 
         {step === 0 ? (
-          <View style={{ gap: space.md }}>
+          <View accessibilityRole="radiogroup" style={{ gap: space.md }}>
             {(
               [
-                ["client", "I need snow cleared", "Book trusted local shovelers for your driveway and walkways.", "house.fill"],
+                ["client", "I need snow cleared", "Book a trusted local shoveler for your driveway and walkways.", "house.fill"],
                 ["operator", "I clear snow", "Get jobs nearby, chat with customers and get paid.", "snowflake"],
               ] as const
             ).map(([value, title, body, icon]) => (
-              <Card key={value} onPress={() => setRole(value)} style={[{ flexDirection: "row", alignItems: "center", gap: space.lg }, role === value && { borderColor: colors.accent, borderWidth: 2 }]}>
-                <View style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: role === value ? colors.accent : colors.accentSoft, alignItems: "center", justifyContent: "center" }}>
-                  <Icon name={icon} size={24} color={role === value ? "#fff" : colors.accent} />
-                </View>
-                <View style={{ flex: 1, gap: 4 }}>
-                  <Text style={type.headline}>{title}</Text>
-                  <Text style={type.callout}>{body}</Text>
-                </View>
-              </Card>
+              <OptionCard key={value} icon={icon} title={title} body={body} selected={role === value} onPress={() => { setRole(value); setError(""); }} />
             ))}
           </View>
         ) : null}
@@ -213,12 +211,16 @@ export default function Onboarding() {
         {step === 1 ? (
           <View style={{ gap: space.md }}>
             <Field label="Full name" value={name} onChangeText={setName} textContentType="name" autoComplete="name" />
-            <Field label="Phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" textContentType="telephoneNumber" autoComplete="tel" hint="Shared only with people you book or work with." />
+            <Field label="Phone" placeholder="416 555 0100" value={phone} onChangeText={setPhone} keyboardType="phone-pad" textContentType="telephoneNumber" autoComplete="tel" hint="Shared only with people you book or work with." />
+            <View style={{ gap: 6, marginTop: space.sm }}>
+              <Text accessibilityRole="header" style={type.headline}>{role === "operator" ? "Where you work from" : "Where should we clear snow?"}</Text>
+              <Text style={type.caption}>Tap the button to fill this in for you, or type it below.</Text>
+            </View>
             <Button title="Use my current location" icon="location.fill" variant="secondary" loading={locating} onPress={useMyLocation} />
             <Field label="Street address" value={address} onChangeText={(v) => { setAddress(v); setCoords(null); }} textContentType="streetAddressLine1" autoComplete="street-address" />
             <Field label="City" value={city} onChangeText={(v) => { setCity(v); setCoords(null); }} textContentType="addressCity" />
-            <Field label="Postal code" value={postalCode} onChangeText={setPostalCode} autoCapitalize="characters" textContentType="postalCode" autoComplete="postal-code" maxLength={7} />
-            <Text style={{ fontSize: 14, fontWeight: "600", color: colors.ink }}>Province</Text>
+            <Field label="Postal code" placeholder="M5V 2T6" value={postalCode} onChangeText={setPostalCode} autoCapitalize="characters" textContentType="postalCode" autoComplete="postal-code" maxLength={7} />
+            <Text style={{ fontSize: 15, fontWeight: "600", color: colors.ink }}>Province</Text>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
               {CANADIAN_PROVINCES.map((p) => (
                 <Chip key={p.code} label={p.code} selected={province === p.code} onPress={() => setProvince(p.code)} />
@@ -231,19 +233,16 @@ export default function Onboarding() {
           <View style={{ gap: space.md }}>
             {role === "client" ? (
               <>
-                <Text style={type.headline}>Driveway size</Text>
-                <View style={{ flexDirection: "row", gap: space.sm }}>
+                <Text accessibilityRole="header" style={type.headline}>How big is your driveway?</Text>
+                <View accessibilityRole="radiogroup" style={{ gap: space.sm }}>
                   {SIZES.map(([value, label, body]) => (
-                    <Pressable key={value} onPress={() => setSize(value)} style={{ flex: 1, padding: space.md, borderRadius: radius.md, borderWidth: 2, borderColor: size === value ? colors.accent : colors.border, backgroundColor: size === value ? colors.accentSoft : colors.surface, gap: 4 }}>
-                      <Icon name="car.fill" size={18} color={size === value ? colors.accent : colors.muted} />
-                      <Text style={type.headline}>{label}</Text>
-                      <Text style={type.caption}>{body}</Text>
-                    </Pressable>
+                    <OptionCard key={value} icon="car.fill" title={label} body={body} selected={size === value} onPress={() => setSize(value)} />
                   ))}
                 </View>
               </>
             ) : null}
-            <Text style={type.headline}>{role === "operator" ? "Services you offer" : "What should be cleared?"}</Text>
+            <Text accessibilityRole="header" style={[type.headline, { marginTop: space.sm }]}>{role === "operator" ? "Services you offer" : "What should be cleared?"}</Text>
+            <Text style={type.caption}>Choose all that apply.</Text>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
               {SHOVELING_SERVICES.map(([value, label]) => (
                 <Chip key={value} label={label} selected={services.includes(value)} onPress={() => toggleService(value)} />
@@ -251,13 +250,14 @@ export default function Onboarding() {
             </View>
             {role === "operator" ? (
               <>
-                <Text style={type.headline}>Service radius</Text>
+                <Text accessibilityRole="header" style={[type.headline, { marginTop: space.sm }]}>How far will you travel?</Text>
                 <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
                   {[5, 10, 15, 25, 40].map((km) => (
                     <Chip key={km} label={`${km} km`} selected={radiusKm === km} onPress={() => setRadiusKm(km)} />
                   ))}
                 </View>
-                <Text style={type.headline}>Your prices (CAD)</Text>
+                <Text accessibilityRole="header" style={[type.headline, { marginTop: space.sm }]}>Your prices per visit</Text>
+                <Text style={type.caption}>In Canadian dollars. These are common starting prices; change them to suit you.</Text>
                 <View style={{ flexDirection: "row", gap: space.sm }}>
                   {(["small", "medium", "large"] as const).map((k, i) => (
                     <View key={k} style={{ flex: 1 }}>
@@ -273,7 +273,7 @@ export default function Onboarding() {
                     <Field label="Backyard patio" value={prices.backyardPatio} keyboardType="number-pad" onChangeText={(v) => setPrices({ ...prices, backyardPatio: v.replace(/\D/g, "") })} />
                   </View>
                 </View>
-                <Notice tone="blue" text="After setup, verify your ID in Profile → Verification so customers can find you. You can connect card payouts there too." />
+                <Notice tone="blue" text="One more step after this: verify your ID from the Home tab so customers can find you. You can also connect card payouts there." />
               </>
             ) : null}
           </View>
@@ -281,8 +281,8 @@ export default function Onboarding() {
         <Notice text={error} />
       </KeyboardAwareScrollView>
       <KeyboardStickyView offset={{ opened: insets.bottom - space.md }}>
-        <View style={{ paddingHorizontal: space.xl, paddingTop: space.md, paddingBottom: insets.bottom + space.md, backgroundColor: colors.bg }}>
-          <Button title={step === 2 ? "Finish setup" : "Continue"} variant="dark" loading={saving} onPress={next} />
+        <View style={{ paddingHorizontal: space.xl, paddingTop: space.md, paddingBottom: insets.bottom + space.md, backgroundColor: colors.bg, borderTopWidth: 0.5, borderTopColor: colors.border }}>
+          <Button title={step === 2 ? "Finish setup" : "Continue"} icon={step === 2 ? "checkmark" : undefined} variant="dark" loading={saving} disabled={step === 0 && !role} onPress={next} />
         </View>
       </KeyboardStickyView>
     </View>

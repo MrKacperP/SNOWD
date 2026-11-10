@@ -138,27 +138,27 @@ export default function ChatScreen() {
               <Avatar uri={other?.logoUrl || other?.avatar} name={personName(other)} size={32} />
               <View>
                 <Text style={type.headline} numberOfLines={1}>{personName(other)}</Text>
-                <Text style={{ fontSize: 12, color: other?.isOnline ? colors.mint : colors.faint }}>{other?.isOnline ? "Online" : "Offline"}</Text>
+                <Text style={{ fontSize: 13, color: other?.isOnline ? colors.mint : colors.faint }}>{other?.isOnline ? "Online now" : "Offline"}</Text>
               </View>
             </View>
           ),
           headerRight: () =>
             other?.phone ? (
-              <Pressable hitSlop={10} onPress={() => void Linking.openURL(`tel:${other.phone!.replace(/[^\d+]/g, "")}`)}>
-                <Icon name="phone.fill" size={19} color={colors.accent} />
+              <Pressable hitSlop={12} accessibilityRole="button" accessibilityLabel={`Call ${personName(other)}`} onPress={() => void Linking.openURL(`tel:${other.phone!.replace(/[^\d+]/g, "")}`)} style={{ minHeight: 36, paddingHorizontal: 6, justifyContent: "center" }}>
+                <Icon name="phone.fill" size={21} color={colors.accent} />
               </Pressable>
             ) : null,
         }}
       />
       <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: colors.bg }}>
         {openJob ? (
-          <Pressable onPress={() => router.push(`/job/${openJob.id}`)} style={({ pressed }) => [styles.orderBar, pressed && { opacity: 0.8 }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={`${orderLabel(openJob)}. Order ${orderNumber(openJob)}. Open order`} onPress={() => router.push(`/job/${openJob.id}`)} style={({ pressed }) => [styles.orderBar, pressed && { opacity: 0.8 }]}>
             <View style={styles.orderDot}>
               <Icon name="snowflake" size={14} color={colors.accent} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontWeight: "700", color: colors.ink, fontSize: 14 }}>{orderLabel(openJob)}</Text>
-              <Text style={type.caption}>{orderNumber(openJob)} · tap to view order</Text>
+              <Text style={{ fontWeight: "700", color: colors.ink, fontSize: 16 }}>{orderLabel(openJob)}</Text>
+              <Text style={type.caption}>Order #{orderNumber(openJob)} · Tap to track it</Text>
             </View>
             <Icon name="chevron.right" size={13} color={colors.faint} />
           </Pressable>
@@ -177,7 +177,7 @@ export default function ChatScreen() {
             ListEmptyComponent={
               <View style={{ transform: [{ scaleY: -1 }], alignItems: "center", padding: space.xxl, gap: 8 }}>
                 <Text style={type.headline}>Start the conversation</Text>
-                <Text style={[type.callout, { textAlign: "center" }]}>Messages about your order stay here, together with its updates.</Text>
+                <Text style={[type.callout, { textAlign: "center" }]}>Say hello, share a gate code or ask a question. Order updates show up here too.</Text>
               </View>
             }
             renderItem={({ item }) =>
@@ -223,15 +223,15 @@ export default function ChatScreen() {
               keyboardShouldPersistTaps="always"
               contentContainerStyle={{ gap: 8, paddingHorizontal: space.md, paddingBottom: 8 }}
               renderItem={({ item }) => (
-                <Pressable onPress={() => setDraft(item)} style={({ pressed }) => [styles.quick, pressed && { opacity: 0.7 }]}>
-                  <Text style={{ color: colors.accent, fontWeight: "600", fontSize: 13 }}>{item}</Text>
+                <Pressable accessibilityRole="button" accessibilityLabel={`Quick reply: ${item}`} onPress={() => setDraft(item)} style={({ pressed }) => [styles.quick, pressed && { opacity: 0.7 }]}>
+                  <Text style={{ color: colors.accent, fontWeight: "600", fontSize: 15 }}>{item}</Text>
                 </Pressable>
               )}
             />
           ) : null}
           <View style={styles.composer}>
-            <Pressable hitSlop={8} onPress={attach} style={styles.roundButton}>
-              <Icon name="plus" size={18} color={colors.ink} weight="bold" />
+            <Pressable hitSlop={4} accessibilityRole="button" accessibilityLabel="Add a photo" onPress={attach} style={styles.roundButton}>
+              <Icon name="camera.fill" size={18} color={colors.ink} />
             </Pressable>
             <TextInput
               ref={inputRef}
@@ -239,17 +239,22 @@ export default function ChatScreen() {
               onChangeText={setDraft}
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
-              placeholder="Message"
+              placeholder="Type a message"
+              accessibilityLabel="Message"
               placeholderTextColor={colors.faint}
               multiline
               style={styles.input}
             />
             <Pressable
+              hitSlop={4}
+              accessibilityRole="button"
+              accessibilityLabel="Send message"
+              accessibilityState={{ disabled: !draft.trim() || sending }}
               disabled={!draft.trim() || sending}
               onPress={() => void send(draft.trim())}
-              style={[styles.send, { backgroundColor: draft.trim() ? colors.accent : colors.border }]}
+              style={[styles.send, { backgroundColor: draft.trim() ? colors.accent : colors.borderStrong }]}
             >
-              <Icon name="arrow.up" size={17} color="#fff" weight="bold" />
+              <Icon name="arrow.up" size={19} color="#fff" weight="bold" />
             </Pressable>
           </View>
         </Animated.View>
@@ -323,16 +328,16 @@ function Bubble({ message, mine, first, last, onLongPress, onOpenImage }: { mess
         >
           {message.replyTo ? (
             <View style={[styles.quote, { backgroundColor: mine ? "rgba(255,255,255,0.18)" : colors.surfaceAlt }]}>
-              <Text style={{ fontSize: 12, fontWeight: "700", color: mine ? "#fff" : colors.accent }}>{message.replyTo.senderName}</Text>
+              <Text style={{ fontSize: 13, fontWeight: "700", color: mine ? "#fff" : colors.accent }}>{message.replyTo.senderName}</Text>
               <Text style={{ fontSize: 13, color: mine ? "rgba(255,255,255,0.85)" : colors.muted }} numberOfLines={2}>{message.replyTo.content}</Text>
             </View>
           ) : null}
           {image ? (
             <Image source={{ uri: image }} style={{ width: 220, height: 220, borderRadius: 16 }} contentFit="cover" transition={150} />
           ) : message.type === "voice" ? (
-            <Text style={{ color: mine ? "#fff" : colors.ink, fontSize: 16 }}>🎙️ Voice message</Text>
+            <Text style={{ color: mine ? "#fff" : colors.ink, fontSize: 17 }}>🎙️ Voice message</Text>
           ) : (
-            <Text selectable style={{ color: mine ? "#fff" : colors.ink, fontSize: 16, lineHeight: 21 }}>{message.content}</Text>
+            <Text selectable style={{ color: mine ? "#fff" : colors.ink, fontSize: 17, lineHeight: 23 }}>{message.content}</Text>
           )}
         </View>
       </Pressable>
@@ -352,23 +357,23 @@ function Bubble({ message, mine, first, last, onLongPress, onOpenImage }: { mess
 }
 
 const styles = StyleSheet.create({
-  orderBar: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: space.lg, paddingVertical: 10, backgroundColor: colors.surface, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
-  orderDot: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.accentSoft, alignItems: "center", justifyContent: "center" },
-  day: { alignSelf: "center", marginVertical: 12, fontSize: 12, fontWeight: "600", color: colors.faint },
-  bubble: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, gap: 6 },
+  orderBar: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 60, paddingHorizontal: space.lg, paddingVertical: 10, backgroundColor: colors.surface, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  orderDot: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.accentSoft, alignItems: "center", justifyContent: "center" },
+  day: { alignSelf: "center", marginVertical: 12, fontSize: 13, fontWeight: "600", color: colors.muted },
+  bubble: { paddingHorizontal: 15, paddingVertical: 10, borderRadius: 20, gap: 6 },
   mine: { backgroundColor: colors.bubbleMine },
   theirs: { backgroundColor: colors.bubbleTheirs, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
   quote: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 },
-  meta: { fontSize: 11, color: colors.faint, marginTop: 3 },
+  meta: { fontSize: 13, color: colors.muted, marginTop: 4 },
   system: { backgroundColor: colors.surfaceAlt, borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 6, maxWidth: "85%" },
   reactionPill: { marginTop: -6, backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: 6, paddingVertical: 2, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
   composerWrap: { backgroundColor: colors.surface, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, paddingTop: 8 },
   composer: { flexDirection: "row", alignItems: "flex-end", gap: 8, paddingHorizontal: space.md },
-  roundButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surfaceAlt, alignItems: "center", justifyContent: "center" },
-  input: { flex: 1, minHeight: 36, maxHeight: 120, borderRadius: 18, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 14, paddingTop: 8, paddingBottom: 8, fontSize: 16, color: colors.ink, backgroundColor: colors.bg },
-  send: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+  roundButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surfaceAlt, alignItems: "center", justifyContent: "center" },
+  input: { flex: 1, minHeight: 44, maxHeight: 140, borderRadius: 22, borderWidth: 1.5, borderColor: colors.borderStrong, paddingHorizontal: 16, paddingTop: 11, paddingBottom: 11, fontSize: 17, color: colors.ink, backgroundColor: colors.bg },
+  send: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
   replyBar: { flexDirection: "row", alignItems: "center", gap: 10, marginHorizontal: space.md, marginBottom: 8, padding: 8, borderRadius: radius.sm, backgroundColor: colors.bg },
-  quick: { paddingHorizontal: 12, height: 30, borderRadius: radius.pill, backgroundColor: colors.accentSoft, justifyContent: "center" },
+  quick: { paddingHorizontal: 16, minHeight: 40, borderRadius: radius.pill, backgroundColor: colors.accentSoft, justifyContent: "center" },
   scrim: { flex: 1, backgroundColor: "rgba(10,20,30,0.35)", justifyContent: "flex-end" },
   sheet: { backgroundColor: colors.surface, margin: space.md, marginBottom: 40, borderRadius: radius.xl, padding: space.lg, gap: space.md },
   reaction: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },

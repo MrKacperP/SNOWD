@@ -71,9 +71,9 @@ export default function Login() {
       contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + space.xxl, paddingBottom: insets.bottom + space.xl, paddingHorizontal: space.xl, gap: space.xl }}
     >
       <View style={{ alignItems: "center", gap: space.md }}>
-        <Image source={require("../../assets/icon.png")} style={{ width: 76, height: 76, borderRadius: 20 }} />
-        <Text style={[type.largeTitle, { textAlign: "center" }]}>{mode === "signin" ? "Welcome back" : "Create your account"}</Text>
-        <Text style={[type.callout, { textAlign: "center" }]}>Snow clearing from trusted local shovelers, booked in minutes.</Text>
+        <Image accessibilityLabel="SNOWD" source={require("../../assets/icon.png")} style={{ width: 76, height: 76, borderRadius: 20 }} />
+        <Text accessibilityRole="header" style={[type.largeTitle, { textAlign: "center" }]}>{mode === "signin" ? "Welcome back" : "Create your account"}</Text>
+        <Text style={[type.callout, { textAlign: "center" }]}>{mode === "signin" ? "Sign in to see your orders and messages." : "Book a local shoveler, or earn money clearing snow. It takes about two minutes."}</Text>
       </View>
 
       <View style={{ gap: space.md }}>
@@ -82,7 +82,7 @@ export default function Login() {
             buttonType={mode === "signin" ? AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN : AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP}
             buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
             cornerRadius={radius.md}
-            style={{ height: 52, opacity: busy === "apple" ? 0.5 : 1 }}
+            style={{ height: 54, opacity: busy === "apple" ? 0.5 : 1 }}
             onPress={() => run("apple", signInWithApple)}
           />
         ) : null}
@@ -101,7 +101,7 @@ export default function Login() {
 
       <View style={{ flexDirection: "row", alignItems: "center", gap: space.md }}>
         <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
-        <Text style={type.caption}>or use email</Text>
+        <Text style={type.caption}>or use your email</Text>
         <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
       </View>
 
@@ -113,6 +113,7 @@ export default function Login() {
           value={password}
           onChangeText={setPassword}
           secureTextEntry
+          hint={mode === "signup" ? "Use at least 6 characters." : undefined}
           textContentType={mode === "signup" ? "newPassword" : "password"}
           autoComplete={mode === "signup" ? "new-password" : "current-password"}
           returnKeyType="go"
@@ -123,14 +124,14 @@ export default function Login() {
         <Button title={mode === "signin" ? "Sign in" : "Create account"} variant="dark" loading={busy === "email"} disabled={!!busy && busy !== "email"} onPress={submit} />
         {mode === "signin" ? (
           <Button
-            title="Forgot password?"
+            title="Forgot your password?"
             variant="ghost"
             small
             onPress={() =>
               run("email", async () => {
-                if (!email.trim()) throw new Error("Enter your email above, then tap Forgot password.");
+                if (!email.trim()) throw new Error("Type your email in the box above, then tap “Forgot your password?” again.");
                 await resetPassword(email);
-                setNotice("Check your inbox for a link to reset your password.");
+                setNotice("We sent a reset link to your email. Open it to choose a new password.");
               })
             }
           />
@@ -138,14 +139,17 @@ export default function Login() {
       </View>
 
       <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={mode === "signin" ? "New to SNOWD? Create an account" : "Already have an account? Sign in"}
         onPress={() => {
           setMode(mode === "signin" ? "signup" : "signin");
           setError("");
+          setNotice("");
         }}
-        style={{ marginTop: "auto", flexDirection: "row", justifyContent: "center", gap: 6, padding: space.md }}
+        style={({ pressed }) => [{ marginTop: "auto", minHeight: 52, flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 6, padding: space.md, borderRadius: radius.md }, pressed && { backgroundColor: colors.surfaceAlt }]}
       >
         <Text style={type.callout}>{mode === "signin" ? "New to SNOWD?" : "Already have an account?"}</Text>
-        <Text style={{ color: colors.accent, fontWeight: "700", fontSize: 15 }}>{mode === "signin" ? "Create an account" : "Sign in"}</Text>
+        <Text style={{ color: colors.accent, fontWeight: "700", fontSize: 16 }}>{mode === "signin" ? "Create an account" : "Sign in"}</Text>
         <Icon name="arrow.right" size={13} color={colors.accent} />
       </Pressable>
     </KeyboardAwareScrollView>

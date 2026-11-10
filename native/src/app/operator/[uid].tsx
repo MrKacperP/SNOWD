@@ -52,6 +52,9 @@ export default function OperatorScreen() {
             {client ? (
               <Pressable
                 hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel={saved ? "Remove from saved shovelers" : "Save this shoveler"}
+                accessibilityState={{ selected: saved }}
                 onPress={() => user && void updateDoc(doc(db, "users", user.uid), { savedOperators: saved ? arrayRemove(operator.uid) : arrayUnion(operator.uid) }).catch(() => {})}
                 style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center", marginBottom: 6 }}
               >
@@ -78,7 +81,7 @@ export default function OperatorScreen() {
               <Card key={label} style={{ flex: 1, padding: space.md, gap: 4, alignItems: "center" }}>
                 <Icon name={icon as "star.fill"} size={16} color={colors.accent} />
                 <Text style={type.headline}>{value}</Text>
-                <Text style={[type.caption, { fontSize: 11 }]}>{label}</Text>
+                <Text style={[type.caption, { fontSize: 13 }]}>{label}</Text>
               </Card>
             ))}
           </View>

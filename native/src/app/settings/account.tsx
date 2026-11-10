@@ -94,15 +94,15 @@ export default function AccountSettings() {
       <KeyboardAwareScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" bottomOffset={90} contentContainerStyle={{ padding: space.lg, gap: space.lg, paddingBottom: 120 }}>
         {!operator ? (
           <Card style={{ flexDirection: "row", alignItems: "center" }}>
-            <Pressable onPress={changePhoto} disabled={photoBusy}>
+            <Pressable accessibilityRole="button" hitSlop={12} onPress={changePhoto} disabled={photoBusy}>
               <Avatar uri={profile?.avatar} name={profile?.displayName} size={64} />
             </Pressable>
             <View style={{ flex: 1, gap: 4 }}>
               <Text style={type.headline}>Profile photo</Text>
               <Text style={type.caption}>Shown on your contact card and in Messages. Saves as soon as you choose it.</Text>
               <View style={{ flexDirection: "row", gap: 16, marginTop: 4 }}>
-                <Pressable onPress={changePhoto} disabled={photoBusy}><Text style={{ color: colors.accent, fontWeight: "700" }}>{photoBusy ? "Uploading…" : profile?.avatar ? "Change" : "Add photo"}</Text></Pressable>
-                {profile?.avatar ? <Pressable onPress={removePhoto}><Text style={{ color: colors.danger, fontWeight: "700" }}>Remove</Text></Pressable> : null}
+                <Pressable accessibilityRole="button" hitSlop={12} onPress={changePhoto} disabled={photoBusy}><Text style={{ color: colors.accent, fontWeight: "700" }}>{photoBusy ? "Uploading…" : profile?.avatar ? "Change" : "Add photo"}</Text></Pressable>
+                {profile?.avatar ? <Pressable accessibilityRole="button" hitSlop={12} onPress={removePhoto}><Text style={{ color: colors.danger, fontWeight: "700" }}>Remove</Text></Pressable> : null}
               </View>
             </View>
           </Card>

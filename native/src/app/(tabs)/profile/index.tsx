@@ -60,10 +60,10 @@ export default function Profile() {
       <Stack.Screen options={{ title: "Profile" }} />
       <Screen>
         <View style={{ alignItems: "center", gap: space.sm }}>
-          <Pressable onPress={operator ? () => go("/settings/branding") : changePhoto} disabled={photoBusy} accessibilityLabel="Change profile photo">
+          <Pressable accessibilityRole="button" onPress={operator ? () => go("/settings/branding") : changePhoto} disabled={photoBusy} accessibilityLabel="Change profile photo">
             <Avatar uri={(operator && profile?.logoUrl) || profile?.avatar} name={profile?.businessName || profile?.displayName} size={96} />
-            <View style={{ position: "absolute", right: 0, bottom: 0, width: 30, height: 30, borderRadius: 15, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: colors.bg }}>
-              <Icon name={photoBusy ? "arrow.up" : "camera.fill"} size={12} color="#fff" />
+            <View style={{ position: "absolute", right: 0, bottom: 0, width: 34, height: 34, borderRadius: 17, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: colors.bg }}>
+              <Icon name={photoBusy ? "arrow.up" : "camera.fill"} size={14} color="#fff" />
             </View>
           </Pressable>
           <Text style={type.title}>{(operator && profile?.businessName) || profile?.displayName || "Your profile"}</Text>
@@ -81,19 +81,19 @@ export default function Profile() {
         </View>
 
         {missing.length ? (
-          <Pressable onPress={() => go(missing[0][2])} style={({ pressed }) => [{ backgroundColor: colors.surface, borderRadius: radius.lg, padding: space.lg, gap: 10, borderWidth: 0.5, borderColor: colors.border }, pressed && { opacity: 0.85 }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Profile ${percent}% complete. Finish your profile`} onPress={() => go(missing[0][2])} style={({ pressed }) => [{ backgroundColor: colors.surface, borderRadius: radius.lg, padding: space.lg, gap: 10, borderWidth: 0.5, borderColor: colors.border }, pressed && { opacity: 0.85 }]}>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               <Text style={[type.headline, { flex: 1 }]}>Profile {percent}% complete</Text>
               <Icon name="chevron.right" size={13} color={colors.faint} />
             </View>
-            <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.surfaceAlt, overflow: "hidden" }}>
+            <View style={{ height: 8, borderRadius: 4, backgroundColor: colors.surfaceAlt, overflow: "hidden" }}>
               <View style={{ width: `${percent}%`, height: "100%", backgroundColor: colors.accent }} />
             </View>
-            <Text style={type.caption}>Add your {missing.map(([label]) => label.toLowerCase()).join(", ")}.</Text>
+            <Text style={type.caption}>Still needed: {missing.map(([label]) => label.toLowerCase()).join(", ")}. Tap to add.</Text>
           </Pressable>
         ) : null}
 
-        <SectionTitle>Account settings</SectionTitle>
+        <SectionTitle>Your account</SectionTitle>
         <Group>
           <Row icon="person.fill" label="Account" value={profile?.phone || "Add phone"} onPress={() => go("/settings/account")} />
           {operator ? (
@@ -125,7 +125,7 @@ export default function Profile() {
         </Group>
 
         <Group>
-          <Row icon="rectangle.portrait.and.arrow.right" label="Sign out" tint={colors.accent} onPress={() => Alert.alert("Sign out?", "", [{ text: "Cancel", style: "cancel" }, { text: "Sign out", onPress: () => void signOut() }])} />
+          <Row icon="rectangle.portrait.and.arrow.right" label="Sign out" tint={colors.accent} onPress={() => Alert.alert("Sign out?", "You can sign back in any time. Your orders and messages are kept.", [{ text: "Cancel", style: "cancel" }, { text: "Sign out", onPress: () => void signOut() }])} />
           <Row icon="trash.fill" label="Delete account" tint={colors.danger} onPress={() => go("/settings/delete")} last />
         </Group>
         <Text style={[type.caption, { textAlign: "center" }]}>SNOWD {Constants.expoConfig?.version}</Text>

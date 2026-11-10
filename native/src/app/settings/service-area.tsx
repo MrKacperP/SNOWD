@@ -126,7 +126,7 @@ export default function ServiceAreaSettings() {
                 ["cities", "Selected cities"],
               ] as const
             ).map(([value, label]) => (
-              <Pressable key={value} onPress={() => setMode(value)} style={{ flex: 1, minHeight: 48, borderRadius: radius.md, borderWidth: 1.5, alignItems: "center", justifyContent: "center", borderColor: mode === value ? colors.accent : colors.border, backgroundColor: mode === value ? colors.accentSoft : colors.surface }}>
+              <Pressable key={value} accessibilityRole="radio" accessibilityState={{ selected: mode === value }} onPress={() => setMode(value)} style={{ flex: 1, minHeight: 48, borderRadius: radius.md, borderWidth: 1.5, alignItems: "center", justifyContent: "center", borderColor: mode === value ? colors.accent : colors.border, backgroundColor: mode === value ? colors.accentSoft : colors.surface }}>
                 <Text style={{ fontWeight: "700", color: mode === value ? colors.accentDark : colors.ink }}>{label}</Text>
               </Pressable>
             ))}
