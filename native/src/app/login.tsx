@@ -13,6 +13,7 @@ import { colors, radius, space, type } from "~/lib/theme";
 WebBrowser.maybeCompleteAuthSession();
 
 const GOOGLE_IOS_CLIENT_ID = "119102068229-6fd835k0ef8a72mur4lcbn19rgf5lflc.apps.googleusercontent.com";
+const GOOGLE_IOS_REDIRECT = `com.googleusercontent.apps.${GOOGLE_IOS_CLIENT_ID.replace(".apps.googleusercontent.com", "")}:/oauthredirect`;
 const GOOGLE_ANDROID_CLIENT_ID = "119102068229-rm9gs0ucc7lpac4cfutg2rl76ldhq0p5.apps.googleusercontent.com";
 
 export default function Login() {
@@ -26,7 +27,14 @@ export default function Login() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [appleAvailable, setAppleAvailable] = useState(false);
-  const [request, response, promptGoogle] = Google.useIdTokenAuthRequest({ iosClientId: GOOGLE_IOS_CLIENT_ID, androidClientId: GOOGLE_ANDROID_CLIENT_ID });
+  // On iOS, Google sends people back to the client's reversed ID, which app.json registers as a URL scheme.
+  // The library's default return address is built from the app's bundle ID, so test builds
+  // (ca.snowd.devtest) were refused by Google with "Access blocked".
+  const [request, response, promptGoogle] = Google.useIdTokenAuthRequest({
+    iosClientId: GOOGLE_IOS_CLIENT_ID,
+    androidClientId: GOOGLE_ANDROID_CLIENT_ID,
+    ...(Platform.OS === "ios" ? { redirectUri: GOOGLE_IOS_REDIRECT } : {}),
+  });
 
   useEffect(() => {
     if (process.env.EXPO_PUBLIC_APPLE_SIGN_IN === "on") void AppleAuthentication.isAvailableAsync().then(setAppleAvailable);

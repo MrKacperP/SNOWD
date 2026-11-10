@@ -3,7 +3,7 @@ import { getApps, initializeApp } from "firebase/app";
 // @ts-expect-error getReactNativePersistence is only in the react-native build's types.
 import { connectAuthEmulator, getReactNativePersistence, initializeAuth, getAuth, type Auth } from "firebase/auth";
 import { connectFirestoreEmulator, initializeFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+import { connectStorageEmulator, getStorage } from "firebase/storage";
 
 const firstLaunch = getApps().length === 0;
 const app = firstLaunch
@@ -30,4 +30,5 @@ export const storage = getStorage(app);
 if (__DEV__ && firstLaunch && process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATORS === "true") {
   connectAuthEmulator(auth, `http://127.0.0.1:${process.env.EXPO_PUBLIC_AUTH_EMULATOR_PORT || 9099}`, { disableWarnings: true });
   connectFirestoreEmulator(db, "127.0.0.1", Number(process.env.EXPO_PUBLIC_FIRESTORE_EMULATOR_PORT || 8080));
+  connectStorageEmulator(storage, "127.0.0.1", Number(process.env.EXPO_PUBLIC_STORAGE_EMULATOR_PORT || 9199));
 }
