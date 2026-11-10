@@ -33,6 +33,8 @@ export default function ClientWorkOrder({ job, name, person }: { job: Job; name:
         <span className={styles.status} data-status={job.status}>{orderLabel(job)}</span>
       </header>
       <h1 id="work-order-provider" className={styles.client}><CompanyIdentity person={person} name={name} /></h1>
+      {/* Progress comes straight after who it is, so "where is my order" is answered first. */}
+      <div className={styles.progress}><WorkOrderTimeline job={job} /></div>
       {chatHref && <Link className={styles.message} href={chatHref}><MessageCircle size={22} aria-hidden="true" />Message {name.split(" ")[0] || "your shoveler"}</Link>}
 
       <dl className={styles.facts}>
@@ -61,8 +63,6 @@ export default function ClientWorkOrder({ job, name, person }: { job: Job; name:
           <dd><PhotoViewer src={job.completionPhotoUrl} /></dd>
         </div>}
       </dl>
-
-      <div className={styles.progress}><WorkOrderTimeline job={job} /></div>
 
       <footer className={styles.actions}>
         <div className={styles.next}><OrderActions job={job} /></div>

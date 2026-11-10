@@ -37,7 +37,10 @@
 @media (max-width: 520px) {
   .label { display: none; }
   .steps { gap: 4px; }
-  .caption { display: block; margin-top: 8px; font-size: 12px; font-weight: 750; }
+  /* Phones have no room for five labels, so say the step in words: where it is, and what comes next. */
+  .caption { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; margin: 10px 0 0; font-size: 14px; line-height: 1.35; }
+  .caption strong { font-weight: 750; }
+  .caption span { color: var(--text-secondary); font-size: 13px; font-weight: 500; }
   .caption[data-step="pending"] { color: #a35f06; }
   .caption[data-step="accepted"] { color: #137480; }
   .caption[data-step="en-route"] { color: #2257bd; }

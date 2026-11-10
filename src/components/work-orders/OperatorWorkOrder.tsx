@@ -49,6 +49,8 @@ export default function OperatorWorkOrder({ job, name, person, operator }: { job
         <span className={styles.status} data-status={job.status}>{needsReply ? "New request" : orderLabel(job)}</span>
       </header>
       <h1 id="work-order-client" className={styles.client}><CompanyIdentity person={person} name={name} /></h1>
+      {/* Progress comes straight after who it is, so "where is my order" is answered first. */}
+      {!needsReply && <div className={styles.progress}><WorkOrderTimeline job={job} /></div>}
       {/* Once the request is answered, talking to the homeowner is the first thing in reach. */}
       {!needsReply && chatHref && <Link className={styles.message} href={chatHref}><MessageCircle size={22} aria-hidden="true" />Message {name.split(" ")[0] || "customer"}</Link>}
 
@@ -78,8 +80,6 @@ export default function OperatorWorkOrder({ job, name, person, operator }: { job
           <dd>{notes && <p>{notes}</p>}{photos.length > 0 && <p className={styles.photos}>{photos.map((url, index) => <a key={url} href={url} target="_blank" rel="noreferrer">Property photo {index + 1} ↗</a>)}</p>}</dd>
         </div>}
       </dl>
-
-      {!needsReply && <div className={styles.progress}><WorkOrderTimeline job={job} /></div>}
 
       <footer className={styles.actions}>
         {needsReply ? <RequestReply job={job} large /> : <div className={styles.next}><OrderActions job={job} /></div>}

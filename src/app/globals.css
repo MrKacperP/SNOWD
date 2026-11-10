@@ -692,7 +692,18 @@ body {
   border-radius: 0.75rem;
 }
 .skip-link:focus { transform: translateY(0); }
-html { scroll-padding-top: 6rem; }
+html { scroll-padding-top: 6rem; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+/* One visible keyboard focus ring on every page. Zero specificity, so components can still restyle it. */
+:where(a, button, input, select, textarea, summary, [role="button"], [role="tab"], [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Phones and tablets already show a floating back button; a second inline "Back" only adds noise. */
+@media (max-width: 1023px) {
+  body:has([data-app-back]) [data-inline-back] { display: none; }
+}
 @media (pointer: coarse) {
   button, a[role="button"], nav a { min-height: 44px; }
   button { min-width: 44px; }

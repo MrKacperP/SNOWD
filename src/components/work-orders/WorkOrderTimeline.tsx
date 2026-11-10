@@ -23,7 +23,10 @@ export default function WorkOrderTimeline({ job }: { job: Job }) {
         <span className={styles.label}>{step.label}</span>
       </li>)}
     </ol>
-    {!cancelled && !completed && <span className={styles.caption} data-step={job.status} aria-hidden="true">{label}</span>}
+    {!cancelled && !completed && <p className={styles.caption} data-step={job.status} aria-hidden="true">
+      <strong>{label}</strong>
+      <span>Step {current + 1} of {steps.length}{steps[current + 1] ? ` · Next: ${steps[current + 1].label}` : ""}</span>
+    </p>}
     {completed && <div className={styles.complete} aria-hidden="true"><span className={styles.sweep} /><span className={styles.done}><Check size={13} strokeWidth={3.5} />Completed</span></div>}
     {cancelled && <div className={styles.cancel} aria-hidden="true"><span className={styles.strike} /><span className={styles.stamp}>{label}</span></div>}
   </div>;
