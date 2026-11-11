@@ -15,19 +15,31 @@ export PATH="$(brew --prefix node@22)/bin:$PATH"
 # The "Bundle React Native code" build phase looks for node here.
 echo "export NODE_BINARY=$(command -v node)" > "$APP_DIR/ios/.xcode.env.local"
 
-# Public client keys are set as environment variables on the Xcode Cloud workflow,
-# never committed: this repository is public.
+# The app's public client keys. Environment variables on the Xcode Cloud workflow win;
+# anything missing comes from the website's /api/app-config, which serves the same
+# public values the website already sends to browsers. Nothing is committed: this repository is public.
 : > "$APP_DIR/.env"
+CONFIG=""
+for attempt in 1 2 3 4 5 6 7 8 9 10; do
+  CONFIG=$(curl -fsS https://www.snowd.ca/api/app-config || true)
+  # A push deploys the website at the same moment this build starts, so wait for the new route.
+  if echo "$CONFIG" | grep -q EXPO_PUBLIC_FIREBASE_API_KEY; then break; fi
+  CONFIG=""
+  sleep 30
+done
 for name in EXPO_PUBLIC_API_URL EXPO_PUBLIC_FIREBASE_API_KEY EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN \
   EXPO_PUBLIC_FIREBASE_PROJECT_ID EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID \
   EXPO_PUBLIC_FIREBASE_APP_ID EXPO_PUBLIC_GOOGLE_MAPS_API_KEY EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY \
   EXPO_PUBLIC_APPLE_PAY_MERCHANT_ID; do
   value=$(printenv "$name" || true)
+  if [ -z "$value" ] && [ -n "$CONFIG" ]; then
+    value=$(echo "$CONFIG" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(JSON.parse(s)[process.argv[1]]||""))' "$name")
+  fi
   if [ -n "$value" ]; then echo "$name=$value" >> "$APP_DIR/.env"; fi
 done
 echo "EXPO_PUBLIC_APPLE_SIGN_IN=on" >> "$APP_DIR/.env"
 if ! grep -q '^EXPO_PUBLIC_FIREBASE_API_KEY=' "$APP_DIR/.env"; then
-  echo "error: EXPO_PUBLIC_FIREBASE_API_KEY is not set on the Xcode Cloud workflow. See native/RELEASE.md." >&2
+  echo "error: no app keys: set them on the Xcode Cloud workflow, or check https://www.snowd.ca/api/app-config. See native/RELEASE.md." >&2
   exit 1
 fi
 

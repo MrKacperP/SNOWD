@@ -6,7 +6,7 @@ Every push to `main` builds the app in Xcode Cloud and sends it to TestFlight. P
 
 - Project: `native/ios/SNOWD.xcworkspace`, scheme `SNOWD`. `native/ios` is committed for this; regenerate it with `npx expo prebuild --platform ios` after changing `app.json` or adding native packages, then commit the result.
 - `native/ios/ci_scripts/ci_post_clone.sh` installs Node and CocoaPods, runs `npm ci` and `pod install`, writes `native/.env` from the workflow's environment variables, and sets the build number to Xcode Cloud's build number.
-- The workflow must define these environment variables (mark them Secret). The values are the `EXPO_PUBLIC_*` lines of your local `native/.env`:
+- The app's public keys come from https://www.snowd.ca/api/app-config, which serves the same `NEXT_PUBLIC_*` values the website already sends to browsers. To override one, set it as an environment variable on the workflow (mark it Secret). Names:
   `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_FIREBASE_API_KEY`, `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN`, `EXPO_PUBLIC_FIREBASE_PROJECT_ID`, `EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET`, `EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`, `EXPO_PUBLIC_FIREBASE_APP_ID`, `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY`, `EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY` (and `EXPO_PUBLIC_APPLE_PAY_MERCHANT_ID` once Apple Pay is set up).
 - Don't keep `IOS_BUNDLE_ID=ca.snowd.devtest` in your local `.env` when you run `expo prebuild`, or the committed project changes to the test app ID.
 - The old Capacitor app in `mobile/` uses the same App Store ID. Never point Xcode Cloud back at it, or TestFlight would replace this app with the old one.
