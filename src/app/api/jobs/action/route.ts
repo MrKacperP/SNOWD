@@ -3,7 +3,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { getAdminDb } from "@/lib/firebaseAdmin";
 import { Job, OperatorProfile } from "@/lib/types";
 import { hasScheduleConflict, dateMillis } from "@/lib/workOrders";
-import { canAcceptPlatformPayments } from "@/lib/operatorDiscovery";
+import { canAcceptPlatformPayments, getDistanceKm } from "@/lib/operatorDiscovery";
 import {
   orderUser,
   validId,
@@ -15,6 +15,8 @@ import {
 import { sendWorkOrderEmail } from "@/lib/emailNotifications";
 import { approximateOperatorLocation } from "@/lib/operatorLocation";
 import { calculateTravelEta } from "@/lib/travelEta";
+
+const NEARBY_ETA_KM = 1;
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,6 +40,16 @@ export async function POST(request: NextRequest) {
       if (typeof clientLat !== "number" || !Number.isFinite(clientLat) || Math.abs(clientLat) > 90 || typeof clientLng !== "number" || !Number.isFinite(clientLng) || Math.abs(clientLng) > 180)
         throw new OrderError("The customer’s location is unavailable, so an ETA could not be calculated.");
       journey = await calculateTravelEta(origin, { lat: clientLat, lng: clientLng });
+    }
+    // An operator who confirms an ASAP visit from within 1 km of the customer gives them an ETA straight away.
+    let nearby: { minutes: number; source: "route" | "estimate" } | null = null;
+    if (body.action === "accept" && Number.isFinite(Number(body.operatorLat)) && Number.isFinite(Number(body.operatorLng))) {
+      const origin = { lat: Number(body.operatorLat), lng: Number(body.operatorLng) };
+      const pending = (await db.doc(`jobs/${body.jobId}`).get()).data() as Job | undefined;
+      const destination = pending && typeof pending.clientLat === "number" && typeof pending.clientLng === "number" ? { lat: pending.clientLat, lng: pending.clientLng } : null;
+      const km = destination ? getDistanceKm(origin, destination) : null;
+      if (pending && destination && pending.operatorId === uid && pending.scheduleMode !== "scheduled" && km != null && km <= NEARBY_ETA_KM)
+        nearby = await calculateTravelEta(origin, destination).catch(() => null);
     }
     const result = await db.runTransaction(async (tx) => {
       const ref = db.doc(`jobs/${body.jobId}`),
@@ -137,8 +149,11 @@ export async function POST(request: NextRequest) {
             awaitingResponseFrom: null,
             cashPaymentAcknowledged:
               job.paymentMethod === "cash" ? true : false,
+            ...(nearby ? { nearbyEta: nearby.minutes, nearbyEtaAt: now } : {}),
           });
-          title = "Booking accepted";
+          title = nearby
+            ? `Booking accepted · your shoveler is under 1 km away, about ${nearby.minutes} ${nearby.minutes === 1 ? "minute" : "minutes"}`
+            : "Booking accepted";
           break;
         }
         case "decline": {
@@ -306,6 +321,8 @@ export async function POST(request: NextRequest) {
               eta: journey.minutes,
               etaSource: journey.source,
               estimatedArrivalAt: new Date(Date.now() + journey.minutes * 60000),
+              nearbyEta: FieldValue.delete(),
+              nearbyEtaAt: FieldValue.delete(),
               ...approximateOperatorLocation(Number(body.operatorLat), Number(body.operatorLng), Number(body.operatorLocationAccuracy)),
               operatorLocationUpdatedAt: now,
               operatorLat: FieldValue.delete(),
@@ -334,13 +351,11 @@ export async function POST(request: NextRequest) {
             throw new OrderError(
               "Start work before submitting completion proof.",
             );
-          if (
-            typeof body.completionPhotoUrl !== "string" ||
-            !/^data:image\/(jpeg|png|webp);base64,/.test(
-              body.completionPhotoUrl,
-            ) ||
-            body.completionPhotoUrl.length > 700000
-          )
+          // Either a small inline image (website) or a full-size photo the app uploaded to Storage.
+          const photo = body.completionPhotoUrl;
+          const inline = typeof photo === "string" && /^data:image\/(jpeg|png|webp);base64,/.test(photo) && photo.length <= 700000;
+          const stored = typeof photo === "string" && photo.length < 2048 && photo.startsWith("https://firebasestorage.googleapis.com/") && photo.includes("/o/completion-photos%2F");
+          if (!inline && !stored)
             throw new OrderError("Choose an image smaller than 500 KB.", 400);
           update.completionPhotoUrl = body.completionPhotoUrl;
           if (job.paymentMethod === "cash" || job.paymentStatus === "paid") {

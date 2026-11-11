@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { getAdminDb } from "@/lib/firebaseAdmin";
+import { sendPushToUser } from "@/lib/pushNotifications";
 
 type EmailCategory = "account" | "workOrders";
 
@@ -43,7 +44,13 @@ export async function sendUserEmail(uid: string, content: EmailMessage) {
   return { sent: true, id: data?.id };
 }
 
-export function sendWorkOrderEmail(uid: string, jobId: string, title: string, eventId: string) {
+export async function sendWorkOrderEmail(uid: string, jobId: string, title: string, eventId: string) {
+  // Every work order update also reaches the person's phone through the native app.
+  const [, email] = await Promise.all([sendPushToUser(uid, { title: "Work order update", body: title, data: { jobId } }), sendWorkOrderEmailOnly(uid, jobId, title, eventId)]);
+  return email;
+}
+
+function sendWorkOrderEmailOnly(uid: string, jobId: string, title: string, eventId: string) {
   return sendUserEmail(uid, {
     category: "workOrders",
     subject: title,

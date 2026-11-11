@@ -1,14 +1,16 @@
 import { Stack, useRouter } from "expo-router";
 import { doc, updateDoc } from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
-import { Alert, Pressable, Text, View } from "react-native";
+import { Image } from "expo-image";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Avatar, Button, Card, Field, Notice, PhotoGrid, SaveBar } from "~/components/ui";
+import { Snowfall } from "~/components/brand";
+import { Avatar, Button, Card, Field, Icon, Notice, PhotoGrid, SaveBar } from "~/components/ui";
 import { useAuth } from "~/context/auth";
 import { db } from "~/lib/firebase";
 import { choosePhoto, uploadDataUrl } from "~/lib/uploads";
-import { colors, space, type } from "~/lib/theme";
+import { colors, hero, radius, shadow, space, type } from "~/lib/theme";
 
 /** Photo, logo, tagline and portfolio shown on the public profile — the website's Settings → Branding. */
 export default function BrandingSettings() {
@@ -76,11 +78,37 @@ export default function BrandingSettings() {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack.Screen
         options={{
-          title: "Business profile",
+          title: "Brand & photos",
           headerRight: () => <Button title="Preview" variant="ghost" small onPress={() => router.push(`/operator/${uid}`)} />,
         }}
       />
       <KeyboardAwareScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" bottomOffset={90} contentContainerStyle={{ padding: space.lg, gap: space.lg, paddingBottom: 120 }}>
+        {/* Live preview: how your card looks to customers, updating as you type. */}
+        <View accessible accessibilityLabel={`Preview of your public profile: ${profile?.businessName || profile?.displayName}. ${tagline}`} style={styles.preview}>
+          <View style={styles.cover}>
+            {portfolio[0] ? <Image source={{ uri: portfolio[0] }} style={{ flex: 1, opacity: 0.6 }} contentFit="cover" /> : <Snowfall count={10} height={110} />}
+            <View style={styles.previewTag}>
+              <Icon name="eye.fill" size={11} color="#fff" />
+              <Text style={{ color: "#fff", fontSize: 12, fontWeight: "800" }}>LIVE PREVIEW</Text>
+            </View>
+          </View>
+          <View style={{ padding: space.lg, paddingTop: 0, gap: 6 }}>
+            <View style={{ marginTop: -34, borderWidth: 4, borderColor: colors.surface, borderRadius: 40, alignSelf: "flex-start" }}>
+              <Avatar uri={logo || avatar} name={profile?.businessName || profile?.displayName} size={68} />
+            </View>
+            <Text style={type.title} numberOfLines={1}>{profile?.businessName || profile?.displayName}</Text>
+            <Text style={[type.callout, !tagline && { fontStyle: "italic" }]} numberOfLines={2}>{tagline || "Add a tagline below — it shows right here."}</Text>
+            {about ? <Text style={[type.caption, { color: colors.ink }]} numberOfLines={3}>{about}</Text> : null}
+            {portfolio.length ? (
+              <View style={{ flexDirection: "row", gap: 6, marginTop: 4 }}>
+                {portfolio.slice(0, 4).map((uri) => (
+                  <Image key={uri} source={{ uri }} style={{ flex: 1, aspectRatio: 1, borderRadius: 10 }} contentFit="cover" />
+                ))}
+              </View>
+            ) : null}
+          </View>
+        </View>
+
         <Card>
           <Text style={type.headline}>Photos</Text>
           {(
@@ -135,3 +163,9 @@ export default function BrandingSettings() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  preview: { backgroundColor: colors.surface, borderRadius: radius.xl, overflow: "hidden", ...shadow, shadowOpacity: 0.12, shadowRadius: 16 },
+  cover: { height: 110, backgroundColor: hero.mid, backgroundImage: `linear-gradient(160deg, ${hero.top} 0%, ${hero.mid} 55%, ${hero.bottom} 100%)`, overflow: "hidden" },
+  previewTag: { position: "absolute", top: 10, right: 10, flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 9, paddingVertical: 4, borderRadius: radius.pill, backgroundColor: "rgba(0,0,0,0.3)" },
+});

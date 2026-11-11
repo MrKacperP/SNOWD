@@ -51,3 +51,23 @@ export const shadow = {
 
 /** Smallest comfortable tap target, in points. */
 export const tap = 44;
+
+/**
+ * One colour per work order step, the same as the website's progress bar (timeline.module.css):
+ * amber requested → teal confirmed → blue on the way → violet clearing → green done.
+ * `bar` fills the progress bar, `text` is readable on white, `soft` is a tinted background.
+ */
+export const stepColors = {
+  pending: { bar: "#e0952b", text: "#a35f06", soft: "#fdf3e4" },
+  accepted: { bar: "#1f9aa8", text: "#137480", soft: "#e4f4f6" },
+  "en-route": { bar: "#2f6fe0", text: "#2257bd", soft: "#e8effc" },
+  "in-progress": { bar: "#7a5af5", text: "#5b3ad6", soft: "#efebfe" },
+  completed: { bar: "#23955a", text: "#1a7546", soft: "#e6f4ec" },
+  cancelled: { bar: "#d92d20", text: "#b42318", soft: "#fdecea" },
+} as const;
+
+export type StepKey = keyof typeof stepColors;
+export const stepColor = (status: string) => stepColors[(status in stepColors ? status : "pending") as StepKey];
+
+/** Night-sky blues for the home page hero, matching the website's accent gradient. */
+export const hero = { top: "#1b2f8f", mid: "#2350ff", bottom: "#4f3df5", glow: "rgba(255,255,255,0.14)" };

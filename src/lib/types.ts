@@ -253,6 +253,9 @@ export interface Job {
   paymentCaptureAttempts?: number;
   completionPhotoUrl?: string;
   eta?: number; // minutes
+  /** Minutes away, set when the operator confirmed an ASAP visit from within 1 km. */
+  nearbyEta?: number;
+  nearbyEtaAt?: unknown;
   etaSource?: "route" | "estimate";
   estimatedArrivalAt?: Date;
   operatorLat?: number | null;

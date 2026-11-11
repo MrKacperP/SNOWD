@@ -10,6 +10,7 @@ import { pickPhoto } from "./photos";
  * can't hold ("Creating blobs from ArrayBuffer ... not supported"), so it always failed here.
  */
 function dataUrlToBlob(dataUrl: string) {
+  // Also reads file:// URIs, which is how full-size photos are uploaded.
   return new Promise<Blob>((resolve, reject) => {
     const request = new XMLHttpRequest();
     request.onload = () => resolve(request.response as Blob);
@@ -18,6 +19,21 @@ function dataUrlToBlob(dataUrl: string) {
     request.open("GET", dataUrl, true);
     request.send(null);
   });
+}
+
+/** Uploads a photo file from the phone (see pickPhotoFile) to Firebase Storage and returns its download URL. */
+export async function uploadFile(folder: string, uri: string, name = `${Crypto.randomUUID()}.jpg`) {
+  const file = ref(storage, `${folder}/${name}`);
+  const blob = await dataUrlToBlob(uri);
+  try {
+    await uploadBytes(file, blob, { contentType: "image/jpeg" });
+  } catch (e) {
+    const code = (e as { code?: string }).code || "";
+    throw new Error(code === "storage/unauthorized" ? "You don’t have permission to upload here. Sign out and back in, then try again." : "The photo didn’t upload. Check your connection and try again.");
+  } finally {
+    (blob as Blob & { close?: () => void }).close?.();
+  }
+  return getDownloadURL(file);
 }
 
 /** Uploads a JPEG data URL to Firebase Storage and returns its public download URL. */

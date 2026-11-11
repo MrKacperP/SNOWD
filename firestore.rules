@@ -279,6 +279,14 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Phone notification tokens for the native app. The document ID is the token itself.
+    // Only the owner can see or change their own; the server reads them to send pushes.
+    match /pushTokens/{token} {
+      allow read, delete: if isSignedIn() && request.auth.uid == resource.data.uid;
+      allow create, update: if isSignedIn() && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(["uid", "platform", "updatedAt"]);
+    }
+
     match /calls/{callId} {
       allow read: if isAdminOrEmployee();
       allow update: if isAdminOrEmployee() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["notes", "updatedAt"]);

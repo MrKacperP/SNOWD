@@ -1,6 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminAuth, getAdminDb } from "@/lib/firebaseAdmin";
+import { sendPushToUser } from "@/lib/pushNotifications";
 
 export async function POST(request: NextRequest) {
   let uid: string;
@@ -47,6 +48,12 @@ export async function POST(request: NextRequest) {
       jobId: chat?.jobId || "",
       read: false,
       createdAt: FieldValue.serverTimestamp(),
+    });
+
+    await sendPushToUser(recipient, {
+      title: typeof senderName === "string" && senderName.trim() ? senderName.trim() : "New message",
+      body: message.trim().slice(0, 180),
+      data: { chatId },
     });
 
     return NextResponse.json({ success: true });

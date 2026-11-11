@@ -1,14 +1,82 @@
 import { Stack } from "expo-router";
 import { doc, updateDoc } from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
-import { Text, View } from "react-native";
+import * as Haptics from "expo-haptics";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { quoteMarketplace } from "@/lib/marketplacePricing";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SHOVELING_SERVICES, isShovelingService, type ServiceType } from "@/lib/types";
-import { Card, Chip, Field, Notice, SaveBar } from "~/components/ui";
+import { Card, Chip, Icon, Notice, SaveBar } from "~/components/ui";
+import { money } from "~/lib/format";
 import { useAuth } from "~/context/auth";
 import { db } from "~/lib/firebase";
-import { colors, space, type } from "~/lib/theme";
+import { colors, radius, shadow, space, stepColor, type } from "~/lib/theme";
+
+const TONES = [stepColor("accepted"), stepColor("en-route"), stepColor("in-progress"), stepColor("pending"), stepColor("completed")];
+
+/** Pictures of the area: one, two or three cars for driveways, a walking figure or a patio for the rest. */
+const PICTURES: Record<string, { icon: Parameters<typeof Icon>[0]["name"]; count: number }> = {
+  small: { icon: "car.fill", count: 1 },
+  medium: { icon: "car.fill", count: 2 },
+  large: { icon: "car.fill", count: 3 },
+  sidewalk: { icon: "figure.walk", count: 1 },
+  backyardPatio: { icon: "sun.max.fill", count: 1 },
+};
+
+/** One size's price: a picture of the size, a big editable amount with − / + and what the customer pays. */
+function PriceCard({ label, size, value, onChange, tone }: { label: string; size: string; value: string; onChange: (v: string) => void; tone: (typeof TONES)[number] }) {
+  const n = Number(value);
+  const valid = Number.isFinite(n) && n >= 0.01;
+  const step = (delta: number) => {
+    void Haptics.selectionAsync();
+    const next = Math.max(5, Math.round(((Number.isFinite(n) ? n : 0) + delta) / 5) * 5);
+    onChange(String(Math.min(10000, next)));
+  };
+  const picture = PICTURES[size] || PICTURES.small;
+  return (
+    <View style={[styles.priceCard, { borderLeftColor: tone.bar }]}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: space.md }}>
+        <View style={[styles.picture, { backgroundColor: tone.soft }]}>
+          <View style={{ flexDirection: "row", gap: 1 }}>
+            {Array.from({ length: picture.count }, (_, i) => (
+              <Icon key={i} name={picture.icon} size={picture.count > 2 ? 13 : 17} color={tone.text} />
+            ))}
+          </View>
+        </View>
+        <Text style={[type.headline, { flex: 1 }]}>{label}</Text>
+      </View>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: space.md }}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Lower ${label} price by 5 dollars`} onPress={() => step(-5)} style={({ pressed }) => [styles.stepper, pressed && { transform: [{ scale: 0.92 }] }]}>
+          <Icon name="minus" size={18} color={colors.ink} weight="bold" />
+        </Pressable>
+        <View style={styles.amount}>
+          <Text style={{ fontSize: 28, fontWeight: "800", color: colors.muted }}>$</Text>
+          <TextInput
+            accessibilityLabel={`${label} price in dollars`}
+            value={value}
+            keyboardType="decimal-pad"
+            onChangeText={(v) => onChange(v.replace(/[^\d.]/g, ""))}
+            style={{ fontSize: 34, fontWeight: "900", color: colors.ink, minWidth: 60, textAlign: "center", fontVariant: ["tabular-nums"] }}
+          />
+        </View>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Raise ${label} price by 5 dollars`} onPress={() => step(5)} style={({ pressed }) => [styles.stepper, { backgroundColor: tone.bar }, pressed && { transform: [{ scale: 0.92 }] }]}>
+          <Icon name="plus" size={18} color="#fff" weight="bold" />
+        </Pressable>
+      </View>
+      <Text style={[type.caption, { textAlign: "center" }]}>
+        {valid ? `Customer pays ${money(quoteMarketplace(n, "cash").price)} cash · ${money(quoteMarketplace(n, "credit").price)} by card` : "Enter an amount from $0.01"}
+      </Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  priceCard: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: space.lg, gap: space.md, borderLeftWidth: 5, ...shadow },
+  picture: { width: 56, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  stepper: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceAlt },
+  amount: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", minHeight: 60, borderRadius: radius.md, backgroundColor: colors.bg },
+});
 
 type PriceKey = "small" | "medium" | "large" | "sidewalk" | "backyardPatio";
 // Same rows, defaults and grouping as the website's "Areas and prices".
@@ -87,7 +155,7 @@ export default function PricesSettings() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <Stack.Screen options={{ title: "Prices and services" }} />
+      <Stack.Screen options={{ title: "Sizes & prices" }} />
       <KeyboardAwareScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" bottomOffset={90} contentContainerStyle={{ padding: space.lg, gap: space.lg, paddingBottom: 120 }}>
         <Card>
           <Text style={type.headline}>Areas you shovel</Text>
@@ -98,14 +166,19 @@ export default function PricesSettings() {
             ))}
           </View>
         </Card>
-        <Card>
-          <Text style={type.headline}>What you receive</Text>
-          <Text style={type.caption}>Set your price for each area in Canadian dollars. Front porch and sidewalk share one price.</Text>
-          {ROWS.filter(([, , areas]) => areas.some((a) => services.includes(a))).map(([key, label]) => (
-            <Field key={key} label={`${label} ($ CAD)`} value={prices[key]} keyboardType="decimal-pad" onChangeText={(v) => setPrices((p) => ({ ...p, [key]: v.replace(/[^\d.]/g, "") }))} />
-          ))}
-          {!services.length ? <Text style={type.caption}>Choose an area above to set its price.</Text> : null}
-        </Card>
+        <Text style={[type.overline, { marginTop: space.sm }]}>Your prices</Text>
+        <Text style={[type.caption, { marginTop: -space.sm }]}>What you receive, in Canadian dollars. Tap − / + to change by $5, or type an amount.</Text>
+        {ROWS.filter(([, , areas]) => areas.some((a) => services.includes(a))).map(([key, label], i) => (
+          <PriceCard
+            key={key}
+            label={label}
+            size={key}
+            tone={TONES[i % TONES.length]}
+            value={prices[key]}
+            onChange={(v) => setPrices((p) => ({ ...p, [key]: v }))}
+          />
+        ))}
+        {!services.length ? <Text style={type.caption}>Choose an area above to set its price.</Text> : null}
         <Notice text={error} />
         <Notice tone="green" text={done} />
       </KeyboardAwareScrollView>

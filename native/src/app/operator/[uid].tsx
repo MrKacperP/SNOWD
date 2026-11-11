@@ -11,7 +11,8 @@ import { useAuth } from "~/context/auth";
 import { db } from "~/lib/firebase";
 import { money } from "~/lib/format";
 import { quoteFor } from "~/lib/operators";
-import { colors, radius, space, type } from "~/lib/theme";
+import { Snowfall } from "~/components/brand";
+import { colors, hero, radius, space, type } from "~/lib/theme";
 
 export default function OperatorScreen() {
   const { uid } = useLocalSearchParams<{ uid: string }>();
@@ -41,8 +42,8 @@ export default function OperatorScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 140 }}>
-        <View style={{ height: 150 + insets.top, backgroundColor: colors.ink }}>
-          {operator.portfolioPhotos?.[0] ? <Image source={{ uri: operator.portfolioPhotos[0] }} style={{ flex: 1, opacity: 0.55 }} contentFit="cover" /> : null}
+        <View style={{ height: 170 + insets.top, backgroundColor: hero.mid, backgroundImage: `linear-gradient(160deg, ${hero.top} 0%, ${hero.mid} 55%, ${hero.bottom} 100%)`, overflow: "hidden" }}>
+          {operator.portfolioPhotos?.[0] ? <Image source={{ uri: operator.portfolioPhotos[0] }} style={{ flex: 1, opacity: 0.55 }} contentFit="cover" /> : <Snowfall count={16} height={170 + insets.top} />}
         </View>
         <View style={{ paddingHorizontal: space.lg, marginTop: -44, gap: space.lg }}>
           <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" }}>

@@ -1,10 +1,14 @@
+import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { useMemo, useRef, useState } from "react";
 import { Dimensions, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import MapView, { Marker } from "react-native-maps";
+import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
+import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Avatar, Button, Chip, Icon, Loading } from "~/components/ui";
-import { useAuth } from "~/context/auth";
+import { CardSkeletons } from "~/components/brand";
+import { Avatar, Button, Chip, Empty, Icon, Loading, SwipeTabs, usePenguinRefresh } from "~/components/ui";
+import { useAuth, type Profile } from "~/context/auth";
 import { money } from "~/lib/format";
 import { quoteFor, useOperators, type NearbyOperator } from "~/lib/operators";
 import { colors, radius, shadow, space, type } from "~/lib/theme";
@@ -20,6 +24,22 @@ export default function Find() {
   const [onlyNearby, setOnlyNearby] = useState(true);
   const [cardsOnly, setCardsOnly] = useState(false);
   const [selected, setSelected] = useState(0);
+  const [mode, setMode] = useState<"map" | "list">("map");
+  const switchMode = (next: "map" | "list") => {
+    void Haptics.selectionAsync();
+    setMode(next);
+  };
+  // Swiping up on the cards opens the full list; the list has a Map button to come back.
+  const swipeUp = usePanGesture({
+    activeOffsetY: [-18, 18],
+    failOffsetX: [-12, 12],
+    runOnJS: true,
+    onDeactivate: (event) => {
+      const { translationY, velocityY } = event as unknown as { translationY: number; velocityY: number };
+      if (translationY < -40 || velocityY < -500) switchMode("list");
+    },
+  });
+  const { scrollProps, indicator } = usePenguinRefresh(reload);
   const map = useRef<MapView>(null);
   const list = useRef<FlatList<NearbyOperator>>(null);
 
@@ -37,6 +57,7 @@ export default function Find() {
 
   return (
     <View style={{ flex: 1 }}>
+      {mode === "map" ? (
       <MapView ref={map} style={StyleSheet.absoluteFill} initialRegion={{ ...home, latitudeDelta: 0.12, longitudeDelta: 0.12 }} showsUserLocation showsCompass={false}>
         <Marker coordinate={home} title="Your home">
           <View style={styles.homePin}>
@@ -53,12 +74,21 @@ export default function Find() {
           ) : null,
         )}
       </MapView>
+      ) : null}
 
-      <View style={[styles.top, { paddingTop: insets.top + 8 }]}>
+      <View style={[styles.top, { paddingTop: insets.top + 8 }, mode === "list" && { backgroundColor: "rgba(246,248,251,0.97)", paddingBottom: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}>
         <View style={styles.titleBar}>
           <Icon name="magnifyingglass" size={16} color={colors.muted} />
           <Text accessibilityRole="header" style={[type.headline, { flex: 1 }]} numberOfLines={1}>Shovelers near {profile?.city || "you"}</Text>
           <Text style={type.caption}>{loading ? "…" : `${shown.length} found`}</Text>
+        </View>
+        <View style={styles.segment} accessibilityRole="tablist">
+          {(["map", "list"] as const).map((m) => (
+            <Pressable key={m} accessibilityRole="tab" accessibilityState={{ selected: mode === m }} accessibilityLabel={m === "map" ? "Map view" : "List view"} onPress={() => switchMode(m)} style={[styles.segmentItem, mode === m && styles.segmentOn]}>
+              <Icon name={m === "map" ? "map.fill" : "list.bullet"} size={14} color={mode === m ? "#fff" : colors.ink} />
+              <Text style={{ fontWeight: "800", fontSize: 15, color: mode === m ? "#fff" : colors.ink }}>{m === "map" ? "Map" : "List"}</Text>
+            </Pressable>
+          ))}
         </View>
         <View style={{ flexDirection: "row", gap: 8 }}>
           <Chip label="Serves my address" icon="mappin" selected={onlyNearby} onPress={() => { setOnlyNearby(!onlyNearby); setSelected(0); }} />
@@ -66,7 +96,29 @@ export default function Find() {
         </View>
       </View>
 
+      {mode === "list" ? (
+        <SwipeTabs tab="/find">
+          <Animated.FlatList
+            data={shown}
+            keyExtractor={(o) => o.uid}
+            style={{ flex: 1, backgroundColor: colors.bg }}
+            contentContainerStyle={{ paddingTop: insets.top + 168, paddingHorizontal: space.lg, paddingBottom: insets.bottom + 100, gap: space.md }}
+            {...scrollProps}
+            ListHeaderComponent={<View>{indicator}</View>}
+            ListEmptyComponent={loading ? <CardSkeletons count={4} /> : <Empty icon="person.2.slash" title={error || "No shovelers serve this area yet"} body={error ? undefined : onlyNearby ? "Turn off “Serves my address” to see everyone nearby." : "Check back soon, new shovelers join every week."} />}
+            renderItem={({ item }) => <OperatorCard op={item} profile={profile} onOpen={() => router.push(`/operator/${item.uid}`)} onBook={() => router.push(`/book/${item.uid}`)} />}
+          />
+        </SwipeTabs>
+      ) : null}
+
+      {mode === "map" ? (
       <View style={{ position: "absolute", left: 0, right: 0, bottom: insets.bottom + 62 }}>
+        <GestureDetector gesture={swipeUp}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Show all as a list" onPress={() => switchMode("list")} style={styles.handleWrap}>
+            <View style={styles.handle} />
+            <Text style={{ color: colors.ink, fontWeight: "800", fontSize: 13 }}>Swipe up for list</Text>
+          </Pressable>
+        </GestureDetector>
         {loading ? (
           <View style={[styles.card, { marginHorizontal: 28, height: 150 }]}>
             <Loading />
@@ -122,14 +174,53 @@ export default function Find() {
           />
         )}
       </View>
+      ) : null}
     </View>
   );
 }
 
+/** One shoveler in the list view: photo, rating, distance, price and the two actions. */
+function OperatorCard({ op, profile, onOpen, onBook }: { op: NearbyOperator; profile: Profile; onOpen: () => void; onBook: () => void }) {
+  const quote = quoteFor(op, profile);
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={`${op.businessName || op.displayName}, ${money(quote.cash)} cash. View profile`} onPress={onOpen} style={({ pressed }) => [styles.listCard, pressed && { transform: [{ scale: 0.98 }] }]}>
+      <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
+        <Avatar uri={op.logoUrl || op.avatar} name={op.businessName || op.displayName} size={56} />
+        <View style={{ flex: 1, gap: 3 }}>
+          <Text style={type.headline} numberOfLines={1}>{op.businessName || op.displayName}</Text>
+          {op.tagline ? <Text style={type.caption} numberOfLines={1}>{op.tagline}</Text> : null}
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <Icon name="star.fill" size={13} color={colors.sun} />
+            <Text style={type.caption}>
+              {op.reviewCount ? `${op.rating.toFixed(1)} (${op.reviewCount})` : "New"}
+              {op.distanceKm != null ? ` · ${op.distanceKm.toFixed(1)} km` : ""}
+              {op.isStudent ? " · Student" : ""}
+            </Text>
+          </View>
+        </View>
+        <View style={{ alignItems: "flex-end" }}>
+          <Text style={type.title}>{money(quote.cash)}</Text>
+          <Text style={type.caption}>{quote.card ? "cash or card" : "cash only"}</Text>
+        </View>
+      </View>
+      <View style={{ flexDirection: "row", gap: 10 }}>
+        <Button title="Profile" variant="secondary" small style={{ flex: 1 }} onPress={onOpen} />
+        <Button title={op.servesYou ? "Request" : "Not in your area"} icon={op.servesYou ? "paperplane.fill" : undefined} small style={{ flex: 2 }} disabled={!op.servesYou} onPress={onBook} />
+      </View>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  top: { position: "absolute", left: 0, right: 0, paddingHorizontal: space.lg, gap: 10 },
+  top: { position: "absolute", left: 0, right: 0, paddingHorizontal: space.lg, gap: 10, zIndex: 10 },
   titleBar: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: space.lg, minHeight: 52, ...shadow, shadowOpacity: 0.12 },
   card: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: space.lg, gap: space.md, ...shadow, shadowOpacity: 0.14, shadowRadius: 18 },
   pricePin: { backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 8, ...shadow, shadowOpacity: 0.2 },
+  segment: { flexDirection: "row", alignSelf: "flex-start", padding: 4, gap: 4, borderRadius: radius.pill, backgroundColor: colors.surface, ...shadow, shadowOpacity: 0.12 },
+  segmentItem: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 16, minHeight: 36, borderRadius: radius.pill },
+  segmentOn: { backgroundColor: colors.ink },
+  handleWrap: { alignSelf: "center", alignItems: "center", gap: 4, marginBottom: 8, paddingHorizontal: 16, paddingVertical: 6, borderRadius: radius.pill, backgroundColor: "rgba(255,255,255,0.92)", ...shadow },
+  handle: { width: 36, height: 5, borderRadius: 3, backgroundColor: colors.borderStrong },
+  listCard: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: space.lg, gap: space.md, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border, ...shadow },
   homePin: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.accent, borderWidth: 3, borderColor: "#fff", alignItems: "center", justifyContent: "center" },
 });

@@ -20,6 +20,7 @@ import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { createContext, use, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { ClientProfile, OperatorProfile, UserProfile } from "@/lib/types";
 import { auth, db } from "~/lib/firebase";
+import { unregisterPush } from "~/lib/push";
 
 /** One shape for every role: shared fields plus whichever client or operator fields are present. */
 export type Profile = (UserProfile & Partial<Omit<ClientProfile, "role">> & Partial<Omit<OperatorProfile, "role">>) | null;
@@ -152,6 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       },
       signOut: async () => {
+        await unregisterPush();
         if (user) await updateDoc(doc(db, "users", user.uid), { isOnline: false }).catch(() => {});
         await firebaseSignOut(auth);
       },

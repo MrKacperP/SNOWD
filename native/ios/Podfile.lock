@@ -5,7 +5,7 @@ PODS:
     - ReactNativeDependencies
   - EASClient (58.0.2):
     - ExpoModulesCore
-  - EXConstants (58.0.15):
+  - EXConstants (58.0.16):
     - ExpoModulesCore
   - EXJSONUtils (58.0.1)
   - EXManifests (58.0.1):
@@ -197,6 +197,8 @@ PODS:
     - ExpoModulesJSI
     - ExpoModulesWorklets
     - RNWorklets
+  - ExpoNotifications (58.1.9):
+    - ExpoModulesCore
   - ExpoRouter (58.0.30):
     - ExpoModulesCore
     - RNScreens
@@ -2193,7 +2195,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - RNGestureHandler (3.5.0):
+  - RNGestureHandler (3.3.0):
     - hermes-engine
     - RCTRequired
     - RCTTypeSafety
@@ -2533,7 +2535,7 @@ DEPENDENCIES:
   - expo-dev-menu (from `../node_modules/expo-dev-menu`)
   - expo-dev-menu-interface (from `../node_modules/expo-dev-menu-interface/ios`)
   - ExpoAppleAuthentication (from `../node_modules/expo-apple-authentication/ios`)
-  - ExpoApplication (from `../node_modules/expo-auth-session/node_modules/expo-application/ios`)
+  - ExpoApplication (from `../node_modules/expo-application/ios`)
   - ExpoAsset (from `../node_modules/expo/node_modules/expo-asset/ios`)
   - ExpoBlur (from `../node_modules/expo-blur/ios`)
   - ExpoCrypto (from `../node_modules/expo-crypto/ios`)
@@ -2553,6 +2555,7 @@ DEPENDENCIES:
   - ExpoModulesJSI (from `../node_modules/expo-modules-jsi/apple`)
   - ExpoModulesWorklets (from `../node_modules/expo-modules-core/ExpoModulesWorklets.podspec`)
   - ExpoModulesWorkletsAdapter (from `../node_modules/expo-modules-core`)
+  - ExpoNotifications (from `../node_modules/expo-notifications/ios`)
   - ExpoRouter (from `../node_modules/expo-router/ios`)
   - ExpoStatusBar (from `../node_modules/expo-status-bar/ios`)
   - ExpoSymbols (from `../node_modules/expo-symbols/ios`)
@@ -2687,7 +2690,7 @@ EXTERNAL SOURCES:
   ExpoAppleAuthentication:
     :path: "../node_modules/expo-apple-authentication/ios"
   ExpoApplication:
-    :path: "../node_modules/expo-auth-session/node_modules/expo-application/ios"
+    :path: "../node_modules/expo-application/ios"
   ExpoAsset:
     :path: "../node_modules/expo/node_modules/expo-asset/ios"
   ExpoBlur:
@@ -2726,6 +2729,8 @@ EXTERNAL SOURCES:
     :podspec: "../node_modules/expo-modules-core/ExpoModulesWorklets.podspec"
   ExpoModulesWorkletsAdapter:
     :path: "../node_modules/expo-modules-core"
+  ExpoNotifications:
+    :path: "../node_modules/expo-notifications/ios"
   ExpoRouter:
     :path: "../node_modules/expo-router/ios"
   ExpoStatusBar:
@@ -2936,7 +2941,7 @@ SPEC CHECKSUMS:
   boost: 8502bfdc46e2804408af2e163049ece181009af4
   DoubleConversion: 501a575c40c0b50c89685762dd3e415e6bb26fb0
   EASClient: 672e41a9aa3481e4f4efbea7fc001573d9a7fa85
-  EXConstants: c1eb9dab7494834d85aa347165da9718cdfc21a6
+  EXConstants: aeda76f4be923fc719522ae162dd0b8c6483f9cc
   EXJSONUtils: d59bf6b18639752631a81818559b2675a46f99e2
   EXManifests: b0b83ad894166f7e080b18814c5e73aed46e366e
   Expo: f1442bfd3a128cb67832bac5fcc38e1900e94fdc
@@ -2965,6 +2970,7 @@ SPEC CHECKSUMS:
   ExpoModulesJSI: 68a068c5214c88982f236bb26dd44fa004f10f35
   ExpoModulesWorklets: 25684e76e7b886dd31bf4538c3fd657bf07a694b
   ExpoModulesWorkletsAdapter: 39a95a62785e53476830a21d21444404ebb74659
+  ExpoNotifications: fa890b1d743fd72ca15c52ac9f9f23c76860e228
   ExpoRouter: 02792d7e25c9095634a56c5b7256556674411212
   ExpoStatusBar: 56aa9746e1bee4d8adbab12f4d7efc97000ac49f
   ExpoSymbols: 1260e741b35b6fd105942779895418db306645c8
@@ -3061,7 +3067,7 @@ SPEC CHECKSUMS:
   ReactNativeDependencies: a5164c3ebbe90d992022b5d9cbabbf770a6d7d05
   RNCAsyncStorage: 47ffec1d3f091c4a21881654bbd5e2e7f62efbc9
   RNCMaskedView: a9c7c7992c85d8073707286fb59a857bc786cbd5
-  RNGestureHandler: e11840399a9e42f90b6a69699a5b232bddb417d5
+  RNGestureHandler: ddbdf3f293a498368803f8181ff157271ac05c48
   RNReanimated: 5c641cc430b7255eae87c8039204eb0f816ea1b8
   RNScreens: e4c2c2aa9576604868c0b250096c295a487e1d9e
   RNWorklets: 488806637a21eb17812a48dadca7cb8c698c8cfd

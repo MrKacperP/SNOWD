@@ -18,6 +18,7 @@
         "NSCameraUsageDescription": "SNOWD uses the camera to send photos in chat and to confirm finished jobs.",
         "NSPhotoLibraryUsageDescription": "SNOWD lets you choose photos to send in chat and to confirm finished jobs.",
         "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": ["remote-notification"],
         "CFBundleURLTypes": [
           {
             "CFBundleURLSchemes": [
@@ -47,6 +48,12 @@
       "expo-web-browser",
       "expo-font",
       "expo-apple-authentication",
+      [
+        "expo-notifications",
+        {
+          "color": "#2350ff"
+        }
+      ],
       [
         "expo-location",
         {
@@ -80,8 +87,6 @@
       "typedRoutes": false,
       "tsconfigPaths": true
     },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    }
+    "runtimeVersion": "2.0.0"
   }
 }

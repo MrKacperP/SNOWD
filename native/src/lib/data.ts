@@ -1,5 +1,5 @@
 import { collection, doc, getDoc, onSnapshot, orderBy, query, where } from "firebase/firestore";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Chat, ChatMessage, Job, OperatorProfile } from "@/lib/types";
 import { dateMillis } from "@/lib/workOrders";
 import { db } from "./firebase";
@@ -11,6 +11,7 @@ export function useChats(uid?: string) {
   const [chats, setChats] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [key, setKey] = useState(0);
   useEffect(() => {
     if (!uid) return;
     return onSnapshot(
@@ -27,14 +28,20 @@ export function useChats(uid?: string) {
         setError("Couldn’t load your conversations. Pull to try again.");
       },
     );
-  }, [uid]);
-  return { chats, loading, error };
+  }, [uid, key]);
+  /** Starts the live listener again, for pull to refresh. */
+  const reload = useCallback(() => {
+    peopleCache.clear();
+    setKey((k) => k + 1);
+  }, []);
+  return { chats, loading, error, reload };
 }
 
 /** Live list of work orders where the user is the client or the operator. */
 export function useJobs(uid?: string, role?: string) {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
+  const [key, setKey] = useState(0);
   useEffect(() => {
     if (!uid || !role) return;
     return onSnapshot(
@@ -47,8 +54,12 @@ export function useJobs(uid?: string, role?: string) {
       },
       () => setLoading(false),
     );
-  }, [uid, role]);
-  return { jobs, loading };
+  }, [uid, role, key]);
+  const reload = useCallback(() => {
+    peopleCache.clear();
+    setKey((k) => k + 1);
+  }, []);
+  return { jobs, loading, reload };
 }
 
 export function useJob(jobId?: string) {

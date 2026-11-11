@@ -3,20 +3,22 @@ import { Image } from "expo-image";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { collection, doc, increment, Timestamp, updateDoc, writeBatch } from "firebase/firestore";
 import { useEffect, useMemo, useRef, useState, type ComponentRef } from "react";
-import { ActionSheetIOS, Alert, FlatList, Linking, Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { KeyboardAvoidingView, useReanimatedKeyboardAnimation } from "react-native-keyboard-controller";
+import { ActionSheetIOS, ActivityIndicator, Alert, FlatList, Linking, Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useReanimatedKeyboardAnimation } from "react-native-keyboard-controller";
 import Animated, { interpolate, useAnimatedStyle } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import type { ChatMessage } from "@/lib/types";
+import type { ChatMessage, Job } from "@/lib/types";
 import { dateMillis, isOpenOrder, orderLabel, orderNumber } from "@/lib/workOrders";
+import { ProgressBar } from "~/components/OrderProgress";
 import { Avatar, Icon, Loading } from "~/components/ui";
 import { useAuth } from "~/context/auth";
 import { api } from "~/lib/api";
 import { personName, useChat, useJobs, useMessages, usePeople } from "~/lib/data";
 import { db } from "~/lib/firebase";
 import { clockTime, dayLabel } from "~/lib/format";
-import { pickPhoto } from "~/lib/photos";
-import { colors, radius, space, type } from "~/lib/theme";
+import { pickPhotoFile } from "~/lib/photos";
+import { uploadFile } from "~/lib/uploads";
+import { colors, radius, space, stepColor, type } from "~/lib/theme";
 
 const REACTIONS = ["👍", "❤️", "😂", "🙏", "❄️"];
 const PERSON_TYPES = ["text", "image", "voice"];
@@ -34,7 +36,11 @@ export default function ChatScreen() {
   const { jobs } = useJobs(uid, profile?.role);
   const otherId = chat?.participants.find((p) => p !== uid) || "";
   const other = usePeople(otherId ? [otherId] : [])[otherId];
-  const openJob = jobs.filter((j) => j.chatId === chatId && isOpenOrder(j)).at(-1);
+  const chatJobs = jobs.filter((j) => j.chatId === chatId);
+  const openJob = chatJobs.filter(isOpenOrder).at(-1);
+  // The order this conversation is about: the open one, or else the most recent one (done or cancelled).
+  const latestJob = openJob || chatJobs[0];
+  const [uploading, setUploading] = useState(false);
   const [draft, setDraft] = useState("");
   const [focused, setFocused] = useState(false);
   const [sending, setSending] = useState(false);
@@ -43,9 +49,17 @@ export default function ChatScreen() {
   const [viewer, setViewer] = useState("");
   const inputRef = useRef<ComponentRef<typeof TextInput>>(null);
 
-  // Composer hugs the home indicator when the keyboard is closed and the keyboard when open.
-  const { progress } = useReanimatedKeyboardAnimation();
-  const composerPadding = useAnimatedStyle(() => ({ paddingBottom: interpolate(progress.value, [0, 1], [insets.bottom + 6, 8]) }));
+  // One source of truth for the keyboard: the whole screen lifts by exactly the keyboard's height,
+  // and the composer's bottom gap shrinks from the home-indicator inset to a small margin, so the
+  // input box sits right on top of the keyboard with no double padding or overlap.
+  const { height: keyboardHeight, progress } = useReanimatedKeyboardAnimation();
+  const lift = useAnimatedStyle(() => ({ paddingBottom: Math.max(0, -keyboardHeight.value) }));
+  const composerPadding = useAnimatedStyle(() => ({ paddingBottom: interpolate(progress.value, [0, 1], [Math.max(insets.bottom, 10), 10]) }));
+
+  // Old per-order chats were merged into one chat per pair of people; follow the move.
+  useEffect(() => {
+    if (chat?.mergedInto) router.replace(`/chat/${chat.mergedInto}`);
+  }, [chat?.mergedInto, router]);
 
   const quickReplies = profile?.role === "operator" ? ["On my way now", "I just arrived", "I’ll send a photo when finished"] : ["Thanks for the update", "Let me know when you arrive", "I’ll keep an eye out"];
 
@@ -104,10 +118,16 @@ export default function ChatScreen() {
   const attach = () => {
     const go = async (source: "camera" | "library") => {
       try {
-        const data = await pickPhoto(source);
-        if (data) await send("Photo", "image", { imageUrl: data });
+        const file = await pickPhotoFile(source);
+        if (!file) return;
+        setUploading(true);
+        // Any photo from the phone works: it's uploaded full size and the message links to it.
+        const url = await uploadFile(`chat-photos/${uid}`, file);
+        await send("Photo", "image", { imageUrl: url });
       } catch (e) {
-        Alert.alert("Couldn’t add photo", e instanceof Error ? e.message : "Try another photo.");
+        Alert.alert("Couldn’t send photo", e instanceof Error ? e.message : "Try another photo.");
+      } finally {
+        setUploading(false);
       }
     };
     ActionSheetIOS.showActionSheetWithOptions({ options: ["Take photo", "Choose from library", "Cancel"], cancelButtonIndex: 2 }, (i) => {
@@ -134,13 +154,16 @@ export default function ChatScreen() {
           headerTransparent: false,
           headerStyle: { backgroundColor: colors.surface },
           headerTitle: () => (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-              <Avatar uri={other?.logoUrl || other?.avatar} name={personName(other)} size={32} />
+            <Pressable accessibilityRole="button" accessibilityLabel={`${personName(other)}. ${other?.isOnline ? "Online now" : "Offline"}`} onPress={() => (other?.role === "operator" ? router.push(`/operator/${otherId}`) : undefined)} style={{ flexDirection: "row", alignItems: "center", gap: 10, maxWidth: 240 }}>
               <View>
-                <Text style={type.headline} numberOfLines={1}>{personName(other)}</Text>
-                <Text style={{ fontSize: 13, color: other?.isOnline ? colors.mint : colors.faint }}>{other?.isOnline ? "Online now" : "Offline"}</Text>
+                <Avatar uri={other?.logoUrl || other?.avatar} name={personName(other)} size={34} />
+                {other?.isOnline ? <View style={styles.onlineDot} /> : null}
               </View>
-            </View>
+              <View style={{ flexShrink: 1 }}>
+                <Text style={[type.headline, { lineHeight: 20 }]} numberOfLines={1}>{personName(other)}</Text>
+                <Text style={{ fontSize: 12, lineHeight: 15, color: other?.isOnline ? colors.mint : colors.faint }} numberOfLines={1}>{other?.isOnline ? "Online now" : "Offline"}</Text>
+              </View>
+            </Pressable>
           ),
           headerRight: () =>
             other?.phone ? (
@@ -150,19 +173,8 @@ export default function ChatScreen() {
             ) : null,
         }}
       />
-      <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: colors.bg }}>
-        {openJob ? (
-          <Pressable accessibilityRole="button" accessibilityLabel={`${orderLabel(openJob)}. Order ${orderNumber(openJob)}. Open order`} onPress={() => router.push(`/job/${openJob.id}`)} style={({ pressed }) => [styles.orderBar, pressed && { opacity: 0.8 }]}>
-            <View style={styles.orderDot}>
-              <Icon name="snowflake" size={14} color={colors.accent} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontWeight: "700", color: colors.ink, fontSize: 16 }}>{orderLabel(openJob)}</Text>
-              <Text style={type.caption}>Order #{orderNumber(openJob)} · Tap to track it</Text>
-            </View>
-            <Icon name="chevron.right" size={13} color={colors.faint} />
-          </Pressable>
-        ) : null}
+      <Animated.View style={[{ flex: 1, backgroundColor: colors.bg }, lift]}>
+        {latestJob ? <OrderStatusBar job={latestJob} open={!!openJob} onPress={() => router.push(`/job/${latestJob.id}`)} /> : null}
 
         {loading ? (
           <Loading />
@@ -230,8 +242,8 @@ export default function ChatScreen() {
             />
           ) : null}
           <View style={styles.composer}>
-            <Pressable hitSlop={4} accessibilityRole="button" accessibilityLabel="Add a photo" onPress={attach} style={styles.roundButton}>
-              <Icon name="camera.fill" size={18} color={colors.ink} />
+            <Pressable hitSlop={4} accessibilityRole="button" accessibilityLabel={uploading ? "Sending photo" : "Add a photo"} disabled={uploading} onPress={attach} style={styles.roundButton}>
+              {uploading ? <ActivityIndicator color={colors.accent} /> : <Icon name="camera.fill" size={18} color={colors.ink} />}
             </Pressable>
             <TextInput
               ref={inputRef}
@@ -258,7 +270,7 @@ export default function ChatScreen() {
             </Pressable>
           </View>
         </Animated.View>
-      </KeyboardAvoidingView>
+      </Animated.View>
 
       <Modal visible={!!selected} transparent animationType="fade" onRequestClose={() => setSelected(null)}>
         <Pressable style={styles.scrim} onPress={() => setSelected(null)}>
@@ -294,6 +306,30 @@ export default function ChatScreen() {
         </Pressable>
       </Modal>
     </>
+  );
+}
+
+/** Pinned under the header: which order this chat is about and whether it's active, done or cancelled. */
+function OrderStatusBar({ job, open, onPress }: { job: Job; open: boolean; onPress: () => void }) {
+  const tone = stepColor(job.status);
+  const label = open ? orderLabel(job) : job.status === "completed" ? "Job completed" : job.declinedBy ? "Request declined" : "Job cancelled";
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={`${label}. Order ${orderNumber(job)}. ${open ? "Active chat" : "Chat history kept"}. Open order`} onPress={onPress} style={({ pressed }) => [styles.orderBar, pressed && { opacity: 0.85 }]}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+        <View style={[styles.orderDot, { backgroundColor: tone.soft }]}>
+          <Icon name={open ? "snowflake" : job.status === "completed" ? "checkmark.seal.fill" : "xmark.octagon.fill"} size={15} color={tone.text} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontWeight: "800", color: tone.text, fontSize: 15 }} numberOfLines={1}>{label}</Text>
+          <Text style={[type.caption, { fontSize: 13 }]} numberOfLines={1}>Order #{orderNumber(job)} · {open ? "Active chat · tap to track" : "Messages are kept here"}</Text>
+        </View>
+        <View style={[styles.statePill, { backgroundColor: open ? colors.mintSoft : colors.surfaceAlt }]}>
+          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: open ? "#22c55e" : colors.faint }} />
+          <Text style={{ fontSize: 12, fontWeight: "800", color: open ? colors.mint : colors.muted }}>{open ? "ACTIVE" : "CLOSED"}</Text>
+        </View>
+      </View>
+      {open ? <ProgressBar job={job} compact /> : null}
+    </Pressable>
   );
 }
 
@@ -357,8 +393,10 @@ function Bubble({ message, mine, first, last, onLongPress, onOpenImage }: { mess
 }
 
 const styles = StyleSheet.create({
-  orderBar: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 60, paddingHorizontal: space.lg, paddingVertical: 10, backgroundColor: colors.surface, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
-  orderDot: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.accentSoft, alignItems: "center", justifyContent: "center" },
+  orderBar: { gap: 10, marginHorizontal: space.md, marginTop: space.sm, padding: space.md, borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
+  orderDot: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
+  statePill: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.pill },
+  onlineDot: { position: "absolute", right: -1, bottom: -1, width: 11, height: 11, borderRadius: 6, backgroundColor: "#22c55e", borderWidth: 2, borderColor: colors.surface },
   day: { alignSelf: "center", marginVertical: 12, fontSize: 13, fontWeight: "600", color: colors.muted },
   bubble: { paddingHorizontal: 15, paddingVertical: 10, borderRadius: 20, gap: 6 },
   mine: { backgroundColor: colors.bubbleMine },

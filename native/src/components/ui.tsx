@@ -1,10 +1,12 @@
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { SymbolView, type SymbolViewProps } from "expo-symbols";
+import { useRouter } from "expo-router";
 import { useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Switch,
@@ -17,7 +19,12 @@ import {
   type TextInputProps,
   type ViewStyle,
 } from "react-native";
+import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
+import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import { scheduleOnRN } from "react-native-worklets";
+import { useAuth } from "~/context/auth";
 import { initials } from "~/lib/format";
+import { BrandLoading, PENGUIN, PenguinLoader } from "./brand";
 import { colors, radius, shadow, space, tap, type } from "~/lib/theme";
 
 type SymbolName = SymbolViewProps["name"];
@@ -26,26 +33,123 @@ export function Icon({ name, size = 20, color = colors.ink, weight = "semibold" 
   return <SymbolView name={name} size={size} tintColor={color} weight={weight} />;
 }
 
-/** A scrolling page that sits correctly under the native large-title header and above the tab bar. */
-export function Screen({ children, contentStyle, ...props }: ScrollViewProps & { contentStyle?: StyleProp<ViewStyle> }) {
+/** Tab order, so a sideways swipe on a tab's page moves to the tab next to it. */
+const TABS = (operator: boolean) => (operator ? ["/home", "/jobs", "/messages", "/profile"] : ["/home", "/jobs", "/find", "/messages", "/profile"]);
+
+/** Lets the person swipe left or right on a tab's page to move between tabs, with a tap of haptics. */
+export function SwipeTabs({ tab, children }: { tab: string; children: ReactNode }) {
+  const router = useRouter();
+  const { profile } = useAuth();
+  const go = (direction: 1 | -1) => {
+    const tabs = TABS(profile?.role === "operator");
+    const next = tabs[tabs.indexOf(tab) + direction];
+    if (!next) return;
+    void Haptics.selectionAsync();
+    router.navigate(next as never);
+  };
+  const pan = usePanGesture({
+    activeOffsetX: [-28, 28],
+    failOffsetY: [-14, 14],
+    runOnJS: true,
+    onDeactivate: (event) => {
+      const { translationX, velocityX } = event as unknown as { translationX: number; velocityX: number };
+      if (translationX < -70 || velocityX < -600) go(1);
+      else if (translationX > 70 || velocityX > 600) go(-1);
+    },
+  });
   return (
-    <ScrollView
+    <GestureDetector gesture={pan}>
+      <View style={{ flex: 1 }}>{children}</View>
+    </GestureDetector>
+  );
+}
+
+const PULL = 80;
+
+/**
+ * Pull-to-refresh with the SNOWD penguin: it spins with your pull, buzzes when you've pulled far
+ * enough, and hops while the page refreshes. Spread `scrollProps` onto an Animated scroll view or
+ * list and render `indicator` as its first child (or list header).
+ */
+export function usePenguinRefresh(onRefresh?: () => unknown) {
+  const [refreshing, setRefreshing] = useState(false);
+  const pull = useSharedValue(0);
+  const rest = useSharedValue<number | null>(null);
+  const armed = useSharedValue(false);
+  const busy = useSharedValue(0);
+  const tick = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  const scroll = useAnimatedScrollHandler({
+    onBeginDrag: (e) => {
+      if (rest.value === null || e.contentOffset.y < rest.value) rest.value = e.contentOffset.y;
+    },
+    onScroll: (e) => {
+      if (rest.value === null) rest.value = e.contentOffset.y;
+      const distance = rest.value - e.contentOffset.y;
+      pull.value = Math.max(0, Math.min(1, distance / PULL));
+      if (distance > PULL && !armed.value) {
+        armed.value = true;
+        scheduleOnRN(tick);
+      } else if (distance < 12) armed.value = false;
+    },
+  });
+  const refresh = async () => {
+    if (!onRefresh) return;
+    setRefreshing(true);
+    busy.value = withTiming(1, { duration: 150 });
+    try {
+      // Long enough to see the penguin, short enough not to feel slow.
+      await Promise.all([Promise.resolve(onRefresh()).catch(() => {}), new Promise((r) => setTimeout(r, 900))]);
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } finally {
+      busy.value = withTiming(0, { duration: 200 });
+      setRefreshing(false);
+    }
+  };
+  const penguin = useAnimatedStyle(() => {
+    const shown = Math.max(pull.value, busy.value);
+    return { opacity: shown, transform: [{ rotate: `${(busy.value ? 0 : pull.value) * 360}deg` }, { scale: 0.5 + shown * 0.5 }] };
+  });
+  if (!onRefresh) return { scrollProps: {}, indicator: null };
+  return {
+    scrollProps: {
+      onScroll: scroll,
+      scrollEventThrottle: 16,
+      refreshControl: <RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor="transparent" colors={["transparent"]} progressBackgroundColor="transparent" />,
+    },
+    indicator: (
+      <Animated.View pointerEvents="none" style={[{ position: "absolute", top: -58, left: 0, right: 0, alignItems: "center", zIndex: 10 }, penguin]}>
+        {refreshing ? <PenguinLoader size={38} label="Refreshing" /> : <Image source={PENGUIN} style={{ width: 38, height: 41 }} contentFit="contain" />}
+      </Animated.View>
+    ),
+  };
+}
+
+/**
+ * A scrolling page that sits correctly under the native large-title header and above the tab bar.
+ * With `onRefresh`, pulling down shows the SNOWD penguin (see usePenguinRefresh).
+ */
+export function Screen({ children, contentStyle, onRefresh, ...props }: ScrollViewProps & { contentStyle?: StyleProp<ViewStyle>; onRefresh?: () => unknown }) {
+  const { scrollProps, indicator } = usePenguinRefresh(onRefresh);
+  return (
+    <Animated.ScrollView
       contentInsetAdjustmentBehavior="automatic"
       keyboardDismissMode="interactive"
       keyboardShouldPersistTaps="handled"
       style={{ flex: 1, backgroundColor: colors.bg }}
       contentContainerStyle={[{ padding: space.lg, gap: space.lg, paddingBottom: space.xxl }, contentStyle]}
+      {...scrollProps}
       {...props}
     >
+      {indicator}
       {children}
-    </ScrollView>
+    </Animated.ScrollView>
   );
 }
 
 export function Card({ children, style, onPress }: { children: ReactNode; style?: StyleProp<ViewStyle>; onPress?: () => void }) {
   if (!onPress) return <View style={[styles.card, style]}>{children}</View>;
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.card, style, pressed && styles.pressed]}>
+    <Pressable accessibilityRole="button" onPress={() => { void Haptics.selectionAsync(); onPress(); }} style={({ pressed }) => [styles.card, style, pressed && styles.pressed]}>
       {children}
     </Pressable>
   );
@@ -330,12 +434,8 @@ export function QuickAction({ icon, label, onPress, tint = colors.accent }: { ic
   );
 }
 
-export function Loading() {
-  return (
-    <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.bg }}>
-      <ActivityIndicator accessibilityLabel="Loading" color={colors.accent} />
-    </View>
-  );
+export function Loading({ message }: { message?: string }) {
+  return <BrandLoading message={message} />;
 }
 
 

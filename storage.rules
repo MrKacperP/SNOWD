@@ -59,6 +59,12 @@ service firebase.storage {
       allow read, write: if isSignedIn();
     }
     
+    // Full-size photos sent in chat from the native app.
+    match /chat-photos/{userId}/{allPaths=**} {
+      allow read: if isSignedIn();
+      allow write: if isSelf(userId) && request.resource.size < 25 * 1024 * 1024 && request.resource.contentType.matches('image/.*');
+    }
+
     // Default: deny all
     match /{allPaths=**} {
       allow read, write: if false;
