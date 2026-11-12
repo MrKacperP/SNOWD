@@ -18,7 +18,9 @@
         "NSCameraUsageDescription": "SNOWD uses the camera to send photos in chat and to confirm finished jobs.",
         "NSPhotoLibraryUsageDescription": "SNOWD lets you choose photos to send in chat and to confirm finished jobs.",
         "ITSAppUsesNonExemptEncryption": false,
-        "UIBackgroundModes": ["remote-notification"],
+        "UIBackgroundModes": [
+          "remote-notification"
+        ],
         "CFBundleURLTypes": [
           {
             "CFBundleURLSchemes": [
@@ -87,6 +89,17 @@
       "typedRoutes": false,
       "tsconfigPaths": true
     },
-    "runtimeVersion": "2.0.0"
+    "runtimeVersion": "2.0.0",
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "f211d81f-fe89-4fc3-a1c7-156f4fd71f9b"
+      }
+    },
+    "owner": "lil_bolek"
   }
 }
