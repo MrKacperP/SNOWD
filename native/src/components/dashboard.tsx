@@ -65,7 +65,7 @@ export function BlueHeader({ topInset, children, tone, footer }: { topInset: num
         {footer ? (
           <View>
             {/* No hard bottom edge: the colour fades into the page behind the lower part of the widget. */}
-            <View pointerEvents="none" style={[styles.headerFade, { backgroundImage: `linear-gradient(180deg, ${ds.bg}00 0%, ${ds.bg}b3 55%, ${ds.bg} 100%)` }]} />
+            <View pointerEvents="none" style={[styles.headerFade, { backgroundImage: `linear-gradient(180deg, ${ds.bg}00 0%, ${ds.bg}e6 35%, ${ds.bg} 65%)` }]} />
             {footer}
           </View>
         ) : null}

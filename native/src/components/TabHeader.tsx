@@ -28,7 +28,7 @@ export function TabHeader({ title, subtitle, right, children, onBack }: { title:
       <View style={[styles.band, { paddingTop: insets.top + 6, backgroundColor: theme.deep, backgroundImage: `linear-gradient(180deg, ${theme.deep} 0%, ${theme.mid} 55%, ${theme.accent} 100%)` }]}>
         <Snowfall count={6} height={180} color="rgba(255,255,255,0.45)" />
         {/* No hard bottom edge: the colour fades into the page (drawn under the title, pills and cards). */}
-        <View pointerEvents="none" style={[styles.fade, { backgroundImage: `linear-gradient(180deg, ${ds.bg}00 0%, ${ds.bg}99 55%, ${ds.bg} 100%)` }]} />
+        <View pointerEvents="none" style={[styles.fade, { backgroundImage: `linear-gradient(180deg, ${ds.bg}00 0%, ${ds.bg}e6 35%, ${ds.bg} 65%)` }]} />
         <View style={styles.titleRow}>
           {onBack ? (
             <Pressable accessibilityRole="button" accessibilityLabel="Back" hitSlop={8} onPress={onBack} style={styles.back}>
