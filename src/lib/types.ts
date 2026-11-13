@@ -281,7 +281,7 @@ export interface Job {
 }
 
 // -- Messaging --
-export type MessageType = "text" | "system" | "payment" | "eta-update" | "status-update" | "image" | "voice" | "payment-request" | "completion-photo" | "progress-update";
+export type MessageType = "text" | "system" | "payment" | "eta-update" | "status-update" | "image" | "voice" | "payment-request" | "completion-photo" | "progress-update" | "file";
 
 export interface ChatMessage {
   pending?: boolean; // Local Firestore write awaiting server confirmation
@@ -299,6 +299,10 @@ export interface ChatMessage {
     eta?: number;
     imageUrl?: string;
     audioUrl?: string;
+    fileUrl?: string;
+    fileName?: string;
+    fileSize?: number;
+    fileType?: string;
     durationMs?: number;
     peaks?: number[];
     paymentIntentId?: string;

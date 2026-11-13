@@ -1,27 +1,30 @@
+import { usePresence } from "~/lib/presence";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { collection, doc, increment, Timestamp, updateDoc, writeBatch } from "firebase/firestore";
 import { useEffect, useMemo, useRef, useState, type ComponentRef } from "react";
-import { ActionSheetIOS, ActivityIndicator, Alert, FlatList, Linking, Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, FlatList, Linking, Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useReanimatedKeyboardAnimation } from "react-native-keyboard-controller";
-import Animated, { interpolate, useAnimatedStyle } from "react-native-reanimated";
+import Animated, { interpolate, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withSpring, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { ChatMessage, Job } from "@/lib/types";
 import { dateMillis, isOpenOrder, orderLabel, orderNumber } from "@/lib/workOrders";
 import { ProgressBar } from "~/components/OrderProgress";
+import { clock, LiveWaveform, useVoiceRecorder, VoicePlayer, type VoiceNote } from "~/components/Voice";
 import { Avatar, Icon, Loading } from "~/components/ui";
 import { useAuth } from "~/context/auth";
 import { api } from "~/lib/api";
 import { personName, useChat, useJobs, useMessages, usePeople } from "~/lib/data";
 import { db } from "~/lib/firebase";
 import { clockTime, dayLabel } from "~/lib/format";
-import { pickPhotoFile } from "~/lib/photos";
-import { uploadFile } from "~/lib/uploads";
+import { chooseUpload, storageName, uploadFile } from "~/lib/uploads";
 import { colors, radius, space, stepColor, type } from "~/lib/theme";
 
 const REACTIONS = ["👍", "❤️", "😂", "🙏", "❄️"];
-const PERSON_TYPES = ["text", "image", "voice"];
+const PERSON_TYPES = ["text", "image", "voice", "file"];
+
+const fileSize = (bytes?: number) => (!bytes ? "" : bytes >= 10 * 1024 * 1024 ? `${Math.round(bytes / 1024 / 1024)} MB` : bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`);
 
 type Item = { kind: "day"; id: string; label: string } | { kind: "message"; id: string; message: ChatMessage; first: boolean; last: boolean };
 
@@ -32,15 +35,43 @@ export default function ChatScreen() {
   const { user, profile } = useAuth();
   const uid = user?.uid || "";
   const chat = useChat(chatId);
-  const { messages, loading } = useMessages(chatId);
+  const { messages, loading } = useMessages(chatId, chat?.mergedFrom);
   const { jobs } = useJobs(uid, profile?.role);
   const otherId = chat?.participants.find((p) => p !== uid) || "";
   const other = usePeople(otherId ? [otherId] : [])[otherId];
+  const otherOnline = !!usePresence(otherId ? [otherId] : [])[otherId];
   const chatJobs = jobs.filter((j) => j.chatId === chatId);
   const openJob = chatJobs.filter(isOpenOrder).at(-1);
   // The order this conversation is about: the open one, or else the most recent one (done or cancelled).
   const latestJob = openJob || chatJobs[0];
-  const [uploading, setUploading] = useState(false);
+  // Upload progress 0–1 while a photo or file goes up, null when idle.
+  const [uploading, setUploading] = useState<number | null>(null);
+  // Voice messages: hold the mic to record, then review (play, scrub, speed) before sending.
+  const voice = useVoiceRecorder();
+  const [note, setNote] = useState<VoiceNote | null>(null);
+  const holding = useRef(false);
+  const startRecording = async () => {
+    const ok = await voice.start().catch(() => false);
+    // Let go before the mic was ready: stop straight away.
+    if (ok && !holding.current) void finishRecording();
+  };
+  const finishRecording = async () => {
+    const recorded = await voice.stop().catch(() => null);
+    if (recorded) setNote(recorded);
+  };
+  const sendVoice = async () => {
+    if (!note) return;
+    try {
+      setUploading(0);
+      const url = await uploadFile(`chat-voice/${uid}`, note.uri, { name: `${Date.now()}.m4a`, contentType: "audio/mp4", onProgress: setUploading });
+      await send("Voice message", "voice", { audioUrl: url, durationMs: Math.round(note.durationMs), peaks: note.peaks });
+      setNote(null);
+    } catch (e) {
+      Alert.alert("Voice message not sent", e instanceof Error ? e.message : "Check your connection and try again. Your recording is still here.");
+    } finally {
+      setUploading(null);
+    }
+  };
   const [draft, setDraft] = useState("");
   const [focused, setFocused] = useState(false);
   const [sending, setSending] = useState(false);
@@ -115,25 +146,25 @@ export default function ChatScreen() {
     }
   };
 
-  const attach = () => {
-    const go = async (source: "camera" | "library") => {
-      try {
-        const file = await pickPhotoFile(source);
-        if (!file) return;
-        setUploading(true);
-        // Any photo from the phone works: it's uploaded full size and the message links to it.
-        const url = await uploadFile(`chat-photos/${uid}`, file);
+  // Photos of any size go up full resolution; "Choose a file" sends PDFs, documents or videos.
+  const attach = async () => {
+    try {
+      const picked = await chooseUpload(undefined, { files: true });
+      if (!picked) return;
+      setUploading(0);
+      if (picked.kind === "photo") {
+        const url = await uploadFile(`chat-photos/${uid}`, picked.uri, { onProgress: setUploading });
         await send("Photo", "image", { imageUrl: url });
-      } catch (e) {
-        Alert.alert("Couldn’t send photo", e instanceof Error ? e.message : "Try another photo.");
-      } finally {
-        setUploading(false);
+      } else {
+        const { file } = picked;
+        const url = await uploadFile(`chat-files/${uid}`, file.uri, { name: storageName(file.name), contentType: file.mimeType, onProgress: setUploading });
+        await send(`📄 ${file.name}`, "file", { fileUrl: url, fileName: file.name, ...(file.size ? { fileSize: file.size } : {}), fileType: file.mimeType });
       }
-    };
-    ActionSheetIOS.showActionSheetWithOptions({ options: ["Take photo", "Choose from library", "Cancel"], cancelButtonIndex: 2 }, (i) => {
-      if (i === 0) void go("camera");
-      if (i === 1) void go("library");
-    });
+    } catch (e) {
+      Alert.alert("Couldn’t send that", e instanceof Error ? e.message : "Try another photo or file.");
+    } finally {
+      setUploading(null);
+    }
   };
 
   const react = async (message: ChatMessage, emoji: string) => {
@@ -153,15 +184,18 @@ export default function ChatScreen() {
         options={{
           headerTransparent: false,
           headerStyle: { backgroundColor: colors.surface },
-          headerTitle: () => (
-            <Pressable accessibilityRole="button" accessibilityLabel={`${personName(other)}. ${other?.isOnline ? "Online now" : "Offline"}`} onPress={() => (other?.role === "operator" ? router.push(`/operator/${otherId}`) : undefined)} style={{ flexDirection: "row", alignItems: "center", gap: 10, maxWidth: 240 }}>
+          // The contact sits at the far left, right beside the back button, like Messages.
+          headerTitle: "",
+          headerBackVisible: true,
+          headerLeft: () => (
+            <Pressable accessibilityRole="button" accessibilityLabel={`${personName(other)}. ${otherOnline ? "Online now" : "Offline"}`} accessibilityHint="Opens their profile" onPress={() => otherId && router.push(other?.role === "operator" ? `/operator/${otherId}` : `/person/${otherId}`)} style={{ flexDirection: "row", alignItems: "center", gap: 10, maxWidth: 240, paddingRight: 8 }}>
               <View>
                 <Avatar uri={other?.logoUrl || other?.avatar} name={personName(other)} size={34} />
-                {other?.isOnline ? <View style={styles.onlineDot} /> : null}
+                {otherOnline ? <View style={styles.onlineDot} /> : null}
               </View>
               <View style={{ flexShrink: 1 }}>
                 <Text style={[type.headline, { lineHeight: 20 }]} numberOfLines={1}>{personName(other)}</Text>
-                <Text style={{ fontSize: 12, lineHeight: 15, color: other?.isOnline ? colors.mint : colors.faint }} numberOfLines={1}>{other?.isOnline ? "Online now" : "Offline"}</Text>
+                <Text style={{ fontSize: 12, lineHeight: 15, color: otherOnline ? colors.mint : colors.faint }} numberOfLines={1}>{otherOnline ? "Online now" : "Offline"}</Text>
               </View>
             </Pressable>
           ),
@@ -187,10 +221,30 @@ export default function ChatScreen() {
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ paddingHorizontal: space.md, paddingVertical: space.md }}
             ListEmptyComponent={
-              <View style={{ transform: [{ scaleY: -1 }], alignItems: "center", padding: space.xxl, gap: 8 }}>
-                <Text style={type.headline}>Start the conversation</Text>
-                <Text style={[type.callout, { textAlign: "center" }]}>Say hello, share a gate code or ask a question. Order updates show up here too.</Text>
-              </View>
+              // A live job with no messages yet: prompt the first message, with one-tap starters.
+              openJob ? (
+                <View style={{ transform: [{ scaleY: -1 }] }}>
+                  <View style={styles.prompt}>
+                    <View style={styles.promptIcon}>
+                      <Icon name="bubble.left.and.text.bubble.right.fill" size={22} color={colors.accent} />
+                    </View>
+                    <Text style={[type.headline, { textAlign: "center" }]}>Your job with {personName(other).split(" ")[0]} is live</Text>
+                    <Text style={[type.callout, { textAlign: "center" }]}>Send a quick message so they know you’re here. Share a gate code, where to park, or anything to watch out for.</Text>
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 8 }}>
+                      {(profile?.role === "operator" ? ["Hi! I’m on this job 👋", "I’ll message when I’m on my way", "Anything I should know?"] : ["Hi! Thanks for taking this 👋", "Gate code is…", "Please clear the walkway too"]).map((line) => (
+                        <Pressable key={line} accessibilityRole="button" accessibilityLabel={line.endsWith("…") ? `Start typing: ${line}` : `Send: ${line}`} onPress={() => (line.endsWith("…") ? (setDraft(line.replace("…", " ")), inputRef.current?.focus()) : void send(line))} style={({ pressed }) => [styles.quick, pressed && { opacity: 0.7 }]}>
+                          <Text style={{ color: colors.accent, fontWeight: "600", fontSize: 15 }}>{line}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
+                </View>
+              ) : (
+                <View style={{ transform: [{ scaleY: -1 }], alignItems: "center", padding: space.xxl, gap: 8 }}>
+                  <Text style={type.headline}>Start the conversation</Text>
+                  <Text style={[type.callout, { textAlign: "center" }]}>Say hello, share a gate code or ask a question. Order updates show up here too.</Text>
+                </View>
+              )
             }
             renderItem={({ item }) =>
               item.kind === "day" ? (
@@ -219,7 +273,7 @@ export default function ChatScreen() {
               <View style={{ width: 3, alignSelf: "stretch", borderRadius: 2, backgroundColor: colors.accent }} />
               <View style={{ flex: 1 }}>
                 <Text style={{ color: colors.accent, fontWeight: "700", fontSize: 13 }}>Replying to {replyTo.senderId === uid ? "yourself" : replyTo.senderName}</Text>
-                <Text style={type.caption} numberOfLines={1}>{replyTo.type === "text" ? replyTo.content : "Photo"}</Text>
+                <Text style={type.caption} numberOfLines={1}>{replyTo.type === "text" ? replyTo.content : replyTo.type === "file" ? replyTo.metadata?.fileName || "File" : "Photo"}</Text>
               </View>
               <Pressable hitSlop={10} onPress={() => setReplyTo(null)}>
                 <Icon name="xmark.circle.fill" size={18} color={colors.faint} />
@@ -241,34 +295,94 @@ export default function ChatScreen() {
               )}
             />
           ) : null}
+          {/* One composer row. The mic button stays mounted while recording so letting go always lands on it. */}
           <View style={styles.composer}>
-            <Pressable hitSlop={4} accessibilityRole="button" accessibilityLabel={uploading ? "Sending photo" : "Add a photo"} disabled={uploading} onPress={attach} style={styles.roundButton}>
-              {uploading ? <ActivityIndicator color={colors.accent} /> : <Icon name="camera.fill" size={18} color={colors.ink} />}
-            </Pressable>
-            <TextInput
-              ref={inputRef}
-              value={draft}
-              onChangeText={setDraft}
-              onFocus={() => setFocused(true)}
-              onBlur={() => setFocused(false)}
-              placeholder="Type a message"
-              accessibilityLabel="Message"
-              placeholderTextColor={colors.faint}
-              multiline
-              style={styles.input}
-            />
-            <Pressable
-              hitSlop={4}
-              accessibilityRole="button"
-              accessibilityLabel="Send message"
-              accessibilityState={{ disabled: !draft.trim() || sending }}
-              disabled={!draft.trim() || sending}
-              onPress={() => void send(draft.trim())}
-              style={[styles.send, { backgroundColor: draft.trim() ? colors.accent : colors.borderStrong }]}
-            >
-              <Icon name="arrow.up" size={19} color="#fff" weight="bold" />
-            </Pressable>
+            {voice.recording ? (
+              // Recording: a live waveform and timer while the mic button is held.
+              <View style={styles.recordStrip}>
+                <RecDot />
+                <Text style={{ fontWeight: "700", color: colors.ink, fontVariant: ["tabular-nums"], minWidth: 34 }}>{clock(voice.durationMs)}</Text>
+                <View style={{ flex: 1 }}>
+                  <LiveWaveform samples={voice.live} />
+                </View>
+              </View>
+            ) : note ? (
+              // Review: listen back (scrub, speed), then delete or send.
+              <>
+                <Pressable accessibilityRole="button" accessibilityLabel="Delete recording" hitSlop={6} onPress={() => setNote(null)} style={styles.roundButton}>
+                  <Icon name="trash" size={18} color={colors.danger} />
+                </Pressable>
+                <View style={styles.reviewBox}>
+                  <VoicePlayer uri={note.uri} durationMs={note.durationMs} peaks={note.peaks} />
+                </View>
+              </>
+            ) : (
+              <>
+                <Pressable hitSlop={4} accessibilityRole="button" accessibilityLabel={uploading !== null ? `Uploading, ${Math.round(uploading * 100)} percent` : "Add a photo or file"} disabled={uploading !== null} onPress={() => void attach()} style={styles.roundButton}>
+                  {uploading !== null ? (
+                    uploading > 0.02 ? <Text style={{ fontSize: 12, fontWeight: "800", color: colors.accent }}>{Math.round(uploading * 100)}%</Text> : <ActivityIndicator color={colors.accent} />
+                  ) : (
+                    <Icon name="paperclip" size={19} color={colors.ink} />
+                  )}
+                </Pressable>
+                <TextInput
+                  ref={inputRef}
+                  value={draft}
+                  onChangeText={setDraft}
+                  onFocus={() => setFocused(true)}
+                  onBlur={() => setFocused(false)}
+                  placeholder="Type a message"
+                  accessibilityLabel="Message"
+                  placeholderTextColor={colors.faint}
+                  multiline
+                  style={styles.input}
+                />
+              </>
+            )}
+            {note && !voice.recording ? (
+              <Pressable key="send-voice" accessibilityRole="button" accessibilityLabel="Send voice message" disabled={uploading !== null} onPress={() => void sendVoice()} style={[styles.send, { backgroundColor: colors.accent }]}>
+                {uploading !== null ? <ActivityIndicator color="#fff" /> : <Icon name="arrow.up" size={19} color="#fff" weight="bold" />}
+              </Pressable>
+            ) : draft.trim() && !voice.recording ? (
+              <Pressable
+                key="send-text"
+                hitSlop={4}
+                accessibilityRole="button"
+                accessibilityLabel="Send message"
+                accessibilityState={{ disabled: sending }}
+                disabled={sending}
+                onPress={() => void send(draft.trim())}
+                style={[styles.send, { backgroundColor: colors.accent }]}
+              >
+                <Icon name="arrow.up" size={19} color="#fff" weight="bold" />
+              </Pressable>
+            ) : (
+              // With nothing typed, the button is a mic: hold to record a voice message.
+              <Pressable
+                key="mic"
+                hitSlop={4}
+                accessibilityRole="button"
+                accessibilityLabel="Record a voice message"
+                accessibilityHint="Hold to record, release to listen back before sending"
+                delayLongPress={150}
+                onPressIn={() => {
+                  holding.current = true;
+                }}
+                onLongPress={() => void startRecording()}
+                onPressOut={() => {
+                  holding.current = false;
+                  void finishRecording();
+                }}
+                onPress={() => Alert.alert("Hold to record", "Press and hold the microphone to record a voice message. Let go to listen back before you send it.")}
+                style={[styles.send, { backgroundColor: colors.accent }]}
+              >
+                {/* While recording, a ring around the mic breathes with your voice. */}
+                {voice.recording ? <LevelRing level={voice.level} /> : null}
+                <Icon name="mic.fill" size={19} color="#fff" />
+              </Pressable>
+            )}
           </View>
+          {voice.error ? <Text style={[type.caption, { color: colors.danger, paddingHorizontal: space.md, paddingTop: 6 }]}>{voice.error}</Text> : null}
         </Animated.View>
       </Animated.View>
 
@@ -357,6 +471,8 @@ function Bubble({ message, mine, first, last, onLongPress, onOpenImage }: { mess
           style={[
             styles.bubble,
             mine ? styles.mine : styles.theirs,
+            // Voice notes sit on a light bubble either way, so the grey-and-blue levels read clearly.
+            message.type === "voice" ? styles.voiceBubble : null,
             mine ? { borderBottomRightRadius: last ? 6 : 20 } : { borderBottomLeftRadius: last ? 6 : 20 },
             image ? { padding: 4 } : null,
             message.pending ? { opacity: 0.7 } : null,
@@ -370,8 +486,18 @@ function Bubble({ message, mine, first, last, onLongPress, onOpenImage }: { mess
           ) : null}
           {image ? (
             <Image source={{ uri: image }} style={{ width: 220, height: 220, borderRadius: 16 }} contentFit="cover" transition={150} />
-          ) : message.type === "voice" ? (
-            <Text style={{ color: mine ? "#fff" : colors.ink, fontSize: 17 }}>🎙️ Voice message</Text>
+          ) : message.type === "file" && message.metadata?.fileUrl ? (
+            <Pressable accessibilityRole="link" accessibilityLabel={`File ${message.metadata.fileName || ""}. Open`} onPress={() => void Linking.openURL(message.metadata!.fileUrl!)} onLongPress={onLongPress} style={{ flexDirection: "row", alignItems: "center", gap: 10, minWidth: 180 }}>
+              <View style={{ width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: mine ? "rgba(255,255,255,0.2)" : colors.accentSoft }}>
+                <Icon name="doc.fill" size={18} color={mine ? "#fff" : colors.accent} />
+              </View>
+              <View style={{ flexShrink: 1 }}>
+                <Text style={{ color: mine ? "#fff" : colors.ink, fontSize: 16, fontWeight: "700" }} numberOfLines={2}>{message.metadata.fileName || "File"}</Text>
+                <Text style={{ color: mine ? "rgba(255,255,255,0.8)" : colors.muted, fontSize: 13 }}>{[fileSize(message.metadata.fileSize), "Tap to open"].filter(Boolean).join(" · ")}</Text>
+              </View>
+            </Pressable>
+          ) : message.type === "voice" && message.metadata?.audioUrl ? (
+            <VoicePlayer uri={message.metadata.audioUrl} durationMs={message.metadata.durationMs} peaks={message.metadata.peaks} />
           ) : (
             <Text selectable style={{ color: mine ? "#fff" : colors.ink, fontSize: 17, lineHeight: 23 }}>{message.content}</Text>
           )}
@@ -411,9 +537,36 @@ const styles = StyleSheet.create({
   input: { flex: 1, minHeight: 44, maxHeight: 140, borderRadius: 22, borderWidth: 1.5, borderColor: colors.borderStrong, paddingHorizontal: 16, paddingTop: 11, paddingBottom: 11, fontSize: 17, color: colors.ink, backgroundColor: colors.bg },
   send: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
   replyBar: { flexDirection: "row", alignItems: "center", gap: 10, marginHorizontal: space.md, marginBottom: 8, padding: 8, borderRadius: radius.sm, backgroundColor: colors.bg },
+  prompt: { alignItems: "center", gap: 10, margin: space.md, padding: space.lg, borderRadius: radius.xl, backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
+  promptIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: colors.accentSoft, alignItems: "center", justifyContent: "center" },
+  recordStrip: { flex: 1, minHeight: 44, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, borderRadius: 22, backgroundColor: colors.bg, borderWidth: 1.5, borderColor: colors.borderStrong },
+  recDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.danger },
+  voiceBubble: { backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
+  micLive: { backgroundColor: colors.danger, transform: [{ scale: 1.15 }] },
+  reviewBox: { flex: 1, minHeight: 44, justifyContent: "center", paddingHorizontal: 10, borderRadius: 22, backgroundColor: colors.bg, borderWidth: 1.5, borderColor: colors.borderStrong },
   quick: { paddingHorizontal: 16, minHeight: 40, borderRadius: radius.pill, backgroundColor: colors.accentSoft, justifyContent: "center" },
   scrim: { flex: 1, backgroundColor: "rgba(10,20,30,0.35)", justifyContent: "flex-end" },
   sheet: { backgroundColor: colors.surface, margin: space.md, marginBottom: 40, borderRadius: radius.xl, padding: space.lg, gap: space.md },
   reaction: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
   sheetRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, paddingHorizontal: 4, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
 });
+
+/** The recording dot: blue, gently pulsing. */
+function RecDot() {
+  const o = useSharedValue(1);
+  useEffect(() => {
+    o.value = withRepeat(withSequence(withTiming(0.3, { duration: 600 }), withTiming(1, { duration: 600 })), -1);
+  }, [o]);
+  const style = useAnimatedStyle(() => ({ opacity: o.value }));
+  return <Animated.View style={[{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.accent }, style]} />;
+}
+
+/** A soft ring behind the mic that grows with how loud you are. */
+function LevelRing({ level }: { level: number }) {
+  const scale = useSharedValue(1);
+  useEffect(() => {
+    scale.value = withSpring(1 + level * 0.9, { damping: 12, stiffness: 200 });
+  }, [level, scale]);
+  const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  return <Animated.View pointerEvents="none" style={[{ position: "absolute", width: 44, height: 44, borderRadius: 22, backgroundColor: colors.accent, opacity: 0.25 }, style]} />;
+}

@@ -43,7 +43,9 @@ export async function requireJobPaymentAccess(req: NextRequest, paymentIntentId:
   if (payment.metadata.jobId !== jobs.docs[0].id || payment.metadata.clientId !== job.clientId || payment.metadata.operatorId !== job.operatorId) {
     throw new Error("Payment does not match the saved job.");
   }
-  if (action === "capture" && (job.status === "cancelled" || !job.completionPhotoUrl)) {
+  // The customer may release their own payment early once clearing has started; anyone else needs the photo.
+  const customerPaysEarly = user.uid === job.clientId && ["in-progress", "completed"].includes(job.status);
+  if (action === "capture" && (job.status === "cancelled" || (!job.completionPhotoUrl && !customerPaysEarly))) {
     throw new Error("Photo proof is required before payment can be released for an active job.");
   }
   if (action === "cancel" && (job.status === "completed" || payment.status === "succeeded")) {

@@ -88,7 +88,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const data = snap.exists() ? ({ ...snap.data(), uid: snap.id } as Profile) : null;
           setProfile(data);
           setLoading(false);
-          if (data && data.isOnline !== true) void updateDoc(ref, { isOnline: true }).catch(() => {});
         },
         () => {
           setProfile(null);

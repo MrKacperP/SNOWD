@@ -7,6 +7,9 @@ import { Check, Eye, RotateCcw, X } from "lucide-react";
 import { AdminCard, ConfirmModal, EmptyState, SideDrawer, StatusTag, tableCell, tableHead } from "@/components/admin/AdminUI";
 import { useAdminData } from "@/components/admin/AdminProvider";
 
+/** IDs uploaded from the app can be PDFs or other documents; only pictures get a preview. */
+const isPicture = (url: string) => !/\.(pdf|docx?|pages|txt|zip)(\?|$)/i.test(decodeURIComponent(url.split("?")[0]));
+
 type RejectionReasonCategory = "document-quality" | "name-mismatch" | "expired-id" | "unsupported-document" | "other";
 
 export default function AdminVerificationsPage() {
@@ -58,7 +61,7 @@ export default function AdminVerificationsPage() {
                 <p>{[item.address, item.city, item.province, item.postalCode].filter(Boolean).join(", ") || "No address on profile"}</p>
                 <p>Submitted {item.submissionDate}</p>
               </div>
-              {item.idPhotoUrl && <Image unoptimized width={600} height={360} src={item.idPhotoUrl} alt={`${item.userName} identity document`} className="h-28 w-full rounded-xl border border-[var(--border)] object-cover" />}
+              {item.idPhotoUrl && isPicture(item.idPhotoUrl) && <Image unoptimized width={600} height={360} src={item.idPhotoUrl} alt={`${item.userName} identity document`} className="h-28 w-full rounded-xl border border-[var(--border)] object-cover" />}
               <div className="flex items-center gap-2">
                 <button onClick={() => setSelectedId(item.id)} className="h-9 rounded-xl border border-[var(--border)] px-3 text-sm font-semibold inline-flex items-center gap-1"><Eye className="w-4 h-4" /> Details</button>
                 <button
@@ -139,7 +142,7 @@ export default function AdminVerificationsPage() {
         {selected && <div className="space-y-4">
           <div className="flex items-center gap-3"><div className="grid h-12 w-12 place-items-center rounded-full bg-[var(--bg-secondary)] text-sm font-bold text-[var(--accent)]">{selected.userAvatar}</div><div><h3 className="font-semibold text-[var(--ink)]">{selected.userName}</h3><p className="text-xs text-[var(--text-muted)]">{selected.role} · {selected.status}</p></div></div>
           <AdminCard className="p-3"><p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Account information</p><dl className="mt-2 space-y-2 text-sm"><div className="flex justify-between gap-3"><dt className="text-[var(--text-muted)]">Email</dt><dd className="text-right">{selected.email || "-"}</dd></div><div className="flex justify-between gap-3"><dt className="text-[var(--text-muted)]">Phone</dt><dd className="text-right">{selected.phone || "-"}</dd></div><div className="flex justify-between gap-3"><dt className="text-[var(--text-muted)]">Address</dt><dd className="text-right">{[selected.address, selected.city, selected.province, selected.postalCode].filter(Boolean).join(", ") || "-"}</dd></div></dl></AdminCard>
-          <div><p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Submitted identity document</p>{selected.idPhotoUrl ? <a href={selected.idPhotoUrl} target="_blank" rel="noreferrer"><Image unoptimized width={800} height={600} src={selected.idPhotoUrl} alt={`${selected.userName} identity document`} className="max-h-[360px] w-full rounded-2xl border border-[var(--border)] object-contain bg-[var(--bg-primary)]" /></a> : <EmptyState title="No ID uploaded" subtitle="This account has no identity document attached." />}</div>
+          <div><p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Submitted identity document</p>{selected.idPhotoUrl && !isPicture(selected.idPhotoUrl) ? <a href={selected.idPhotoUrl} target="_blank" rel="noreferrer" className="admin-secondary inline-flex">Open the uploaded document (PDF or file)</a> : selected.idPhotoUrl ? <a href={selected.idPhotoUrl} target="_blank" rel="noreferrer"><Image unoptimized width={800} height={600} src={selected.idPhotoUrl} alt={`${selected.userName} identity document`} className="max-h-[360px] w-full rounded-2xl border border-[var(--border)] object-contain bg-[var(--bg-primary)]" /></a> : <EmptyState title="No ID uploaded" subtitle="This account has no identity document attached." />}</div>
           {selected.status !== "Pending" && <button onClick={() => setReopenTargetId(selected.id)} className="h-10 w-full rounded-xl bg-[var(--accent)] text-sm font-semibold text-white inline-flex items-center justify-center gap-2"><RotateCcw className="w-4 h-4" /> Reopen for review</button>}
         </div>}
       </SideDrawer>

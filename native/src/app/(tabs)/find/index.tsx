@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { useMemo, useRef, useState } from "react";
 import { Dimensions, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import MapView, { Marker } from "react-native-maps";
+import { SNOWD_MAP } from "~/components/MapStyle";
 import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -24,7 +25,7 @@ export default function Find() {
   const [onlyNearby, setOnlyNearby] = useState(true);
   const [cardsOnly, setCardsOnly] = useState(false);
   const [selected, setSelected] = useState(0);
-  const [mode, setMode] = useState<"map" | "list">("map");
+  const [mode, setMode] = useState<"map" | "list">("list");
   const switchMode = (next: "map" | "list") => {
     void Haptics.selectionAsync();
     setMode(next);
@@ -39,7 +40,7 @@ export default function Find() {
       if (translationY < -40 || velocityY < -500) switchMode("list");
     },
   });
-  const { scrollProps, indicator } = usePenguinRefresh(reload);
+  const { scrollProps, indicator } = usePenguinRefresh(reload, undefined, false);
   const map = useRef<MapView>(null);
   const list = useRef<FlatList<NearbyOperator>>(null);
 
@@ -58,7 +59,7 @@ export default function Find() {
   return (
     <View style={{ flex: 1 }}>
       {mode === "map" ? (
-      <MapView ref={map} style={StyleSheet.absoluteFill} initialRegion={{ ...home, latitudeDelta: 0.12, longitudeDelta: 0.12 }} showsUserLocation showsCompass={false}>
+      <MapView ref={map} {...SNOWD_MAP} style={StyleSheet.absoluteFill} initialRegion={{ ...home, latitudeDelta: 0.12, longitudeDelta: 0.12 }} showsUserLocation>
         <Marker coordinate={home} title="Your home">
           <View style={styles.homePin}>
             <Icon name="house.fill" size={14} color="#fff" />
@@ -83,7 +84,7 @@ export default function Find() {
           <Text style={type.caption}>{loading ? "…" : `${shown.length} found`}</Text>
         </View>
         <View style={styles.segment} accessibilityRole="tablist">
-          {(["map", "list"] as const).map((m) => (
+          {(["list", "map"] as const).map((m) => (
             <Pressable key={m} accessibilityRole="tab" accessibilityState={{ selected: mode === m }} accessibilityLabel={m === "map" ? "Map view" : "List view"} onPress={() => switchMode(m)} style={[styles.segmentItem, mode === m && styles.segmentOn]}>
               <Icon name={m === "map" ? "map.fill" : "list.bullet"} size={14} color={mode === m ? "#fff" : colors.ink} />
               <Text style={{ fontWeight: "800", fontSize: 15, color: mode === m ? "#fff" : colors.ink }}>{m === "map" ? "Map" : "List"}</Text>

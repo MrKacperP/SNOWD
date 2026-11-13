@@ -15,30 +15,14 @@ const fit = (asset: ImagePicker.ImagePickerAsset, edge: number) => {
 };
 
 /**
- * Takes or chooses a photo of any size (48 MP camera shots, HEIC, screenshots) and returns
- * a sharp JPEG file on the phone, ready to upload. Nothing is ever rejected for being too big.
+ * Takes or chooses a photo of any size (48 MP camera shots, HEIC, panoramas, screenshots) and
+ * returns a JPEG file on the phone, ready to upload. Nothing is ever rejected for being too big.
+ * By default the photo keeps its full resolution; pass `maxEdge` for small things like avatars.
  */
-export async function pickPhotoFile(source: "camera" | "library"): Promise<string | null> {
+export async function pickPhotoFile(source: "camera" | "library", maxEdge?: number): Promise<string | null> {
   const asset = await choose(source);
   if (!asset) return null;
-  const image = await manipulateAsync(asset.uri, [{ resize: fit(asset, 2400) }], { compress: 0.85, format: SaveFormat.JPEG });
+  // Re-encoding turns HEIC into JPEG, which every browser and phone can show.
+  const image = await manipulateAsync(asset.uri, maxEdge ? [{ resize: fit(asset, maxEdge) }] : [], { compress: 0.9, format: SaveFormat.JPEG });
   return image.uri;
-}
-
-/**
- * Takes or chooses a photo and returns it as a JPEG data URL no longer than `maxLength`.
- * Large photos are scaled down step by step until they fit, so any photo works.
- */
-export async function pickPhoto(source: "camera" | "library", maxLength = 900_000): Promise<string | null> {
-  const asset = await choose(source);
-  if (!asset) return null;
-  let edge = 1600;
-  let quality = 0.8;
-  for (;;) {
-    const image = await manipulateAsync(asset.uri, [{ resize: fit(asset, edge) }], { compress: quality, format: SaveFormat.JPEG, base64: true });
-    const data = `data:image/jpeg;base64,${image.base64}`;
-    if (data.length <= maxLength || edge <= 320) return data;
-    edge = Math.round(edge * 0.8);
-    quality = Math.max(0.45, quality - 0.08);
-  }
 }

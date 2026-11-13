@@ -4,7 +4,8 @@ import { View } from "react-native";
 import { orderSection } from "@/lib/workOrders";
 import { JobCard } from "~/components/JobCard";
 import { CardSkeletons } from "~/components/brand";
-import { Button, Chip, Empty, Screen, SectionTitle, SwipeTabs } from "~/components/ui";
+import { HeaderPill, TabHeader } from "~/components/TabHeader";
+import { Button, Empty, Screen, SectionTitle, SwipeTabs } from "~/components/ui";
 import { useAuth } from "~/context/auth";
 import { useJobs, usePeople } from "~/lib/data";
 
@@ -25,6 +26,8 @@ export default function Jobs() {
   const [filter, setFilter] = useState<"open" | "history">("open");
   const people = usePeople(jobs.map((j) => (operator ? j.clientId : j.operatorId)));
 
+  const openCount = useMemo(() => jobs.filter((j) => orderSection(j, uid) !== "history").length, [jobs, uid]);
+
   const grouped = useMemo(() => {
     const map = new Map<string, typeof jobs>();
     for (const job of jobs) {
@@ -37,13 +40,16 @@ export default function Jobs() {
 
   return (
     <>
-      <Stack.Screen options={{ title: operator ? "Jobs" : "Orders" }} />
+      <Stack.Screen options={{ headerShown: false, title: operator ? "Jobs" : "Orders" }} />
       <SwipeTabs tab="/jobs">
-      <Screen onRefresh={reload}>
-        <View accessibilityRole="tablist" style={{ flexDirection: "row", gap: 8 }}>
-          <Chip label="Current" icon="clock" selected={filter === "open"} onPress={() => setFilter("open")} />
-          <Chip label="Past" icon="checkmark.circle" selected={filter === "history"} onPress={() => setFilter("history")} />
-        </View>
+      <Screen onRefresh={reload} contentInsetAdjustmentBehavior="never" contentStyle={{ padding: 0, paddingBottom: 120 }}>
+        <TabHeader title={operator ? "Jobs" : "Orders"} subtitle={openCount ? `${openCount} on the go` : operator ? "Nothing on the go right now" : "Nothing booked right now"}>
+          <View accessibilityRole="tablist" style={{ flexDirection: "row", gap: 8 }}>
+            <HeaderPill label="Current" count={openCount} selected={filter === "open"} onPress={() => setFilter("open")} />
+            <HeaderPill label="Past" selected={filter === "history"} onPress={() => setFilter("history")} />
+          </View>
+        </TabHeader>
+        <View style={{ padding: 16, gap: 16 }}>
         {loading ? <CardSkeletons /> : null}
         {!loading && !grouped.length ? (
           <Empty
@@ -61,6 +67,7 @@ export default function Jobs() {
             ))}
           </View>
         ))}
+        </View>
       </Screen>
       </SwipeTabs>
     </>

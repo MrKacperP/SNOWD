@@ -1141,6 +1141,27 @@ export default function ChatPage() {
       );
     }
 
+    // File sent from the app (PDF, document, video…): a tappable card that opens it.
+    if (msg.type === "file" && msg.metadata?.fileUrl) {
+      const size = msg.metadata.fileSize ? `${(msg.metadata.fileSize / 1024 / 1024).toFixed(msg.metadata.fileSize > 10 * 1024 * 1024 ? 0 : 1)} MB` : "";
+      return (
+        <div key={msg.id} className={`mb-4 flex ${isOwn ? "justify-end" : "justify-start"} chat-bubble`}>
+          <a
+            href={msg.metadata.fileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex max-w-[72%] items-center gap-3 rounded-[1.4rem] border border-[var(--border)] bg-white px-4 py-3 shadow-[var(--surface-shadow)] hover:bg-[var(--surface-blue)]"
+          >
+            <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-lg">📄</span>
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-semibold text-[var(--text-primary)]">{msg.metadata.fileName || "File"}</span>
+              <span className="block text-xs text-[var(--text-muted)]">{[size, formatTimestamp(msg.createdAt)].filter(Boolean).join(" · ")}</span>
+            </span>
+          </a>
+        </div>
+      );
+    }
+
     if (msg.type === "voice" && msg.metadata?.audioUrl) {
       return (
         <div

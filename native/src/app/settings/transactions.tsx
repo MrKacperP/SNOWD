@@ -9,6 +9,7 @@ import { canAcceptPlatformPayments } from "@/lib/operatorDiscovery";
 import type { Job, OperatorProfile, Transaction } from "@/lib/types";
 import { dateMillis } from "@/lib/workOrders";
 import { Badge, Button, Card, Chip, Empty, Icon, Notice, Screen, SectionTitle, type Tone } from "~/components/ui";
+import { EarningsChart } from "~/components/EarningsChart";
 import { useAuth } from "~/context/auth";
 import { db } from "~/lib/firebase";
 import { money } from "~/lib/format";
@@ -73,6 +74,8 @@ export default function Transactions() {
       <Stack.Screen options={{ title: operator ? "Your money" : "Payments" }} />
       <Screen>
         <Notice text={error} />
+        {/* The full earnings chart (ranges, drag to read any day) leads the page for shovelers. */}
+        {operator ? <EarningsChart jobs={jobs} /> : null}
         {operator ? (
           <>
             <Card style={{ backgroundColor: colors.ink, borderColor: colors.ink }}>

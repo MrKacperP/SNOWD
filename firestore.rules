@@ -133,7 +133,10 @@ service cloud.firestore {
 
     // ── Chats ──────────────────────────────────────────────────────────────
     match /chats/{chatId} {
-      allow read: if isParticipant(resource.data);
+      allow get: if isParticipant(resource.data);
+      // Listing "my chats" (where participants array-contains me) must be provable from the query
+      // alone, so it checks the participants field directly instead of isParticipant's fallbacks.
+      allow list: if isSignedIn() && (isAdminOrEmployee() || request.auth.uid in resource.data.participants);
       allow create: if isAdmin();
       allow update: if isParticipant(resource.data)
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(["jobId", "jobIds", "openJobIds", "participants", "legacyHistory", "legacyJobIds", "mergedInto", "mergedFrom"])

@@ -4,14 +4,15 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { Alert, Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import MapView, { Marker } from "react-native-maps";
 import { jobDisplayPrice } from "@/lib/marketplacePricing";
 import { SERVICE_LABELS } from "@/lib/types";
 import { orderActionNeeded, orderLabel, orderNumber, propertySizeLabel, scheduleText, terminalOrderDateText } from "@/lib/workOrders";
 import { workOrderPresentation } from "@/lib/workOrderPresentation";
-import { statusTone } from "~/components/JobCard";
 import { JobActionButtons, useJobActions } from "~/components/JobActions";
 import { ORDER_STEPS, OrderProgress, stepIndex } from "~/components/OrderProgress";
+import { JobMiniMap } from "~/components/JobMiniMap";
+import { paymentActions } from "~/lib/jobActions";
+import { TabHeader } from "~/components/TabHeader";
 import { Avatar, Badge, Button, Card, Empty, Icon, Loading, Notice, QuickAction, Screen, SectionTitle } from "~/components/ui";
 import { useAuth } from "~/context/auth";
 import { api } from "~/lib/api";
@@ -33,6 +34,7 @@ export default function JobScreen() {
   const [success, setSuccess] = useState("");
   const insets = useSafeAreaInsets();
   const actionState = useJobActions(job);
+  const payState = useJobActions(job, { list: paymentActions });
 
   if (loading) return <Loading />;
   if (!job)
@@ -80,7 +82,6 @@ export default function JobScreen() {
         : `geo:${ll || "0,0"}?q=${q}`;
     void Linking.openURL(url).catch(() => Linking.openURL(`https://maps.google.com/?q=${q}`));
   };
-  const firstName = personName(other).split(" ")[0];
   const phone = other?.phone && !closed ? other.phone : "";
   const view = workOrderPresentation(job, uid);
   const cash = job.paymentMethod === "cash";
@@ -106,103 +107,97 @@ export default function JobScreen() {
     : job.status === "accepted" && job.nearbyEta
       ? { icon: "location.fill" as const, text: operator ? `You’re under 1 km away · about ${job.nearbyEta} min drive` : `Your shoveler is under 1 km away · about ${job.nearbyEta} min` }
       : null;
-  const hasBar = actionState.actions.length > 0;
+  const payKeys = new Set(payState.actions.map((a) => a.key));
+  const barState = { ...actionState, actions: actionState.actions.filter((a) => !payKeys.has(a.key)) };
+  const hasBar = barState.actions.length > 0;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <Stack.Screen options={{ title: `Order #${orderNumber(job)}` }} />
-      <Screen contentStyle={{ paddingBottom: hasBar ? 150 + insets.bottom : space.xxl }} onRefresh={() => undefined}>
-        <Card>
+      <Stack.Screen options={{ title: `Order #${orderNumber(job)}`, headerShown: false }} />
+      <Screen contentInsetAdjustmentBehavior="never" contentStyle={{ padding: 0, gap: space.md, paddingBottom: hasBar ? 150 + insets.bottom : space.xxl }} onRefresh={() => undefined}>
+        {/* The order number on a coloured band, with back on the left. */}
+        <TabHeader
+          title={`Order #${orderNumber(job)}`}
+          subtitle={job.status === "cancelled" ? view.title : `${ORDER_STEPS[stepIndex(job)]?.label || orderLabel(job)} · Step ${stepIndex(job) + 1} of ${ORDER_STEPS.length}`}
+          onBack={() => (router.canGoBack() ? router.back() : router.replace("/jobs"))}
+        />
+        <View style={{ paddingHorizontal: space.lg, gap: space.md }}>
+        <Card style={{ gap: space.md }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-            <Avatar uri={other?.logoUrl || other?.avatar} name={personName(other)} size={56} />
+            <Avatar uri={other?.logoUrl || other?.avatar} name={personName(other)} size={46} />
             <View style={{ flex: 1, gap: 6 }}>
-              <Text style={type.caption}>{operator ? "Customer" : "Your shoveler"}</Text>
-              <Text style={type.title} numberOfLines={2}>{personName(other)}</Text>
+              <Text style={type.caption}>{operator ? "Customer" : "Your shoveler"}{closed ? ` · ${orderLabel(job)}` : ""}</Text>
+              <Text style={[type.title, { fontSize: 21, lineHeight: 26 }]} numberOfLines={2}>{personName(other)}</Text>
             </View>
-            {closed ? <Badge label={orderLabel(job)} tone={statusTone(job, uid)} /> : null}
+            {/* The job's price sits beside the name, so who and how much read together. */}
+            <View style={{ alignItems: "flex-end", gap: 6 }}>
+              <Text style={type.caption}>{operator ? "You earn" : paid ? "You paid" : "Price"}</Text>
+              <Text style={[type.title, { fontSize: 21, lineHeight: 26, color: colors.accent, fontVariant: ["tabular-nums"] }]}>{money(jobDisplayPrice(job, operator))}</Text>
+            </View>
           </View>
           <View style={{ flexDirection: "row", gap: 10 }}>
-            <QuickAction icon="bubble.left.fill" label={`Message ${firstName}`} onPress={() => router.push(`/chat/${job.chatId}`)} />
+            <QuickAction icon="bubble.left.fill" label="Message" onPress={() => router.push(`/chat/${job.chatId}`)} />
             {phone ? <QuickAction icon="phone.fill" label="Call" onPress={() => void Linking.openURL(`tel:${phone.replace(/[^\d+]/g, "")}`)} /> : null}
-            {fullAddress && !closed ? <QuickAction icon={operator ? "arrow.triangle.turn.up.right.diamond.fill" : "map.fill"} label={operator ? "Directions" : "Map"} onPress={openMap} /> : null}
+            {fullAddress && !closed ? <QuickAction icon="arrow.triangle.turn.up.right.diamond.fill" label="Directions" onPress={openMap} /> : null}
           </View>
         </Card>
+
+        {/* One screen, top to bottom: who, where (live mini map), then how far along the order is. */}
+        {target ? <JobMiniMap job={job} operator={operator} target={target} onPress={openMap} label={operator ? "Directions" : "Open in Maps"} /> : null}
 
         {job.status === "cancelled" ? (
           <Notice text={`${view.title} ${view.description}`} />
         ) : (
-          <Card style={{ gap: space.lg, borderTopWidth: 5, borderTopColor: tone.bar }}>
-            <Text accessibilityRole="header" style={[type.title, { fontSize: 24, color: tone.text }]}>{view.title}</Text>
+          <Card style={{ gap: space.md, borderTopWidth: 5, borderTopColor: tone.bar }}>
+            <Text accessibilityRole="header" style={[type.title, { fontSize: 20, lineHeight: 25, color: tone.text }]}>{view.title}</Text>
             {etaLine ? (
               <View accessible style={{ flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: tone.soft, padding: 14, borderRadius: radius.md }}>
                 <Icon name={etaLine.icon} size={18} color={tone.text} />
                 <Text style={{ flex: 1, color: tone.text, fontWeight: "800", fontSize: 17 }}>{etaLine.text}</Text>
               </View>
             ) : null}
-            <OrderProgress job={job} operator={operator} detailed note={view.description || undefined} />
+            <OrderProgress job={job} operator={operator} detailed dense note={view.description || undefined} />
           </Card>
         )}
 
-        {action ? <Notice tone="orange" text={`Your turn: ${action.charAt(0).toLowerCase()}${action.slice(1)}.`} /> : null}
         <Notice text={error || (hasBar ? "" : actionState.error)} />
         <Notice tone="green" text={success || (hasBar ? "" : actionState.success)} />
 
-        {target ? (
-          <Pressable accessibilityRole="button" accessibilityLabel={`Map of ${fullAddress}. Open in Maps`} onPress={openMap} style={{ height: 190, borderRadius: radius.lg, overflow: "hidden" }}>
-            <MapView pointerEvents="none" style={{ flex: 1 }} initialRegion={{ ...target, latitudeDelta: 0.012, longitudeDelta: 0.012 }} scrollEnabled={false} zoomEnabled={false} pitchEnabled={false} rotateEnabled={false}>
-              <Marker coordinate={target} title="Service address" tracksViewChanges={false}>
-                <View style={pinStyle(stepColor(job.status).bar)}>
-                  <Icon name="house.fill" size={16} color="#fff" />
-                </View>
-              </Marker>
-              {operatorPin && ["accepted", "en-route"].includes(job.status) ? (
-                <Marker coordinate={operatorPin} title="Shoveler" tracksViewChanges={false}>
-                  <View style={pinStyle(colors.ink)}>
-                    <Icon name="car.fill" size={14} color="#fff" />
-                  </View>
-                </Marker>
-              ) : null}
-            </MapView>
-            <View style={{ position: "absolute", right: 10, bottom: 10, flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#fff", paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, ...shadow }}>
-              <Icon name="arrow.up.right.square.fill" size={14} color={colors.accent} />
-              <Text style={{ color: colors.accent, fontWeight: "800", fontSize: 14 }}>{operator ? "Directions" : "Open in Maps"}</Text>
-            </View>
-          </Pressable>
-        ) : null}
-
-        <Card>
+        {/* Payment: how it's paid, where it stands, and (once clearing starts) pay early or mark it received. */}
+        <Card style={{ gap: 12 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-            <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: paid ? colors.mintSoft : colors.accentSoft, alignItems: "center", justifyContent: "center" }}>
-              <Icon name={paid ? "checkmark.circle.fill" : cash ? "banknote.fill" : "creditcard.fill"} size={20} color={paid ? colors.mint : colors.accent} />
+            <View style={[styles.iconTile, { backgroundColor: paid ? colors.mintSoft : colors.accentSoft }]}>
+              <Icon name={paid ? "checkmark.circle.fill" : cash ? "banknote.fill" : "creditcard.fill"} size={19} color={paid ? colors.mint : colors.accent} />
             </View>
             <View style={{ flex: 1, gap: 2 }}>
-              <Text style={type.caption}>{operator ? "You earn" : paid ? "You paid" : "You pay"} · {cash ? "Cash" : "Card"}</Text>
-              <Text style={[type.title, { fontSize: 26, fontVariant: ["tabular-nums"] }]}>{money(jobDisplayPrice(job, operator))}</Text>
+              <Text style={type.headline}>Payment · {cash ? "Cash" : "Card"}</Text>
+              <Text style={type.caption} numberOfLines={2}>{paymentHelp}</Text>
             </View>
-            <Badge label={paid ? "Paid" : job.paymentStatus === "held" ? "On hold" : job.paymentStatus === "refunded" ? "Released" : "Not paid yet"} tone={paid ? "green" : job.paymentStatus === "held" ? "blue" : "gray"} />
+            <Badge label={paid ? "Paid" : job.paymentStatus === "held" ? "On hold" : job.paymentStatus === "refunded" ? "Released" : "Not paid"} tone={paid ? "green" : job.paymentStatus === "held" ? "blue" : "gray"} />
           </View>
-          <Text style={type.callout}>{paymentHelp}</Text>
+          {payState.actions.length ? <JobActionButtons state={payState} /> : null}
         </Card>
 
-        <SectionTitle>Order details</SectionTitle>
+        {/* The details, in one tidy list. */}
         <Card style={{ gap: 0, padding: 0 }}>
           <Detail icon="calendar" label="When" value={terminalOrderDateText(job) || scheduleText(job)} />
-          <Detail icon="mappin.and.ellipse" label="Where" value={fullAddress} onPress={fullAddress ? openMap : undefined} action={operator ? "Get directions" : "Open in Maps"} />
-          <Detail icon="snowflake" label="What" value={(job.serviceTypes || []).map((s) => SERVICE_LABELS[s] || s).join(", ") || "Snow clearing"} />
-          <Detail icon="car.fill" label="Property" value={propertySizeLabel(job.propertySize)} last={!job.specialInstructions} />
-          {job.specialInstructions ? <Detail icon="text.bubble" label="Notes" value={job.specialInstructions} last /> : null}
+          <Detail icon="mappin.and.ellipse" label="Where" value={fullAddress} onPress={fullAddress ? openMap : undefined} />
+          <Detail icon="snowflake" label="What" value={[(job.serviceTypes || []).map((s) => SERVICE_LABELS[s] || s).join(", ") || "Snow clearing", propertySizeLabel(job.propertySize)].filter(Boolean).join(" · ")} last={!job.specialInstructions && !job.completionPhotoUrl} />
+          {job.specialInstructions ? <Detail icon="text.bubble" label="Notes" value={job.specialInstructions} last={!job.completionPhotoUrl} /> : null}
+          {job.completionPhotoUrl ? (
+            <View style={{ padding: space.lg, gap: 8 }}>
+              <Text style={type.caption}>Finished work</Text>
+              <Image accessibilityLabel="Photo of the finished work" source={{ uri: job.completionPhotoUrl }} style={{ width: "100%", aspectRatio: 4 / 3, borderRadius: radius.md }} contentFit="cover" />
+            </View>
+          ) : null}
         </Card>
 
-        {job.completionPhotoUrl ? (
-          <Card>
-            <Text accessibilityRole="header" style={type.headline}>Finished work</Text>
-            <Image accessibilityLabel="Photo of the finished work" source={{ uri: job.completionPhotoUrl }} style={{ width: "100%", aspectRatio: 4 / 3, borderRadius: radius.md }} contentFit="cover" />
-          </Card>
-        ) : null}
-
         {!closed ? (
-          <Button title="Cancel this order" variant="ghost" loading={busy === "cancel"} onPress={() => confirm("Cancel this order?", "Any card hold is released. This can’t be undone.", "Cancel order", () => void cancelOrder(), true)} />
+          <Pressable accessibilityRole="button" disabled={busy === "cancel"} onPress={() => confirm("Cancel this order?", "Any card hold is released. This can’t be undone.", "Cancel order", () => void cancelOrder(), true)} style={{ alignSelf: "center", padding: 10 }}>
+            <Text style={{ color: colors.danger, fontWeight: "700", fontSize: 15 }}>{busy === "cancel" ? "Cancelling…" : "Cancel this order"}</Text>
+          </Pressable>
         ) : null}
+        </View>
       </Screen>
 
       {/* The next step sits at the bottom of the screen, under your thumb. */}
@@ -216,36 +211,32 @@ export default function JobScreen() {
               Next step · {ORDER_STEPS[stepIndex(job) + 1]?.label || ORDER_STEPS[stepIndex(job)]?.label}
             </Text>
           </View>
-          <JobActionButtons state={actionState} showNotices={false} />
+          <JobActionButtons state={barState} showNotices={false} />
         </View>
       ) : null}
     </View>
   );
 }
 
-const pinStyle = (bg: string) => ({ width: 36, height: 36, borderRadius: 18, backgroundColor: bg, borderWidth: 3, borderColor: "#fff", alignItems: "center" as const, justifyContent: "center" as const, ...shadow, shadowOpacity: 0.25 });
 
-function Detail({ icon, label, value, last, onPress, action }: { icon: Parameters<typeof Icon>[0]["name"]; label: string; value: string; last?: boolean; onPress?: () => void; action?: string }) {
+function Detail({ icon, label, value, last, onPress }: { icon: Parameters<typeof Icon>[0]["name"]; label: string; value: string; last?: boolean; onPress?: () => void }) {
   return (
     <Pressable
       accessibilityRole={onPress ? "button" : undefined}
-      accessibilityLabel={`${label}: ${value}${onPress && action ? `. ${action}` : ""}`}
+      accessibilityLabel={`${label}: ${value}`}
       disabled={!onPress}
       onPress={onPress}
-      style={({ pressed }) => [{ flexDirection: "row", gap: 12, padding: space.lg, borderBottomWidth: last ? 0 : 0.5, borderBottomColor: colors.border }, pressed && { backgroundColor: colors.surfaceAlt }]}
+      style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: space.lg, paddingVertical: 13, borderBottomWidth: last ? 0 : StyleSheet.hairlineWidth, borderBottomColor: colors.border }, pressed && { backgroundColor: colors.surfaceAlt }]}
     >
-      <View style={{ paddingTop: 2 }}>
-        <Icon name={icon} size={17} color={onPress ? colors.accent : colors.muted} />
-      </View>
-      <View style={{ flex: 1, gap: 2 }}>
-        <Text style={type.caption}>{label}</Text>
-        <Text style={[type.body, onPress ? { color: colors.accent, fontWeight: "600" } : null]}>{value}</Text>
-        {onPress && action ? <Text style={{ color: colors.accent, fontSize: 14, fontWeight: "700" }}>{action} ›</Text> : null}
-      </View>
+      <Icon name={icon} size={16} color={colors.muted} />
+      <Text style={[type.caption, { width: 58 }]}>{label}</Text>
+      <Text style={[type.body, { flex: 1, fontSize: 15 }, onPress ? { color: colors.accent, fontWeight: "600" } : null]} numberOfLines={3}>{value}</Text>
+      {onPress ? <Icon name="chevron.right" size={12} color={colors.muted} /> : null}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  iconTile: { width: 40, height: 40, borderRadius: 13, alignItems: "center", justifyContent: "center" },
   bar: { position: "absolute", left: 0, right: 0, bottom: 0, gap: 10, paddingHorizontal: space.lg, paddingTop: space.md, backgroundColor: "rgba(255,255,255,0.97)", borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, borderTopLeftRadius: 24, borderTopRightRadius: 24, ...shadow, shadowOpacity: 0.12, shadowOffset: { width: 0, height: -4 } },
 });

@@ -1,18 +1,20 @@
 import * as Location from "expo-location";
 import { Stack } from "expo-router";
 import { doc, updateDoc } from "firebase/firestore";
-import { useEffect, useRef, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
-import MapView, { Circle, Marker } from "react-native-maps";
+import MapView, { Circle, Marker, Polygon } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CANADIAN_PROVINCES, type OperatorServiceArea } from "@/lib/types";
-import { AddressFields, addressProblem, geocodeAddress, type AddressValue } from "~/components/AddressFields";
-import { Button, Card, Chip, Field, Icon, Notice, SaveBar } from "~/components/ui";
+import { AddressFields, addressProblem, currentAddress, geocodeAddress, type AddressValue } from "~/components/AddressFields";
+import { Button, Chip, Icon, Notice, AutosaveStatus, useAutosave } from "~/components/ui";
+import { ShovelPin, SNOWD_MAP } from "~/components/MapStyle";
+import { cityBoundary, type CityBoundary } from "~/lib/boundaries";
 import { useAuth } from "~/context/auth";
 import { notifyAdmin } from "~/lib/admin";
 import { db } from "~/lib/firebase";
-import { colors, radius, space, type } from "~/lib/theme";
+import { colors, radius, shadow, space, type } from "~/lib/theme";
 
 const RADII = [5, 10, 15, 20, 30, 50];
 
@@ -33,6 +35,10 @@ export default function ServiceAreaSettings() {
   const [cityName, setCityName] = useState("");
   const [cityProvince, setCityProvince] = useState(profile?.province || "ON");
   const [adding, setAdding] = useState(false);
+  const [typing, setTyping] = useState(false);
+  const [locating, setLocating] = useState(false);
+  const [radiusText, setRadiusText] = useState(String(initial().radiusKm));
+  const [outlines, setOutlines] = useState<Record<string, CityBoundary | null>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState("");
@@ -45,6 +51,7 @@ export default function ServiceAreaSettings() {
     setHome(s.home);
     setMode(s.mode);
     setRadiusKm(s.radiusKm);
+    setRadiusText(String(s.radiusKm));
     setCities(s.cities);
   }, [profile]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -53,6 +60,7 @@ export default function ServiceAreaSettings() {
     home.address !== o.home.address || home.city !== o.home.city || home.province !== o.home.province || home.postalCode !== o.home.postalCode ||
     mode !== o.mode || radiusKm !== o.radiusKm || JSON.stringify(cities) !== JSON.stringify(o.cities);
 
+  // Cities are found by name; their outline is drawn on the map.
   const addCity = async () => {
     setError("");
     const city = cityName.trim();
@@ -61,18 +69,52 @@ export default function ServiceAreaSettings() {
     setAdding(true);
     try {
       const province = CANADIAN_PROVINCES.find((p) => p.code === cityProvince)!;
-      const [hit] = await Location.geocodeAsync(`${city}, ${province.name}, Canada`).catch(() => []);
-      if (!hit) throw new Error(`We couldn’t find ${city}, ${province.code}. Check the spelling.`);
-      setCities((list) => [
-        ...list,
-        { placeId: `app-${city.toLowerCase().replace(/\s+/g, "-")}-${province.code.toLowerCase()}`, city, province: province.name, provinceCode: province.code, country: "Canada", lat: hit.latitude, lng: hit.longitude },
-      ]);
+      const boundary = await cityBoundary(city, province.name);
+      const point = boundary ? { latitude: boundary.lat, longitude: boundary.lng } : (await Location.geocodeAsync(`${city}, ${province.name}, Canada`).catch(() => []))[0];
+      if (!point) throw new Error(`We couldn’t find ${city}, ${province.code}. Check the spelling.`);
+      const placeId = `app-${city.toLowerCase().replace(/\s+/g, "-")}-${province.code.toLowerCase()}`;
+      setOutlines((o) => ({ ...o, [placeId]: boundary }));
+      setCities((list) => [...list, { placeId, city, province: province.name, provinceCode: province.code, country: "Canada", lat: point.latitude, lng: point.longitude }]);
       setCityName("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn’t add that city.");
     } finally {
       setAdding(false);
     }
+  };
+
+  // Outlines for cities saved earlier, looked up one at a time (the map service asks for that).
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      for (const c of cities) {
+        if (cancelled || c.placeId in outlines) continue;
+        const b = await cityBoundary(c.city, c.province);
+        if (!cancelled) setOutlines((o) => ({ ...o, [c.placeId]: b }));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [cities]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const locate = async () => {
+    setError("");
+    setLocating(true);
+    try {
+      setHome(await currentAddress());
+      setTyping(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn’t find your location.");
+    } finally {
+      setLocating(false);
+    }
+  };
+
+  const setRadius = (km: number) => {
+    const clamped = Math.max(1, Math.min(100, Math.round(km)));
+    setRadiusKm(clamped);
+    setRadiusText(String(clamped));
   };
 
   const save = async () => {
@@ -106,85 +148,162 @@ export default function ServiceAreaSettings() {
   };
 
   const center = Number.isFinite(home.lat) && Number.isFinite(home.lng) ? { latitude: home.lat!, longitude: home.lng! } : null;
+  // The map follows what you pick: the radius circle, or all your cities.
+  const region = useMemo(() => {
+    if (mode === "cities" && cities.length) {
+      const lats = cities.map((c) => c.lat);
+      const lngs = cities.map((c) => c.lng);
+      const span = Math.max(0.25, Math.max(...lats) - Math.min(...lats) + 0.25, Math.max(...lngs) - Math.min(...lngs) + 0.25);
+      return { latitude: (Math.max(...lats) + Math.min(...lats)) / 2, longitude: (Math.max(...lngs) + Math.min(...lngs)) / 2, latitudeDelta: span, longitudeDelta: span };
+    }
+    if (!center) return null;
+    const d = mode === "radius" ? (radiusKm / 111) * 2.6 : 0.6;
+    return { ...center, latitudeDelta: d, longitudeDelta: d };
+  }, [mode, cities, center?.latitude, center?.longitude, radiusKm]); // eslint-disable-line react-hooks/exhaustive-deps
+  const homeLine = [home.address, home.city, home.province].filter(Boolean).join(", ");
+
+  // Saves on its own a moment after each change; no save button.
+  useAutosave({ home, mode, radiusKm, cities }, { dirty, save });
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack.Screen options={{ title: "Service area" }} />
-      <KeyboardAwareScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" bottomOffset={90} contentContainerStyle={{ padding: space.lg, gap: space.lg, paddingBottom: 120 }}>
-        <Card>
-          <Text style={type.headline}>Your base location</Text>
-          <Text style={type.caption}>Where you start from. Customers only see your city.</Text>
-          <AddressFields value={home} onChange={setHome} />
-        </Card>
-
-        <Card>
-          <Text style={type.headline}>Where will you shovel?</Text>
-          <View style={{ flexDirection: "row", gap: 8 }}>
-            {(
-              [
-                ["radius", "Around my address"],
-                ["cities", "Selected cities"],
-              ] as const
-            ).map(([value, label]) => (
-              <Pressable key={value} accessibilityRole="radio" accessibilityState={{ selected: mode === value }} onPress={() => setMode(value)} style={{ flex: 1, minHeight: 48, borderRadius: radius.md, borderWidth: 1.5, alignItems: "center", justifyContent: "center", borderColor: mode === value ? colors.accent : colors.border, backgroundColor: mode === value ? colors.accentSoft : colors.surface }}>
-                <Text style={{ fontWeight: "700", color: mode === value ? colors.accentDark : colors.ink }}>{label}</Text>
-              </Pressable>
-            ))}
-          </View>
-
-          {mode === "radius" ? (
-            <>
-              <Text style={type.body}>Travel radius: <Text style={{ fontWeight: "800" }}>{radiusKm} km</Text></Text>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                <Button title="−" variant="secondary" small disabled={radiusKm <= 1} onPress={() => setRadiusKm((r) => Math.max(1, r - 1))} style={{ width: 44 }} />
-                <View style={{ flex: 1, flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-                  {RADII.map((r) => (
-                    <Chip key={r} label={`${r} km`} selected={radiusKm === r} onPress={() => setRadiusKm(r)} />
-                  ))}
-                </View>
-                <Button title="+" variant="secondary" small disabled={radiusKm >= 50} onPress={() => setRadiusKm((r) => Math.min(50, r + 1))} style={{ width: 44 }} />
-              </View>
-            </>
-          ) : (
-            <>
-              <Text style={type.caption}>Customers in your selected cities can find you. Your home radius is turned off.</Text>
-              {cities.map((c) => (
-                <View key={c.placeId} style={{ flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderRadius: radius.md, backgroundColor: colors.surfaceAlt }}>
-                  <Icon name="mappin.circle.fill" size={18} color={colors.accent} />
-                  <Text style={[type.body, { flex: 1 }]}>{c.city}, {c.provinceCode}</Text>
-                  <Pressable hitSlop={10} accessibilityLabel={`Remove ${c.city}`} onPress={() => setCities((list) => list.filter((x) => x.placeId !== c.placeId))}>
-                    <Icon name="minus.circle.fill" size={20} color={colors.danger} />
-                  </Pressable>
-                </View>
-              ))}
-              {!cities.length ? <Notice tone="orange" text="Add at least one city to continue." /> : null}
-              <Field label="Add a city" value={cityName} onChangeText={setCityName} placeholder="Brampton" returnKeyType="done" onSubmitEditing={addCity} />
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-                {["ON", "QC", "BC", "AB", "MB", "SK", "NS", "NB", "NL", "PE"].map((code) => (
-                  <Chip key={code} label={code} selected={cityProvince === code} onPress={() => setCityProvince(code)} />
-                ))}
-              </View>
-              <Button title="Add city" icon="plus" variant="secondary" small loading={adding} onPress={addCity} />
-            </>
-          )}
-
-          {center ? (
-            <MapView
-              style={{ height: 200, borderRadius: radius.md }}
-              pointerEvents="none"
-              region={{ ...center, latitudeDelta: mode === "radius" ? (radiusKm / 111) * 2.6 : 0.6, longitudeDelta: mode === "radius" ? (radiusKm / 111) * 2.6 : 0.6 }}
-            >
-              <Marker coordinate={center} />
-              {mode === "radius" ? <Circle center={center} radius={radiusKm * 1000} strokeColor={colors.accent} fillColor="rgba(35,80,255,0.12)" /> : cities.map((c) => <Marker key={c.placeId} coordinate={{ latitude: c.lat, longitude: c.lng }} pinColor={colors.sun} />)}
+      <KeyboardAwareScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" bottomOffset={90} contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 120 }}>
+        {/* The map first: your base, and the circle or city outlines customers are matched to. */}
+        <View style={styles.mapWrap}>
+          {region ? (
+            <MapView {...SNOWD_MAP} style={StyleSheet.absoluteFill} pointerEvents="none" region={region}>
+              {center ? (
+                <Marker coordinate={center} anchor={{ x: 0.5, y: 1 }} tracksViewChanges={false}>
+                  <ShovelPin size={34} />
+                </Marker>
+              ) : null}
+              {mode === "radius" && center ? <Circle center={center} radius={radiusKm * 1000} strokeColor={colors.accent} strokeWidth={2} fillColor="rgba(35,80,255,0.12)" /> : null}
+              {mode === "cities"
+                ? cities.map((c) =>
+                    outlines[c.placeId]?.rings.length ? (
+                      outlines[c.placeId]!.rings.map((ring, i) => <Polygon key={`${c.placeId}-${i}`} coordinates={ring} strokeColor={colors.accent} strokeWidth={2} fillColor="rgba(35,80,255,0.14)" />)
+                    ) : (
+                      <Marker key={c.placeId} coordinate={{ latitude: c.lat, longitude: c.lng }} pinColor={colors.sun} />
+                    ),
+                  )
+                : null}
             </MapView>
           ) : (
-            <Text style={type.caption}>Save your base address to preview your area on the map.</Text>
+            <View style={styles.mapEmpty}>
+              <Icon name="map" size={28} color={colors.faint} />
+              <Text style={[type.caption, { textAlign: "center" }]}>Set your base location to see your area.</Text>
+            </View>
           )}
-        </Card>
+          <View style={styles.mapBadge}>
+            <Text style={{ fontWeight: "800", color: colors.ink, fontSize: 13 }}>{mode === "radius" ? `${radiusKm} km around you` : `${cities.length} ${cities.length === 1 ? "city" : "cities"}`}</Text>
+          </View>
+        </View>
+
+        {/* Base location: one tap for where you are now, or type it in. */}
+        <View style={styles.card}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            <Icon name="house.fill" size={16} color={colors.accent} />
+            <Text style={[type.headline, { flex: 1 }]} numberOfLines={1}>{homeLine || "Your base location"}</Text>
+          </View>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <Button title="My location" icon="location.fill" small loading={locating} style={{ flex: 1 }} onPress={() => void locate()} />
+            <Button title={typing ? "Done" : "Type it in"} icon={typing ? "checkmark" : "keyboard"} variant="secondary" small style={{ flex: 1 }} onPress={() => setTyping((t) => !t)} />
+          </View>
+          {typing ? <AddressFields value={home} onChange={setHome} showLocate={false} /> : null}
+        </View>
+
+        {/* Radius or cities. */}
+        <View accessibilityRole="tablist" style={styles.segment}>
+          {(
+            [
+              ["radius", "Distance"],
+              ["cities", "Cities"],
+            ] as const
+          ).map(([value, label]) => (
+            <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: mode === value }} onPress={() => setMode(value)} style={[styles.segmentItem, mode === value && styles.segmentOn]}>
+              <Text style={{ fontWeight: "800", fontSize: 15, color: mode === value ? colors.ink : colors.muted }}>{label}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {mode === "radius" ? (
+          <View style={styles.card}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Smaller radius" onPress={() => setRadius(radiusKm - 1)} style={styles.stepper}>
+                <Icon name="minus" size={16} color={colors.ink} weight="bold" />
+              </Pressable>
+              <View style={styles.radiusBox}>
+                <TextInput
+                  accessibilityLabel="Travel radius in kilometres"
+                  value={radiusText}
+                  keyboardType="number-pad"
+                  selectTextOnFocus
+                  onChangeText={(t) => {
+                    const v = t.replace(/[^\d]/g, "").slice(0, 3);
+                    setRadiusText(v);
+                    if (Number(v) >= 1) setRadiusKm(Math.min(100, Number(v)));
+                  }}
+                  onBlur={() => setRadius(Number(radiusText) || radiusKm)}
+                  style={{ fontSize: 26, fontWeight: "900", color: colors.ink, minWidth: 44, textAlign: "center", fontVariant: ["tabular-nums"], paddingVertical: 0 }}
+                />
+                <Text style={{ fontSize: 17, fontWeight: "700", color: colors.muted }}>km</Text>
+              </View>
+              <Pressable accessibilityRole="button" accessibilityLabel="Bigger radius" onPress={() => setRadius(radiusKm + 1)} style={[styles.stepper, { backgroundColor: colors.accent }]}>
+                <Icon name="plus" size={16} color="#fff" weight="bold" />
+              </Pressable>
+            </View>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, justifyContent: "center" }}>
+              {RADII.map((r) => (
+                <Chip key={r} label={`${r} km`} selected={radiusKm === r} onPress={() => setRadius(r)} />
+              ))}
+            </View>
+          </View>
+        ) : (
+          <View style={styles.card}>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <View style={styles.cityInput}>
+                <Icon name="magnifyingglass" size={15} color={colors.muted} />
+                <TextInput value={cityName} onChangeText={setCityName} placeholder="Type a city, e.g. Brampton" placeholderTextColor={colors.faint} returnKeyType="done" onSubmitEditing={() => void addCity()} accessibilityLabel="City name" style={{ flex: 1, fontSize: 16, color: colors.ink, paddingVertical: 10 }} />
+              </View>
+              <Button title="Add" icon="plus" small loading={adding} onPress={() => void addCity()} />
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+              {["ON", "QC", "BC", "AB", "MB", "SK", "NS", "NB", "NL", "PE"].map((code) => (
+                <Chip key={code} label={code} selected={cityProvince === code} onPress={() => setCityProvince(code)} />
+              ))}
+            </ScrollView>
+            {cities.length ? (
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                {cities.map((c) => (
+                  <Pressable key={c.placeId} accessibilityRole="button" accessibilityLabel={`Remove ${c.city}`} onPress={() => setCities((list) => list.filter((x) => x.placeId !== c.placeId))} style={styles.cityChip}>
+                    <Text style={{ fontWeight: "700", color: colors.accentDark }}>{c.city}, {c.provinceCode}</Text>
+                    <Icon name="xmark.circle.fill" size={16} color={colors.accent} />
+                  </Pressable>
+                ))}
+              </View>
+            ) : (
+              <Text style={type.caption}>Add the cities you serve. Their borders show on the map.</Text>
+            )}
+          </View>
+        )}
         <Notice text={error} />
-        <Notice tone="green" text={done} />
       </KeyboardAwareScrollView>
-      <SaveBar dirty={dirty} saving={saving} onSave={save} bottomInset={insets.bottom} />
+      <AutosaveStatus saving={saving} dirty={dirty} error={error} bottomInset={insets.bottom} />
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  mapWrap: { height: 240, borderRadius: radius.lg, overflow: "hidden", backgroundColor: colors.surfaceAlt },
+  mapEmpty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8, padding: space.lg },
+  mapBadge: { position: "absolute", left: 10, top: 10, paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill, backgroundColor: "#fff", ...shadow },
+  card: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: space.lg, gap: space.md, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
+  segment: { flexDirection: "row", padding: 4, borderRadius: 14, backgroundColor: colors.surfaceAlt },
+  segmentItem: { flex: 1, minHeight: 40, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  segmentOn: { backgroundColor: colors.surface, ...shadow, shadowOpacity: 0.08 },
+  stepper: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceAlt },
+  radiusBox: { flex: 1, flexDirection: "row", alignItems: "baseline", justifyContent: "center", gap: 4, minHeight: 56, paddingTop: 10, borderRadius: radius.md, backgroundColor: colors.bg },
+  cityInput: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, borderRadius: radius.md, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border },
+  cityChip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, minHeight: 36, borderRadius: radius.pill, backgroundColor: colors.accentSoft },
+});

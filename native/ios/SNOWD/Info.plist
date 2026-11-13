@@ -62,6 +62,8 @@
 	<string>SNOWD uses the camera to send photos in chat and to confirm finished jobs.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Expo Dev Launcher uses the local network to discover and connect to development servers running on your computer.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>SNOWD uses your contacts so you can text friends an invite. Your contacts stay on your phone.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Allow $(PRODUCT_NAME) to access your location</string>
 	<key>NSLocationAlwaysUsageDescription</key>
@@ -74,7 +76,7 @@
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>SNOWD uses your location to show nearby shovelers and to share your ETA with customers.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Allow $(PRODUCT_NAME) to access your microphone</string>
+	<string>SNOWD uses the microphone to record voice messages in chat.</string>
 	<key>NSMotionUsageDescription</key>
 	<string>Allow $(PRODUCT_NAME) to detect your current motion activity</string>
 	<key>NSPhotoLibraryUsageDescription</key>

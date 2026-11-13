@@ -52,6 +52,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Presence: "online" means the site is open in front of you right now. A heartbeat every minute
+  // while the tab is visible, and "offline" as soon as it's hidden or closed.
+  const uid = user?.uid;
+  useEffect(() => {
+    if (!uid || typeof document === "undefined") return;
+    const ref = doc(db, "users", uid);
+    const beat = (online: boolean) => void updateDoc(ref, { isOnline: online, lastSeen: serverTimestamp() }).catch(() => {});
+    let timer: ReturnType<typeof setInterval> | undefined;
+    const sync = () => {
+      clearInterval(timer);
+      if (document.visibilityState === "visible") {
+        beat(true);
+        timer = setInterval(() => beat(true), 60000);
+      } else beat(false);
+    };
+    const leave = () => beat(false);
+    sync();
+    document.addEventListener("visibilitychange", sync);
+    window.addEventListener("pagehide", leave);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", sync);
+      window.removeEventListener("pagehide", leave);
+    };
+  }, [uid]);
+
   useEffect(() => {
     if (!isFirebaseConfigured || !auth || !db) {
       return;
@@ -78,9 +104,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setProfileError(false);
           if (initialSnap.exists()) {
             setProfile(initialSnap.data() as UserProfile);
-            if (initialSnap.data().isOnline !== true) {
-              void updateDoc(docRef, { isOnline: true }).catch(error => console.error("Could not update presence", error));
-            }
           } else {
             setProfile(null);
           }

@@ -1,7 +1,7 @@
 import { initPaymentSheet, initStripe, presentPaymentSheet } from "@stripe/stripe-react-native";
-import * as Location from "expo-location";
 import type { Job } from "@/lib/types";
 import { api, requestId } from "./api";
+import { currentLocation } from "./location";
 
 /** Runs a work-order action through the same server route the website uses. */
 export function orderAction(job: Job, action: string, extra: Record<string, unknown> = {}) {
@@ -9,9 +9,7 @@ export function orderAction(job: Job, action: string, extra: Record<string, unkn
 }
 
 export async function sendOnMyWay(job: Job) {
-  const permission = await Location.requestForegroundPermissionsAsync();
-  if (!permission.granted) throw new Error("Allow location access to send your arrival time.");
-  const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+  const position = await currentLocation();
   return orderAction(job, "en-route", {
     operatorLat: position.coords.latitude,
     operatorLng: position.coords.longitude,

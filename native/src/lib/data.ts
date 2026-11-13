@@ -37,6 +37,39 @@ export function useChats(uid?: string) {
   return { chats, loading, error, reload };
 }
 
+/**
+ * Live chat documents by id, read one by one (each is allowed for its participants). Used so every
+ * job's conversation, open or closed, shows in Messages even if the chat list query can't load.
+ * A chat that was merged into another is followed to the one it now lives in.
+ */
+export function useChatsById(ids: string[]) {
+  const key = [...new Set(ids.filter(Boolean))].sort().slice(0, 60).join(",");
+  const [found, setFound] = useState<Record<string, Chat>>({});
+  useEffect(() => {
+    if (!key) return;
+    const subs = new Map<string, () => void>();
+    const watch = (id: string, depth = 0) => {
+      if (subs.has(id)) return;
+      subs.set(
+        id,
+        onSnapshot(
+          doc(db, "chats", id),
+          (snap) => {
+            if (!snap.exists()) return;
+            const chat = { ...snap.data(), id: snap.id } as Chat;
+            if (chat.mergedInto && depth < 2) return watch(chat.mergedInto, depth + 1);
+            setFound((f) => ({ ...f, [chat.id]: chat }));
+          },
+          () => {},
+        ),
+      );
+    };
+    key.split(",").forEach((id) => watch(id));
+    return () => subs.forEach((off) => off());
+  }, [key]);
+  return found;
+}
+
 /** Live list of work orders where the user is the client or the operator. */
 export function useJobs(uid?: string, role?: string) {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -79,13 +112,20 @@ export function useJob(jobId?: string) {
   return { job, loading };
 }
 
-export function useMessages(chatId?: string) {
+/**
+ * Live messages for a chat, oldest first. `olderChatIds` are the per-order chats that were merged
+ * into this one (`chat.mergedFrom`), so every message ever sent between the two people shows,
+ * whether or not it was moved over.
+ */
+export function useMessages(chatId?: string, olderChatIds: string[] = []) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
+  const ids = useMemo(() => [chatId, ...olderChatIds].filter(Boolean).slice(0, 30).join(","), [chatId, olderChatIds]);
   useEffect(() => {
-    if (!chatId) return;
+    if (!ids) return;
+    const list = ids.split(",");
     return onSnapshot(
-      query(collection(db, "messages"), where("chatId", "==", chatId), orderBy("createdAt", "asc")),
+      query(collection(db, "messages"), list.length > 1 ? where("chatId", "in", list) : where("chatId", "==", list[0]), orderBy("createdAt", "asc")),
       { includeMetadataChanges: true },
       (snap) => {
         setMessages(snap.docs.map((d) => ({ ...d.data(), id: d.id, pending: d.metadata.hasPendingWrites }) as ChatMessage));
@@ -93,7 +133,7 @@ export function useMessages(chatId?: string) {
       },
       () => setLoading(false),
     );
-  }, [chatId]);
+  }, [ids]);
   return { messages, loading };
 }
 

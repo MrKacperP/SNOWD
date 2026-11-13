@@ -6,10 +6,10 @@ import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Snowfall } from "~/components/brand";
-import { Avatar, Button, Card, Field, Icon, Notice, PhotoGrid, SaveBar } from "~/components/ui";
+import { Avatar, Button, Card, Field, Icon, Notice, PhotoGrid, AutosaveStatus, useAutosave } from "~/components/ui";
 import { useAuth } from "~/context/auth";
 import { db } from "~/lib/firebase";
-import { choosePhoto, uploadDataUrl } from "~/lib/uploads";
+import { chooseUpload, uploadFile } from "~/lib/uploads";
 import { colors, hero, radius, shadow, space, type } from "~/lib/theme";
 
 /** Photo, logo, tagline and portfolio shown on the public profile — the website's Settings → Branding. */
@@ -46,10 +46,11 @@ export default function BrandingSettings() {
   const upload = async (kind: "avatar" | "logo" | "portfolio") => {
     setError("");
     try {
-      const data = await choosePhoto(kind === "logo" ? "Business logo" : kind === "avatar" ? "Profile photo" : "Portfolio photo");
-      if (!data) return;
+      // Any size works: logos and profile photos are kept sharp, portfolio photos stay full size.
+      const picked = await chooseUpload(kind === "logo" ? "Business logo" : kind === "avatar" ? "Profile photo" : "Portfolio photo", { maxEdge: kind === "portfolio" ? undefined : 1600 });
+      if (picked?.kind !== "photo") return;
       setUploading(kind);
-      const url = await uploadDataUrl(`branding/${uid}/${kind}`, data);
+      const url = await uploadFile(`branding/${uid}/${kind}`, picked.uri);
       if (kind === "avatar") setAvatar(url);
       else if (kind === "logo") setLogo(url);
       else setPortfolio((list) => [...list, url].slice(0, 12));
@@ -73,6 +74,9 @@ export default function BrandingSettings() {
       setSaving(false);
     }
   };
+
+  // Saves on its own a moment after each change; no save button.
+  useAutosave({ avatar, logo, tagline, about, portfolio }, { dirty, save, enabled: !uploading });
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -157,9 +161,8 @@ export default function BrandingSettings() {
           />
         </Card>
         <Notice text={error} />
-        <Notice tone="green" text={done} />
       </KeyboardAwareScrollView>
-      <SaveBar dirty={dirty && !uploading} saving={saving} onSave={save} title="Save profile" bottomInset={insets.bottom} />
+      <AutosaveStatus saving={saving} dirty={dirty} error={error} bottomInset={insets.bottom} />
     </View>
   );
 }

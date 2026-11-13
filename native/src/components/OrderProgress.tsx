@@ -17,7 +17,7 @@ export const ORDER_STEPS: { status: JobStatus; label: string; icon: Parameters<t
 export const stepIndex = (job: Pick<Job, "status">) => ORDER_STEPS.findIndex((step) => step.status === job.status);
 
 /** One segment of the bar: fills in its step's colour, and the current one shimmers like the website's. */
-function Segment({ status, state, completed, index }: { status: JobStatus; state: "done" | "current" | "todo"; completed: boolean; index: number }) {
+function Segment({ status, state, completed, index, tint }: { status: JobStatus; state: "done" | "current" | "todo"; completed: boolean; index: number; tint?: string }) {
   const reduce = useReducedMotion();
   const fill = useSharedValue(reduce || state === "todo" ? (state === "todo" ? 0 : 1) : 0);
   const shine = useSharedValue(0);
@@ -28,7 +28,7 @@ function Segment({ status, state, completed, index }: { status: JobStatus; state
   }, [state, completed, reduce, index, fill, shine]);
   const bar = useAnimatedStyle(() => ({ width: `${fill.value * 100}%` }));
   const glint = useAnimatedStyle(() => ({ transform: [{ translateX: interpolate(shine.value, [0, 1], [-60, 160]) }] }));
-  const color = completed ? stepColors.completed.bar : stepColors[status as keyof typeof stepColors]?.bar || colors.accent;
+  const color = tint ? tint : completed ? stepColors.completed.bar : stepColors[status as keyof typeof stepColors]?.bar || colors.accent;
   return (
     <View style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: "#e7edf0", overflow: "hidden" }}>
       <Animated.View style={[{ height: "100%", borderRadius: 4, backgroundColor: color, overflow: "hidden" }, bar]}>
@@ -39,7 +39,8 @@ function Segment({ status, state, completed, index }: { status: JobStatus; state
 }
 
 /** The five-colour bar alone, as used on cards, the home page and the chat header. */
-export function ProgressBar({ job, compact }: { job: Pick<Job, "status">; compact?: boolean }) {
+/** `color` paints every step in one colour instead of the five step colours. */
+export function ProgressBar({ job, compact, color }: { job: Pick<Job, "status">; compact?: boolean; color?: string }) {
   const current = stepIndex(job);
   const completed = job.status === "completed";
   if (job.status === "cancelled")
@@ -47,7 +48,7 @@ export function ProgressBar({ job, compact }: { job: Pick<Job, "status">; compac
   return (
     <View style={{ flexDirection: "row", gap: compact ? 4 : 6 }}>
       {ORDER_STEPS.map((step, i) => (
-        <Segment key={step.status} index={i} status={step.status} completed={completed} state={i < current ? "done" : i === current ? "current" : "todo"} />
+        <Segment key={step.status} index={i} status={step.status} completed={completed} tint={color} state={i < current ? "done" : i === current ? "current" : "todo"} />
       ))}
     </View>
   );
@@ -58,7 +59,7 @@ export function ProgressBar({ job, compact }: { job: Pick<Job, "status">; compac
  * Compact: the bar and one line saying the step and what comes next (for lists).
  * Detailed: every step by name with its icon, and a sentence under the current one (for the order screen).
  */
-export function OrderProgress({ job, operator, detailed, note }: { job: Job; operator: boolean; detailed?: boolean; note?: string }) {
+export function OrderProgress({ job, operator, detailed, note, dense }: { job: Job; operator: boolean; detailed?: boolean; note?: string; /** Tighter step list, so the whole order fits on one screen. */ dense?: boolean }) {
   const current = stepIndex(job);
   if (current < 0) return null;
   const next = ORDER_STEPS[current + 1];
@@ -69,7 +70,7 @@ export function OrderProgress({ job, operator, detailed, note }: { job: Job; ope
     return (
       <View accessible accessibilityRole="progressbar" accessibilityLabel={summary} accessibilityValue={{ min: 1, max: ORDER_STEPS.length, now: current + 1 }} style={{ gap: 8 }}>
         <ProgressBar job={job} />
-        <Text style={type.caption}>
+        <Text style={[type.caption, { fontSize: 16, lineHeight: 21, color: colors.muted }]}>
           <Text style={{ color: tone.text, fontWeight: "800" }}>{ORDER_STEPS[current].label}</Text>
           {`  ·  Step ${current + 1} of ${ORDER_STEPS.length}`}
           {next ? `  ·  Next: ${next.label}` : ""}
@@ -79,7 +80,7 @@ export function OrderProgress({ job, operator, detailed, note }: { job: Job; ope
   }
 
   return (
-    <View accessible accessibilityRole="progressbar" accessibilityLabel={summary} accessibilityValue={{ min: 1, max: ORDER_STEPS.length, now: current + 1 }} style={{ gap: 18 }}>
+    <View accessible accessibilityRole="progressbar" accessibilityLabel={summary} accessibilityValue={{ min: 1, max: ORDER_STEPS.length, now: current + 1 }} style={{ gap: dense ? 12 : 18 }}>
       <ProgressBar job={job} />
       <View>
         {ORDER_STEPS.map((step, i) => {
@@ -89,14 +90,14 @@ export function OrderProgress({ job, operator, detailed, note }: { job: Job; ope
           const c = stepColors[step.status as keyof typeof stepColors];
           return (
             <View key={step.status} style={{ flexDirection: "row", gap: 12 }}>
-              <View style={{ alignItems: "center", width: 30 }}>
-                <View style={{ width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center", backgroundColor: done || here ? c.bar : colors.surface, borderWidth: done || here ? 0 : 2, borderColor: colors.borderStrong }}>
+              <View style={{ alignItems: "center", width: dense ? 24 : 30 }}>
+                <View style={{ width: dense ? 24 : 30, height: dense ? 24 : 30, borderRadius: 15, alignItems: "center", justifyContent: "center", backgroundColor: done || here ? c.bar : colors.surface, borderWidth: done || here ? 0 : 2, borderColor: colors.borderStrong }}>
                   <Icon name={done ? "checkmark" : step.icon} size={13} color={done || here ? "#fff" : colors.faint} weight="bold" />
                 </View>
-                {!last ? <View style={{ flex: 1, width: 3, minHeight: 10, marginVertical: 2, borderRadius: 2, backgroundColor: i < current ? c.bar : colors.border }} /> : null}
+                {!last ? <View style={{ flex: 1, width: 3, minHeight: dense ? 6 : 10, marginVertical: 2, borderRadius: 2, backgroundColor: i < current ? c.bar : colors.border }} /> : null}
               </View>
-              <View style={{ flex: 1, paddingBottom: last ? 0 : here ? 16 : 12, paddingTop: 4, gap: 2 }}>
-                <Text style={{ fontSize: 16, lineHeight: 22, fontWeight: here ? "800" : done ? "600" : "500", color: here ? c.text : done ? colors.ink : colors.faint }}>{step.label}</Text>
+              <View style={{ flex: 1, paddingBottom: last ? 0 : dense ? (here ? 8 : 4) : here ? 16 : 12, paddingTop: dense ? 1 : 4, gap: 2 }}>
+                <Text style={{ fontSize: dense ? 15 : 16, lineHeight: dense ? 20 : 22, fontWeight: here ? "800" : done ? "600" : "500", color: here ? c.text : done ? colors.ink : colors.faint }}>{step.label}</Text>
                 {here || (last && done) ? <Text style={type.caption}>{note || (operator ? step.operator : step.client)}</Text> : null}
               </View>
             </View>

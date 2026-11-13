@@ -1,72 +1,96 @@
 import * as Crypto from "expo-crypto";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import * as DocumentPicker from "expo-document-picker";
+import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
 import { ActionSheetIOS, Alert, Platform } from "react-native";
 import { storage } from "./firebase";
-import { pickPhoto } from "./photos";
+import { pickPhotoFile } from "./photos";
 
 /**
- * Turns a data URL into a native Blob through React Native's networking layer.
- * Firebase's uploadString builds its upload from raw bytes, which React Native's Blob
- * can't hold ("Creating blobs from ArrayBuffer ... not supported"), so it always failed here.
+ * Reads a file:// (or data:) URI into a native Blob through React Native's networking layer.
+ * Firebase's uploadString builds its upload from raw bytes, which React Native's Blob can't hold,
+ * and the native Blob streams large files without loading them into JavaScript memory.
  */
-function dataUrlToBlob(dataUrl: string) {
-  // Also reads file:// URIs, which is how full-size photos are uploaded.
+function readBlob(uri: string) {
   return new Promise<Blob>((resolve, reject) => {
     const request = new XMLHttpRequest();
     request.onload = () => resolve(request.response as Blob);
-    request.onerror = () => reject(new Error("Couldn’t read that photo. Try another one."));
+    request.onerror = () => reject(new Error("Couldn’t read that file. Try another one."));
     request.responseType = "blob";
-    request.open("GET", dataUrl, true);
+    request.open("GET", uri, true);
     request.send(null);
   });
 }
 
-/** Uploads a photo file from the phone (see pickPhotoFile) to Firebase Storage and returns its download URL. */
-export async function uploadFile(folder: string, uri: string, name = `${Crypto.randomUUID()}.jpg`) {
-  const file = ref(storage, `${folder}/${name}`);
-  const blob = await dataUrlToBlob(uri);
+export type UploadOptions = { name?: string; contentType?: string; onProgress?: (fraction: number) => void };
+
+/**
+ * Uploads a file from the phone to Firebase Storage and returns its download URL.
+ * Uses a resumable upload, so photos and documents of any size go up in chunks and survive a
+ * brief drop in signal; `onProgress` reports 0–1 for a progress bar.
+ */
+export async function uploadFile(folder: string, uri: string, options: UploadOptions = {}) {
+  const contentType = options.contentType || "image/jpeg";
+  const file = ref(storage, `${folder}/${options.name || `${Crypto.randomUUID()}${contentType === "image/jpeg" ? ".jpg" : ""}`}`);
+  const blob = await readBlob(uri);
   try {
-    await uploadBytes(file, blob, { contentType: "image/jpeg" });
+    await new Promise<void>((resolve, reject) => {
+      const task = uploadBytesResumable(file, blob, { contentType });
+      task.on("state_changed", (snap) => options.onProgress?.(snap.totalBytes ? snap.bytesTransferred / snap.totalBytes : 0), reject, () => resolve());
+    });
   } catch (e) {
     const code = (e as { code?: string }).code || "";
-    throw new Error(code === "storage/unauthorized" ? "You don’t have permission to upload here. Sign out and back in, then try again." : "The photo didn’t upload. Check your connection and try again.");
+    throw new Error(code === "storage/unauthorized" ? "You don’t have permission to upload here. Sign out and back in, then try again." : "The upload didn’t finish. Check your connection and try again.");
   } finally {
     (blob as Blob & { close?: () => void }).close?.();
   }
   return getDownloadURL(file);
 }
 
-/** Uploads a JPEG data URL to Firebase Storage and returns its public download URL. */
-export async function uploadDataUrl(folder: string, dataUrl: string, name = Crypto.randomUUID()) {
-  const file = ref(storage, `${folder}/${name}`);
-  const blob = await dataUrlToBlob(dataUrl);
-  try {
-    await uploadBytes(file, blob, { contentType: "image/jpeg" });
-  } catch (e) {
-    const code = (e as { code?: string }).code || "";
-    throw new Error(code === "storage/unauthorized" ? "You don’t have permission to upload here. Sign out and back in, then try again." : "The photo didn’t upload. Check your connection and try again.");
-  } finally {
-    (blob as Blob & { close?: () => void }).close?.();
-  }
-  return getDownloadURL(file);
+export type PickedFile = { uri: string; name: string; size?: number; mimeType: string };
+
+/** Opens the Files picker for any document (PDF, Word, video…), of any size. */
+export async function pickDocument(types: string[] = ["*/*"]): Promise<PickedFile | null> {
+  const result = await DocumentPicker.getDocumentAsync({ type: types, copyToCacheDirectory: true, multiple: false });
+  if (result.canceled || !result.assets[0]) return null;
+  const asset = result.assets[0];
+  return { uri: asset.uri, name: asset.name || "File", size: asset.size, mimeType: asset.mimeType || "application/octet-stream" };
 }
 
-/** Asks "Take photo / Choose from library", then returns a compact JPEG data URL (or null if cancelled). */
-export function choosePhoto(title?: string, maxLength?: number): Promise<string | null> {
+/** A safe file name for Storage: keeps the extension, drops anything odd. */
+export const storageName = (name: string) => `${Crypto.randomUUID()}-${name.replace(/[^\w.\-]+/g, "_").slice(-80)}`;
+
+type Choice = { kind: "photo"; uri: string } | { kind: "file"; file: PickedFile };
+
+/**
+ * Asks "Take photo / Choose from library" (and "Choose a file" when `files` is set), then returns
+ * what was picked, or null if cancelled. Photos come back as full-size JPEG files.
+ */
+export function chooseUpload(title?: string, { files, maxEdge }: { files?: boolean; maxEdge?: number } = {}): Promise<Choice | null> {
   return new Promise((resolve, reject) => {
-    const run = (source: "camera" | "library") => pickPhoto(source, maxLength).then(resolve, reject);
+    const photo = (source: "camera" | "library") => pickPhotoFile(source, maxEdge).then((uri) => resolve(uri ? { kind: "photo", uri } : null), reject);
+    const doc = () => pickDocument().then((file) => resolve(file ? { kind: "file", file } : null), reject);
+    const options = ["Take photo", "Choose from library", ...(files ? ["Choose a file"] : []), "Cancel"];
     if (Platform.OS === "ios") {
-      ActionSheetIOS.showActionSheetWithOptions({ title, options: ["Take photo", "Choose from library", "Cancel"], cancelButtonIndex: 2 }, (i) => {
-        if (i === 0) void run("camera");
-        else if (i === 1) void run("library");
+      ActionSheetIOS.showActionSheetWithOptions({ title, options, cancelButtonIndex: options.length - 1 }, (i) => {
+        if (i === 0) void photo("camera");
+        else if (i === 1) void photo("library");
+        else if (files && i === 2) void doc();
         else resolve(null);
       });
     } else {
       Alert.alert(title || "Add a photo", undefined, [
-        { text: "Take photo", onPress: () => void run("camera") },
-        { text: "Choose from library", onPress: () => void run("library") },
-        { text: "Cancel", style: "cancel", onPress: () => resolve(null) },
+        { text: "Take photo", onPress: () => void photo("camera") },
+        { text: "Choose from library", onPress: () => void photo("library") },
+        ...(files ? [{ text: "Choose a file", onPress: () => void doc() }] : []),
+        { text: "Cancel", style: "cancel" as const, onPress: () => resolve(null) },
       ]);
     }
   });
+}
+
+/** Asks for a photo and uploads it full size to `folder`, returning its URL (or null if cancelled). */
+export async function chooseAndUploadPhoto(folder: string, title?: string, options: { maxEdge?: number; name?: string; onProgress?: (f: number) => void } = {}) {
+  const picked = await chooseUpload(title, { maxEdge: options.maxEdge });
+  if (!picked || picked.kind !== "photo") return null;
+  return uploadFile(folder, picked.uri, { name: options.name, onProgress: options.onProgress });
 }

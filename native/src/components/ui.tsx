@@ -1,8 +1,8 @@
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { SymbolView, type SymbolViewProps } from "expo-symbols";
-import { useRouter } from "expo-router";
-import { useState, type ReactNode } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -12,6 +12,7 @@ import {
   Switch,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
   type PressableProps,
   type ScrollViewProps,
@@ -20,11 +21,13 @@ import {
   type ViewStyle,
 } from "react-native";
 import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
-import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import Animated, { useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { scheduleOnRN } from "react-native-worklets";
 import { useAuth } from "~/context/auth";
 import { initials } from "~/lib/format";
 import { BrandLoading, PENGUIN, PenguinLoader } from "./brand";
+import { RefreshFlake } from "./RefreshFlake";
 import { colors, radius, shadow, space, tap, type } from "~/lib/theme";
 
 type SymbolName = SymbolViewProps["name"];
@@ -59,7 +62,10 @@ export function SwipeTabs({ tab, children }: { tab: string; children: ReactNode 
   });
   return (
     <GestureDetector gesture={pan}>
-      <View style={{ flex: 1 }}>{children}</View>
+      {/* Keep tab content clear of a tab bar that sits on the side of the screen (e.g. iPhone Duo). */}
+      <SafeAreaView edges={["left", "right"]} style={{ flex: 1, backgroundColor: colors.bg }}>
+        {children}
+      </SafeAreaView>
     </GestureDetector>
   );
 }
@@ -71,9 +77,11 @@ const PULL = 80;
  * enough, and hops while the page refreshes. Spread `scrollProps` onto an Animated scroll view or
  * list and render `indicator` as its first child (or list header).
  */
-export function usePenguinRefresh(onRefresh?: () => unknown) {
+export function usePenguinRefresh(onRefresh?: () => unknown, scrollY?: SharedValue<number>, edgeToEdge = true) {
   const [refreshing, setRefreshing] = useState(false);
   const pull = useSharedValue(0);
+  // How far the page is pulled down, in points, so the animation can stay pinned on screen.
+  const dist = useSharedValue(0);
   const rest = useSharedValue<number | null>(null);
   const armed = useSharedValue(false);
   const busy = useSharedValue(0);
@@ -83,8 +91,10 @@ export function usePenguinRefresh(onRefresh?: () => unknown) {
       if (rest.value === null || e.contentOffset.y < rest.value) rest.value = e.contentOffset.y;
     },
     onScroll: (e) => {
+      if (scrollY) scrollY.value = e.contentOffset.y;
       if (rest.value === null) rest.value = e.contentOffset.y;
       const distance = rest.value - e.contentOffset.y;
+      dist.value = Math.max(0, distance);
       pull.value = Math.max(0, Math.min(1, distance / PULL));
       if (distance > PULL && !armed.value) {
         armed.value = true;
@@ -97,7 +107,7 @@ export function usePenguinRefresh(onRefresh?: () => unknown) {
     setRefreshing(true);
     busy.value = withTiming(1, { duration: 150 });
     try {
-      // Long enough to see the penguin, short enough not to feel slow.
+      // Long enough to see the animation, short enough not to feel slow.
       await Promise.all([Promise.resolve(onRefresh()).catch(() => {}), new Promise((r) => setTimeout(r, 900))]);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } finally {
@@ -105,21 +115,16 @@ export function usePenguinRefresh(onRefresh?: () => unknown) {
       setRefreshing(false);
     }
   };
-  const penguin = useAnimatedStyle(() => {
-    const shown = Math.max(pull.value, busy.value);
-    return { opacity: shown, transform: [{ rotate: `${(busy.value ? 0 : pull.value) * 360}deg` }, { scale: 0.5 + shown * 0.5 }] };
-  });
-  if (!onRefresh) return { scrollProps: {}, indicator: null };
+  if (!onRefresh) return { scrollProps: {}, indicator: null, refreshing };
   return {
+    refreshing,
     scrollProps: {
       onScroll: scroll,
       scrollEventThrottle: 16,
       refreshControl: <RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor="transparent" colors={["transparent"]} progressBackgroundColor="transparent" />,
     },
     indicator: (
-      <Animated.View pointerEvents="none" style={[{ position: "absolute", top: -58, left: 0, right: 0, alignItems: "center", zIndex: 10 }, penguin]}>
-        {refreshing ? <PenguinLoader size={38} label="Refreshing" /> : <Image source={PENGUIN} style={{ width: 38, height: 41 }} contentFit="contain" />}
-      </Animated.View>
+      <RefreshFlake pull={pull} busy={busy} dist={dist} refreshing={refreshing} edgeToEdge={edgeToEdge} />
     ),
   };
 }
@@ -128,15 +133,65 @@ export function usePenguinRefresh(onRefresh?: () => unknown) {
  * A scrolling page that sits correctly under the native large-title header and above the tab bar.
  * With `onRefresh`, pulling down shows the SNOWD penguin (see usePenguinRefresh).
  */
-export function Screen({ children, contentStyle, onRefresh, ...props }: ScrollViewProps & { contentStyle?: StyleProp<ViewStyle>; onRefresh?: () => unknown }) {
-  const { scrollProps, indicator } = usePenguinRefresh(onRefresh);
+export function Screen({ children, contentStyle, onRefresh, scrollY, topKey, ...props }: ScrollViewProps & { contentStyle?: StyleProp<ViewStyle>; onRefresh?: () => unknown; /** Receives the scroll position, for headers that react to scrolling. */ scrollY?: SharedValue<number>; /** When this changes (e.g. loading → ready), scroll back to the very top. */ topKey?: string }) {
+  const { scrollProps, indicator, refreshing } = usePenguinRefresh(onRefresh, scrollY, props.contentInsetAdjustmentBehavior === "never");
+  const ref = useAnimatedRef<Animated.ScrollView>();
+  const touched = useRef(false);
+  const edgeToEdge = props.contentInsetAdjustmentBehavior === "never";
+  const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  // Pages that draw under the status bar themselves can open nudged down by the status bar's height,
+  // on a cold launch or the first time a tab that was prepared in the background appears. Settle
+  // them flush with the top each time they come into view, until the person first touches the page.
+  // Where the page last came to rest. iOS can rest a full-bleed page at a negative offset (a status
+  // bar's worth of gap above the header); anything at or above the top is put flush again.
+  const lastY = useRef(0);
+  const settle = useCallback(() => ref.current?.scrollTo({ y: 0, animated: true }), [ref]);
+  const onRest = (y: number) => {
+    lastY.current = y;
+    if (edgeToEdge && y < -0.5 && !refreshing) settle();
+  };
+  useEffect(() => {
+    if (!edgeToEdge || refreshing) return;
+    const t = setTimeout(() => lastY.current <= 0 && settle(), 350);
+    return () => clearTimeout(t);
+  }, [refreshing, edgeToEdge, settle]);
+  useFocusEffect(
+    useCallback(() => {
+      if (!edgeToEdge) return;
+      const timers = [0, 50, 300, 700, 1200].map((ms) => setTimeout(() => {
+        if (!touched.current || lastY.current <= 0) ref.current?.scrollTo({ y: 0, animated: false });
+      }, ms));
+      return () => timers.forEach(clearTimeout);
+    }, [edgeToEdge, ref]),
+  );
+  // Content that arrives after the first paint can leave the page part-way down; bring it back up.
+  useEffect(() => {
+    if (topKey === undefined) return;
+    const timers = [0, 120, 400].map((ms) => setTimeout(() => ref.current?.scrollTo({ y: 0, animated: false }), ms));
+    return () => timers.forEach(clearTimeout);
+  }, [topKey, ref]);
   return (
     <Animated.ScrollView
+      ref={ref}
+      onScrollEndDrag={(e) => {
+        if (!e.nativeEvent.velocity?.y) onRest(e.nativeEvent.contentOffset.y);
+        props.onScrollEndDrag?.(e);
+      }}
+      onMomentumScrollEnd={(e) => {
+        onRest(e.nativeEvent.contentOffset.y);
+        props.onMomentumScrollEnd?.(e);
+      }}
+      onTouchStart={() => {
+        touched.current = true;
+      }}
       contentInsetAdjustmentBehavior="automatic"
       keyboardDismissMode="interactive"
       keyboardShouldPersistTaps="handled"
       style={{ flex: 1, backgroundColor: colors.bg }}
-      contentContainerStyle={[{ padding: space.lg, gap: space.lg, paddingBottom: space.xxl }, contentStyle]}
+      // A full-bleed page is always at least a little taller than the screen, so the settle-to-top
+      // above can still lift it when its content is short (an empty Jobs list, for example).
+      contentContainerStyle={[{ padding: space.lg, gap: space.lg, paddingBottom: space.xxl }, edgeToEdge && { minHeight: height + insets.top + 1 }, contentStyle]}
       {...scrollProps}
       {...props}
     >
@@ -480,6 +535,47 @@ export function PhotoGrid({ photos, max, onAdd, onRemove, busy, addLabel = "Add 
 }
 
 /** Pinned bottom bar with the screen's main action, used on edit screens. */
+/**
+ * Saves a settings page by itself: a moment after the last change (no save button). Leaving the
+ * page with a change still waiting saves it straight away. `value` is everything the page saves;
+ * nothing happens unless `dirty` is true and the value has changed since the last attempt.
+ */
+export function useAutosave(value: unknown, { dirty, save, delay = 900, enabled = true }: { dirty: boolean; save: () => unknown; delay?: number; enabled?: boolean }) {
+  const json = JSON.stringify(value);
+  const tried = useRef<string | null>(null);
+  const pending = useRef(false);
+  const latest = useRef(save);
+  latest.current = save;
+  useEffect(() => {
+    if (!enabled || !dirty || json === tried.current) return;
+    pending.current = true;
+    const t = setTimeout(() => {
+      pending.current = false;
+      tried.current = json;
+      void Promise.resolve(latest.current()).catch(() => {});
+    }, delay);
+    return () => clearTimeout(t);
+  }, [json, dirty, enabled, delay]);
+  // Leaving mid-wait: save now rather than lose the change.
+  useEffect(
+    () => () => {
+      if (pending.current) void Promise.resolve(latest.current()).catch(() => {});
+    },
+    [],
+  );
+}
+
+/** A quiet status where the save button used to be: "Saving…", then "Saved". */
+export function AutosaveStatus({ saving, dirty, bottomInset = 0, error, inline }: { saving: boolean; dirty: boolean; bottomInset?: number; error?: string; /** Sit in the page's own layout instead of floating at the bottom. */ inline?: boolean }) {
+  const label = saving ? "Saving…" : error ? "Not saved" : dirty ? "Editing…" : "All changes saved";
+  return (
+    <View pointerEvents="none" style={[styles.autosave, inline ? styles.autosaveInline : { bottom: bottomInset + space.md }]} accessibilityLiveRegion="polite">
+      {saving ? <ActivityIndicator size="small" color={colors.accent} /> : <Icon name={error ? "exclamationmark.circle.fill" : dirty ? "pencil" : "checkmark.circle.fill"} size={14} color={error ? colors.danger : dirty ? colors.muted : colors.mint} />}
+      <Text style={{ fontSize: 13, fontWeight: "700", color: error ? colors.danger : colors.muted }}>{label}</Text>
+    </View>
+  );
+}
+
 export function SaveBar({ dirty, saving, onSave, title = "Save changes", bottomInset = 0 }: { dirty: boolean; saving: boolean; onSave: () => void; title?: string; bottomInset?: number }) {
   return (
     <View style={[styles.saveBar, { paddingBottom: bottomInset + space.md }]}>
@@ -513,6 +609,8 @@ const styles = StyleSheet.create({
   photo: { width: 100, height: 100, borderRadius: radius.md, overflow: "hidden", backgroundColor: colors.surfaceAlt },
   photoAdd: { alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1.5, borderStyle: "dashed", borderColor: "#b9c6ff", backgroundColor: colors.accentSoft, padding: 4 },
   photoRemove: { position: "absolute", top: 4, right: 4, width: 30, height: 30, borderRadius: 15, backgroundColor: "rgba(17,43,59,0.75)", alignItems: "center", justifyContent: "center" },
+  autosave: { position: "absolute", alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border, ...shadow },
+  autosaveInline: { position: "relative", alignSelf: "auto", shadowOpacity: 0, borderWidth: 0, backgroundColor: "transparent", paddingHorizontal: 4 },
   saveBar: { flexDirection: "row", alignItems: "center", gap: space.md, paddingHorizontal: space.lg, paddingTop: space.md, backgroundColor: colors.surface, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   rowIcon: { width: 32, height: 32, borderRadius: 9, backgroundColor: colors.surfaceAlt, alignItems: "center", justifyContent: "center" },
 });

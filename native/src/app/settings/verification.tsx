@@ -9,7 +9,7 @@ import { Badge, Button, Card, Icon, Notice, Screen } from "~/components/ui";
 import { useAuth } from "~/context/auth";
 import { notifyAdmin } from "~/lib/admin";
 import { db } from "~/lib/firebase";
-import { choosePhoto, uploadDataUrl } from "~/lib/uploads";
+import { chooseUpload, storageName, uploadFile } from "~/lib/uploads";
 import { colors, radius, space, type } from "~/lib/theme";
 
 /** Government ID and student transcript uploads — the website's Settings → Verification. */
@@ -22,14 +22,20 @@ export default function VerificationSettings() {
   const [error, setError] = useState("");
   const isPublic = operator && isOperatorPublic(profile as OperatorProfile);
 
+  // Photos go up as JPEGs; documents (PDF, Word…) keep their own type and name.
+  const uploadPicked = (picked: NonNullable<Awaited<ReturnType<typeof chooseUpload>>>, base: string) =>
+    picked.kind === "photo"
+      ? uploadFile(`verification/${uid}`, picked.uri, { name: `${base}.jpg` })
+      : uploadFile(`verification/${uid}`, picked.file.uri, { name: `${base}-${storageName(picked.file.name)}`, contentType: picked.file.mimeType });
+
   const uploadId = async () => {
     setError("");
     try {
-      // IDs need fine print to stay readable, so allow a larger photo.
-      const data = await choosePhoto("Government ID", 3_000_000);
-      if (!data) return;
+      // A full-size photo keeps the fine print readable; a scan or PDF from Files works too.
+      const picked = await chooseUpload("Government ID", { files: true });
+      if (!picked) return;
       setBusy("id");
-      const url = await uploadDataUrl(`verification/${uid}`, data, "id-photo");
+      const url = await uploadPicked(picked, "id-photo");
       await updateDoc(doc(db, "users", uid), { idPhotoUrl: url, idVerified: false, accountApproved: false, verificationStatus: "pending", verificationNote: "" });
       notifyAdmin({ type: "document_uploaded", message: `ID document uploaded by ${profile?.displayName || profile?.email}`, uid, meta: { name: profile?.displayName || "", email: profile?.email || "" } });
     } catch (e) {
@@ -42,10 +48,10 @@ export default function VerificationSettings() {
   const uploadTranscript = async () => {
     setError("");
     try {
-      const data = await choosePhoto("Transcript or report card", 3_000_000);
-      if (!data) return;
+      const picked = await chooseUpload("Transcript or report card", { files: true });
+      if (!picked) return;
       setBusy("transcript");
-      const url = await uploadDataUrl(`verification/${uid}`, data, "transcript");
+      const url = await uploadPicked(picked, "transcript");
       await updateDoc(doc(db, "users", uid), { studentTranscriptUrl: url });
       notifyAdmin({ type: "document_uploaded", message: `Student transcript uploaded by ${profile?.displayName || profile?.email}`, uid, meta: { name: profile?.displayName || "", email: profile?.email || "" } });
     } catch (e) {

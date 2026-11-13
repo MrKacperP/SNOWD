@@ -4,11 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { Alert, Pressable, Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Avatar, Card, Field, Icon, Notice, SaveBar } from "~/components/ui";
+import { Avatar, Card, Field, Icon, Notice, AutosaveStatus, useAutosave } from "~/components/ui";
 import { useAuth } from "~/context/auth";
 import { db } from "~/lib/firebase";
 import { notifyAdmin } from "~/lib/admin";
-import { choosePhoto, uploadDataUrl } from "~/lib/uploads";
+import { chooseUpload, uploadFile } from "~/lib/uploads";
 import { colors, space, type } from "~/lib/theme";
 
 /** Name, phone and contact details — the website's Settings → Account. */
@@ -18,6 +18,7 @@ export default function AccountSettings() {
   const uid = user?.uid || "";
   const operator = profile?.role === "operator";
   const [name, setName] = useState(profile?.displayName || "");
+  const told = useRef(false);
   const [phone, setPhone] = useState(profile?.phone || "");
   const [age, setAge] = useState(profile?.age ? String(profile.age) : "");
   const [businessName, setBusinessName] = useState(profile?.businessName || "");
@@ -59,7 +60,11 @@ export default function AccountSettings() {
       if (operator) Object.assign(updates, { businessName: businessName.trim(), bio: bio.trim() });
       else Object.assign(updates, { age: ageNumber, simplifiedMode: !!(ageNumber && ageNumber >= 55) });
       await updateDoc(doc(db, "users", uid), updates);
-      notifyAdmin({ type: "profile_saved", message: `Profile updated by ${name.trim() || profile?.email}`, uid, meta: { name: name.trim(), email: profile?.email || "" } });
+      // Autosave can save several times; tell the admins once per visit.
+      if (!told.current) {
+        told.current = true;
+        notifyAdmin({ type: "profile_saved", message: `Profile updated by ${name.trim() || profile?.email}`, uid, meta: { name: name.trim(), email: profile?.email || "" } });
+      }
       setSaved("Your details are saved.");
     } catch {
       setError("Couldn’t save your changes. Check your connection and try again.");
@@ -70,10 +75,10 @@ export default function AccountSettings() {
 
   const changePhoto = async () => {
     try {
-      const data = await choosePhoto("Profile photo", 600_000);
-      if (!data) return;
+      const picked = await chooseUpload("Profile photo", { maxEdge: 1600 });
+      if (picked?.kind !== "photo") return;
       setPhotoBusy(true);
-      const url = await uploadDataUrl(`avatars/${uid}`, data, `avatar-${Date.now()}.jpg`);
+      const url = await uploadFile(`avatars/${uid}`, picked.uri, { name: `avatar-${Date.now()}.jpg` });
       await updateDoc(doc(db, "users", uid), { avatar: url });
     } catch (e) {
       Alert.alert("Couldn’t update photo", e instanceof Error ? e.message : "Please try again.");
@@ -87,6 +92,9 @@ export default function AccountSettings() {
       { text: "Cancel", style: "cancel" },
       { text: "Remove", style: "destructive", onPress: () => void updateDoc(doc(db, "users", uid), { avatar: deleteField() }).catch(() => {}) },
     ]);
+
+  // Saves on its own a moment after each change; no save button.
+  useAutosave({ name, phone, businessName, bio, age }, { dirty, save });
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -130,9 +138,8 @@ export default function AccountSettings() {
           </View>
         ) : null}
         <Notice text={error} />
-        <Notice tone="green" text={saved} />
       </KeyboardAwareScrollView>
-      <SaveBar dirty={dirty} saving={saving} onSave={save} bottomInset={insets.bottom} />
+      <AutosaveStatus saving={saving} dirty={dirty} error={error} bottomInset={insets.bottom} />
     </View>
   );
 }

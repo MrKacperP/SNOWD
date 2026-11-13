@@ -133,9 +133,21 @@ PODS:
     - ExpoModulesCore
   - ExpoAsset (58.0.20):
     - ExpoModulesCore
+  - ExpoAudio (58.0.12):
+    - ExpoModulesCore
   - ExpoBlur (58.0.5):
     - ExpoModulesCore
+  - ExpoCamera (58.0.14):
+    - ExpoModulesCore
+  - ExpoCameraBarcodeScanning (58.0.14):
+    - ExpoCamera
+  - ExpoClipboard (58.0.4):
+    - ExpoModulesCore
+  - ExpoContacts (58.0.11):
+    - ExpoModulesCore
   - ExpoCrypto (58.0.7):
+    - ExpoModulesCore
+  - ExpoDocumentPicker (58.0.5):
     - ExpoModulesCore
   - ExpoDomWebView (58.0.2):
     - ExpoModulesCore
@@ -2372,6 +2384,53 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
+  - RNSVG (15.16.0):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-bridging
+    - React-Core
+    - React-Core-prebuilt
+    - React-cxxstableapi
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - RNSVG/common (= 15.16.0)
+    - Yoga
+  - RNSVG/common (15.16.0):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-bridging
+    - React-Core
+    - React-Core-prebuilt
+    - React-cxxstableapi
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - RNWorklets (0.13.0):
     - hermes-engine
     - RCTRequired
@@ -2537,8 +2596,14 @@ DEPENDENCIES:
   - ExpoAppleAuthentication (from `../node_modules/expo-apple-authentication/ios`)
   - ExpoApplication (from `../node_modules/expo-application/ios`)
   - ExpoAsset (from `../node_modules/expo/node_modules/expo-asset/ios`)
+  - ExpoAudio (from `../node_modules/expo-audio/ios`)
   - ExpoBlur (from `../node_modules/expo-blur/ios`)
+  - ExpoCamera (from `../node_modules/expo-camera/ios/ExpoCamera.podspec`)
+  - ExpoCameraBarcodeScanning (from `../node_modules/expo-camera/ios/ExpoCameraBarcodeScanning.podspec`)
+  - ExpoClipboard (from `../node_modules/expo-clipboard/ios`)
+  - ExpoContacts (from `../node_modules/expo-contacts/ios/ExpoContacts.podspec`)
   - ExpoCrypto (from `../node_modules/expo-crypto/ios`)
+  - ExpoDocumentPicker (from `../node_modules/expo-document-picker/ios`)
   - "ExpoDomWebView (from `../node_modules/@expo/dom-webview/ios`)"
   - ExpoFileSystem (from `../node_modules/expo/node_modules/expo-file-system/ios/ExpoFileSystem.podspec`)
   - ExpoFont (from `../node_modules/expo-font/ios/ExpoFont.podspec`)
@@ -2655,6 +2720,7 @@ DEPENDENCIES:
   - RNGestureHandler (from `../node_modules/react-native-gesture-handler`)
   - RNReanimated (from `../node_modules/react-native-reanimated`)
   - RNScreens (from `../node_modules/react-native-screens`)
+  - RNSVG (from `../node_modules/react-native-svg`)
   - RNWorklets (from `../node_modules/react-native-worklets`)
   - SocketRocket (from `build/rndeps-facades/SocketRocket`)
   - "stripe-react-native (from `../node_modules/@stripe/stripe-react-native`)"
@@ -2693,10 +2759,22 @@ EXTERNAL SOURCES:
     :path: "../node_modules/expo-application/ios"
   ExpoAsset:
     :path: "../node_modules/expo/node_modules/expo-asset/ios"
+  ExpoAudio:
+    :path: "../node_modules/expo-audio/ios"
   ExpoBlur:
     :path: "../node_modules/expo-blur/ios"
+  ExpoCamera:
+    :podspec: "../node_modules/expo-camera/ios/ExpoCamera.podspec"
+  ExpoCameraBarcodeScanning:
+    :podspec: "../node_modules/expo-camera/ios/ExpoCameraBarcodeScanning.podspec"
+  ExpoClipboard:
+    :path: "../node_modules/expo-clipboard/ios"
+  ExpoContacts:
+    :podspec: "../node_modules/expo-contacts/ios/ExpoContacts.podspec"
   ExpoCrypto:
     :path: "../node_modules/expo-crypto/ios"
+  ExpoDocumentPicker:
+    :path: "../node_modules/expo-document-picker/ios"
   ExpoDomWebView:
     :path: "../node_modules/@expo/dom-webview/ios"
   ExpoFileSystem:
@@ -2928,6 +3006,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-reanimated"
   RNScreens:
     :path: "../node_modules/react-native-screens"
+  RNSVG:
+    :path: "../node_modules/react-native-svg"
   RNWorklets:
     :path: "../node_modules/react-native-worklets"
   SocketRocket:
@@ -2952,8 +3032,14 @@ SPEC CHECKSUMS:
   ExpoAppleAuthentication: 86e09d699399d4c09c2cb32bce32901a9d4ca334
   ExpoApplication: c83355b2f69f996b5d26b64fef39228e7f1e1208
   ExpoAsset: c080026976ef8f00dca12c4958c658b2ebd4d4e0
+  ExpoAudio: 04b22b00783fe443c15121138f827b808fdf8c71
   ExpoBlur: 68f7f85ae6584f0bec52a0a42ee5088b093d1473
+  ExpoCamera: 5d9ae8e9c52e102d9a21b2a903478dcd79ce3ddc
+  ExpoCameraBarcodeScanning: 31cb394606255ac478b9c33929e6b0a8f6c0925d
+  ExpoClipboard: 244adf0a38b60ec7105e217042dd266a722f5a5e
+  ExpoContacts: 9299febf273485e1dea7ad86f2b5393163305e3a
   ExpoCrypto: 33ede543a3747abbef071c3bd747135ccc4e4fd5
+  ExpoDocumentPicker: 3e8fdb323db3ad2f7c8bbd21fdad3b982f1cf178
   ExpoDomWebView: b2a6d681b9d34c23b1f584321386ca8da1d36afb
   ExpoFileSystem: b619d80b490c53117a9a9c976021a4ce5a9da440
   ExpoFont: 77eaad26c6a7ef6be8d431963358def09d8e3a73
@@ -3070,6 +3156,7 @@ SPEC CHECKSUMS:
   RNGestureHandler: ddbdf3f293a498368803f8181ff157271ac05c48
   RNReanimated: 5c641cc430b7255eae87c8039204eb0f816ea1b8
   RNScreens: e4c2c2aa9576604868c0b250096c295a487e1d9e
+  RNSVG: c3f9498aa208ae99a217dd3d698251677b224890
   RNWorklets: 488806637a21eb17812a48dadca7cb8c698c8cfd
   SocketRocket: 37aec555668fb852ec12e3c0de59a86ca58f0871
   stripe-react-native: 7d7d8b0ccb9b67f3d2938adb279f33e6f79a37cf

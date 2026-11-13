@@ -1,4 +1,4 @@
-import * as Location from "expo-location";
+import { currentLocation } from "./location";
 import type { Job } from "@/lib/types";
 import type { Profile } from "~/context/auth";
 import type { Icon } from "~/components/ui";
@@ -26,10 +26,7 @@ export type JobAction = {
 /** Where the operator is right now, if they allow it, so a nearby confirmation can include an ETA. */
 async function currentPosition() {
   try {
-    let { status } = await Location.getForegroundPermissionsAsync();
-    if (status !== "granted") ({ status } = await Location.requestForegroundPermissionsAsync());
-    if (status !== "granted") return {};
-    const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+    const position = await currentLocation();
     return { operatorLat: position.coords.latitude, operatorLng: position.coords.longitude };
   } catch {
     return {};
@@ -95,4 +92,22 @@ export function jobActions(job: Job, uid: string, profile?: Profile): JobAction[
   if (operator && job.status === "completed" && job.paymentMethod === "cash" && job.paymentStatus === "pending")
     out.push({ key: "cash", title: "Confirm cash received", icon: "banknote.fill", run: () => api("/api/jobs/confirm-cash", { jobId: job.id }), done: "Cash payment confirmed." });
   return out;
+}
+
+/**
+ * Payment shortcuts once clearing has started (and after): the customer can pay early, the
+ * shoveler can mark cash as received. Shown in the work order's payment card.
+ */
+export function paymentActions(job: Job, uid: string, profile?: Profile): JobAction[] {
+  if (!["in-progress", "completed"].includes(job.status) || job.paymentStatus === "paid" || job.paymentStatus === "refunded") return [];
+  const operator = job.operatorId === uid;
+  const cash = job.paymentMethod === "cash";
+  if (operator && cash)
+    return [{ key: "cash", title: "Mark payment received", icon: "banknote.fill", confirm: { title: `Received ${money(job.price)} in cash?`, message: "The customer gets a receipt. Only confirm once you have the money.", label: "Yes, received" }, run: () => api("/api/jobs/confirm-cash", { jobId: job.id }), done: "Cash payment recorded." }];
+  if (!operator && !cash) {
+    if (job.paymentStatus === "held" && job.stripePaymentIntentId)
+      return [{ key: "pay-now", title: `Pay ${money(job.price)} now`, icon: "creditcard.fill", confirm: { title: "Pay now?", message: "Your card is charged now instead of after the finished-work photo.", label: "Pay now" }, run: () => api("/api/stripe/capture-payment", { paymentIntentId: job.stripePaymentIntentId }), done: "Paid. Your receipt is in Payment history." }];
+    return [{ key: "pay", title: `Pay ${money(job.price)}`, icon: "creditcard.fill", run: () => payForJob(job, profile?.displayName), done: "Payment authorized." }];
+  }
+  return [];
 }

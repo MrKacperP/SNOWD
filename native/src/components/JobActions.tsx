@@ -25,12 +25,12 @@ function askPhotoSource(): Promise<"camera" | "library" | null> {
  * Runs a work order's next steps: confirms what needs confirming, asks for the photo source,
  * shows a spinner on the pressed button, buzzes on success or failure and says what happened.
  */
-export function useJobActions(job: Job | null) {
+export function useJobActions(job: Job | null, options?: { onDone?: (message: string, key: string) => void; list?: typeof jobActions }) {
   const { user, profile } = useAuth();
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const actions = job ? jobActions(job, user?.uid || "", profile) : [];
+  const actions = job ? (options?.list || jobActions)(job, user?.uid || "", profile) : [];
 
   const execute = async (action: JobAction, source?: "camera" | "library") => {
     setBusy(action.key);
@@ -40,6 +40,7 @@ export function useJobActions(job: Job | null) {
       const result = await action.run(source);
       if (result !== false) {
         setSuccess(action.done);
+        options?.onDone?.(action.done, action.key);
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
     } catch (e) {

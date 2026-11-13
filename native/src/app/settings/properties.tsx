@@ -8,7 +8,7 @@ import { Button, Card, Empty, Group, Notice, PhotoGrid, Row, Screen, SectionTitl
 import { useAuth } from "~/context/auth";
 import { db } from "~/lib/firebase";
 import { useProperties } from "~/lib/properties";
-import { choosePhoto, uploadDataUrl } from "~/lib/uploads";
+import { chooseUpload, uploadFile } from "~/lib/uploads";
 import { type } from "~/lib/theme";
 
 const USE_ICONS = { home: "house.fill", rental: "key.fill", business: "building.2.fill", cottage: "tree.fill", other: "mappin.circle.fill" } as const;
@@ -34,10 +34,11 @@ export default function PropertiesSettings() {
   const addPhoto = async () => {
     setPhotoError("");
     try {
-      const data = await choosePhoto("Property photo");
-      if (!data) return;
+      const picked = await chooseUpload("Property photo");
+      if (picked?.kind !== "photo") return;
       setBusy(true);
-      const url = await uploadDataUrl(`property-photos/${uid}`, data);
+      // Full size, so shovelers can zoom in on the driveway and walkways.
+      const url = await uploadFile(`property-photos/${uid}`, picked.uri);
       await savePhotos([...photos, url].slice(0, 6));
     } catch (e) {
       setPhotoError(e instanceof Error ? e.message : "Property photos could not be saved. Please try again.");

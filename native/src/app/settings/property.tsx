@@ -8,7 +8,7 @@ import { propertyUse, type ServiceLocation } from "@/lib/serviceLocations";
 import { PROPERTY_USES, SHOVELING_SERVICES, type PropertySize, type PropertyUse, type ServiceType } from "@/lib/types";
 import { propertySizeLabel } from "@/lib/workOrders";
 import { AddressFields, addressProblem, geocodeAddress, type AddressValue } from "~/components/AddressFields";
-import { Button, Card, Chip, Field, Loading, Notice, SaveBar } from "~/components/ui";
+import { AutosaveStatus, Button, Card, Chip, Field, Loading, Notice, SaveBar, useAutosave } from "~/components/ui";
 import { useAuth } from "~/context/auth";
 import { notifyAdmin } from "~/lib/admin";
 import { db } from "~/lib/firebase";
@@ -28,6 +28,7 @@ export default function PropertyEditor() {
   const existing = properties.find((p) => p.id === id);
 
   const [address, setAddress] = useState<AddressValue>({ address: "", city: "", province: profile?.province || "ON", postalCode: "" });
+  const told = useRef(false);
   const [size, setSize] = useState<PropertySize>("medium");
   const [label, setLabel] = useState("");
   const [use, setUse] = useState<PropertyUse>("rental");
@@ -79,7 +80,7 @@ export default function PropertyEditor() {
     };
   };
 
-  const save = async () => {
+  const save = async (auto = false) => {
     setError("");
     const problem = addressProblem(address);
     if (problem) return setError(problem);
@@ -101,7 +102,11 @@ export default function PropertyEditor() {
           lng: loc.lng ?? null,
           "propertyDetails.propertySize": size,
         });
-        notifyAdmin({ type: "profile_saved", message: `Main house updated by ${profile?.displayName || profile?.email} (${loc.city}, ${loc.province})`, uid: user!.uid, meta: { city: loc.city, province: loc.province } });
+        // Autosave can save several times; tell the admins once per visit.
+        if (!told.current) {
+          told.current = true;
+          notifyAdmin({ type: "profile_saved", message: `Main house updated by ${profile?.displayName || profile?.email} (${loc.city}, ${loc.province})`, uid: user!.uid, meta: { city: loc.city, province: loc.province } });
+        }
       } else {
         await update({
           location: loc,
@@ -112,7 +117,11 @@ export default function PropertyEditor() {
           details: { use, ...(area ? { areaSqft: area } : {}), serviceTypes: services, instructions: instructions.trim(), ...(existing?.photos ? { photos: existing.photos } : {}) },
         });
       }
-      router.back();
+      // Autosaved edits stay on the page; adding a new property goes back to the list.
+      if (auto) {
+        setBaseline(snapshot());
+        setSaving(false);
+      } else router.back();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn’t save this property. Try again.");
       setSaving(false);
@@ -151,6 +160,10 @@ export default function PropertyEditor() {
         },
       },
     ]);
+
+  // Editing an existing property (or your home) saves by itself; a new one is added with its button.
+  const autosaves = id !== "new";
+  useAutosave(snapshot(), { dirty: autosaves && dirty, save: () => save(true), enabled: autosaves });
 
   if (!isHome && loading) return <Loading />;
 
@@ -204,7 +217,11 @@ export default function PropertyEditor() {
           </View>
         ) : null}
       </KeyboardAwareScrollView>
-      <SaveBar dirty={dirty} saving={saving} onSave={save} title={existing || isHome ? "Save" : "Add property"} bottomInset={insets.bottom} />
+      {autosaves ? (
+        <AutosaveStatus saving={saving} dirty={dirty} error={error} bottomInset={insets.bottom} />
+      ) : (
+        <SaveBar dirty={dirty} saving={saving} onSave={() => void save()} title="Add property" bottomInset={insets.bottom} />
+      )}
     </View>
   );
 }
