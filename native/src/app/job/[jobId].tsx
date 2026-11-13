@@ -19,6 +19,7 @@ import { api } from "~/lib/api";
 import { personName, useJob, usePeople } from "~/lib/data";
 import { money } from "~/lib/format";
 import { colors, radius, shadow, space, stepColor, type } from "~/lib/theme";
+import { useAppTheme } from "~/lib/appearance";
 
 export default function JobScreen() {
   const { jobId } = useLocalSearchParams<{ jobId: string }>();
@@ -33,6 +34,7 @@ export default function JobScreen() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const insets = useSafeAreaInsets();
+  const appTheme = useAppTheme();
   const actionState = useJobActions(job);
   const payState = useJobActions(job, { list: paymentActions });
 
@@ -66,6 +68,8 @@ export default function JobScreen() {
 
   const action = orderActionNeeded(job, uid);
   const closed = ["completed", "cancelled"].includes(job.status);
+  // The header takes this order's progress colour while it's live, matching its progress bar.
+  const headerTone = !closed && appTheme.jobColouredHeader ? stepColor(job.status) : undefined;
   const target = typeof job.clientLat === "number" && typeof job.clientLng === "number" ? { latitude: job.clientLat, longitude: job.clientLng } : null;
   const operatorPin = typeof job.operatorApproxLat === "number" && typeof job.operatorApproxLng === "number" ? { latitude: job.operatorApproxLat, longitude: job.operatorApproxLng } : null;
   const fullAddress = [job.address, job.city, job.province, job.postalCode].filter(Boolean).join(", ");
@@ -117,6 +121,7 @@ export default function JobScreen() {
       <Screen contentInsetAdjustmentBehavior="never" contentStyle={{ padding: 0, gap: space.md, paddingBottom: hasBar ? 150 + insets.bottom : space.xxl }} onRefresh={() => undefined}>
         {/* The order number on a coloured band, with back on the left. */}
         <TabHeader
+          tone={headerTone}
           title={`Order #${orderNumber(job)}`}
           subtitle={job.status === "cancelled" ? view.title : `${ORDER_STEPS[stepIndex(job)]?.label || orderLabel(job)} · Step ${stepIndex(job) + 1} of ${ORDER_STEPS.length}`}
           onBack={() => (router.canGoBack() ? router.back() : router.replace("/jobs"))}

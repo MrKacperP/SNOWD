@@ -9,6 +9,8 @@ import { canAcceptPlatformPayments } from "@/lib/operatorDiscovery";
 import type { OperatorProfile } from "@/lib/types";
 import { Avatar, Button, Group, Icon, Row, Screen, SectionTitle, SwipeTabs } from "~/components/ui";
 import { useAuth } from "~/context/auth";
+import { useJobs } from "~/lib/data";
+import { useLiveHeaderTone } from "~/lib/headerTone";
 import { db } from "~/lib/firebase";
 import { chooseUpload, uploadFile } from "~/lib/uploads";
 import { brand, colors, radius, shadow, space, stepColor, type } from "~/lib/theme";
@@ -18,6 +20,8 @@ export default function Profile() {
   const router = useRouter();
   const { user, profile, signOut } = useAuth();
   const uid = user?.uid || "";
+  const { jobs } = useJobs(uid, profile?.role);
+  const tone = useLiveHeaderTone(jobs, uid);
   const operator = profile?.role === "operator";
   const [photoBusy, setPhotoBusy] = useState(false);
   const insets = useSafeAreaInsets();
@@ -70,7 +74,7 @@ export default function Profile() {
       <SwipeTabs tab="/profile">
         <Screen contentInsetAdjustmentBehavior="never" contentStyle={{ padding: 0, gap: space.lg, paddingBottom: insets.bottom + 90 }}>
           {/* Centred: photo, then name, address and who you are. Tap the photo to change it. */}
-          <TabHeader title="Profile">
+          <TabHeader tone={tone} title="Profile">
             <View style={{ alignItems: "center", gap: 6, paddingBottom: space.sm }}>
               <Pressable accessibilityRole="button" onPress={operator ? () => go("/settings/branding") : changePhoto} disabled={photoBusy} accessibilityLabel={operator ? "Change business logo" : "Change profile photo"}>
                 <View style={styles.photoRing}>

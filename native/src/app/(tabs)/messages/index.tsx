@@ -12,6 +12,7 @@ import { useAuth } from "~/context/auth";
 import { useAppTheme } from "~/lib/appearance";
 import { usePresence } from "~/lib/presence";
 import { personName, useChats, useChatsById, useJobs, usePeople } from "~/lib/data";
+import { useLiveHeaderTone } from "~/lib/headerTone";
 import { shortTime } from "~/lib/format";
 import { colors, space, stepColor, type } from "~/lib/theme";
 
@@ -42,6 +43,7 @@ export default function Messages() {
   const uid = user?.uid || "";
   const { chats, loading, error, reload } = useChats(uid);
   const { jobs, reload: reloadJobs } = useJobs(uid, profile?.role);
+  const tone = useLiveHeaderTone(jobs, uid);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [showArchived, setShowArchived] = useState(false);
@@ -123,6 +125,8 @@ export default function Messages() {
           ListHeaderComponent={
             <View>
               <TabHeader
+                tone={tone}
+                pageColor={colors.surface}
                 title={showArchived ? "Archived" : "Messages"}
                 subtitle={showArchived ? "Chats you’ve put away. Every message is kept." : undefined}
                 right={
@@ -233,7 +237,7 @@ export default function Messages() {
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", gap: space.md, minHeight: 78, paddingHorizontal: space.lg, paddingVertical: 10, backgroundColor: colors.surface },
+  row: { flexDirection: "row", alignItems: "center", gap: space.md, minHeight: 78, paddingHorizontal: space.lg, paddingVertical: 10, backgroundColor: "transparent" },
   line: { flexDirection: "row", alignItems: "center", gap: 6 },
   time: { fontSize: 13, color: colors.muted, fontVariant: ["tabular-nums"] },
   preview: { flex: 1, fontSize: 15, lineHeight: 20, color: colors.muted },

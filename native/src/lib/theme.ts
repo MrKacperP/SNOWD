@@ -103,12 +103,19 @@ export const brand = {
   goldSoft: "#fff3df",
 };
 
+/** An eased (smoothstep) fade from clear to `hex` (#rrggbb), so a coloured band melts into the page with no edge. */
+export function fadeInto(hex: string) {
+  return `linear-gradient(180deg, ${hex}00 0%, ${hex}0f 15%, ${hex}37 30%, ${hex}80 50%, ${hex}c8 70%, ${hex}ef 85%, ${hex} 100%)`;
+}
+
 /** Gradients, as CSS strings for React Native's `backgroundImage`. */
 export const gradient = {
   header: `linear-gradient(160deg, ${brand.royalDeep} 0%, ${brand.royal} 42%, ${brand.electric} 78%, ${brand.electricBright} 100%)`,
   earnings: `linear-gradient(145deg, ${brand.royal} 0%, ${brand.electric} 62%, #5b6cff 100%)`,
   ice: `linear-gradient(180deg, #ffffff 0%, ${brand.frost} 100%)`,
   glow: "radial-gradient(circle at 50% 50%, rgba(143,182,255,0.55) 0%, rgba(143,182,255,0) 70%)",
+  /** Header colour melting into the page: an eased (smoothstep) ramp with many stops, so no band or edge shows. */
+  pageFade: fadeInto("#f6f8fb"),
   live: `linear-gradient(135deg, #0f8a52 0%, #16a663 100%)`,
 };
 

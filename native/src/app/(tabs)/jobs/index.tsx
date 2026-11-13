@@ -8,6 +8,7 @@ import { HeaderPill, TabHeader } from "~/components/TabHeader";
 import { Button, Empty, Screen, SectionTitle, SwipeTabs } from "~/components/ui";
 import { useAuth } from "~/context/auth";
 import { useJobs, usePeople } from "~/lib/data";
+import { useLiveHeaderTone } from "~/lib/headerTone";
 
 const SECTIONS = [
   ["attention", "Needs your reply"],
@@ -23,6 +24,7 @@ export default function Jobs() {
   const uid = user?.uid || "";
   const operator = profile?.role === "operator";
   const { jobs, loading, reload } = useJobs(uid, profile?.role);
+  const tone = useLiveHeaderTone(jobs, uid);
   const [filter, setFilter] = useState<"open" | "history">("open");
   const people = usePeople(jobs.map((j) => (operator ? j.clientId : j.operatorId)));
 
@@ -43,7 +45,7 @@ export default function Jobs() {
       <Stack.Screen options={{ headerShown: false, title: operator ? "Jobs" : "Orders" }} />
       <SwipeTabs tab="/jobs">
       <Screen onRefresh={reload} contentInsetAdjustmentBehavior="never" contentStyle={{ padding: 0, paddingBottom: 120 }}>
-        <TabHeader title={operator ? "Jobs" : "Orders"} subtitle={openCount ? `${openCount} on the go` : operator ? "Nothing on the go right now" : "Nothing booked right now"}>
+        <TabHeader tone={tone} title={operator ? "Jobs" : "Orders"} subtitle={openCount ? `${openCount} on the go` : operator ? "Nothing on the go right now" : "Nothing booked right now"}>
           <View accessibilityRole="tablist" style={{ flexDirection: "row", gap: 8 }}>
             <HeaderPill label="Current" count={openCount} selected={filter === "open"} onPress={() => setFilter("open")} />
             <HeaderPill label="Past" selected={filter === "history"} onPress={() => setFilter("history")} />

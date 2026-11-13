@@ -65,7 +65,7 @@ export function BlueHeader({ topInset, children, tone, footer }: { topInset: num
         {footer ? (
           <View>
             {/* No hard bottom edge: the colour fades into the page behind the lower part of the widget. */}
-            <View pointerEvents="none" style={[styles.headerFade, { backgroundImage: `linear-gradient(180deg, ${ds.bg}00 0%, ${ds.bg}e6 35%, ${ds.bg} 65%)` }]} />
+            <View pointerEvents="none" style={[styles.headerFade, { backgroundImage: gradient.pageFade }]} />
             {footer}
           </View>
         ) : null}
@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
   overscroll: { position: "absolute", top: -800, height: 820, left: 0, right: 0, backgroundColor: brand.royalDeep },
   // Square bottom edge: the rounded cards below overlap it instead.
   blueHeader: { paddingHorizontal: gap.x4, paddingBottom: gap.x5 + HEADER_OVERLAP, gap: gap.x3, overflow: "hidden", backgroundColor: brand.royal, backgroundImage: `linear-gradient(160deg, ${brand.royalDeep} 0%, ${brand.royal} 45%, ${ds.accent} 85%, ${ds.accentIndigo} 100%)` },
-  headerFade: { position: "absolute", top: "30%", bottom: -gap.x4, left: -gap.x4, right: -gap.x4 },
+  headerFade: { position: "absolute", top: -90, bottom: -gap.x4, left: -gap.x4, right: -gap.x4 },
   headerGlow: { position: "absolute", top: 40, right: -110, width: 300, height: 300, borderRadius: 999, backgroundImage: gradient.glow },
   topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: tap },
   brandRow: { flexDirection: "row", alignItems: "center", gap: 8 },

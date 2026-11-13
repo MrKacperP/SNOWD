@@ -25,6 +25,7 @@ import { ORDER_STEPS, stepIndex } from "~/components/OrderProgress";
 import { Screen, SwipeTabs } from "~/components/ui";
 import { useAuth } from "~/context/auth";
 import { useChats, useJobs, usePeople } from "~/lib/data";
+import { spotlight } from "~/lib/headerTone";
 import { db } from "~/lib/firebase";
 import { useNotifications } from "~/lib/notifications";
 import { useAppTheme } from "~/lib/appearance";
@@ -36,11 +37,6 @@ const greeting = () => {
   return hour < 5 ? "Up late" : hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 };
 
-/** Which open order deserves the spotlight: one waiting on you, then one underway, then the next one. */
-function spotlight(open: Job[], uid: string) {
-  const rank = (j: Job) => (orderActionNeeded(j, uid) ? 0 : j.status === "in-progress" ? 1 : j.status === "en-route" ? 2 : j.status === "accepted" ? 3 : 4);
-  return [...open].sort((a, b) => rank(a) - rank(b))[0];
-}
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
