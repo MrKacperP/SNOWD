@@ -96,16 +96,20 @@ export async function POST(request: NextRequest) {
         location?.propertySize || previous?.propertySize ||
         client.propertyDetails?.propertySize ||
         "medium";
+      // Keep only the areas this company clears. Saved customer defaults can include areas
+      // the company doesn't offer; dropping those is better than refusing the whole booking.
+      const offered: string[] = operator.serviceTypes?.length
+        ? operator.serviceTypes
+        : ["driveway", "porch", "sidewalk", "backyard-patio"];
       const requestedServices: ServiceType[] = Array.isArray(body.serviceTypes)
         ? [...new Set<ServiceType>(body.serviceTypes.filter((service: unknown): service is ServiceType =>
-            typeof service === "string" && operator.serviceTypes.includes(service as ServiceType),
+            typeof service === "string" && offered.includes(service),
           ))]
         : [];
-      if (Array.isArray(body.serviceTypes) && requestedServices.length !== body.serviceTypes.length)
-        throw new OrderError("Choose valid services offered by this company.", 400);
+      const fallback = (client.propertyDetails?.serviceTypes || []).filter(service => offered.includes(service));
       const services = previous?.serviceTypes || (requestedServices.length > 0
         ? requestedServices
-        : client.propertyDetails?.serviceTypes || ["driveway"]);
+        : fallback.length ? fallback : [(offered.includes("driveway") ? "driveway" : offered[0]) as ServiceType]);
       const operatorPrice = calculateServicePrice(
         operator.pricing,
         services,

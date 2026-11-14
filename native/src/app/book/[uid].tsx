@@ -2,12 +2,13 @@ import { useMarketplacePolicy } from "@/lib/useMarketplacePolicy";
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { doc, getDoc } from "firebase/firestore";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, Switch, Text, View } from "react-native";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { formatServiceAddress, profileLocation, type ServiceLocation } from "@/lib/serviceLocations";
 import { SHOVELING_SERVICES, type ClientProfile, type OperatorProfile, type ServiceType } from "@/lib/types";
-import { Avatar, Button, Chip, FormSection, Loading, Notice, OptionCard } from "~/components/ui";
+import { Avatar, Button, Chip, Icon, Loading, Notice } from "~/components/ui";
+import type { SymbolViewProps } from "expo-symbols";
 import { useAuth } from "~/context/auth";
 import { api, requestId, API_URL } from "~/lib/api";
 import { db } from "~/lib/firebase";
@@ -16,12 +17,23 @@ import { quoteFor } from "~/lib/operators";
 import { useProperties } from "~/lib/properties";
 import { colors, radius, space, type } from "~/lib/theme";
 
+type SymbolName = SymbolViewProps["name"];
+
 const DAYS = Array.from({ length: 7 }, (_, i) => {
   const d = new Date();
   d.setDate(d.getDate() + i);
   d.setHours(0, 0, 0, 0);
   return d;
 });
+/** Keep only areas the company clears; if none are left, start with the driveway (or their first area). */
+function offeredBy(op: OperatorProfile | null) {
+  return SHOVELING_SERVICES.map(([value]) => value as ServiceType).filter((value) => !op?.serviceTypes?.length || op.serviceTypes.includes(value));
+}
+function fitServices(list: ServiceType[], op: OperatorProfile | null) {
+  const allowed = offeredBy(op);
+  const kept = list.filter((s) => allowed.includes(s));
+  return kept.length ? kept : allowed.includes("driveway") ? ["driveway" as ServiceType] : allowed.slice(0, 1);
+}
 const HOURS = Array.from({ length: 15 }, (_, i) => i + 6);
 
 export default function Book() {
@@ -36,7 +48,6 @@ export default function Book() {
   const [day, setDay] = useState(0);
   const [hour, setHour] = useState<number | null>(null);
   const [method, setMethod] = useState<"credit" | "cash">("cash");
-  const [cashOk, setCashOk] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const attempt = useRef<{ key: string; id: string } | null>(null);
@@ -55,12 +66,14 @@ export default function Book() {
       if (!snap.exists()) return;
       const op = { ...snap.data(), uid: snap.id } as OperatorProfile;
       setOperator(op);
+      setServices((list) => fitServices(list, op));
       if (quoteFor(op, profile).card) setMethod("credit");
     });
   }, [uid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const offered = useMemo(() => SHOVELING_SERVICES.filter(([value]) => !operator?.serviceTypes?.length || operator.serviceTypes.includes(value)), [operator]);
   if (!operator) return <Loading />;
+
 
   const quote = quoteFor(operator, place ? { ...profile!, propertyDetails: { ...profile?.propertyDetails, propertySize: location?.propertySize || "medium" } } as typeof profile : profile, services);
   const total = currentQuote(quote.base, method).price;
@@ -73,7 +86,6 @@ export default function Book() {
     if (!location) return setError("Add your home address in Profile → Properties before booking.");
     if (!services.length) return setError("Choose at least one area to clear.");
     if (!asap && hour == null) return setError("Choose a time for the visit.");
-    if (method === "cash" && !cashOk) return setError("Turn on the switch under Cash to confirm you’ll pay in cash.");
     const when = new Date(DAYS[day]);
     if (!asap) when.setHours(hour!, 0, 0, 0);
     const payload = {
@@ -82,7 +94,7 @@ export default function Book() {
       scheduledDate: asap ? null : when.toISOString(),
       scheduleTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       paymentMethod: method,
-      cashPaymentAcknowledged: method === "cash" && cashOk,
+      cashPaymentAcknowledged: method === "cash",
       expectedPrice: total,
       serviceTypes: services,
       serviceLocation: location,
@@ -104,47 +116,51 @@ export default function Book() {
     }
   };
 
+  const name = operator.businessName || operator.displayName;
+  const cardPrice = quote.credit != null ? currentQuote(quote.base, "credit").price : null;
+  const toggle = (value: ServiceType) => setServices((list) => (list.includes(value) ? list.filter((s) => s !== value) : [...list, value]));
+
+  // Everything fits on one screen: short labels, single-row pickers that scroll sideways,
+  // and payment side by side, so a customer can book without scrolling down.
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: space.lg, gap: space.lg, paddingBottom: 160 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-          <Avatar uri={operator.logoUrl || operator.avatar} name={operator.businessName || operator.displayName} size={52} />
-          <View style={{ flex: 1, gap: 2 }}>
-            <Text style={type.caption}>You’re requesting</Text>
-            <Text style={type.title} numberOfLines={2}>{operator.businessName || operator.displayName}</Text>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" alwaysBounceVertical={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: space.lg, paddingTop: space.sm, gap: space.md, paddingBottom: 150 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+          <Avatar uri={operator.logoUrl || operator.avatar} name={name} size={40} />
+          <View style={{ flex: 1 }}>
+            <Text style={type.caption}>Requesting</Text>
+            <Text style={type.headline} numberOfLines={1}>{name}</Text>
           </View>
         </View>
 
-        <FormSection number={1} title="Where?">
+        <Part title="Where">
           {properties.length ? (
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+            <Strip>
               <Chip label="Main house" icon="house.fill" selected={placeId === "home"} onPress={() => setPlaceId("home")} />
               {properties.map((p) => (
-                <Chip key={p.id} label={p.label} selected={placeId === p.id} onPress={() => { setPlaceId(p.id); if (p.serviceTypes?.length) setServices(p.serviceTypes); }} />
+                <Chip key={p.id} label={p.label} selected={placeId === p.id} onPress={() => { setPlaceId(p.id); if (p.serviceTypes?.length) setServices(fitServices(p.serviceTypes, operator)); }} />
               ))}
-            </View>
+            </Strip>
           ) : null}
-          <Text style={type.body}>{formatServiceAddress(location) || "No address saved yet. Add one in Profile → Properties."}</Text>
-        </FormSection>
+          <Text style={type.callout} numberOfLines={1}>{formatServiceAddress(location) || "No address yet. Add one in Profile → Properties."}</Text>
+        </Part>
 
-        <FormSection number={2} title="What should be cleared?">
-          <Text style={type.caption}>Choose all that apply.</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+        <Part title="Clear">
+          <Strip>
             {offered.map(([value, label]) => (
-              <Chip key={value} label={label} selected={services.includes(value)} onPress={() => setServices((list) => (list.includes(value) ? list.filter((s) => s !== value) : [...list, value]))} />
+              <Chip key={value} label={label} selected={services.includes(value)} onPress={() => toggle(value)} />
             ))}
-          </View>
-        </FormSection>
+          </Strip>
+        </Part>
 
-        <FormSection number={3} title="When?">
-          <View accessibilityRole="radiogroup" style={{ gap: space.sm }}>
-            <OptionCard icon="bolt.fill" title="As soon as possible" body="Your shoveler comes at their next opening." selected={asap} onPress={() => setAsap(true)} />
-            <OptionCard icon="calendar" title="Pick a day and time" body="Choose from the next 7 days." selected={!asap} onPress={() => setAsap(false)} />
+        <Part title="When">
+          <View accessibilityRole="radiogroup" style={{ flexDirection: "row", gap: space.sm }}>
+            <Tile icon="bolt.fill" title="ASAP" selected={asap} onPress={() => setAsap(true)} />
+            <Tile icon="calendar" title="Schedule" selected={!asap} onPress={() => setAsap(false)} />
           </View>
           {!asap ? (
             <>
-              <Text style={[type.caption, { fontWeight: "600", color: colors.ink }]}>Day</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+              <Strip>
                 {DAYS.map((d, i) => (
                   <Pressable
                     key={i}
@@ -152,64 +168,85 @@ export default function Book() {
                     accessibilityState={{ selected: day === i }}
                     accessibilityLabel={i === 0 ? "Today" : d.toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric" })}
                     onPress={() => { setDay(i); setHour(null); }}
-                    style={{ minWidth: 64, paddingVertical: 10, paddingHorizontal: 8, borderRadius: radius.md, alignItems: "center", backgroundColor: day === i ? colors.ink : colors.surfaceAlt }}
+                    style={{ minWidth: 54, paddingVertical: 6, borderRadius: radius.md, alignItems: "center", backgroundColor: day === i ? colors.ink : colors.surfaceAlt }}
                   >
-                    <Text style={{ fontSize: 14, color: day === i ? "#fff" : colors.muted, fontWeight: "600" }}>{i === 0 ? "Today" : d.toLocaleDateString("en-CA", { weekday: "short" })}</Text>
-                    <Text style={{ fontSize: 22, fontWeight: "800", color: day === i ? "#fff" : colors.ink }}>{d.getDate()}</Text>
+                    <Text style={{ fontSize: 13, color: day === i ? "#fff" : colors.muted, fontWeight: "600" }}>{i === 0 ? "Today" : d.toLocaleDateString("en-CA", { weekday: "short" })}</Text>
+                    <Text style={{ fontSize: 18, fontWeight: "800", color: day === i ? "#fff" : colors.ink }}>{d.getDate()}</Text>
                   </Pressable>
                 ))}
-              </ScrollView>
-              <Text style={[type.caption, { fontWeight: "600", color: colors.ink }]}>Time</Text>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                {hoursForDay.map((h) => (
-                  <Chip key={h} label={new Date(2000, 0, 1, h).toLocaleTimeString("en-CA", { hour: "numeric" })} selected={hour === h} onPress={() => setHour(h)} />
-                ))}
-                {!hoursForDay.length ? <Text style={type.caption}>No times left today. Choose another day.</Text> : null}
-              </View>
+              </Strip>
+              {hoursForDay.length ? (
+                <Strip>
+                  {hoursForDay.map((h) => (
+                    <Chip key={h} label={new Date(2000, 0, 1, h).toLocaleTimeString("en-CA", { hour: "numeric" })} selected={hour === h} onPress={() => setHour(h)} />
+                  ))}
+                </Strip>
+              ) : (
+                <Text style={type.caption}>No times left today. Choose another day.</Text>
+              )}
             </>
           ) : null}
-        </FormSection>
+        </Part>
 
-        <FormSection number={4} title="How will you pay?">
-          <View accessibilityRole="radiogroup" style={{ gap: space.sm }}>
-            <OptionCard
-              icon="creditcard.fill"
-              title="Card or Apple Pay"
-              trailing={quote.credit != null ? money(currentQuote(quote.base, "credit").price) : undefined}
-              body={quote.credit == null ? "This shoveler takes cash only." : "Nothing is charged until the work is done."}
-              disabled={quote.credit == null}
-              selected={method === "credit"}
-              onPress={() => setMethod("credit")}
-            />
-            <OptionCard icon="banknote.fill" title="Cash" trailing={money(quote.cash)} body="Pay your shoveler in person when they finish." selected={method === "cash"} onPress={() => setMethod("cash")} />
+        <Part title="Pay">
+          <View accessibilityRole="radiogroup" style={{ flexDirection: "row", gap: space.sm }}>
+            <Tile icon="creditcard.fill" title="Card" trailing={cardPrice != null ? money(cardPrice) : "Not offered"} disabled={cardPrice == null} selected={method === "credit"} onPress={() => setMethod("credit")} />
+            <Tile icon="banknote.fill" title="Cash" trailing={money(quote.cash)} selected={method === "cash"} onPress={() => setMethod("cash")} />
           </View>
-          {method === "cash" ? (
-            <Pressable
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: cashOk }}
-              onPress={() => setCashOk(!cashOk)}
-              style={{ flexDirection: "row", alignItems: "center", gap: 12, minHeight: 52, padding: space.md, borderRadius: radius.md, backgroundColor: cashOk ? colors.mintSoft : colors.sunSoft }}
-            >
-              <Text style={{ flex: 1, fontSize: 16, lineHeight: 22, fontWeight: "600", color: cashOk ? colors.mint : colors.sunText }}>I’ll have {money(quote.cash)} in cash ready when the work is done.</Text>
-              <Switch accessibilityElementsHidden importantForAccessibility="no" value={cashOk} onValueChange={setCashOk} trackColor={{ true: colors.mint }} />
-            </Pressable>
-          ) : null}
-        </FormSection>
-
-        <Text style={[type.caption, { textAlign: "center" }]}>Sending a request is free. {operator.businessName || operator.displayName} confirms before anything is booked, and you can cancel any time before they leave.</Text>
+        </Part>
       </ScrollView>
 
       {/* Problems show right above the button that caused them, never off-screen. */}
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: space.lg, paddingBottom: insets.bottom + space.sm, backgroundColor: colors.surface, borderTopWidth: 0.5, borderTopColor: colors.border, gap: space.md }}>
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: insets.bottom + space.sm, backgroundColor: colors.surface, borderTopWidth: 0.5, borderTopColor: colors.border, gap: space.sm }}>
         <Notice text={error} />
+        <Text style={[type.caption, { textAlign: "center" }]} numberOfLines={2}>
+          {method === "cash" ? `You’ll pay ${money(quote.cash)} cash when the work is done. ` : "Nothing is charged until the work is done. "}
+          Free to cancel before they leave.
+        </Text>
         <View style={{ flexDirection: "row", alignItems: "center", gap: space.lg }}>
-        <View accessible accessibilityLabel={`Total ${money(total)}, ${method === "cash" ? "cash" : "card"}`} style={{ flex: 1 }}>
-          <Text style={type.caption}>Total · {method === "cash" ? "cash" : "card"}</Text>
-          <Text style={[type.title, { fontSize: 24, fontVariant: ["tabular-nums"] }]}>{money(total)}</Text>
-        </View>
-        <Button title="Send request" icon="paperplane.fill" loading={busy} style={{ flex: 1.4 }} onPress={submit} />
+          <View accessible accessibilityLabel={`Total ${money(total)}, ${method === "cash" ? "cash" : "card"}`} style={{ flex: 1 }}>
+            <Text style={type.caption}>Total · {method === "cash" ? "cash" : "card"}</Text>
+            <Text style={[type.title, { fontSize: 24, fontVariant: ["tabular-nums"] }]}>{money(total)}</Text>
+          </View>
+          <Button title="Send request" icon="paperplane.fill" loading={busy} style={{ flex: 1.4 }} onPress={submit} />
         </View>
       </View>
     </View>
+  );
+}
+
+function Part({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <View style={{ gap: 6 }}>
+      <Text accessibilityRole="header" style={type.overline}>{title}</Text>
+      {children}
+    </View>
+  );
+}
+
+/** One row of choices that scrolls sideways instead of wrapping onto more lines. */
+function Strip({ children }: { children: ReactNode }) {
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 8 }}>
+      {children}
+    </ScrollView>
+  );
+}
+
+/** A half-width radio choice, so two options sit side by side. */
+function Tile({ icon, title, trailing, selected, disabled, onPress }: { icon: SymbolName; title: string; trailing?: string; selected: boolean; disabled?: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="radio"
+      accessibilityLabel={[title, trailing].filter(Boolean).join(", ")}
+      accessibilityState={{ selected, disabled: !!disabled }}
+      disabled={disabled}
+      onPress={() => { void Haptics.selectionAsync(); onPress(); }}
+      style={({ pressed }) => ({ flex: 1, flexDirection: "row", alignItems: "center", gap: 8, minHeight: 52, paddingHorizontal: space.md, borderRadius: radius.md, borderWidth: 2, borderColor: selected ? colors.accent : colors.border, backgroundColor: colors.surface, opacity: disabled ? 0.5 : pressed ? 0.8 : 1 })}
+    >
+      <Icon name={icon} size={18} color={selected ? colors.accent : colors.muted} />
+      <Text style={[type.headline, { flex: 1 }]} numberOfLines={1}>{title}</Text>
+      {trailing ? <Text style={{ fontSize: 15, fontWeight: "700", color: disabled ? colors.muted : colors.ink, fontVariant: ["tabular-nums"] }} numberOfLines={1}>{trailing}</Text> : null}
+    </Pressable>
   );
 }
