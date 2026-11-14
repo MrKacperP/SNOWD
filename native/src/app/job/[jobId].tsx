@@ -6,14 +6,14 @@ import { Alert, Linking, Platform, Pressable, StyleSheet, Text, View } from "rea
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { jobDisplayPrice } from "@/lib/marketplacePricing";
 import { SERVICE_LABELS } from "@/lib/types";
-import { orderActionNeeded, orderLabel, orderNumber, propertySizeLabel, scheduleText, terminalOrderDateText } from "@/lib/workOrders";
+import { orderLabel, orderNumber, propertySizeLabel, scheduleText, terminalOrderDateText } from "@/lib/workOrders";
 import { workOrderPresentation } from "@/lib/workOrderPresentation";
 import { JobActionButtons, useJobActions } from "~/components/JobActions";
-import { ORDER_STEPS, OrderProgress, stepIndex } from "~/components/OrderProgress";
+import { CurrentStep, ORDER_STEPS, stepIndex } from "~/components/OrderProgress";
 import { JobMiniMap } from "~/components/JobMiniMap";
 import { paymentActions } from "~/lib/jobActions";
 import { TabHeader } from "~/components/TabHeader";
-import { Avatar, Badge, Button, Card, Empty, Icon, Loading, Notice, QuickAction, Screen, SectionTitle } from "~/components/ui";
+import { Avatar, Badge, Button, Card, Empty, Icon, Loading, Notice, QuickAction, Screen } from "~/components/ui";
 import { useAuth } from "~/context/auth";
 import { api } from "~/lib/api";
 import { personName, useJob, usePeople } from "~/lib/data";
@@ -66,12 +66,10 @@ export default function JobScreen() {
     }
   };
 
-  const action = orderActionNeeded(job, uid);
   const closed = ["completed", "cancelled"].includes(job.status);
   // The header takes this order's progress colour while it's live, matching its progress bar.
   const headerTone = !closed && appTheme.jobColouredHeader ? stepColor(job.status) : undefined;
   const target = typeof job.clientLat === "number" && typeof job.clientLng === "number" ? { latitude: job.clientLat, longitude: job.clientLng } : null;
-  const operatorPin = typeof job.operatorApproxLat === "number" && typeof job.operatorApproxLng === "number" ? { latitude: job.operatorApproxLat, longitude: job.operatorApproxLng } : null;
   const fullAddress = [job.address, job.city, job.province, job.postalCode].filter(Boolean).join(", ");
   // Opens the address in Maps: driving directions for the shoveler, the spot on the map for the customer.
   const openMap = () => {
@@ -105,7 +103,6 @@ export default function JobScreen() {
           ? "The card hold was released. Nothing was charged."
           : operator ? "The customer still needs to authorize their card." : "Authorize your card to confirm. You’re charged only after the work is done.";
 
-  const tone = stepColor(job.status);
   const etaLine = job.status === "en-route" && job.eta
     ? { icon: "car.fill" as const, text: `Arriving in about ${job.eta} min` }
     : job.status === "accepted" && job.nearbyEta
@@ -113,57 +110,50 @@ export default function JobScreen() {
       : null;
   const payKeys = new Set(payState.actions.map((a) => a.key));
   const barState = { ...actionState, actions: actionState.actions.filter((a) => !payKeys.has(a.key)) };
-  const hasBar = barState.actions.length > 0;
+  // Every button that moves the order on (including paying) lives in the bar at the bottom, under your thumb.
+  const hasBar = barState.actions.length + payState.actions.length > 0;
+  // The map helps while the shoveler is getting there; once they've arrived it's no longer needed.
+  const showMap = !!target && ["pending", "accepted", "en-route"].includes(job.status);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack.Screen options={{ title: `Order #${orderNumber(job)}`, headerShown: false }} />
-      <Screen contentInsetAdjustmentBehavior="never" contentStyle={{ padding: 0, gap: space.md, paddingBottom: hasBar ? 150 + insets.bottom : space.xxl }} onRefresh={() => undefined}>
+      <Screen contentInsetAdjustmentBehavior="never" contentStyle={{ padding: 0, gap: space.md, paddingBottom: hasBar ? (barState.actions.length && payState.actions.length ? 180 : 110) + insets.bottom : space.xxl }} onRefresh={() => undefined}>
         {/* The order number on a coloured band, with back on the left. */}
         <TabHeader
           tone={headerTone}
           title={`Order #${orderNumber(job)}`}
           subtitle={job.status === "cancelled" ? view.title : `${ORDER_STEPS[stepIndex(job)]?.label || orderLabel(job)} · Step ${stepIndex(job) + 1} of ${ORDER_STEPS.length}`}
           onBack={() => (router.canGoBack() ? router.back() : router.replace("/jobs"))}
+          footer={
+            <Card style={{ gap: space.lg }}>
+              {/* Where the order stands: the bar, then only the step happening now. */}
+              <CurrentStep job={job} operator={operator} note={job.status === "cancelled" ? `${view.title}. ${view.description}` : view.description || undefined} eta={etaLine} />
+              <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: colors.border }} />
+              {/* Who it's with and how much, then ways to reach them. */}
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                <Avatar uri={other?.logoUrl || other?.avatar} name={personName(other)} size={46} />
+                <View style={{ flex: 1, gap: 4 }}>
+                  <Text style={type.caption}>{operator ? "Customer" : "Your shoveler"}</Text>
+                  <Text style={[type.title, { fontSize: 20, lineHeight: 25 }]} numberOfLines={2}>{personName(other)}</Text>
+                </View>
+                <View style={{ alignItems: "flex-end", gap: 4 }}>
+                  <Text style={type.caption}>{operator ? "You earn" : paid ? "You paid" : "Price"}</Text>
+                  <Text style={[type.title, { fontSize: 20, lineHeight: 25, color: colors.accent, fontVariant: ["tabular-nums"] }]}>{money(jobDisplayPrice(job, operator))}</Text>
+                </View>
+              </View>
+              <View style={{ flexDirection: "row", gap: 10 }}>
+                <QuickAction icon="bubble.left.fill" label="Message" onPress={() => router.push(`/chat/${job.chatId}`)} />
+                {phone ? <QuickAction icon="phone.fill" label="Call" onPress={() => void Linking.openURL(`tel:${phone.replace(/[^\d+]/g, "")}`)} /> : null}
+                {fullAddress && !closed ? <QuickAction icon="arrow.triangle.turn.up.right.diamond.fill" label="Directions" onPress={openMap} /> : null}
+              </View>
+            </Card>
+          }
         />
         <View style={{ paddingHorizontal: space.lg, gap: space.md }}>
-        <Card style={{ gap: space.md }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-            <Avatar uri={other?.logoUrl || other?.avatar} name={personName(other)} size={46} />
-            <View style={{ flex: 1, gap: 6 }}>
-              <Text style={type.caption}>{operator ? "Customer" : "Your shoveler"}{closed ? ` · ${orderLabel(job)}` : ""}</Text>
-              <Text style={[type.title, { fontSize: 21, lineHeight: 26 }]} numberOfLines={2}>{personName(other)}</Text>
-            </View>
-            {/* The job's price sits beside the name, so who and how much read together. */}
-            <View style={{ alignItems: "flex-end", gap: 6 }}>
-              <Text style={type.caption}>{operator ? "You earn" : paid ? "You paid" : "Price"}</Text>
-              <Text style={[type.title, { fontSize: 21, lineHeight: 26, color: colors.accent, fontVariant: ["tabular-nums"] }]}>{money(jobDisplayPrice(job, operator))}</Text>
-            </View>
-          </View>
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <QuickAction icon="bubble.left.fill" label="Message" onPress={() => router.push(`/chat/${job.chatId}`)} />
-            {phone ? <QuickAction icon="phone.fill" label="Call" onPress={() => void Linking.openURL(`tel:${phone.replace(/[^\d+]/g, "")}`)} /> : null}
-            {fullAddress && !closed ? <QuickAction icon="arrow.triangle.turn.up.right.diamond.fill" label="Directions" onPress={openMap} /> : null}
-          </View>
-        </Card>
 
-        {/* One screen, top to bottom: who, where (live mini map), then how far along the order is. */}
-        {target ? <JobMiniMap job={job} operator={operator} target={target} onPress={openMap} label={operator ? "Directions" : "Open in Maps"} /> : null}
-
-        {job.status === "cancelled" ? (
-          <Notice text={`${view.title} ${view.description}`} />
-        ) : (
-          <Card style={{ gap: space.md, borderTopWidth: 5, borderTopColor: tone.bar }}>
-            <Text accessibilityRole="header" style={[type.title, { fontSize: 20, lineHeight: 25, color: tone.text }]}>{view.title}</Text>
-            {etaLine ? (
-              <View accessible style={{ flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: tone.soft, padding: 14, borderRadius: radius.md }}>
-                <Icon name={etaLine.icon} size={18} color={tone.text} />
-                <Text style={{ flex: 1, color: tone.text, fontWeight: "800", fontSize: 17 }}>{etaLine.text}</Text>
-              </View>
-            ) : null}
-            <OrderProgress job={job} operator={operator} detailed dense note={view.description || undefined} />
-          </Card>
-        )}
+        {/* Where: the live mini map, only while the shoveler is getting there. */}
+        {showMap && target ? <JobMiniMap job={job} operator={operator} target={target} onPress={openMap} label={operator ? "Directions" : "Open in Maps"} /> : null}
 
         <Notice text={error || (hasBar ? "" : actionState.error)} />
         <Notice tone="green" text={success || (hasBar ? "" : actionState.success)} />
@@ -180,7 +170,6 @@ export default function JobScreen() {
             </View>
             <Badge label={paid ? "Paid" : job.paymentStatus === "held" ? "On hold" : job.paymentStatus === "refunded" ? "Released" : "Not paid"} tone={paid ? "green" : job.paymentStatus === "held" ? "blue" : "gray"} />
           </View>
-          {payState.actions.length ? <JobActionButtons state={payState} /> : null}
         </Card>
 
         {/* The details, in one tidy list. */}
@@ -208,15 +197,10 @@ export default function JobScreen() {
       {/* The next step sits at the bottom of the screen, under your thumb. */}
       {hasBar ? (
         <View style={[styles.bar, { paddingBottom: insets.bottom + space.sm }]}>
-          <Notice text={actionState.error} />
-          <Notice tone="green" text={actionState.success} />
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: tone.bar }} />
-            <Text style={[type.caption, { flex: 1, fontWeight: "700", color: tone.text }]} numberOfLines={1}>
-              Next step · {ORDER_STEPS[stepIndex(job) + 1]?.label || ORDER_STEPS[stepIndex(job)]?.label}
-            </Text>
-          </View>
-          <JobActionButtons state={barState} showNotices={false} />
+          <Notice text={actionState.error || payState.error} />
+          <Notice tone="green" text={actionState.success || payState.success} />
+          {barState.actions.length ? <JobActionButtons state={barState} showNotices={false} /> : null}
+          {payState.actions.length ? <JobActionButtons state={payState} showNotices={false} /> : null}
         </View>
       ) : null}
     </View>

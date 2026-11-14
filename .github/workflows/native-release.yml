@@ -1,0 +1,99 @@
+# Ships the native app (native/) through EAS.
+# - Every push to main that touches the app's code sends an over-the-air update to installed
+#   production builds (JavaScript, styles and screens; no store review needed).
+# - "Run workflow" in the Actions tab builds a new iOS binary and submits it to App Store Connect,
+#   which is needed whenever native code, packages or the app version change.
+# Requires the EXPO_TOKEN repository secret; without it both jobs skip with a note.
+name: Native release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "native/**"
+      - "src/lib/**"
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Store build to make and submit
+        type: choice
+        options: [ios, android, all]
+        default: ios
+
+concurrency:
+  group: native-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  update:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: native
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - name: Check for the Expo token
+        id: token
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::notice::EXPO_TOKEN is not set, so no update was published. See native/RELEASE.md."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.token.outputs.ready == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.token.outputs.ready == 'true'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: native/package-lock.json
+      - uses: expo/expo-github-action@v8
+        if: steps.token.outputs.ready == 'true'
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Install
+        if: steps.token.outputs.ready == 'true'
+        run: npm ci
+      - name: Typecheck
+        if: steps.token.outputs.ready == 'true'
+        run: npx tsc --noEmit
+      - name: Publish update to production builds
+        if: steps.token.outputs.ready == 'true'
+        env:
+          MESSAGE: ${{ github.event.head_commit.message }}
+        run: eas update --channel production --environment production --message "$MESSAGE" --non-interactive
+
+  build:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: native
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - name: Check for the Expo token
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::EXPO_TOKEN is not set. See native/RELEASE.md."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: native/package-lock.json
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Install
+        run: npm ci
+      - name: Build in the cloud and submit to the stores
+        run: eas build --platform ${{ inputs.platform }} --profile production --auto-submit --non-interactive --no-wait

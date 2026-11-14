@@ -1,0 +1,182 @@
+[
+  {
+    "id": 1,
+    "slug": "calm-cards",
+    "name": "Calm cards",
+    "group": "Familiar",
+    "desc": "A clean vertical list with a clear price and one action per service.",
+    "pattern": "Stacked cards",
+    "file": "01-calm-cards.html"
+  },
+  {
+    "id": 2,
+    "slug": "big-and-clear",
+    "name": "Big & clear",
+    "group": "Accessible",
+    "desc": "Large numbers, plain language, and oversized controls.",
+    "pattern": "Large type",
+    "file": "02-big-and-clear.html"
+  },
+  {
+    "id": 3,
+    "slug": "price-matrix",
+    "name": "Price matrix",
+    "group": "Overview",
+    "desc": "Compare your earnings and customer totals in aligned columns.",
+    "pattern": "Comparison table",
+    "file": "03-price-matrix.html"
+  },
+  {
+    "id": 4,
+    "slug": "guided-setup",
+    "name": "Guided setup",
+    "group": "Guided",
+    "desc": "Set one service at a time with a visible four-step path.",
+    "pattern": "Step-by-step",
+    "file": "04-guided-setup.html"
+  },
+  {
+    "id": 5,
+    "slug": "service-workspace",
+    "name": "Service workspace",
+    "group": "Focused",
+    "desc": "A persistent service rail beside a focused price editor.",
+    "pattern": "Split panel",
+    "file": "05-service-workspace.html"
+  },
+  {
+    "id": 6,
+    "slug": "bento-board",
+    "name": "Bento board",
+    "group": "Overview",
+    "desc": "A dashboard of four price tiles with a leading service.",
+    "pattern": "Asymmetric grid",
+    "file": "06-bento-board.html"
+  },
+  {
+    "id": 7,
+    "slug": "expand-to-edit",
+    "name": "Expand to edit",
+    "group": "Focused",
+    "desc": "Scan every price, then expand only the service you need.",
+    "pattern": "Accordion",
+    "file": "07-expand-to-edit.html"
+  },
+  {
+    "id": 8,
+    "slug": "swipe-deck",
+    "name": "Service deck",
+    "group": "Focused",
+    "desc": "One generous card at a time with next and previous controls.",
+    "pattern": "Card carousel",
+    "file": "08-swipe-deck.html"
+  },
+  {
+    "id": 9,
+    "slug": "price-sliders",
+    "name": "Price sliders",
+    "group": "Direct",
+    "desc": "Adjust earnings visually along a range for each service.",
+    "pattern": "Range controls",
+    "file": "09-price-sliders.html"
+  },
+  {
+    "id": 10,
+    "slug": "rate-receipt",
+    "name": "Rate receipt",
+    "group": "Overview",
+    "desc": "A simple printed rate sheet with inline editable amounts.",
+    "pattern": "Receipt layout",
+    "file": "10-rate-receipt.html"
+  },
+  {
+    "id": 11,
+    "slug": "night-shift",
+    "name": "Night shift",
+    "group": "Overview",
+    "desc": "A dark earnings dashboard with horizontal price bars.",
+    "pattern": "Dark dashboard",
+    "file": "11-night-shift.html"
+  },
+  {
+    "id": 12,
+    "slug": "property-view",
+    "name": "Property view",
+    "group": "Visual",
+    "desc": "Choose a part of a house illustration to set its rate.",
+    "pattern": "Spatial selector",
+    "file": "12-property-view.html"
+  },
+  {
+    "id": 13,
+    "slug": "package-shelf",
+    "name": "Package shelf",
+    "group": "Visual",
+    "desc": "Present driveway sizes as side-by-side service packages.",
+    "pattern": "Package columns",
+    "file": "13-package-shelf.html"
+  },
+  {
+    "id": 14,
+    "slug": "quick-edit",
+    "name": "Quick edit",
+    "group": "Direct",
+    "desc": "Edit all rates directly using a compact spreadsheet-like form.",
+    "pattern": "Editable grid",
+    "file": "14-quick-edit.html"
+  },
+  {
+    "id": 15,
+    "slug": "smart-start",
+    "name": "Smart start",
+    "group": "Guided",
+    "desc": "Review your current rates against example suggested rates.",
+    "pattern": "Before & after",
+    "file": "15-smart-start.html"
+  },
+  {
+    "id": 16,
+    "slug": "customer-preview",
+    "name": "Customer preview",
+    "group": "Visual",
+    "desc": "Edit a rate and immediately see the customer-facing card.",
+    "pattern": "Live preview",
+    "file": "16-customer-preview.html"
+  },
+  {
+    "id": 17,
+    "slug": "conversation",
+    "name": "Conversation",
+    "group": "Guided",
+    "desc": "A conversational setup that asks for one price at a time.",
+    "pattern": "Chat flow",
+    "file": "17-conversation.html"
+  },
+  {
+    "id": 18,
+    "slug": "floating-editor",
+    "name": "Floating editor",
+    "group": "Focused",
+    "desc": "A service list paired with a persistent bottom editing panel.",
+    "pattern": "Bottom sheet",
+    "file": "18-floating-editor.html"
+  },
+  {
+    "id": 19,
+    "slug": "earnings-dial",
+    "name": "Earnings dial",
+    "group": "Visual",
+    "desc": "Make a single earnings amount the visual centre of the screen.",
+    "pattern": "Circular selector",
+    "file": "19-earnings-dial.html"
+  },
+  {
+    "id": 20,
+    "slug": "service-checklist",
+    "name": "Service checklist",
+    "group": "Accessible",
+    "desc": "Switch services on or off and edit prices in one checklist.",
+    "pattern": "Checklist",
+    "file": "20-service-checklist.html"
+  }
+]

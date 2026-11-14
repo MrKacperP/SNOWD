@@ -1,6 +1,7 @@
 import { NativeTabs } from "expo-router/native-tabs";
 import { useAuth } from "~/context/auth";
 import { useChats } from "~/lib/data";
+import { useTabAvatar } from "~/components/TabAvatar";
 import { brand } from "~/lib/theme";
 
 export default function TabsLayout() {
@@ -8,7 +9,10 @@ export default function TabsLayout() {
   const { chats } = useChats(user?.uid);
   const unread = chats.reduce((sum, chat) => sum + (chat.unreadCount?.[user?.uid || ""] || 0), 0);
   const operator = profile?.role === "operator";
+  // Once there's a profile picture (a shoveler's business logo, else their photo), the Profile tab shows it.
+  const { icon: avatarIcon, renderer } = useTabAvatar((operator && profile?.logoUrl) || profile?.avatar || undefined, brand.electric);
   return (
+    <>
     <NativeTabs
       tintColor={brand.electric}
       iconColor={{ default: brand.slate, selected: brand.electric }}
@@ -37,9 +41,16 @@ export default function TabsLayout() {
         {unread > 0 ? <NativeTabs.Trigger.Badge>{unread > 99 ? "99+" : String(unread)}</NativeTabs.Trigger.Badge> : null}
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
-        <NativeTabs.Trigger.Icon sf={{ default: "person.crop.circle", selected: "person.crop.circle.fill" }} md="account_circle" />
+        {avatarIcon ? (
+          // "original" keeps the photo's colours; the default tinting would paint it one solid colour.
+          <NativeTabs.Trigger.Icon src={avatarIcon} renderingMode="original" />
+        ) : (
+          <NativeTabs.Trigger.Icon sf={{ default: "person.crop.circle", selected: "person.crop.circle.fill" }} md="account_circle" />
+        )}
         <NativeTabs.Trigger.Label hidden>Profile</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
     </NativeTabs>
+    {renderer}
+    </>
   );
 }

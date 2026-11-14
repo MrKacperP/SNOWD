@@ -1,3 +1,6 @@
+import { useMarketplacePolicy } from "@/lib/useMarketplacePolicy";
+import { API_URL } from "~/lib/api";
+import type { MarketplacePolicy } from "@/lib/admin/pricing";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { useMemo, useRef, useState } from "react";
@@ -18,6 +21,7 @@ const CARD_WIDTH = Dimensions.get("window").width - 56;
 const TORONTO = { latitude: 43.6532, longitude: -79.3832 };
 
 export default function Find() {
+  const { policy } = useMarketplacePolicy(API_URL);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { profile } = useAuth();
@@ -77,7 +81,8 @@ export default function Find() {
       </MapView>
       ) : null}
 
-      <View style={[styles.top, { paddingTop: insets.top + 8 }, mode === "list" && { backgroundColor: "rgba(246,248,251,0.97)", paddingBottom: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}>
+      {/* Over the map it floats; in the list it's an ordinary block, and the list starts right under it. */}
+      <View style={[styles.top, { paddingTop: insets.top + 8 }, mode === "list" ? styles.topList : styles.topFloating]}>
         <View style={styles.titleBar}>
           <Icon name="magnifyingglass" size={16} color={colors.muted} />
           <Text accessibilityRole="header" style={[type.headline, { flex: 1 }]} numberOfLines={1}>Shovelers near {profile?.city || "you"}</Text>
@@ -103,11 +108,13 @@ export default function Find() {
             data={shown}
             keyExtractor={(o) => o.uid}
             style={{ flex: 1, backgroundColor: colors.bg }}
-            contentContainerStyle={{ paddingTop: insets.top + 168, paddingHorizontal: space.lg, paddingBottom: insets.bottom + 100, gap: space.md }}
+            contentInsetAdjustmentBehavior="never"
+            automaticallyAdjustContentInsets={false}
+            contentContainerStyle={{ paddingTop: space.md, paddingHorizontal: space.lg, paddingBottom: insets.bottom + 100, gap: space.md }}
             {...scrollProps}
             ListHeaderComponent={<View>{indicator}</View>}
             ListEmptyComponent={loading ? <CardSkeletons count={4} /> : <Empty icon="person.2.slash" title={error || "No shovelers serve this area yet"} body={error ? undefined : onlyNearby ? "Turn off “Serves my address” to see everyone nearby." : "Check back soon, new shovelers join every week."} />}
-            renderItem={({ item }) => <OperatorCard op={item} profile={profile} onOpen={() => router.push(`/operator/${item.uid}`)} onBook={() => router.push(`/book/${item.uid}`)} />}
+            renderItem={({ item }) => <OperatorCard policy={policy} op={item} profile={profile} onOpen={() => router.push(`/operator/${item.uid}`)} onBook={() => router.push(`/book/${item.uid}`)} />}
           />
         </SwipeTabs>
       ) : null}
@@ -143,7 +150,7 @@ export default function Find() {
             getItemLayout={(_, index) => ({ length: CARD_WIDTH + 12, offset: (CARD_WIDTH + 12) * index, index })}
             onMomentumScrollEnd={(e) => focus(Math.round(e.nativeEvent.contentOffset.x / (CARD_WIDTH + 12)), false)}
             renderItem={({ item }) => {
-              const quote = quoteFor(item, profile);
+              const quote = quoteFor(item, profile, undefined, policy);
               return (
                 <Pressable accessibilityRole="button" accessibilityLabel={`${item.businessName || item.displayName}, ${money(quote.cash)} cash. View profile`} onPress={() => router.push(`/operator/${item.uid}`)} style={({ pressed }) => [styles.card, { width: CARD_WIDTH }, pressed && { transform: [{ scale: 0.98 }] }]}>
                   <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
@@ -181,8 +188,8 @@ export default function Find() {
 }
 
 /** One shoveler in the list view: photo, rating, distance, price and the two actions. */
-function OperatorCard({ op, profile, onOpen, onBook }: { op: NearbyOperator; profile: Profile; onOpen: () => void; onBook: () => void }) {
-  const quote = quoteFor(op, profile);
+function OperatorCard({ op, profile, onOpen, onBook, policy }: { policy: MarketplacePolicy; op: NearbyOperator; profile: Profile; onOpen: () => void; onBook: () => void }) {
+  const quote = quoteFor(op, profile, undefined, policy);
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={`${op.businessName || op.displayName}, ${money(quote.cash)} cash. View profile`} onPress={onOpen} style={({ pressed }) => [styles.listCard, pressed && { transform: [{ scale: 0.98 }] }]}>
       <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
@@ -213,7 +220,9 @@ function OperatorCard({ op, profile, onOpen, onBook }: { op: NearbyOperator; pro
 }
 
 const styles = StyleSheet.create({
-  top: { position: "absolute", left: 0, right: 0, paddingHorizontal: space.lg, gap: 10, zIndex: 10 },
+  top: { paddingHorizontal: space.lg, gap: 10, zIndex: 10 },
+  topFloating: { position: "absolute", left: 0, right: 0 },
+  topList: { backgroundColor: colors.bg, paddingBottom: space.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   titleBar: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: space.lg, minHeight: 52, ...shadow, shadowOpacity: 0.12 },
   card: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: space.lg, gap: space.md, ...shadow, shadowOpacity: 0.14, shadowRadius: 18 },
   pricePin: { backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 8, ...shadow, shadowOpacity: 0.2 },

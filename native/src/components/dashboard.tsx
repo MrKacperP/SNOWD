@@ -4,7 +4,7 @@ import { useRouter } from "expo-router";
 import type { SymbolViewProps } from "expo-symbols";
 import { useEffect, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
-import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withSequence, withSpring, withTiming } from "react-native-reanimated";
+import Animated, { Easing, FadeIn, ZoomIn, useAnimatedStyle, useReducedMotion, useSharedValue, withSequence, withSpring, withTiming } from "react-native-reanimated";
 import { jobDisplayPrice } from "@/lib/marketplacePricing";
 import { SERVICE_LABELS, type Job } from "@/lib/types";
 import { orderNumber } from "@/lib/workOrders";
@@ -173,7 +173,7 @@ export function ControlRow({ items }: { items: Control[] }) {
  * The current job as one calm card: the step (in its progress colour), who and how much, where,
  * the progress bar, and the one next action this step allows.
  */
-export function ActiveJobCard({ job, uid, other, onFinished }: { job: Job; uid: string; other?: Person; onFinished?: (message: string, key: string) => void }) {
+export function ActiveJobCard({ job, uid, other, onFinished, celebrate, onDismiss }: { job: Job; uid: string; other?: Person; onFinished?: (message: string, key: string) => void; /** Just finished: show this success message in place of the actions. */ celebrate?: string; onDismiss?: () => void }) {
   const router = useRouter();
   const { large } = useLargeText();
   const state = useJobActions(job, { onDone: onFinished });
@@ -208,32 +208,57 @@ export function ActiveJobCard({ job, uid, other, onFinished }: { job: Job; uid: 
         </View>
       </ScalePress>
 
-      <Notice text={state.error} />
-      <Notice tone="green" text={state.success} />
+      {celebrate ? (
+        // The success lands right here in the work order, where the button that finished it was.
+        <Animated.View entering={FadeIn.duration(250)} accessibilityLiveRegion="polite" accessibilityRole="alert" style={styles.success}>
+          <Animated.View entering={ZoomIn.springify().damping(12)} style={styles.successIcon}>
+            <Icon name="checkmark" size={20} color="#fff" weight="bold" />
+          </Animated.View>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={styles.successTitle}>Nice work!</Text>
+            <Text style={styles.successBody}>{celebrate}</Text>
+          </View>
+          {onDismiss ? (
+            <Pressable accessibilityRole="button" accessibilityLabel="Dismiss" hitSlop={10} onPress={onDismiss} style={({ pressed }) => [{ padding: 4 }, pressed && { opacity: 0.6 }]}>
+              <Icon name="xmark" size={14} color={ds.mint} weight="bold" />
+            </Pressable>
+          ) : null}
+        </Animated.View>
+      ) : (
+        <>
+        <Notice text={state.error} />
+        <Notice tone="green" text={state.success} />
 
-      <View style={styles.actionRow}>
-        {primary ? (
-          <BigButton
-            title={primary.title}
-            icon={primary.icon}
-            variant={primary.variant === "danger" ? "danger" : "primary"}
-            loading={state.busy === primary.key}
-            disabled={!!state.busy && state.busy !== primary.key}
-            onPress={() => void state.press(primary)}
-            style={{ flex: 1 }}
-          />
-        ) : null}
-        {job.chatId ? (
-          <ScalePress haptic="light" accessibilityLabel={`Message ${name}`} onPress={() => router.push(`/chat/${job.chatId}`)} style={styles.iconButton}>
-            <Icon name="bubble.left" size={20} color={ds.ink} />
-          </ScalePress>
-        ) : null}
-      </View>
-      {rest.map((a) => (
-        <Pressable key={a.key} accessibilityRole="button" accessibilityLabel={a.title} disabled={!!state.busy} onPress={() => void state.press(a)} style={({ pressed }) => [styles.textButton, pressed && { opacity: 0.6 }]}>
-          <Text style={[styles.textButtonLabel, a.variant === "danger" && { color: "#b42318" }]}>{state.busy === a.key ? "Working…" : a.title}</Text>
-        </Pressable>
-      ))}
+        <View style={styles.actionRow}>
+          {primary ? (
+            <BigButton
+              title={primary.title}
+              icon={primary.icon}
+              variant={primary.variant === "danger" ? "danger" : "primary"}
+              loading={state.busy === primary.key}
+              disabled={!!state.busy && state.busy !== primary.key}
+              onPress={() => void state.press(primary)}
+              style={{ flex: 1 }}
+            />
+          ) : null}
+          {job.chatId ? (
+            primary ? (
+              <ScalePress haptic="light" accessibilityLabel={`Message ${name}`} onPress={() => router.push(`/chat/${job.chatId}`)} style={styles.iconButton}>
+                <Icon name="bubble.left" size={20} color={ds.ink} />
+              </ScalePress>
+            ) : (
+              // Nothing for you to do right now: messaging is the action, so it fills the widget's width.
+              <BigButton title={`Message ${name}`} icon="bubble.left.fill" variant="soft" onPress={() => router.push(`/chat/${job.chatId}`)} style={{ flex: 1 }} />
+            )
+          ) : null}
+        </View>
+        {rest.map((a) => (
+          <Pressable key={a.key} accessibilityRole="button" accessibilityLabel={a.title} disabled={!!state.busy} onPress={() => void state.press(a)} style={({ pressed }) => [styles.textButton, pressed && { opacity: 0.6 }]}>
+            <Text style={[styles.textButtonLabel, a.variant === "danger" && { color: "#b42318" }]}>{state.busy === a.key ? "Working…" : a.title}</Text>
+          </Pressable>
+        ))}
+        </>
+      )}
     </Surface>
   );
 }
@@ -381,6 +406,10 @@ const styles = StyleSheet.create({
   amount: { fontFamily: family.heading, fontSize: 22, lineHeight: 27, letterSpacing: -0.5, color: ds.ink, fontVariant: ["tabular-nums"] },
   detail: { fontFamily: family.body, fontSize: 16, lineHeight: 21, color: ds.ink3 },
   actionRow: { flexDirection: "row", gap: gap.x2, alignItems: "stretch" },
+  success: { flexDirection: "row", alignItems: "center", gap: gap.x3, padding: gap.x4, borderRadius: ds.radius, backgroundColor: ds.mintSoft, borderWidth: 1, borderColor: "#cfe9dd" },
+  successIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: ds.mint, alignItems: "center", justifyContent: "center" },
+  successTitle: { fontFamily: family.heading, fontSize: 19, lineHeight: 24, color: ds.mint },
+  successBody: { fontFamily: family.body, fontSize: 15, lineHeight: 20, color: ds.ink2 },
   iconButton: { width: 56, minHeight: 56, borderRadius: ds.radius, backgroundColor: ds.card, borderWidth: 1, borderColor: ds.border, alignItems: "center", justifyContent: "center" },
   textButton: { minHeight: tap, alignItems: "center", justifyContent: "center", marginTop: -gap.x2 },
   textButtonLabel: { fontFamily: family.bodySemi, fontSize: 16, color: ds.ink3 },

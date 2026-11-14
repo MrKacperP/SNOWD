@@ -1,3 +1,4 @@
+import { quoteMarketplace } from "@/lib/marketplacePricing";
 import { NextRequest, NextResponse } from "next/server";
 import { requireStripeUser } from "@/lib/stripeConnectAuth";
 import { getAdminDb } from "@/lib/firebaseAdmin";
@@ -96,10 +97,16 @@ export async function POST(req: NextRequest) {
     // If operator has a Stripe Connect account, set up transfer
     if (operatorStripeAccountId) {
       // New bookings preserve the operator quote; legacy bookings retain their terms.
-      const platformFee = job.pricingVersion === 2 ? job.platformFeeAmount : Math.round(amountInCents * 0.15);
+      const platformFee = [2, 3].includes(job.pricingVersion) ? job.platformFeeAmount : Math.round(amountInCents * 0.15);
       if (!Number.isSafeInteger(platformFee) || platformFee < 0 || platformFee >= amountInCents ||
           (job.pricingVersion === 2 && (job.operatorAmount !== amountInCents - platformFee || Math.abs(platformFee - amountInCents * 0.3) > 1))) {
         return NextResponse.json({ error: "Invalid saved payment allocation" }, { status: 409 });
+      }
+      if (job.pricingVersion === 3) {
+        try {
+          const expected = quoteMarketplace(job.operatorAmount / 100, "credit", job.pricingPolicy);
+          if (!job.pricingPolicy || expected.platformFeeAmount !== platformFee || Math.round(expected.price * 100) !== amountInCents) throw new Error();
+        } catch { return NextResponse.json({ error: "Invalid saved pricing policy" }, { status: 409 }); }
       }
       params.application_fee_amount = platformFee;
       if (!stripeAccount) params.transfer_data = { destination: operatorStripeAccountId };

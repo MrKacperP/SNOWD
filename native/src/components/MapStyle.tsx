@@ -1,5 +1,6 @@
 import { StyleSheet, View } from "react-native";
-import Svg, { Path, Rect } from "react-native-svg";
+import { useEffect, useState } from "react";
+import Svg, { G, Path } from "react-native-svg";
 import { useAppTheme } from "~/lib/appearance";
 
 /**
@@ -17,16 +18,32 @@ export const SNOWD_MAP = {
   userInterfaceStyle: "light" as const,
 };
 
-/** A snow shovel, drawn so it reads at pin size. */
+/** A snow shovel (D-grip, shaft, scoop), drawn so it reads at pin size. */
 export function ShovelIcon({ size = 18, color = "#fff" }: { size?: number; color?: string }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">
-      {/* D-grip, shaft and a wide scoop blade, angled like it's mid-push. */}
-      <Path d="M17.2 2.3a2.3 2.3 0 0 1 3.3 3.3l-.9.9-3.3-3.3.9-.9Z" fill={color} />
-      <Rect x="10.6" y="4.4" width="2.2" height="11.2" rx="1.1" transform="rotate(45 11.7 10)" fill={color} />
-      <Path d="M3.1 13.6 8 12.4l3.6 3.6-1.2 4.9c-.2.8-1.2 1.1-1.8.5l-5.9-5.9c-.6-.6-.3-1.6.4-1.9Z" fill={color} />
+      <G transform="rotate(40 12 12)" fill={color}>
+        <Path fillRule="evenodd" d="M9.2 1.2h5.6a1.2 1.2 0 0 1 1.2 1.2v2.4a1.2 1.2 0 0 1-1.2 1.2h-1.9v7.4h-1.8V6h-1.9A1.2 1.2 0 0 1 8 4.8V2.4a1.2 1.2 0 0 1 1.2-1.2Zm.6 1.6v1.6h4.4V2.8H9.8Z" />
+        <Path d="M10.4 12.6h3.2l3.1 2.2v5.4a1.8 1.8 0 0 1-1.8 1.8H9.1a1.8 1.8 0 0 1-1.8-1.8v-5.4l3.1-2.2Z" />
+      </G>
     </Svg>
   );
+}
+
+/**
+ * For a custom map marker: lets the marker redraw until its artwork (SVG, colours) has painted, then
+ * freezes it so the map stays smooth. Freezing from the first frame leaves pins blank or half drawn.
+ * Pass anything that changes the pin's look as `deps`, so it redraws once more when that changes.
+ */
+export function useMarkerRedraw(...deps: unknown[]) {
+  const [tracks, setTracks] = useState(true);
+  useEffect(() => {
+    setTracks(true);
+    const t = setTimeout(() => setTracks(false), 600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+  return tracks;
 }
 
 /** The map pin for a job's address: a shovel in a round badge with a small point underneath. */
@@ -34,7 +51,8 @@ export function ShovelPin({ color, size = 40 }: { color?: string; size?: number 
   const theme = useAppTheme();
   const fill = color || theme.accent;
   return (
-    <View style={{ alignItems: "center" }}>
+    // Room around the badge so its border and shadow aren't clipped; none below, so the point stays the anchor.
+    <View style={{ alignItems: "center", paddingHorizontal: 6, paddingTop: 6 }}>
       <View style={[styles.badge, { width: size, height: size, borderRadius: size / 2, backgroundColor: fill }]}>
         <ShovelIcon size={size * 0.5} />
       </View>

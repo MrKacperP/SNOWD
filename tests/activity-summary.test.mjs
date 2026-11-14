@@ -2,11 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
+import nodePath from "node:path";
 import ts from "typescript";
 function load(path) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(path, "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText, {
-    exports, require: id => load(`src/lib/${id.split("/").at(-1)}.ts`),
+    exports, require: id => load(id.startsWith("@/") ? `src/${id.slice(2)}.ts` : nodePath.join(nodePath.dirname(path), `${id}.ts`)),
   });
   return exports;
 }

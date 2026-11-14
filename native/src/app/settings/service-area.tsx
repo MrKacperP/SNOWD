@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CANADIAN_PROVINCES, type OperatorServiceArea } from "@/lib/types";
 import { AddressFields, addressProblem, currentAddress, geocodeAddress, type AddressValue } from "~/components/AddressFields";
 import { Button, Chip, Icon, Notice, AutosaveStatus, useAutosave } from "~/components/ui";
-import { ShovelPin, SNOWD_MAP } from "~/components/MapStyle";
+import { ShovelPin, SNOWD_MAP, useMarkerRedraw } from "~/components/MapStyle";
 import { cityBoundary, type CityBoundary } from "~/lib/boundaries";
 import { useAuth } from "~/context/auth";
 import { notifyAdmin } from "~/lib/admin";
@@ -164,6 +164,7 @@ export default function ServiceAreaSettings() {
 
   // Saves on its own a moment after each change; no save button.
   useAutosave({ home, mode, radiusKm, cities }, { dirty, save });
+  const pinTracks = useMarkerRedraw(center?.latitude, center?.longitude);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -174,7 +175,7 @@ export default function ServiceAreaSettings() {
           {region ? (
             <MapView {...SNOWD_MAP} style={StyleSheet.absoluteFill} pointerEvents="none" region={region}>
               {center ? (
-                <Marker coordinate={center} anchor={{ x: 0.5, y: 1 }} tracksViewChanges={false}>
+                <Marker coordinate={center} anchor={{ x: 0.5, y: 1 }} tracksViewChanges={pinTracks}>
                   <ShovelPin size={34} />
                 </Marker>
               ) : null}

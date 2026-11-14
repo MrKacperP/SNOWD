@@ -10,7 +10,6 @@ import {
   ActiveJobCard,
   BlueHeader,
   BookCard,
-  Celebration,
   ControlRow,
   DashboardSkeleton,
   HomeTitle,
@@ -51,7 +50,8 @@ export default function Home() {
   const people = usePeople(jobs.map((j) => (operator ? j.clientId : j.operatorId)));
   const { unread } = useNotifications(uid);
   const { properties, selectedLocation } = useProperties(!!uid && !operator);
-  const [celebration, setCelebration] = useState("");
+  // Just finished a job: its id and the success message, shown inside that job's widget for a while.
+  const [celebration, setCelebration] = useState<{ jobId: string; message: string } | null>(null);
   const scrollY = useSharedValue(0);
   // Once the title has scrolled away, a frosted strip keeps the status bar readable.
   const statusScrim = useAnimatedStyle(() => ({ opacity: interpolate(scrollY.value, [140, 190], [0, 1], "clamp") }));
@@ -62,7 +62,8 @@ export default function Home() {
 
   const open = useMemo(() => jobs.filter(isOpenOrder), [jobs]);
   const done = useMemo(() => jobs.filter((j) => j.status === "completed"), [jobs]);
-  const featured = spotlight(open, uid);
+  // A job that just finished stays in the widget (now done) while its success shows.
+  const featured = (celebration && jobs.find((j) => j.id === celebration.jobId)) || spotlight(open, uid);
   const others = open.filter((j) => j.id !== featured?.id);
   const requests = open.filter((j) => j.status === "pending" && orderActionNeeded(j, uid)).length;
   const unreadChats = chats.reduce((sum, c) => sum + (c.unreadCount?.[uid] || 0), 0);
@@ -77,11 +78,11 @@ export default function Home() {
 
   useEffect(() => {
     if (!celebration) return;
-    const timer = setTimeout(() => setCelebration(""), 12000);
+    const timer = setTimeout(() => setCelebration(null), 12000);
     return () => clearTimeout(timer);
   }, [celebration]);
-  const onFinished = useCallback((message: string, key: string) => {
-    if (key === "finish" || key === "cash") setCelebration(message);
+  const onFinished = useCallback((jobId: string, message: string, key: string) => {
+    if (key === "finish" || key === "cash") setCelebration({ jobId, message });
   }, []);
 
   const jobsLine = open.length ? `${plural(open.length, operator ? "job" : "order")} on the go` : operator ? "No jobs right now" : "Nothing booked";
@@ -137,7 +138,7 @@ export default function Home() {
               loading ? (
                 <DashboardSkeleton />
               ) : featured ? (
-                <ActiveJobCard key={featured.id} job={featured} uid={uid} other={people[operator ? featured.clientId : featured.operatorId]} onFinished={onFinished} />
+                <ActiveJobCard key={featured.id} job={featured} uid={uid} other={people[operator ? featured.clientId : featured.operatorId]} onFinished={(message, key) => onFinished(featured.id, message, key)} celebrate={celebration?.jobId === featured.id ? celebration.message : undefined} onDismiss={() => setCelebration(null)} />
               ) : operator ? (
                 <MessageCard title="No active job" body="New requests will show up here, and we’ll notify you." />
               ) : (
@@ -157,7 +158,6 @@ export default function Home() {
           </BlueHeader>
 
           <Animated.View layout={LinearTransition.duration(240)} entering={FadeIn.duration(300)} style={{ gap: gap.x4, paddingHorizontal: gap.x4, paddingTop: gap.x4 }}>
-            {celebration ? <Celebration message={celebration} onDismiss={() => setCelebration("")} /> : null}
             {/* Quick controls come after the job: the work itself is the priority. */}
             <ControlRow items={controls} />
             {operator && !loading ? <EarningsChart compact jobs={jobs} onPress={() => router.push("/settings/transactions")} /> : null}

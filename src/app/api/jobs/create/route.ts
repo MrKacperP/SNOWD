@@ -113,7 +113,8 @@ export async function POST(request: NextRequest) {
       );
       if (!Number.isFinite(operatorPrice) || operatorPrice <= 0)
         throw new OrderError("The company must set a valid service price.");
-      const quote = quoteMarketplace(operatorPrice, body.paymentMethod);
+      const policy = (await tx.get(db.doc("settings/marketplacePricing"))).data();
+      const quote = quoteMarketplace(operatorPrice, body.paymentMethod, policy as import("@/lib/admin/pricing").MarketplacePolicy | undefined);
       const price = quote.price;
       if (body.expectedPrice === undefined || body.expectedPrice !== price)
         throw new OrderError(

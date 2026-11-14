@@ -1,3 +1,4 @@
+import { syncAdminRefund } from "@/lib/admin/refunds";
 import type Stripe from "stripe";
 import { NextRequest, NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
@@ -26,6 +27,11 @@ export async function POST(req: NextRequest) {
     if (["payment_intent.amount_capturable_updated", "payment_intent.succeeded", "payment_intent.canceled", "payment_intent.payment_failed"].includes(event.type)) {
       const payment = await getStripe().paymentIntents.retrieve((event.data.object as { id: string }).id, {}, { stripeAccount: event.account });
       if (payment.metadata.platform === "snowd.ca") await syncStripePayment(payment, event.account);
+    }
+    if (event.type === "charge.refunded") {
+      const charge = event.data.object as Stripe.Charge;
+      const id = typeof charge.payment_intent === "string" ? charge.payment_intent : charge.payment_intent?.id;
+      if (id) await syncAdminRefund(id, event.account);
     }
     return NextResponse.json({ received: true });
   } catch (error) {

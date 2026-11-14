@@ -10,7 +10,7 @@ function load(path, mocks = {}, env = {}) {
   }).outputText;
   const exports = {};
   vm.runInNewContext(code, {
-    exports, require: (name) => { if (name === '@/lib/stripeAccountState' && !(name in mocks)) return load('src/lib/stripeAccountState.ts', mocks); if (name === '@/lib/emailNotifications') return { sendWorkOrderEmail: async () => ({ sent: true }) }; if (name in mocks) return mocks[name]; throw new Error(`Unexpected import: ${name}`); },
+    exports, require: (name) => { if (name === '@/lib/admin/refunds') return mocks[name] || { syncAdminRefund: async () => { throw new Error('Unexpected refund event in payment fixture'); } }; if (name === './admin/pricing') return load('src/lib/admin/pricing.ts'); if (name === '@/lib/marketplacePricing') return load('src/lib/marketplacePricing.ts'); if (name === '@/lib/stripeAccountState' && !(name in mocks)) return load('src/lib/stripeAccountState.ts', mocks); if (name === '@/lib/emailNotifications') return { sendWorkOrderEmail: async () => ({ sent: true }) }; if (name in mocks) return mocks[name]; throw new Error(`Unexpected import: ${name}`); },
     process: { env: { STRIPE_SECRET_KEY: 'sk_test_fixture', NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: 'pk_test_fixture', ...env } },
     console: { error() {} },
   });
@@ -147,7 +147,7 @@ test('capture and cancellation enforce job ownership and completion proof', asyn
   let uid = 'operator';
   const { requireJobPaymentAccess } = load('src/lib/stripeConnectAuth.ts', {
     '@/lib/stripe': { getStripe: () => ({ paymentIntents: { retrieve: async () => payment } }) },
-    '@/lib/firebaseAdmin': { getAdminAuth: () => ({ verifyIdToken: async () => ({ uid }) }), getAdminDb: () => ({ collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ docs: [{ id: 'job', data: () => job }] }) }) }) }) }) },
+    '@/lib/firebaseAdmin': { getAdminAuth: () => ({ verifyIdToken: async () => ({ uid }) }), getAdminDb: () => ({ doc: () => ({ get: async () => ({ data: () => ({ role: 'client' }) }) }), collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ docs: [{ id: 'job', data: () => job }] }) }) }) }) }) },
   });
   const request = { headers: { get: () => 'Bearer fixture' } };
   await assert.rejects(requireJobPaymentAccess(request, 'pi_job', 'capture'), /Photo proof/);
@@ -349,7 +349,7 @@ test('payment access uses the saved account even after the operator reconnects',
     '@/lib/stripe': { getStripe: () => ({ paymentIntents: { retrieve: async (...args) => { calls.push(args); return payment; } } }) },
     '@/lib/firebaseAdmin': {
       getAdminAuth: () => ({ verifyIdToken: async () => ({ uid }) }),
-      getAdminDb: () => ({ collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ docs: [{ id: 'job', data: () => job }] }) }) }) }) }),
+      getAdminDb: () => ({ doc: () => ({ get: async () => ({ data: () => ({ role: 'client' }) }) }), collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ docs: [{ id: 'job', data: () => job }] }) }) }) }) }),
     },
   });
   const req = { headers: { get: () => 'Bearer fixture' } };
@@ -365,6 +365,8 @@ for (const action of ['capture', 'cancel']) {
     const calls = [], synced = [];
     const payment = { id: 'pi_direct', status: action === 'capture' ? 'succeeded' : 'canceled', amount_received: 1000 };
     const route = load(`src/app/api/stripe/${action}-payment/route.ts`, {
+      '@/lib/firebaseAdmin': { getAdminDb: () => { throw new Error('Participant payment must not write an admin audit'); } },
+      'firebase-admin/firestore': { FieldValue: { serverTimestamp: () => 1 } },
       'next/server': { NextResponse: { json: (body, options) => ({ body, status: options?.status || 200 }) } },
       '@/lib/stripeConnectAuth': { requireJobPaymentAccess: async () => ({ payment: { status: 'requires_capture' }, stripeAccount: 'acct_saved' }) },
       '@/lib/stripe': { getStripe: () => ({ paymentIntents: { [action]: async (...args) => { calls.push(args); return payment; } } }) },

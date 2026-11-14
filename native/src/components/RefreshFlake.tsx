@@ -2,19 +2,20 @@ import { useEffect } from "react";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { Easing, cancelAnimation, interpolate, useAnimatedProps, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withSpring, withTiming, type SharedValue } from "react-native-reanimated";
-import Svg, { Circle, G, Path } from "react-native-svg";
+import { Image } from "expo-image";
+import Svg, { Circle } from "react-native-svg";
+import { PENGUIN } from "./brand";
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 const SIZE = 56;
 const R = 24;
 const C = 2 * Math.PI * R;
-
-/** A six-armed snowflake, each arm with a small V near its tip. */
-const ARM = "M28 28 L28 12 M28 16 L24.5 12.5 M28 16 L31.5 12.5 M28 21 L25.5 18.5 M28 21 L30.5 18.5";
+/** The white disc the logo sits on, inside the ring. */
+const DISC = 38;
 
 /**
- * Pull-to-refresh: a ring fills as you pull while a snowflake turns inside it. Pulled far enough,
- * the flake pops; while the page refreshes the ring spins and the flake turns and breathes.
+ * Pull-to-refresh: a ring fills as you pull while the SNOWD penguin turns inside it. Pulled far
+ * enough, the logo pops; while the page refreshes the ring and the logo spin.
  */
 export function RefreshFlake({ pull, busy, dist, refreshing, edgeToEdge }: { pull: SharedValue<number>; busy: SharedValue<number>; dist: SharedValue<number>; refreshing: boolean; edgeToEdge: boolean }) {
   // Pinned just under the status bar (full-bleed pages) or the title bar, however far you pull.
@@ -25,7 +26,7 @@ export function RefreshFlake({ pull, busy, dist, refreshing, edgeToEdge }: { pul
   useEffect(() => {
     if (refreshing) {
       spin.value = 0;
-      spin.value = withRepeat(withTiming(1, { duration: 900, easing: Easing.linear }), -1);
+      spin.value = withRepeat(withTiming(1, { duration: 1000, easing: Easing.linear }), -1);
       breathe.value = withRepeat(withSequence(withTiming(1.12, { duration: 450 }), withTiming(0.94, { duration: 450 })), -1, true);
     } else {
       cancelAnimation(spin);
@@ -42,7 +43,8 @@ export function RefreshFlake({ pull, busy, dist, refreshing, edgeToEdge }: { pul
   const flakeStyle = useAnimatedStyle(() => {
     const armed = pull.value >= 1 ? 1 : 0;
     const scale = busy.value > 0 ? breathe.value : interpolate(pull.value, [0, 1], [0.55, 1]) * (armed ? 1.12 : 1);
-    return { transform: [{ rotate: `${busy.value > 0 ? spin.value * 120 : pull.value * 240}deg` }, { scale: withSpring(scale, { damping: 10, stiffness: 260 }) }] };
+    // Turns with the pull, then spins a full turn a second while refreshing.
+    return { transform: [{ rotate: `${busy.value > 0 ? spin.value * 360 : pull.value * 360}deg` }, { scale: withSpring(scale, { damping: 10, stiffness: 260 }) }] };
   });
   const wrapStyle = useAnimatedStyle(() => {
     const shown = Math.max(Math.min(1, pull.value), busy.value);
@@ -59,15 +61,10 @@ export function RefreshFlake({ pull, busy, dist, refreshing, edgeToEdge }: { pul
           <AnimatedCircle cx={SIZE / 2} cy={SIZE / 2} r={R} stroke="#fff" strokeWidth={3} strokeLinecap="round" fill="none" strokeDasharray={C} animatedProps={ringProps} />
         </Svg>
       </Animated.View>
-      <Animated.View style={[{ position: "absolute", inset: 0 }, flakeStyle]}>
-        <Svg width={SIZE} height={SIZE}>
-          <G stroke="#fff" strokeWidth={2.4} strokeLinecap="round" fill="none">
-            {[0, 60, 120, 180, 240, 300].map((deg) => (
-              <Path key={deg} d={ARM} transform={`rotate(${deg} 28 28)`} />
-            ))}
-          </G>
-          <Circle cx={28} cy={28} r={2.6} fill="#fff" />
-        </Svg>
+      <Animated.View style={[{ position: "absolute", inset: 0, alignItems: "center", justifyContent: "center" }, flakeStyle]}>
+        <View style={{ width: DISC, height: DISC, borderRadius: DISC / 2, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" }}>
+          <Image source={PENGUIN} style={{ width: DISC * 0.72, height: DISC * 0.77 }} contentFit="contain" />
+        </View>
       </Animated.View>
     </Animated.View>
   );

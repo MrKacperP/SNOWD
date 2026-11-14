@@ -126,7 +126,8 @@ export default function Messages() {
             <View>
               <TabHeader
                 tone={tone}
-                pageColor={colors.surface}
+                // A solid band that stops under the filters; the conversations start right below it.
+                fade="none"
                 title={showArchived ? "Archived" : "Messages"}
                 subtitle={showArchived ? "Chats you’ve put away. Every message is kept." : undefined}
                 right={

@@ -40,12 +40,23 @@ export default function Jobs() {
     return SECTIONS.filter(([key]) => map.get(key)?.length).map(([key, title]) => ({ key, title, jobs: map.get(key)! }));
   }, [jobs, uid, filter]);
 
+  // Like Home: the first order sits in the coloured header, which fades into the page behind it,
+  // starting 90 pt above the card. The rest of the list carries on below.
+  const lead = !loading ? grouped[0] : undefined;
+  const leadJob = lead?.jobs[0];
+  const rest = lead ? [{ ...lead, jobs: lead.jobs.slice(1), title: "" }, ...grouped.slice(1)].filter((g) => g.jobs.length) : grouped;
+
   return (
     <>
       <Stack.Screen options={{ headerShown: false, title: operator ? "Jobs" : "Orders" }} />
       <SwipeTabs tab="/jobs">
       <Screen onRefresh={reload} contentInsetAdjustmentBehavior="never" contentStyle={{ padding: 0, paddingBottom: 120 }}>
-        <TabHeader tone={tone} title={operator ? "Jobs" : "Orders"} subtitle={openCount ? `${openCount} on the go` : operator ? "Nothing on the go right now" : "Nothing booked right now"}>
+        <TabHeader
+          tone={tone}
+          fade="long"
+          footerLabel={lead?.title}
+          footer={leadJob ? <JobCard job={leadJob} uid={uid} other={people[operator ? leadJob.clientId : leadJob.operatorId]} /> : undefined}
+          title={operator ? "Jobs" : "Orders"} subtitle={openCount ? `${openCount} on the go` : operator ? "Nothing on the go right now" : "Nothing booked right now"}>
           <View accessibilityRole="tablist" style={{ flexDirection: "row", gap: 8 }}>
             <HeaderPill label="Current" count={openCount} selected={filter === "open"} onPress={() => setFilter("open")} />
             <HeaderPill label="Past" selected={filter === "history"} onPress={() => setFilter("history")} />
@@ -61,9 +72,9 @@ export default function Jobs() {
             action={!operator && filter === "open" ? <Button title="Find a shoveler" icon="map.fill" onPress={() => router.navigate("/find")} /> : undefined}
           />
         ) : null}
-        {grouped.map((group) => (
+        {rest.map((group) => (
           <View key={group.key} style={{ gap: 12 }}>
-            <SectionTitle>{group.title}</SectionTitle>
+            {group.title ? <SectionTitle>{group.title}</SectionTitle> : null}
             {group.jobs.map((job) => (
               <JobCard key={job.id} job={job} uid={uid} other={people[operator ? job.clientId : job.operatorId]} />
             ))}

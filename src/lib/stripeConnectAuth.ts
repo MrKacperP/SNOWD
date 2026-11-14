@@ -35,7 +35,9 @@ export async function requireJobPaymentAccess(req: NextRequest, paymentIntentId:
   // from the caller or from the operator's potentially reconnected account.
   const jobs = await getAdminDb().collection("jobs").where("stripePaymentIntentId", "==", paymentIntentId).limit(1).get();
   const job = jobs.docs[0]?.data();
-  if (!job || ![job.clientId, job.operatorId].includes(user.uid)) {
+  const staff = (await getAdminDb().doc(`users/${user.uid}`).get()).data();
+  const administrator = staff?.role === "admin" && !staff.disabled;
+  if (staff?.disabled || !job || (!administrator && ![job.clientId, job.operatorId].includes(user.uid))) {
     throw new Error("You cannot manage this job's payment.");
   }
   const stripeAccount = job.stripePaymentAccountId || undefined;
@@ -51,5 +53,5 @@ export async function requireJobPaymentAccess(req: NextRequest, paymentIntentId:
   if (action === "cancel" && (job.status === "completed" || payment.status === "succeeded")) {
     throw new Error("This payment has already been completed. Contact support for a refund.");
   }
-  return { payment, stripeAccount };
+  return { payment, stripeAccount, administrator, actorUid: user.uid, jobId: jobs.docs[0].id };
 }

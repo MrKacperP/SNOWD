@@ -66,6 +66,7 @@ export type ClaimType = "property-damage" | "incomplete-job" | "misconduct" | "o
 
 // -- Users --
 export interface UserProfile {
+  disabled?: boolean;
   uid: string;
   email: string;
   displayName: string;

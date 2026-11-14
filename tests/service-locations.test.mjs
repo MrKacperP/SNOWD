@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
-function load(path,mocks={}) {const exports={};vm.runInNewContext(ts.transpileModule(fs.readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,{exports,crypto:{randomUUID:()=> 'property-id'},require:id=>{if(id in mocks)return mocks[id];throw Error(id);}});return exports;}
+function load(path,mocks={}) {const exports={};vm.runInNewContext(ts.transpileModule(fs.readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,{exports,crypto:{randomUUID:()=> 'property-id'},require:id=>{if(id==='./admin/pricing')return load('src/lib/admin/pricing.ts');if(id in mocks)return mocks[id];throw Error(id);}});return exports;}
 const locations=load('src/lib/serviceLocations.ts');
 const home={address:'10 Home Street',city:'Toronto',province:'ON',postalCode:'M5V 2T6',lat:43.65,lng:-79.38,propertySize:'medium'};
 const second={address:'25 Other Road',city:'Toronto',province:'ON',postalCode:'M4B 1B3',lat:43.66,lng:-79.39,propertySize:'large'};

@@ -46,26 +46,26 @@ export default function ChatScreen() {
   const latestJob = openJob || chatJobs[0];
   // Upload progress 0–1 while a photo or file goes up, null when idle.
   const [uploading, setUploading] = useState<number | null>(null);
-  // Voice messages: hold the mic to record, then review (play, scrub, speed) before sending.
+  // Voice messages: tap the mic to start, tap stop to finish, then review (play, scrub, speed) and send.
+  // Tapping (not holding) means a permission prompt or a stray gesture can't cut a recording short.
   const voice = useVoiceRecorder();
   const [note, setNote] = useState<VoiceNote | null>(null);
-  const holding = useRef(false);
-  const startRecording = async () => {
-    const ok = await voice.start().catch(() => false);
-    // Let go before the mic was ready: stop straight away.
-    if (ok && !holding.current) void finishRecording();
-  };
-  const finishRecording = async () => {
-    const recorded = await voice.stop().catch(() => null);
-    if (recorded) setNote(recorded);
+  const toggleRecording = async () => {
+    if (voice.recording) {
+      const recorded = await voice.stop().catch(() => null);
+      if (recorded) setNote(recorded);
+    } else {
+      await voice.start().catch(() => false);
+    }
   };
   const sendVoice = async () => {
     if (!note) return;
     try {
       setUploading(0);
       const url = await uploadFile(`chat-voice/${uid}`, note.uri, { name: `${Date.now()}.m4a`, contentType: "audio/mp4", onProgress: setUploading });
-      await send("Voice message", "voice", { audioUrl: url, durationMs: Math.round(note.durationMs), peaks: note.peaks });
-      setNote(null);
+      const sent = await send("Voice message", "voice", { audioUrl: url, durationMs: Math.round(note.durationMs), peaks: note.peaks });
+      // Keep the recording if the message didn't go, so it can be sent again.
+      if (sent) setNote(null);
     } catch (e) {
       Alert.alert("Voice message not sent", e instanceof Error ? e.message : "Check your connection and try again. Your recording is still here.");
     } finally {
@@ -73,7 +73,6 @@ export default function ChatScreen() {
     }
   };
   const [draft, setDraft] = useState("");
-  const [focused, setFocused] = useState(false);
   const [sending, setSending] = useState(false);
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [selected, setSelected] = useState<ChatMessage | null>(null);
@@ -91,8 +90,6 @@ export default function ChatScreen() {
   useEffect(() => {
     if (chat?.mergedInto) router.replace(`/chat/${chat.mergedInto}`);
   }, [chat?.mergedInto, router]);
-
-  const quickReplies = profile?.role === "operator" ? ["On my way now", "I just arrived", "I’ll send a photo when finished"] : ["Thanks for the update", "Let me know when you arrive", "I’ll keep an eye out"];
 
   // Inverted list: newest first, with day separators after each day's messages.
   const items = useMemo<Item[]>(() => {
@@ -117,7 +114,7 @@ export default function ChatScreen() {
   }, [messages, chat?.unreadCount, uid, chatId]);
 
   const send = async (content: string, kind: ChatMessage["type"] = "text", metadata?: ChatMessage["metadata"]) => {
-    if (!uid || !chatId || (kind === "text" && !content.trim())) return;
+    if (!uid || !chatId || (kind === "text" && !content.trim())) return false;
     setSending(true);
     try {
       const message: Record<string, unknown> = { chatId, senderId: uid, senderName: profile?.displayName || "User", type: kind, content, read: false, createdAt: Timestamp.now() };
@@ -137,10 +134,12 @@ export default function ChatScreen() {
       setReplyTo(null);
       await batch.commit();
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      if (kind === "text") void api("/api/notifications/message", { chatId, message: content, senderName: profile?.displayName || "User" }).catch(() => {});
+      void api("/api/notifications/message", { chatId, message: kind === "text" ? content : kind === "voice" ? "🎤 Voice message" : kind === "image" ? "📷 Photo" : content, senderName: profile?.displayName || "User" }).catch(() => {});
+      return true;
     } catch {
       if (kind === "text") setDraft(content);
-      Alert.alert("Message not sent", "Check your connection and try again. Your message is still in the box.");
+      Alert.alert("Message not sent", kind === "text" ? "Check your connection and try again. Your message is still in the box." : "Check your connection and try again.");
+      return false;
     } finally {
       setSending(false);
     }
@@ -221,7 +220,7 @@ export default function ChatScreen() {
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ paddingHorizontal: space.md, paddingVertical: space.md }}
             ListEmptyComponent={
-              // A live job with no messages yet: prompt the first message, with one-tap starters.
+              // A live job with no messages yet: prompt the first message.
               openJob ? (
                 <View style={{ transform: [{ scaleY: -1 }] }}>
                   <View style={styles.prompt}>
@@ -230,13 +229,6 @@ export default function ChatScreen() {
                     </View>
                     <Text style={[type.headline, { textAlign: "center" }]}>Your job with {personName(other).split(" ")[0]} is live</Text>
                     <Text style={[type.callout, { textAlign: "center" }]}>Send a quick message so they know you’re here. Share a gate code, where to park, or anything to watch out for.</Text>
-                    <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 8 }}>
-                      {(profile?.role === "operator" ? ["Hi! I’m on this job 👋", "I’ll message when I’m on my way", "Anything I should know?"] : ["Hi! Thanks for taking this 👋", "Gate code is…", "Please clear the walkway too"]).map((line) => (
-                        <Pressable key={line} accessibilityRole="button" accessibilityLabel={line.endsWith("…") ? `Start typing: ${line}` : `Send: ${line}`} onPress={() => (line.endsWith("…") ? (setDraft(line.replace("…", " ")), inputRef.current?.focus()) : void send(line))} style={({ pressed }) => [styles.quick, pressed && { opacity: 0.7 }]}>
-                          <Text style={{ color: colors.accent, fontWeight: "600", fontSize: 15 }}>{line}</Text>
-                        </Pressable>
-                      ))}
-                    </View>
                   </View>
                 </View>
               ) : (
@@ -280,25 +272,10 @@ export default function ChatScreen() {
               </Pressable>
             </View>
           ) : null}
-          {focused && !draft ? (
-            <FlatList
-              horizontal
-              data={quickReplies}
-              keyExtractor={(r) => r}
-              showsHorizontalScrollIndicator={false}
-              keyboardShouldPersistTaps="always"
-              contentContainerStyle={{ gap: 8, paddingHorizontal: space.md, paddingBottom: 8 }}
-              renderItem={({ item }) => (
-                <Pressable accessibilityRole="button" accessibilityLabel={`Quick reply: ${item}`} onPress={() => setDraft(item)} style={({ pressed }) => [styles.quick, pressed && { opacity: 0.7 }]}>
-                  <Text style={{ color: colors.accent, fontWeight: "600", fontSize: 15 }}>{item}</Text>
-                </Pressable>
-              )}
-            />
-          ) : null}
-          {/* One composer row. The mic button stays mounted while recording so letting go always lands on it. */}
+          {/* One composer row: attach, type, and a mic that turns into stop while recording. */}
           <View style={styles.composer}>
             {voice.recording ? (
-              // Recording: a live waveform and timer while the mic button is held.
+              // Recording: a live waveform and timer until stop is tapped.
               <View style={styles.recordStrip}>
                 <RecDot />
                 <Text style={{ fontWeight: "700", color: colors.ink, fontVariant: ["tabular-nums"], minWidth: 34 }}>{clock(voice.durationMs)}</Text>
@@ -329,8 +306,6 @@ export default function ChatScreen() {
                   ref={inputRef}
                   value={draft}
                   onChangeText={setDraft}
-                  onFocus={() => setFocused(true)}
-                  onBlur={() => setFocused(false)}
                   placeholder="Type a message"
                   accessibilityLabel="Message"
                   placeholderTextColor={colors.faint}
@@ -357,28 +332,19 @@ export default function ChatScreen() {
                 <Icon name="arrow.up" size={19} color="#fff" weight="bold" />
               </Pressable>
             ) : (
-              // With nothing typed, the button is a mic: hold to record a voice message.
+              // With nothing typed, the button is a mic: tap to record, tap again to stop and listen back.
               <Pressable
                 key="mic"
                 hitSlop={4}
                 accessibilityRole="button"
-                accessibilityLabel="Record a voice message"
-                accessibilityHint="Hold to record, release to listen back before sending"
-                delayLongPress={150}
-                onPressIn={() => {
-                  holding.current = true;
-                }}
-                onLongPress={() => void startRecording()}
-                onPressOut={() => {
-                  holding.current = false;
-                  void finishRecording();
-                }}
-                onPress={() => Alert.alert("Hold to record", "Press and hold the microphone to record a voice message. Let go to listen back before you send it.")}
-                style={[styles.send, { backgroundColor: colors.accent }]}
+                accessibilityLabel={voice.recording ? "Stop recording" : "Record a voice message"}
+                accessibilityHint={voice.recording ? "Stops so you can listen back before sending" : "Tap to start recording"}
+                onPress={() => void toggleRecording()}
+                style={[styles.send, { backgroundColor: voice.recording ? colors.danger : colors.accent }]}
               >
-                {/* While recording, a ring around the mic breathes with your voice. */}
+                {/* While recording, a ring around the button breathes with your voice. */}
                 {voice.recording ? <LevelRing level={voice.level} /> : null}
-                <Icon name="mic.fill" size={19} color="#fff" />
+                <Icon name={voice.recording ? "stop.fill" : "mic.fill"} size={19} color="#fff" />
               </Pressable>
             )}
           </View>
@@ -544,7 +510,6 @@ const styles = StyleSheet.create({
   voiceBubble: { backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
   micLive: { backgroundColor: colors.danger, transform: [{ scale: 1.15 }] },
   reviewBox: { flex: 1, minHeight: 44, justifyContent: "center", paddingHorizontal: 10, borderRadius: 22, backgroundColor: colors.bg, borderWidth: 1.5, borderColor: colors.borderStrong },
-  quick: { paddingHorizontal: 16, minHeight: 40, borderRadius: radius.pill, backgroundColor: colors.accentSoft, justifyContent: "center" },
   scrim: { flex: 1, backgroundColor: "rgba(10,20,30,0.35)", justifyContent: "flex-end" },
   sheet: { backgroundColor: colors.surface, margin: space.md, marginBottom: 40, borderRadius: radius.xl, padding: space.lg, gap: space.md },
   reaction: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },

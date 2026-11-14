@@ -108,6 +108,14 @@ export function fadeInto(hex: string) {
   return `linear-gradient(180deg, ${hex}00 0%, ${hex}0f 15%, ${hex}37 30%, ${hex}80 50%, ${hex}c8 70%, ${hex}ef 85%, ${hex} 100%)`;
 }
 
+/**
+ * A longer, ease-out fade into `hex`: it turns mostly page-coloured within the first quarter, then
+ * trails off softly. Used where cards sit on the fade, so they read on a light ground, not on blue.
+ */
+export function fadeIntoLong(hex: string) {
+  return `linear-gradient(180deg, ${hex}00 0%, ${hex}73 10%, ${hex}bf 22%, ${hex}e0 38%, ${hex}f2 58%, ${hex}fa 78%, ${hex} 100%)`;
+}
+
 /** Gradients, as CSS strings for React Native's `backgroundImage`. */
 export const gradient = {
   header: `linear-gradient(160deg, ${brand.royalDeep} 0%, ${brand.royal} 42%, ${brand.electric} 78%, ${brand.electricBright} 100%)`,

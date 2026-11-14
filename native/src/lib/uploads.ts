@@ -39,7 +39,7 @@ export async function uploadFile(folder: string, uri: string, options: UploadOpt
     });
   } catch (e) {
     const code = (e as { code?: string }).code || "";
-    throw new Error(code === "storage/unauthorized" ? "You don’t have permission to upload here. Sign out and back in, then try again." : "The upload didn’t finish. Check your connection and try again.");
+    throw new Error(code === "storage/unauthorized" ? "SNOWD couldn’t accept that upload. Try again in a moment; if it keeps happening, let us know." : "The upload didn’t finish. Check your connection and try again.");
   } finally {
     (blob as Blob & { close?: () => void }).close?.();
   }

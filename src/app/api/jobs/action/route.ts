@@ -56,7 +56,9 @@ export async function POST(request: NextRequest) {
         snap = await tx.get(ref);
       if (!snap.exists) throw new OrderError("Work order not found.", 404);
       const job = { ...snap.data(), id: snap.id } as Job;
-      if (![job.clientId, job.operatorId].includes(uid))
+      const actor = (await tx.get(db.doc(`users/${uid}`))).data();
+      const administrator = actor?.role === "admin" && !actor.disabled && body.action === "accept";
+      if (actor?.disabled || (!administrator && ![job.clientId, job.operatorId].includes(uid)))
         throw new OrderError(
           "This work order belongs to another account.",
           403,
@@ -110,7 +112,7 @@ export async function POST(request: NextRequest) {
           );
         if (
           job.paymentMethod === "cash" &&
-          uid === job.operatorId &&
+          (uid === job.operatorId || administrator) &&
           !job.cashPaymentAcknowledged
         )
           throw new OrderError(
@@ -137,7 +139,7 @@ export async function POST(request: NextRequest) {
           if (
             job.status !== "pending" ||
             job.scheduleProposal ||
-            (job.awaitingResponseFrom || job.operatorId) !== uid
+            (!administrator && (job.awaitingResponseFrom || job.operatorId) !== uid)
           )
             throw new OrderError(
               "This request is not awaiting your acceptance.",
@@ -389,6 +391,10 @@ export async function POST(request: NextRequest) {
           throw new OrderError("Unknown work order action.", 400);
       }
       tx.set(lock, { updatedAt: now });
+      if (administrator) {
+        tx.set(db.collection("adminActivity").doc(), { actorUid: uid, type: "Job", targetId: job.id, description: "Approved work order", createdAt: now });
+        tx.set(db.collection("notifications").doc(), { uid: job.operatorId, jobId: job.id, type: "job", title: "Booking approved by support", message: "SNOWD approved this booking for your company.", read: false, createdAt: now });
+      }
       tx.update(ref, update);
       tx.set(receipt, { action: body.action, createdAt: now });
       const email = orderEvent(

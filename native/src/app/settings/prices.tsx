@@ -1,3 +1,6 @@
+import { useMarketplacePolicy } from "@/lib/useMarketplacePolicy";
+import type { MarketplacePolicy } from "@/lib/admin/pricing";
+import { API_URL } from "~/lib/api";
 import { Stack } from "expo-router";
 import { doc, updateDoc } from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
@@ -26,7 +29,7 @@ const PICTURES: Record<string, { icon: Parameters<typeof Icon>[0]["name"]; count
 };
 
 /** One price as a big card: picture and name, what the customer pays, and − amount +. */
-function PriceCard({ label, size, value, onChange, tone, suggested }: { label: string; size: string; value: string; onChange: (v: string) => void; tone: (typeof TONES)[number]; suggested?: number }) {
+function PriceCard({ label, size, value, onChange, tone, suggested, policy }: { policy: MarketplacePolicy; label: string; size: string; value: string; onChange: (v: string) => void; tone: (typeof TONES)[number]; suggested?: number }) {
   const n = Number(value);
   const valid = Number.isFinite(n) && n >= 0.01;
   const step = (delta: number) => {
@@ -35,7 +38,7 @@ function PriceCard({ label, size, value, onChange, tone, suggested }: { label: s
     onChange(String(Math.min(10000, next)));
   };
   const picture = PICTURES[size] || PICTURES.small;
-  const pays = valid ? money(Math.round(quoteMarketplace(n, "credit").price)).replace(".00", "") : "";
+  const pays = valid ? money(Math.round(quoteMarketplace(n, "credit", policy).price)).replace(".00", "") : "";
   return (
     <View style={styles.card}>
       <View style={[styles.picture, { backgroundColor: tone.soft }]}>
@@ -99,6 +102,7 @@ const ROWS: [PriceKey, string, ServiceType[]][] = [
 type Prices = Record<PriceKey, string>;
 
 export default function PricesSettings() {
+  const { policy } = useMarketplacePolicy(API_URL);
   const insets = useSafeAreaInsets();
   const { user, profile } = useAuth();
   const saved = (): { services: ServiceType[]; prices: Prices } => ({
@@ -205,7 +209,7 @@ export default function PricesSettings() {
         {shown.length ? (
           <View style={{ flex: 1, gap: 10 }}>
             {shown.map(([key, label]) => (
-              <PriceCard key={key} label={label} size={key} suggested={advice?.prices[key]} tone={TONES[ROWS.findIndex(([k]) => k === key) % TONES.length]} value={prices[key]} onChange={(v) => setPrices((p) => ({ ...p, [key]: v }))} />
+              <PriceCard policy={policy} key={key} label={label} size={key} suggested={advice?.prices[key]} tone={TONES[ROWS.findIndex(([k]) => k === key) % TONES.length]} value={prices[key]} onChange={(v) => setPrices((p) => ({ ...p, [key]: v }))} />
             ))}
           </View>
         ) : (

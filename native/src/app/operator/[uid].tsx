@@ -1,3 +1,5 @@
+import { useMarketplacePolicy } from "@/lib/useMarketplacePolicy";
+import { API_URL } from "~/lib/api";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { arrayRemove, arrayUnion, doc, getDoc, updateDoc } from "firebase/firestore";
@@ -19,6 +21,7 @@ export default function OperatorScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, profile } = useAuth();
+  const { policy } = useMarketplacePolicy(API_URL);
   const [operator, setOperator] = useState<OperatorProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -33,7 +36,7 @@ export default function OperatorScreen() {
   if (!operator) return <View style={{ padding: space.xl, paddingTop: insets.top + 60 }}><Notice text="This profile isn’t available." /></View>;
 
   const name = operator.businessName || operator.displayName;
-  const quote = quoteFor(operator, profile);
+  const quote = quoteFor(operator, profile, undefined, policy);
   const serves = profile ? isClientWithinOperatorRadius(profile as ClientProfile, operator) : false;
   const saved = (profile?.savedOperators || []).includes(operator.uid);
   const client = profile?.role === "client";

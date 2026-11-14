@@ -1,7 +1,8 @@
 "use client";
+import { useMarketplacePolicy } from "@/lib/useMarketplacePolicy";
 import IconSwap from "@/components/ui/IconSwap";
 
-import { calculateServicePrice, quoteMarketplace } from "@/lib/marketplacePricing";
+import { calculateServicePrice } from "@/lib/marketplacePricing";
 import { orderRequest } from "@/components/work-orders/OrderActions";
 
 import Modal from "@/components/ui/Modal";
@@ -67,6 +68,7 @@ function operatorServicePrice(operator: OperatorProfile, client: ClientProfile) 
 }
 
 export default function FindOperatorsPage() {
+  const { quote: quoteMarketplace, pricingReady, pricingError, refreshPricing } = useMarketplacePolicy();
   const { user, profile } = useAuth();
   const locations = useServiceLocation();
   const clientProfile = useMemo(() => profile ? { ...profile, ...(locations?.location || {}), propertyDetails: { ...(profile as ClientProfile).propertyDetails, propertySize:locations?.location?.propertySize || (profile as ClientProfile).propertyDetails?.propertySize || "medium" } } as ClientProfile : null as unknown as ClientProfile, [profile,locations?.location]);
@@ -266,6 +268,7 @@ export default function FindOperatorsPage() {
       // visits with the same operator or with different operators.
       await createNewJobAndChat(operator);
     } catch (error) {
+      void refreshPricing();
       setBookingError("Could not request this job. Please try again.");
       console.error("Error booking operator:", error);
       setBooking(false);
@@ -297,6 +300,7 @@ export default function FindOperatorsPage() {
       };
       const key = JSON.stringify(payload);
       if (bookingAttempt.current?.key !== key) bookingAttempt.current = { key, id: crypto.randomUUID() };
+      if (!pricingReady) { void refreshPricing(); throw new Error(pricingError || "Loading current fees. Please retry."); }
       const result = await orderRequest("/api/jobs/create", { ...payload, requestId: bookingAttempt.current.id });
       const jobRef = { id: result.jobId };
 
@@ -314,6 +318,7 @@ export default function FindOperatorsPage() {
       });
       setCreatedJobId(jobRef.id);
     } catch (error) {
+      void refreshPricing();
       setBookingError(error instanceof Error ? error.message : "Could not create this booking. Please try again.");
       console.error("Error creating job:", error);
     } finally {

@@ -150,7 +150,7 @@ export function VoicePlayer({ uri, durationMs, peaks = [] }: { uri: string; dura
 export type VoiceNote = { uri: string; durationMs: number; peaks: number[] };
 
 /**
- * Hold-to-record: `start` on press-in, `stop` on release. Collects loudness while recording so the
+ * Tap-to-record: `start` begins a note, `stop` ends it. Collects loudness while recording so the
  * note can be drawn as a waveform. Notes shorter than half a second are dropped as accidental taps.
  */
 export function useVoiceRecorder() {
@@ -175,10 +175,15 @@ export function useVoiceRecorder() {
       setError("Allow microphone access in Settings to send voice messages.");
       return false;
     }
-    await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true });
-    samples.current = [];
-    await recorder.prepareToRecordAsync();
-    recorder.record();
+    try {
+      await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true });
+      samples.current = [];
+      await recorder.prepareToRecordAsync();
+      recorder.record();
+    } catch {
+      setError("Couldn’t start the microphone. Close other apps using it and try again.");
+      return false;
+    }
     active.current = true;
     setRecording(true);
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -189,12 +194,17 @@ export function useVoiceRecorder() {
     if (!active.current) return null;
     active.current = false;
     const durationMs = recorder.getStatus().durationMillis || state.durationMillis;
-    await recorder.stop();
+    await recorder.stop().catch(() => {});
     setRecording(false);
     await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false }).catch(() => {});
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (!recorder.uri || durationMs < 500) return null;
-    return { uri: recorder.uri, durationMs, peaks: toBars(samples.current, BARS).map((v) => Math.round(v * 100) / 100) };
+    const uri = recorder.uri || recorder.getStatus().url;
+    if (!uri) {
+      setError("That recording didn’t save. Try again.");
+      return null;
+    }
+    if (durationMs < 500) return null;
+    return { uri, durationMs, peaks: toBars(samples.current, BARS).map((v) => Math.round(v * 100) / 100) };
   };
 
   // The current loudness, for the pulsing ring around the mic.

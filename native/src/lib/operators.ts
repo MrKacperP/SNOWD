@@ -41,10 +41,10 @@ export function useOperators(profile: Profile) {
 }
 
 /** What the client pays for their saved property and services with this operator. */
-export function quoteFor(operator: Pick<OperatorProfile, "pricing" | "stripeConnectAccountId" | "stripeAccountStatus">, profile: Profile, services?: string[]) {
+export function quoteFor(operator: Pick<OperatorProfile, "pricing" | "stripeConnectAccountId" | "stripeAccountStatus">, profile: Profile, services?: string[], policy?: import("@/lib/admin/pricing").MarketplacePolicy) {
   const size = (profile?.propertyDetails?.propertySize || "medium") as "small" | "medium" | "large";
   const chosen = services?.length ? services : profile?.propertyDetails?.serviceTypes || ["driveway"];
   const base = calculateServicePrice(operator.pricing, chosen, size);
   const card = canAcceptPlatformPayments(operator);
-  return { base, card, cash: quoteMarketplace(base, "cash").price, credit: card ? quoteMarketplace(base, "credit").price : null };
+  return { base, card, cash: quoteMarketplace(base, "cash").price, credit: card ? quoteMarketplace(base, "credit", policy).price : null };
 }

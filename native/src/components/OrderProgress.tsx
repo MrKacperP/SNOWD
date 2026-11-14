@@ -107,3 +107,36 @@ export function OrderProgress({ job, operator, detailed, note, dense }: { job: J
     </View>
   );
 }
+
+/**
+ * The order screen's status: the five-colour bar, then only the step that's happening now, with
+ * one line on what it means. Steps already done or still to come stay as colour in the bar, untitled.
+ */
+export function CurrentStep({ job, operator, note, eta }: { job: Job; operator: boolean; note?: string; eta?: { icon: Parameters<typeof Icon>[0]["name"]; text: string } | null }) {
+  const current = stepIndex(job);
+  const cancelled = job.status === "cancelled";
+  const step = ORDER_STEPS[current];
+  const tone = stepColor(job.status);
+  const title = cancelled ? "Cancelled" : step?.label || "Open";
+  const line = note || (step ? (operator ? step.operator : step.client) : "");
+  const summary = cancelled ? `Cancelled. ${line}` : `Step ${current + 1} of ${ORDER_STEPS.length}: ${title}. ${line}`;
+  return (
+    <View accessible accessibilityRole="progressbar" accessibilityLabel={summary} accessibilityValue={cancelled ? undefined : { min: 1, max: ORDER_STEPS.length, now: current + 1 }} style={{ gap: 12 }}>
+      <ProgressBar job={job} />
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+        <View style={{ width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center", backgroundColor: tone.bar }}>
+          <Icon name={cancelled ? "xmark" : job.status === "completed" ? "checkmark" : step?.icon || "circle"} size={14} color="#fff" weight="bold" />
+        </View>
+        <Text style={{ flex: 1, fontSize: 19, lineHeight: 24, fontWeight: "800", color: tone.text }} numberOfLines={1}>{title}</Text>
+        {!cancelled ? <Text style={[type.caption, { fontVariant: ["tabular-nums"] }]}>{`${current + 1} of ${ORDER_STEPS.length}`}</Text> : null}
+      </View>
+      {line ? <Text style={[type.callout, { color: colors.muted }]}>{line}</Text> : null}
+      {eta ? (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: tone.soft, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 14 }}>
+          <Icon name={eta.icon} size={18} color={tone.text} />
+          <Text style={{ flex: 1, color: tone.text, fontWeight: "800", fontSize: 16 }}>{eta.text}</Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}

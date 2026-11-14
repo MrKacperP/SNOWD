@@ -1,8 +1,9 @@
 "use client";
+import { useMarketplacePolicy } from "@/lib/useMarketplacePolicy";
 import ServiceLocationPicker from "@/components/ServiceLocationPicker";
 import { useServiceLocation } from "@/context/ServiceLocationContext";
 import { formatServiceAddress, sameServiceAddress } from "@/lib/serviceLocations";
-import { calculateServicePrice, quoteMarketplace } from "@/lib/marketplacePricing";
+import { calculateServicePrice } from "@/lib/marketplacePricing";
 import GuidedStep from "@/components/ui/GuidedStep";
 import CompanyIdentity from "@/components/CompanyIdentity";
 import { useEffect, useRef, useState } from "react";
@@ -16,6 +17,7 @@ import { orderRequest } from "@/components/work-orders/OrderActions";
 import { propertySizeLabel } from "@/lib/workOrders";
 import Link from "next/link";
 export default function RepeatBookingPage() {
+  const { quote: quoteMarketplace, pricingReady, pricingError, refreshPricing } = useMarketplacePolicy();
   const { profile, user } = useAuth(),
     router = useRouter();
   const locations=useServiceLocation();
@@ -76,6 +78,7 @@ export default function RepeatBookingPage() {
       if ((!locations?.ready || locations.error || !serviceLocation || !addressConfirmed)) throw new Error("Confirm your service address before booking.");
       if (!asap && (!time || !Number.isFinite(new Date(time).getTime()) || new Date(time).getTime() <= Date.now()))
         throw new Error("Choose a future date and time for your visit.");
+      if (!pricingReady) { void refreshPricing(); throw new Error(pricingError || "Loading current fees. Please retry."); }
       const body = {
         serviceLocation,
         serviceAddressConfirmed: addressConfirmed,
@@ -97,6 +100,7 @@ export default function RepeatBookingPage() {
       });
       router.push(`/dashboard/jobs/${result.jobId}`);
     } catch (e) {
+      void refreshPricing();
       setError(e instanceof Error ? e.message : "Could not create booking.");
     } finally {
       setBusy(false);

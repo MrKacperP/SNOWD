@@ -24,6 +24,9 @@ export const auth: Auth = firstLaunch
 // React Native has no browser streaming transport, so Firestore long-polls.
 export const db = initializeFirestore(app, { experimentalForceLongPolling: true });
 export const storage = getStorage(app);
+// Big photos and files on a weak signal can take a while; keep retrying for up to an hour
+// instead of Firebase's default 10 minutes before an upload is given up.
+storage.maxUploadRetryTime = 60 * 60 * 1000;
 
 // Local QA only: a development build can use the same Firebase emulators as the website,
 // so screens can be checked with test accounts instead of real ones. Never active in release builds.

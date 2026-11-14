@@ -1,3 +1,4 @@
+import { useMarketplacePolicy } from "@/lib/useMarketplacePolicy";
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { doc, getDoc } from "firebase/firestore";
@@ -8,7 +9,7 @@ import { formatServiceAddress, profileLocation, type ServiceLocation } from "@/l
 import { SHOVELING_SERVICES, type ClientProfile, type OperatorProfile, type ServiceType } from "@/lib/types";
 import { Avatar, Button, Chip, FormSection, Loading, Notice, OptionCard } from "~/components/ui";
 import { useAuth } from "~/context/auth";
-import { api, requestId } from "~/lib/api";
+import { api, requestId, API_URL } from "~/lib/api";
 import { db } from "~/lib/firebase";
 import { money } from "~/lib/format";
 import { quoteFor } from "~/lib/operators";
@@ -28,6 +29,7 @@ export default function Book() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { profile } = useAuth();
+  const { quote: currentQuote, pricingReady, pricingError, refreshPricing } = useMarketplacePolicy(API_URL);
   const [operator, setOperator] = useState<OperatorProfile | null>(null);
   const [services, setServices] = useState<ServiceType[]>((profile?.propertyDetails?.serviceTypes as ServiceType[]) || ["driveway"]);
   const [asap, setAsap] = useState(true);
@@ -61,12 +63,13 @@ export default function Book() {
   if (!operator) return <Loading />;
 
   const quote = quoteFor(operator, place ? { ...profile!, propertyDetails: { ...profile?.propertyDetails, propertySize: location?.propertySize || "medium" } } as typeof profile : profile, services);
-  const total = method === "credit" && quote.credit != null ? quote.credit : quote.cash;
+  const total = currentQuote(quote.base, method).price;
   const now = new Date();
   const hoursForDay = HOURS.filter((h) => day > 0 || h > now.getHours());
 
   const submit = async () => {
     setError("");
+    if (!pricingReady) { void refreshPricing(); return setError(pricingError || "Loading current fees. Try again in a moment."); }
     if (!location) return setError("Add your home address in Profile → Properties before booking.");
     if (!services.length) return setError("Choose at least one area to clear.");
     if (!asap && hour == null) return setError("Choose a time for the visit.");
@@ -95,6 +98,7 @@ export default function Book() {
       router.back();
       router.push(`/job/${result.jobId}`);
     } catch (e) {
+      void refreshPricing();
       setError(e instanceof Error ? e.message : "Couldn’t send your request. Try again.");
       setBusy(false);
     }
@@ -171,7 +175,7 @@ export default function Book() {
             <OptionCard
               icon="creditcard.fill"
               title="Card or Apple Pay"
-              trailing={quote.credit != null ? money(quote.credit) : undefined}
+              trailing={quote.credit != null ? money(currentQuote(quote.base, "credit").price) : undefined}
               body={quote.credit == null ? "This shoveler takes cash only." : "Nothing is charged until the work is done."}
               disabled={quote.credit == null}
               selected={method === "credit"}

@@ -99,6 +99,7 @@ export default function Profile() {
           </TabHeader>
 
           <View style={{ paddingHorizontal: space.lg, gap: space.lg }}>
+            {(profile?.role === "admin" || user?.email?.toLowerCase() === "kacperprymicz@gmail.com") ? <Button title="Open admin dashboard" icon="list.clipboard" onPress={() => go("/admin")} /> : null}
             {/* Change your profile, and (for shovelers) see it the way customers do. */}
             <View style={{ flexDirection: "row", gap: space.sm }}>
               <Button title="Edit profile" icon="pencil" style={{ flex: 1 }} onPress={() => go(operator ? "/settings/branding" : "/settings/account")} />
@@ -115,6 +116,8 @@ export default function Profile() {
               </View>
               <Icon name="chevron.right" size={13} color={colors.faint} />
             </Pressable>
+
+            <Button title="Contact support" icon="bubble.left.and.bubble.right" variant="secondary" onPress={() => go("/settings/support")} />
 
             {/* What customers see of your business, or the homes you book for. */}
             <SectionTitle>{operator ? "Your business" : "Your home"}</SectionTitle>

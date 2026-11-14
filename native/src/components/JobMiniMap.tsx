@@ -6,7 +6,7 @@ import { useAuth } from "~/context/auth";
 import { api } from "~/lib/api";
 import { distanceText, estimateTrip, sharedOperatorSpot, useOperatorPosition, type Point } from "~/lib/liveLocation";
 import { colors, radius, shadow, stepColor } from "~/lib/theme";
-import { ShovelPin, SNOWD_MAP } from "./MapStyle";
+import { ShovelPin, SNOWD_MAP, useMarkerRedraw } from "./MapStyle";
 import { Icon } from "./ui";
 
 /**
@@ -27,12 +27,15 @@ export function JobMiniMap({ job, operator, target, onPress, label }: { job: Job
     return () => clearInterval(t);
   }, []);
   const tone = stepColor(job.status);
+  const pinTracks = useMarkerRedraw(tone.bar, target.latitude, target.longitude);
   const confirmed = ["accepted", "en-route"].includes(job.status);
   const spot = sharedOperatorSpot(job, now);
   const home = typeof profile?.lat === "number" && typeof profile?.lng === "number" ? { latitude: profile.lat, longitude: profile.lng } : null;
 
   // Where the trip starts: the shoveler's live position, else their shared spot, else (for them) home.
   const from: Point | null = !confirmed ? null : operator ? (live.jobId === job.id && live.position) || spot || home : spot;
+  // The car appears later than the address pin (once a position arrives), so it gets its own redraw.
+  const carTracks = useMarkerRedraw(!!from);
   const sharing = operator ? live.jobId === job.id && !!live.position : !!spot;
   // The shoveler gets the real driving route (from the server, which keeps the maps key private).
   // Refetched when they've moved ~200 m. Until it arrives, or if it can't be had, a straight line.
@@ -91,11 +94,11 @@ export function JobMiniMap({ job, operator, target, onPress, label }: { job: Job
         ) : null}
         {!operator && spot ? <Circle center={spot} radius={spot.radiusM} fillColor={`${tone.bar}33`} strokeColor={tone.bar} strokeWidth={1.5} /> : null}
         {edge ? <Polyline coordinates={[target, edge]} strokeColor={tone.bar} strokeWidth={3} lineDashPattern={[6, 6]} /> : null}
-        <Marker coordinate={target} title="Service address" anchor={{ x: 0.5, y: 1 }} tracksViewChanges={false}>
+        <Marker coordinate={target} title="Service address" anchor={{ x: 0.5, y: 1 }} tracksViewChanges={pinTracks}>
           <ShovelPin color={tone.bar} size={36} />
         </Marker>
         {operator && from ? (
-          <Marker coordinate={from} title={operator ? "You" : "Your shoveler (approximate)"} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
+          <Marker coordinate={from} title={operator ? "You" : "Your shoveler (approximate)"} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={carTracks}>
             <View style={[styles.car, { backgroundColor: colors.ink }]}>
               <Icon name="car.fill" size={13} color="#fff" />
             </View>

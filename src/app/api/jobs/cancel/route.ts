@@ -21,12 +21,18 @@ export async function POST(request: NextRequest) {
       const ref = db.doc(`jobs/${jobId}`);
       const job = (await transaction.get(ref)).data() as Job | undefined;
       if (!job) return { error: "Job not found.", status: 404 };
-      if (uid !== job.clientId && uid !== job.operatorId) return { error: "You cannot cancel this job.", status: 403 };
+      const actor = (await transaction.get(db.doc(`users/${uid}`))).data();
+      const administrator = actor?.role === "admin" && !actor.disabled;
+      if (actor?.disabled || (!administrator && uid !== job.clientId && uid !== job.operatorId)) return { error: "You cannot cancel this job.", status: 403 };
       if (job.status === "completed") return { error: "Completed jobs cannot be cancelled.", status: 409 };
-      if (["en-route", "in-progress"].includes(job.status)) return { error: "Once the operator is on the way, cancellation must be handled by support at 437-922-3895.", status: 409 };
+      if (!administrator && ["en-route", "in-progress"].includes(job.status)) return { error: "Once the operator is on the way, cancellation must be handled by support at 437-922-3895.", status: 409 };
       let email: { uid: string; title: string; eventId: string } | undefined;
       if (job.status !== "cancelled") {
         const now = FieldValue.serverTimestamp();
+        if (administrator) {
+          transaction.set(db.collection("adminActivity").doc(), { actorUid: uid, type: "Job", targetId: jobId, description: "Cancelled work order", createdAt: now });
+          transaction.set(db.collection("notifications").doc(), { uid: job.operatorId, jobId, type: "job", title: "Booking cancelled by support", message: "SNOWD cancelled this work order.", read: false, createdAt: now });
+        }
         transaction.update(ref, { status: "cancelled", revision: (job.revision || 0) + 1, scheduleProposal: null, awaitingResponseFrom: null, cancelledBy: uid, cancelledAt: now, cancellationNotice: true, cancellationSeenAt: null, updatedAt: now });
         transaction.set(db.doc(`jobs/${jobId}/events/cancelled`), { title: "Order cancelled", actorId: uid, createdAt: now });
         const recipient = uid === job.clientId ? job.operatorId : job.clientId;

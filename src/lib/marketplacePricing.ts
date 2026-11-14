@@ -1,7 +1,14 @@
+import { validatePolicy, type MarketplacePolicy } from "./admin/pricing";
 /** All calculations use cents. Existing bookings retain their agreed price. */
-export function quoteMarketplace(operatorPrice: number, method: string) {
+export function quoteMarketplace(operatorPrice: number, method: string, policy?: MarketplacePolicy) {
   const operatorAmount = Math.round(operatorPrice * 100);
   if (!Number.isSafeInteger(operatorAmount) || operatorAmount <= 0) throw new Error("Invalid service price");
+  if (policy && method === "credit") {
+    const terms = validatePolicy(policy);
+    const grossFee = Math.round(operatorAmount / (1 - terms.commissionPercent / 100)) - operatorAmount + terms.transactionFeeCents;
+    const platformFeeAmount = Math.round(grossFee * (1 - terms.discountPercent / 100));
+    return { price: (operatorAmount + platformFeeAmount) / 100, operatorAmount, platformFeeAmount, pricingVersion: 3, pricingPolicy: terms };
+  }
   const clientAmount = method === "credit" ? Math.round(operatorAmount / 0.7) : operatorAmount;
   return { price: clientAmount / 100, operatorAmount, platformFeeAmount: clientAmount - operatorAmount, pricingVersion: 2 };
 }

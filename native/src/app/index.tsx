@@ -6,6 +6,7 @@ import { useAuth } from "~/context/auth";
 export default function Index() {
   const { user, profile } = useAuth();
   if (!user) return <Redirect href="/login" />;
+  if (profile?.role === "admin" || user.email?.toLowerCase() === "kacperprymicz@gmail.com") return <Redirect href="/admin" />;
   if (!profile?.onboardingComplete) return <Redirect href="/onboarding" />;
   return <Redirect href="/home" />;
 }

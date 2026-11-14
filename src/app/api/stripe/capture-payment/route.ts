@@ -1,3 +1,5 @@
+import { getAdminDb } from "@/lib/firebaseAdmin";
+import { FieldValue } from "firebase-admin/firestore";
 import { NextRequest, NextResponse } from "next/server";
 import { requireJobPaymentAccess } from "@/lib/stripeConnectAuth";
 import { syncStripePayment } from "@/lib/stripePaymentState";
@@ -13,7 +15,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Capture the held funds — releases payment to snowd.ca
-    const { payment: existing, stripeAccount } = await requireJobPaymentAccess(req, paymentIntentId, "capture");
+    const { payment: existing, stripeAccount, administrator, actorUid, jobId } = await requireJobPaymentAccess(req, paymentIntentId, "capture");
+    if (administrator) await getAdminDb().doc(`adminActivity/capture-${paymentIntentId}`).set({ actorUid, type: "Transaction", targetId: jobId, description: "Requested capture of card payment", createdAt: FieldValue.serverTimestamp() }, { merge: true });
     const paymentIntent = existing.status === "succeeded" ? existing : await stripe.paymentIntents.capture(paymentIntentId, {}, { stripeAccount, idempotencyKey: `capture-${paymentIntentId}` });
 
     await syncStripePayment(paymentIntent, stripeAccount);
