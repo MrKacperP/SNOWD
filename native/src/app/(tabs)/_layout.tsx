@@ -1,6 +1,9 @@
 import { NativeTabs } from "expo-router/native-tabs";
+import { useEffect, useRef, useState } from "react";
+import { onTabLongPress } from "../../../modules/tab-long-press";
+import { TabQuickMenu, type QuickTab } from "~/components/TabQuickMenu";
 import { useAuth } from "~/context/auth";
-import { useChats } from "~/lib/data";
+import { useChats, useJobs } from "~/lib/data";
 import { useTabAvatar } from "~/components/TabAvatar";
 import { brand } from "~/lib/theme";
 
@@ -9,6 +12,20 @@ export default function TabsLayout() {
   const { chats } = useChats(user?.uid);
   const unread = chats.reduce((sum, chat) => sum + (chat.unreadCount?.[user?.uid || ""] || 0), 0);
   const operator = profile?.role === "operator";
+  const { jobs } = useJobs(user?.uid, profile?.role);
+  // Press and hold a tab for shortcuts: Orders previews what's on the go, Messages what's unread,
+  // Profile opens account actions. Tabs are counted left to right as they show on screen.
+  const [quick, setQuick] = useState<QuickTab | null>(null);
+  const visible = useRef<string[]>([]);
+  visible.current = operator ? ["home", "jobs", "messages", "profile"] : ["home", "jobs", "find", "messages", "profile"];
+  useEffect(
+    () =>
+      onTabLongPress((index) => {
+        const name = visible.current[index];
+        if (name === "profile" || name === "jobs" || name === "messages") setQuick(name);
+      }),
+    [],
+  );
   // Once there's a profile picture (a shoveler's business logo, else their photo), the Profile tab shows it.
   const { icon: avatarIcon, renderer } = useTabAvatar((operator && profile?.logoUrl) || profile?.avatar || undefined, brand.electric);
   return (
@@ -51,6 +68,7 @@ export default function TabsLayout() {
       </NativeTabs.Trigger>
     </NativeTabs>
     {renderer}
+    <TabQuickMenu tab={quick} onClose={() => setQuick(null)} jobs={jobs} chats={chats} />
     </>
   );
 }

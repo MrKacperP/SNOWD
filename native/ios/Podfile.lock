@@ -2578,6 +2578,8 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
+  - TabLongPress (1.0.0):
+    - ExpoModulesCore
   - Yoga (0.0.0):
     - React-Core-prebuilt
 
@@ -2724,6 +2726,7 @@ DEPENDENCIES:
   - RNWorklets (from `../node_modules/react-native-worklets`)
   - SocketRocket (from `build/rndeps-facades/SocketRocket`)
   - "stripe-react-native (from `../node_modules/@stripe/stripe-react-native`)"
+  - TabLongPress (from `../modules/tab-long-press/ios`)
   - Yoga (from `build/rncore-facades/Yoga`)
 
 SPEC REPOS:
@@ -3014,6 +3017,8 @@ EXTERNAL SOURCES:
     :path: build/rndeps-facades/SocketRocket
   stripe-react-native:
     :path: "../node_modules/@stripe/stripe-react-native"
+  TabLongPress:
+    :path: "../modules/tab-long-press/ios"
   Yoga:
     :path: build/rncore-facades/Yoga
 
@@ -3160,6 +3165,7 @@ SPEC CHECKSUMS:
   RNWorklets: 488806637a21eb17812a48dadca7cb8c698c8cfd
   SocketRocket: 37aec555668fb852ec12e3c0de59a86ca58f0871
   stripe-react-native: 7d7d8b0ccb9b67f3d2938adb279f33e6f79a37cf
+  TabLongPress: 1184b2d23dd98f14f684538a78b86dedebba3390
   Yoga: d1c536142c5ff8ec8cd856ab2a7c227a1d875c8e
 
 PODFILE CHECKSUM: 532e4753a770922bda8b6588f82f513a0c102b69
