@@ -33,9 +33,13 @@ struct RootView: View {
             if session.state == .signedIn && lockEnabled && locked { LockView { locked = false } }
         }
         .onChange(of: phase) { _, new in
-            if new == .background { backgroundedAt = Date() }
-            // Lock again after a minute away.
-            if new == .active, let since = backgroundedAt, Date().timeIntervalSince(since) > 60 { locked = true }
+            // The Face ID sheet itself moves the app out of .active, so only time away while unlocked counts.
+            if new == .background && !locked { backgroundedAt = Date() }
+            if new == .active, let since = backgroundedAt {
+                backgroundedAt = nil
+                // Lock again after a minute away.
+                if Date().timeIntervalSince(since) > 60 { locked = true }
+            }
         }
     }
 }
