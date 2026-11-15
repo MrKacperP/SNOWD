@@ -15,6 +15,7 @@ import {
   FileWarning,
   Headphones,
   Home,
+  LogIn,
   LogOut,
   Menu,
   MessageSquare,
@@ -106,6 +107,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       "/admin/reports": "Service reports",
       "/admin/notifications": "Notifications",
       "/admin/users": "Users",
+      "/admin/logins": "Logins",
       "/admin/verifications": "Verifications",
       "/admin/jobs": "Jobs",
       "/admin/chats": "Chats",
@@ -132,6 +134,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     ] },
     { title: "People & payments", items: [
       { href: "/admin/users", label: "Accounts", icon: Users },
+      { href: "/admin/logins", label: "Logins", icon: LogIn },
       { href: "/admin/transactions", label: "Payments", icon: DollarSign },
       { href: "/admin/claims", label: "Claims", icon: FileWarning },
       { href: "/admin/calls", label: "Calls", icon: Headphones },
@@ -422,21 +425,35 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   );
 }
 
+const OWNER_EMAIL = "kacperprymicz@gmail.com";
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, refreshProfile } = useAuth();
   const router = useRouter();
+  const staff = profile?.role === "admin" || profile?.role === "employee";
+  // The owner's verified email can claim admin access; the server re-checks the Firebase identity.
+  const owner = !!user?.emailVerified && user.email?.toLowerCase() === OWNER_EMAIL;
+  const [activation, setActivation] = useState<"idle" | "busy" | "failed">("idle");
 
   useEffect(() => {
-    if (!loading) {
-      if (!user) {
-        router.push("/login");
-      } else if (profile?.role !== "admin" && profile?.role !== "employee") {
-        router.push("/dashboard");
-      }
-    }
-  }, [loading, profile?.role, router, user]);
+    if (loading || staff) return;
+    if (!user) { router.push("/login?redirect=/admin"); return; }
+    if (!owner) { router.push("/dashboard"); return; }
+    if (activation !== "idle") return;
+    setActivation("busy");
+    void (async () => {
+      try {
+        const res = await fetch("/api/admin/session", { method: "POST", headers: { Authorization: `Bearer ${await user.getIdToken()}` } });
+        if (!res.ok) throw new Error();
+        await refreshProfile();
+      } catch { setActivation("failed"); }
+    })();
+  }, [activation, loading, owner, refreshProfile, router, staff, user]);
 
-  if (loading || !user || !profile || (profile.role !== "admin" && profile.role !== "employee")) {
+  if (activation === "failed" && !staff) {
+    return <main className="grid min-h-dvh place-items-center p-6 text-center"><div className="space-y-3"><p className="font-semibold">Administrator access couldn’t be turned on.</p><button className="underline" onClick={() => setActivation("idle")}>Try again</button></div></main>;
+  }
+  if (loading || !user || !profile || !staff) {
     return <LoadingScreen />;
   }
 

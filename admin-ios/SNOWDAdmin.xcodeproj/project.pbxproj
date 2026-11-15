@@ -1,0 +1,387 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		02C53451C494FBA75626DFC1 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BCFF6F5615DB98F48F2DF7C /* App.swift */; };
+		177A182C5BDB2C00B55542A9 /* API.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9243365D76B26987126BDB04 /* API.swift */; };
+		473617255AA8F1FC4EEA53F8 /* ManageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B5B4C55160DE639B1C26A07 /* ManageView.swift */; };
+		6DEF59F85D0CAACF0B3A86DF /* VerifyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C94C6697A538538ED97CCC9 /* VerifyView.swift */; };
+		81B97E9E00E0F21404F81F78 /* Fixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EF212C585B0E7EE2D624183 /* Fixtures.swift */; };
+		875781DEAE84E9939038DC22 /* PaymentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDB8D51747D6313A76E61A76 /* PaymentsView.swift */; };
+		A3B22F3B5BA929808D96A04D /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC58C88E8FA0F4D64BB4262E /* Components.swift */; };
+		ABE5D6A49FF444850285C64F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B959BF4D10BA6C441AD17DAE /* Assets.xcassets */; };
+		BB11A55F3EFE60D34F65105B /* LoginsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6CAFC14DD561A5C2AD2DCF1 /* LoginsView.swift */; };
+		DD78E704611F63190F2C8007 /* OverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 215BCCC8575CF3630516D402 /* OverviewView.swift */; };
+		ED313BCBC95D4CC8938741D6 /* Auth.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFA7409A02E8C43BEE7F015D /* Auth.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		0B5B4C55160DE639B1C26A07 /* ManageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManageView.swift; sourceTree = "<group>"; };
+		0C94C6697A538538ED97CCC9 /* VerifyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerifyView.swift; sourceTree = "<group>"; };
+		0EF212C585B0E7EE2D624183 /* Fixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Fixtures.swift; sourceTree = "<group>"; };
+		1BCFF6F5615DB98F48F2DF7C /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
+		215BCCC8575CF3630516D402 /* OverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverviewView.swift; sourceTree = "<group>"; };
+		75B2159B67F5E8BF0FDCAAAD /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		9243365D76B26987126BDB04 /* API.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = API.swift; sourceTree = "<group>"; };
+		AC58C88E8FA0F4D64BB4262E /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
+		B959BF4D10BA6C441AD17DAE /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		BB7FA09CC224DF339315846C /* SNOWDAdmin.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = SNOWDAdmin.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D6CAFC14DD561A5C2AD2DCF1 /* LoginsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginsView.swift; sourceTree = "<group>"; };
+		EDB8D51747D6313A76E61A76 /* PaymentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaymentsView.swift; sourceTree = "<group>"; };
+		FFA7409A02E8C43BEE7F015D /* Auth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Auth.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		0B3690C7660E7D2D5BD85319 /* SNOWDAdmin */ = {
+			isa = PBXGroup;
+			children = (
+				1BCFF6F5615DB98F48F2DF7C /* App.swift */,
+				B959BF4D10BA6C441AD17DAE /* Assets.xcassets */,
+				75B2159B67F5E8BF0FDCAAAD /* Info.plist */,
+				0F9BBF04C416840AD16C000A /* Core */,
+				74815A9AD6EEDE79CF485B87 /* UI */,
+				40A54C54B341BA04356AB930 /* Views */,
+			);
+			path = SNOWDAdmin;
+			sourceTree = "<group>";
+		};
+		0F9BBF04C416840AD16C000A /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				9243365D76B26987126BDB04 /* API.swift */,
+				FFA7409A02E8C43BEE7F015D /* Auth.swift */,
+				0EF212C585B0E7EE2D624183 /* Fixtures.swift */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		40A54C54B341BA04356AB930 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				D6CAFC14DD561A5C2AD2DCF1 /* LoginsView.swift */,
+				0B5B4C55160DE639B1C26A07 /* ManageView.swift */,
+				215BCCC8575CF3630516D402 /* OverviewView.swift */,
+				EDB8D51747D6313A76E61A76 /* PaymentsView.swift */,
+				0C94C6697A538538ED97CCC9 /* VerifyView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		74815A9AD6EEDE79CF485B87 /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				AC58C88E8FA0F4D64BB4262E /* Components.swift */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		A55CB6B909AB851161F5FF32 = {
+			isa = PBXGroup;
+			children = (
+				0B3690C7660E7D2D5BD85319 /* SNOWDAdmin */,
+				CD758F9F35AAF02D6BBCF875 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		CD758F9F35AAF02D6BBCF875 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				BB7FA09CC224DF339315846C /* SNOWDAdmin.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		F1EF192087BC6626A3960957 /* SNOWDAdmin */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A62FCD35C10624467136C613 /* Build configuration list for PBXNativeTarget "SNOWDAdmin" */;
+			buildPhases = (
+				AC9AB44ACD8550F486E0D512 /* Sources */,
+				8B4CC21BFECAE3F0BB150B72 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SNOWDAdmin;
+			packageProductDependencies = (
+			);
+			productName = SNOWDAdmin;
+			productReference = BB7FA09CC224DF339315846C /* SNOWDAdmin.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		5E5794B3FF475E6D7CAB4E83 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					F1EF192087BC6626A3960957 = {
+						DevelopmentTeam = 9LS8P5N78V;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 89A8EF33B4556E200D405934 /* Build configuration list for PBXProject "SNOWDAdmin" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = A55CB6B909AB851161F5FF32;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = CD758F9F35AAF02D6BBCF875 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				F1EF192087BC6626A3960957 /* SNOWDAdmin */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		8B4CC21BFECAE3F0BB150B72 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				ABE5D6A49FF444850285C64F /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		AC9AB44ACD8550F486E0D512 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				177A182C5BDB2C00B55542A9 /* API.swift in Sources */,
+				02C53451C494FBA75626DFC1 /* App.swift in Sources */,
+				ED313BCBC95D4CC8938741D6 /* Auth.swift in Sources */,
+				A3B22F3B5BA929808D96A04D /* Components.swift in Sources */,
+				81B97E9E00E0F21404F81F78 /* Fixtures.swift in Sources */,
+				BB11A55F3EFE60D34F65105B /* LoginsView.swift in Sources */,
+				473617255AA8F1FC4EEA53F8 /* ManageView.swift in Sources */,
+				DD78E704611F63190F2C8007 /* OverviewView.swift in Sources */,
+				875781DEAE84E9939038DC22 /* PaymentsView.swift in Sources */,
+				6DEF59F85D0CAACF0B3A86DF /* VerifyView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		4C9F5DD73B37FC59B591DD80 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SNOWDAdmin/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "SNOWD Admin";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Unlock SNOWD Admin with Face ID.";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ca.snowd.admin;
+				PRODUCT_NAME = "SNOWD Admin";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		CBF89C4DC2602BEBFF54CBE8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 9LS8P5N78V;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		CC8B50A9A42DACF9C1AF9CA9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SNOWDAdmin/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "SNOWD Admin";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Unlock SNOWD Admin with Face ID.";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ca.snowd.admin;
+				PRODUCT_NAME = "SNOWD Admin";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		CECB849768CBD7F3CB60C710 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 9LS8P5N78V;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		89A8EF33B4556E200D405934 /* Build configuration list for PBXProject "SNOWDAdmin" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CBF89C4DC2602BEBFF54CBE8 /* Debug */,
+				CECB849768CBD7F3CB60C710 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		A62FCD35C10624467136C613 /* Build configuration list for PBXNativeTarget "SNOWDAdmin" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CC8B50A9A42DACF9C1AF9CA9 /* Debug */,
+				4C9F5DD73B37FC59B591DD80 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 5E5794B3FF475E6D7CAB4E83 /* Project object */;
+}
