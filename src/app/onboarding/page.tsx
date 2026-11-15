@@ -28,7 +28,6 @@ function OnboardingPageInner() {
     if (!user || !draft.role) throw new Error("Please sign in again.");
     const {
       role,
-      phone,
       propertySize,
       serviceTypes,
       specialInstructions,
@@ -55,13 +54,15 @@ function OnboardingPageInner() {
     const normalizedEmail = (user.email || "").trim().toLowerCase();
     let deletedAccountIds: string[] = [];
     try {
-      const accountHistorySnap = await getDoc(
-        doc(db, "accountHistory", encodeURIComponent(normalizedEmail)),
-      );
-      if (accountHistorySnap.exists()) {
-        deletedAccountIds =
-          (accountHistorySnap.data().deletedAccountIds as
-            string[] | undefined) || [];
+      if (normalizedEmail) {
+        const accountHistorySnap = await getDoc(
+          doc(db, "accountHistory", encodeURIComponent(normalizedEmail)),
+        );
+        if (accountHistorySnap.exists()) {
+          deletedAccountIds =
+            (accountHistorySnap.data().deletedAccountIds as
+              string[] | undefined) || [];
+        }
       }
     } catch (historyError) {
       // Account history is optional; it must never prevent a new profile from being created.
@@ -73,7 +74,7 @@ function OnboardingPageInner() {
       email: user.email || "",
       accountNumber: deletedAccountIds.length + 1,
       displayName,
-      phone,
+      phone: user.phoneNumber || draft.phone,
       ...(role === "client" && draft.avatar ? { avatar: draft.avatar } : {}),
       role: role!,
       createdAt: new Date(),

@@ -23,7 +23,7 @@ function setup(getDoc) {
     return {};
   }});
   const render = () => { index = 0; return exports.AuthProvider({ children: 'application' }); };
-  render(); effects[0]();
+  render(); effects.forEach(effect => effect());
   return { states, render, auth: user => authChanged(user) };
 }
 test('an unreadable account shows recovery instead of rendering onboarding redirects', async () => {
@@ -39,4 +39,14 @@ test('a readable missing profile continues into normal first-use routing', async
   const s = setup(async () => ({ exists: () => false }));
   await s.auth({ uid: 'new-user' });
   assert.equal(s.states[2], false); assert.equal(s.render().props.children, 'application');
+});
+
+test('sign-in waits for the profile before routing to onboarding', async () => {
+  let resolveProfile;
+  const s = setup(() => new Promise(resolve => { resolveProfile = resolve; }));
+  const pending = s.auth({ uid: 'returning-user' });
+  assert.equal(s.states[3], true);
+  resolveProfile({ exists: () => false });
+  await pending;
+  assert.equal(s.states[3], false);
 });

@@ -117,6 +117,8 @@ export default function Profile() {
               <Icon name="chevron.right" size={13} color={colors.faint} />
             </Pressable>
 
+            <Button title="Scan to sign in" icon="qrcode" variant="secondary" onPress={() => go("/settings/web-sign-in")} />
+
             <Button title="Contact support" icon="bubble.left.and.bubble.right" variant="secondary" onPress={() => go("/settings/support")} />
 
             {/* What customers see of your business, or the homes you book for. */}
