@@ -35,7 +35,7 @@
     "android": {
       "package": "ca.snowd.app",
       "adaptiveIcon": {
-        "backgroundColor": "#5c88fd",
+        "backgroundColor": "#5f8dfd",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
