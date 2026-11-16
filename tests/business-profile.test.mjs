@@ -30,7 +30,7 @@ test('logo uploads stage a unique image without publishing until save', async ()
   let path;
   await handler('handleLogoUpload', {
     profile: { uid: 'operator' }, storage: {}, crypto: { randomUUID: () => 'unique' },
-    ref: (_, value) => { path = value; return {}; }, uploadBytes: async () => {}, getDownloadURL: async () => 'https://example.test/new-logo',
+    ref: (_, value) => { path = value; return {}; }, prepareImageUpload: async file => file, uploadBytes: async () => {}, getDownloadURL: async () => 'https://example.test/new-logo',
     setUploadingLogo() {}, setLogoUrl: value => { draft = value; }, setAvatarUrl() {}, setSaved() {}, setFeedback() {}, console,
     updateDoc: () => { throw new Error('Upload must not publish a profile'); },
   })({ target: { files: [{ type: 'image/png', size: 100 }] } });

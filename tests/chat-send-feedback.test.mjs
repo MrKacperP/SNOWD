@@ -20,7 +20,7 @@ function setup(commit = async () => {}, openJobs = [{ id: 'older' }, { id: 'orde
     exports: {}, console: { error() {} },
     user: { uid: 'client', getIdToken: async () => 'test-token' },
     profile: { displayName: 'Client' }, chatId: 'chat', openJobs, db: {},
-    sendingLock: { current: false },
+    sendingLock: { current: false }, replyTo: null, setReplyTo() {}, isPersonType: type => ['text', 'image', 'voice'].includes(type),
     setSendingMessage: value => busy.push(value), setSendError: value => { error = value; },
     setNewMessage: update => { draft = typeof update === 'function' ? update(draft) : update; },
     notify: (...args) => notifications.push(args),

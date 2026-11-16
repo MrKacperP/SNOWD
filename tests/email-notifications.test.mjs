@@ -13,7 +13,7 @@ function loadEmail(profile, calls, apiKey = "re_test") {
   vm.runInNewContext(code, {
     exports,
     process: { env: { RESEND_API_KEY: apiKey, NEXT_PUBLIC_APP_URL: "https://www.snowd.ca" } },
-    require: name => name === "resend" ? { Resend } : name === "@/lib/firebaseAdmin" ? { getAdminDb: () => ({ doc: () => ({ get: async () => ({ exists: true, data: () => profile }) }) }) } : (() => { throw Error(name); })(),
+    require: name => name === "resend" ? { Resend } : name === "@/lib/pushNotifications" ? { sendPushToUser: async () => {} } : name === "@/lib/firebaseAdmin" ? { getAdminDb: () => ({ doc: () => ({ get: async () => ({ exists: true, data: () => profile }) }) }) } : (() => { throw Error(name); })(),
   });
   return exports;
 }
