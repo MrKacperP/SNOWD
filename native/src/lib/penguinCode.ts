@@ -236,20 +236,33 @@ export function readImage(px: ArrayLike<number>, w: number, h: number): string {
   if (best < 0 || bestLen < NOTCH_DEG * 0.4 || bestLen > NOTCH_DEG * 2.5) return "";
   const up = best + bestLen / 2;
 
-  // 3. Read every segment, splitting dark from light at the middle of the two groups.
-  const samples: number[] = [];
-  // A few points across the middle of each segment; the darkest wins, so a slightly off-centre arc still counts.
-  for (const { r, n } of RINGS)
-    for (let s = 0; s < n; s++) {
-      const mid = up + ((s + 0.5) * 360) / n;
-      const spread = Math.min(1.6, 120 / n / 3);
-      let v = Infinity;
-      for (const da of [-spread, 0, spread]) for (const dr of [-0.012, 0.012]) v = Math.min(v, lum(...at(r + dr, mid + da)));
-      samples.push(v);
-    }
-  const sorted = [...samples].sort((a, b) => a - b);
-  const lo = sorted[Math.floor(sorted.length * 0.15)], hi = sorted[Math.floor(sorted.length * 0.85)];
-  if (hi - lo < 40) return "";
-  const cut = (lo + hi) / 2;
-  return decodeBits(samples.map((v) => (v < cut ? 1 : 0)));
+  // 3. Read every segment, splitting dark from light at the middle of the two groups. The code may be
+  // turned or sized a touch differently from our estimate (it floats and tilts on screen), so try small
+  // corrections; the 24-bit check means only a correct reading is ever accepted.
+  const read = (turn: number, scale: number, spread: number, darkest: boolean) => {
+    const samples: number[] = [];
+    for (const { r, n } of RINGS)
+      for (let s = 0; s < n; s++) {
+        const mid = up + turn + ((s + 0.5) * 360) / n;
+        let v = darkest ? Infinity : 0;
+        for (const da of [-spread, 0, spread])
+          for (const dr of [-0.01, 0.01]) {
+            const l = lum(...at(r * scale + dr, mid + da));
+            v = darkest ? Math.min(v, l) : v + l;
+          }
+        samples.push(darkest ? v : v / 6);
+      }
+    const sorted = [...samples].sort((x, y) => x - y);
+    const lo = sorted[Math.floor(sorted.length * 0.15)], hi = sorted[Math.floor(sorted.length * 0.85)];
+    if (hi - lo < 40) return "";
+    const cut = (lo + hi) / 2;
+    return decodeBits(samples.map((v) => (v < cut ? 1 : 0)));
+  };
+  for (const scale of [1, 0.98, 1.02])
+    for (const turn of [0, -0.6, 0.6, -1.2, 1.2, -1.8, 1.8, -2.4, 2.4])
+      for (const [spread, darkest] of [[0.8, false], [1.4, true]] as const) {
+        const id = read(turn, scale, spread, darkest);
+        if (id) return id;
+      }
+  return "";
 }
