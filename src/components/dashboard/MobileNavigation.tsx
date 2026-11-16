@@ -1,10 +1,12 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { ChevronLeft, Menu } from "lucide-react";
+import { Bell, ChevronLeft, Menu } from "lucide-react";
+import { useNotifications } from "@/context/NotificationContext";
 import { primaryNavigation } from "@/lib/appNavigation";
 import { NativeHaptics } from "@/lib/native";
 import { nativeBackDestination } from "@/lib/nativeNavigation";
@@ -50,6 +52,7 @@ export default function MobileNavigation({ pathname, role, unreadMessages = 0, p
   onOpenMenu: () => void;
 }) {
   const router = useRouter();
+  const { setCenterOpen } = useNotifications();
   const tick = () => { void NativeHaptics.impact({ style: "LIGHT" }).catch(() => { /* Web has no haptics. */ }); };
   const navRef = useRef<HTMLElement>(null);
   const press = useRef<{ id: number; startX: number; dragging: boolean; index: number } | null>(null);
@@ -206,7 +209,20 @@ export default function MobileNavigation({ pathname, role, unreadMessages = 0, p
     else onOpenMenu();
   };
 
-  return <>{!onTab && <button type="button" data-app-back className={styles.backButton} onClick={goBack} aria-label="Back"><ChevronLeft size={24} strokeWidth={2.2} aria-hidden="true" /></button>}<nav
+  return <>{onTab && (
+    // The app's header band on top-level tabs: SNOWD blue with the penguin and wordmark, melting into the page.
+    <><div className={styles.brandBand} data-brand-band aria-hidden="true" />
+      <div className={styles.brandRow}>
+        <Link href="/dashboard" className={styles.brandMark} aria-label="SNOWD home">
+          <Image src="/logo.png" alt="" width={22} height={22} priority />
+          <span>SNOWD</span>
+        </Link>
+        <button type="button" className={styles.brandBell} onClick={() => setCenterOpen(true)} aria-label={unreadNotifications ? `Notifications, ${unreadNotifications} unread` : "Notifications"}>
+          <Bell size={21} strokeWidth={1.9} aria-hidden="true" />
+          {unreadNotifications > 0 && <span className={styles.brandBellDot} aria-hidden="true" />}
+        </button>
+      </div></>
+  )}{!onTab && <button type="button" data-app-back className={styles.backButton} onClick={goBack} aria-label="Back"><ChevronLeft size={24} strokeWidth={2.2} aria-hidden="true" /></button>}<nav
     ref={navRef}
     className={styles.bottomNav}
     aria-label="Primary navigation"

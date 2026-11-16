@@ -7,7 +7,7 @@
 .home :global(.dashboard-location-footer span) { white-space:normal; overflow-wrap:anywhere; }
 .home :global(.next-action) { padding:20px; }
 .home :global(.client-home-grid), .home :global(.client-home-current) { gap:16px; }
-.home :global(.operator-work) { padding:20px; border:1px solid var(--border-color); border-radius:18px; background:var(--bg-card-solid); }
+.home :global(.operator-work) { padding:20px; border:1px solid var(--border-color); border-radius:var(--card-radius); background:var(--bg-card-solid); box-shadow:var(--card-shadow); }
 .home :global(.operator-work-row) { border:0; border-top:1px solid var(--border-color); border-radius:0; padding:16px 0; background:transparent; box-shadow:none; }
 /* New requests stand out with a soft warm card until the operator replies; the row the map is showing gets a light wash. */
 .home :global(.operator-work-row--new) { margin-block:6px; padding:16px 18px; border:1px solid #f3d2b6; border-radius:16px; background:linear-gradient(180deg,#fff7f0,#fffbf8); box-shadow:inset 3px 0 0 var(--accent-sun); }
@@ -39,11 +39,11 @@
 @keyframes etaPulse { 0% { box-shadow:0 0 0 0 #2350ff66; } 70% { box-shadow:0 0 0 7px #2350ff00; } 100% { box-shadow:0 0 0 0 #2350ff00; } }
 @media (prefers-reduced-motion: reduce) { .home :global(.eta-live-badge > span) { animation:none; } }
 
-.home :global(.operator-order-note) { padding:16px 20px; border:1px solid var(--border-color); border-radius:18px; background:var(--bg-card-solid); }
+.home :global(.operator-order-note) { padding:16px 20px; border:1px solid var(--border-color); border-radius:var(--card-radius); background:var(--bg-card-solid); box-shadow:var(--card-shadow); }
 
 /* Earnings: the total and job count up top, a running-total line filling the rest of the card. */
 .home :global(.dashboard-earnings) { display:grid; grid-template-columns:minmax(0,1fr); justify-content:stretch; align-items:stretch; gap:4px; width:100%; margin:0; padding:20px 20px 0; overflow:hidden; text-align:left; }
-.home :global(.dashboard-earnings:hover) { border-color:var(--border-color); box-shadow:none; }
+.home :global(.dashboard-earnings:hover) { border-color:var(--border-color); box-shadow:var(--card-shadow); }
 .home :global(.dashboard-earnings-head) { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
 .home :global(.dashboard-earnings-head h2) { font-size:14px; font-weight:600; color:var(--text-secondary); }
 .home :global(.dashboard-earnings .dashboard-earnings-value) { display:flex; align-items:baseline; justify-content:flex-start; gap:6px; width:auto; margin-top:4px; }

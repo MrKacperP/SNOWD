@@ -78,6 +78,19 @@ h6,
   --container-gutter: clamp(1rem, 1.8vw, 1.5rem);
   --surface-shadow: 0 2px 8px rgba(17, 43, 59, 0.04);
   --surface-shadow-strong: 0 12px 32px rgba(17, 43, 59, 0.09);
+
+  /* Shared with the native app (native/src/lib/theme.ts `brand`, `ds`, `gradient`), so both read as one SNOWD. */
+  --brand-royal-deep: #0b1a6b;
+  --brand-royal: #1530b8;
+  --brand-ice: #eaf1ff;
+  --brand-ice-deep: #d6e3ff;
+  --brand-frost: #f5f8ff;
+  --brand-on-blue-soft: #dbe6ff;
+  /* The app's header band: deep royal at the top, through SNOWD blue, to indigo. */
+  --brand-header-gradient: linear-gradient(180deg, var(--brand-royal-deep) 0%, var(--brand-royal) 40%, var(--accent) 85%, var(--accent-indigo) 100%);
+  /* App card: 22px corners and the soft ambient shadow (ds.cardRadius, ds.cardShadow). */
+  --card-radius: 22px;
+  --card-shadow: 0 5px 24px rgba(23, 52, 67, 0.05);
 }
 
 
@@ -989,6 +1002,8 @@ html { scroll-padding-top: 6rem; -webkit-text-size-adjust: 100%; text-size-adjus
   /* Start content below the status bar; pages under a tab also clear the floating back button. */
   .dashboard-main { padding-top: calc(env(safe-area-inset-top, 0px) + 12px) !important; }
   .dashboard-shell:has([data-app-back]) .dashboard-main { padding-top: calc(env(safe-area-inset-top, 0px) + 60px) !important; }
+  /* Tab pages clear the SNOWD header band's top row, starting where its fade is mostly page colour. */
+  .dashboard-shell:has([data-brand-band]) .dashboard-main { padding-top: calc(env(safe-area-inset-top, 0px) + 72px) !important; }
 }
 @media (max-width: 639px) {
   .app-toast { left: 16px; right: 16px; }
@@ -1180,7 +1195,7 @@ html { scroll-padding-top: 6rem; -webkit-text-size-adjust: 100%; text-size-adjus
 .dashboard-shell .dashboard-location,
 .dashboard-shell .job-widget,
 .dashboard-shell .next-action,
-.dashboard-shell .dashboard-earnings { box-shadow:none; border-radius:18px; }
+.dashboard-shell .dashboard-earnings { box-shadow:var(--card-shadow); border-radius:var(--card-radius); }
 .dashboard-map-notice { position:absolute; bottom:12px; left:12px; right:52px; padding:8px 12px; border-radius:8px; background:#fff; color:var(--text-secondary); font-size:12px; }
 .dashboard-earnings { padding:26px 20px; }
 .dashboard-earnings-content { justify-items:center; gap:10px !important; }

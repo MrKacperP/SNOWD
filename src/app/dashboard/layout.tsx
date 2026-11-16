@@ -135,16 +135,17 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
           {requiresVerification && !isAdmin && (
             <section aria-label="Verification required" className={`${inConversation ? "shrink-0 px-3 pt-3" : "container-app mt-2 md:mt-0"}`}>
-              <div className={`rounded-[1.4rem] border p-4 ${verificationRejected ? "border-red-300 bg-red-50 text-red-950" : verificationPending ? "border-amber-300 bg-amber-50 text-amber-950" : "border-blue-300 bg-blue-50 text-blue-950"}`}>
+              {/* Same card as the app's ID prompt: white, a blue outline, and a solid icon tile (mint once sent, orange if it needs another look). */}
+              <div className={`rounded-[var(--card-radius)] border-[1.5px] p-4 text-[var(--ink)] shadow-[var(--card-shadow)] ${verificationRejected ? "border-[#f3c4c4] bg-[var(--card)]" : verificationPending ? "border-[#bfe3d5] bg-[var(--surface-green)]" : "border-[var(--surface-blue-border)] bg-[var(--card)]"}`}>
                 <div className="flex items-start gap-3">
-                  <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${verificationRejected ? "bg-red-100" : verificationPending ? "bg-amber-100" : "bg-blue-100"}`}>
-                    <Shield className="h-5 w-5" />
+                  <div className={`grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[14px] text-white ${verificationRejected ? "bg-[#c2410c]" : verificationPending ? "bg-[var(--accent-mint)]" : "bg-[var(--accent)]"}`}>
+                    <Shield className="h-5 w-5" aria-hidden="true" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <h2 className="font-bold">
                       {verificationRejected ? "Verification needs attention" : verificationPending ? "Verification submitted" : "Complete verification to use Snowd"}
                     </h2>
-                    <p className="mt-1 text-sm leading-relaxed">
+                    <p className="mt-1 text-sm leading-relaxed text-[var(--ink-3)]">
                       {verificationRejected
                         ? profile.verificationNote || "Review the feedback and submit a new government ID."
                         : verificationPending
@@ -155,13 +156,13 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                       {!verificationPending && (
                         <>
                           <input ref={fileInputRef} type="file" accept={IMAGE_ACCEPT} onChange={handleIdUpload} className="hidden" />
-                          <button onClick={() => fileInputRef.current?.click()} disabled={uploadingId} className="inline-flex min-h-11 items-center gap-2 btn-cta rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+                          <button onClick={() => fileInputRef.current?.click()} disabled={uploadingId} className="inline-flex min-h-11 items-center gap-2 btn-cta rounded-[14px] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
                             {uploadingId ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" /> : <Camera className="h-4 w-4" />}
                             {uploadingId ? "Submitting…" : verificationRejected ? "Submit a new ID" : "Submit government ID"}
                           </button>
                         </>
                       )}
-                      <Link href="/dashboard/settings?tab=verification" className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4">
+                      <Link href="/dashboard/settings?tab=verification" className="inline-flex min-h-11 items-center rounded-[14px] bg-[var(--bg-secondary)] px-4 text-sm font-semibold text-[var(--ink)] hover:bg-[var(--border-soft)]">
                         {verificationPending ? "View verification status" : "Open verification settings"}
                       </Link>
                     </div>
