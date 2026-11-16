@@ -20,12 +20,65 @@ enum AppTab: Hashable { case overview, logins, payments, verify, manage }
     var tab: AppTab = .overview
 }
 
+/// Face ID lock. One evaluation at a time, and only time spent away while unlocked can relock it.
+@MainActor @Observable final class AppLock {
+    static let shared = AppLock()
+    private(set) var locked: Bool
+    private(set) var evaluating = false
+    var failed = false
+    private var autoPrompted = false
+    private var backgroundedAt: Date?
+    private var context: LAContext?
+
+    private init() { locked = UserDefaults.standard.object(forKey: "faceIDLock") as? Bool ?? true }
+
+    func setEnabled(_ on: Bool) { if !on { locked = false } }
+
+    /// Asks once by itself when the lock screen appears; after that only the Unlock button asks.
+    func autoUnlock() {
+        guard !autoPrompted else { return }
+        autoPrompted = true
+        unlock()
+    }
+
+    func unlock() {
+        guard locked, !evaluating else { return }
+        #if DEBUG
+        if Fixtures.enabled { locked = false; return }
+        #endif
+        let context = LAContext()
+        var error: NSError?
+        // No passcode or biometrics set up: nothing to check against.
+        guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else { locked = false; return }
+        self.context = context
+        evaluating = true
+        failed = false
+        context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "Unlock SNOWD Admin") { ok, _ in
+            Task { @MainActor in
+                self.evaluating = false
+                self.context = nil
+                if ok { self.locked = false } else { self.failed = true }
+            }
+        }
+    }
+
+    func phaseChanged(_ phase: ScenePhase, enabled: Bool) {
+        // The Face ID sheet itself makes the app inactive, so ignore everything while locked or checking.
+        guard enabled, !locked, !evaluating else { return }
+        if phase == .background { backgroundedAt = Date() }
+        if phase == .active, let since = backgroundedAt {
+            backgroundedAt = nil
+            // Lock again after a minute away.
+            if Date().timeIntervalSince(since) > 60 { locked = true; autoPrompted = false }
+        }
+    }
+}
+
 struct RootView: View {
     @Environment(Session.self) private var session
     @Environment(\.scenePhase) private var phase
     @AppStorage("faceIDLock") private var lockEnabled = true
-    @State private var locked = true
-    @State private var backgroundedAt: Date?
+    @State private var lock = AppLock.shared
 
     var body: some View {
         ZStack {
@@ -34,17 +87,10 @@ struct RootView: View {
             case .signedOut: SignInView()
             case .signedIn: MainTabs()
             }
-            if session.state == .signedIn && lockEnabled && locked { LockView { locked = false } }
+            if session.state == .signedIn && lockEnabled && lock.locked { LockView() }
         }
-        .onChange(of: phase) { _, new in
-            // The Face ID sheet itself moves the app out of .active, so only time away while unlocked counts.
-            if new == .background && !locked { backgroundedAt = Date() }
-            if new == .active, let since = backgroundedAt {
-                backgroundedAt = nil
-                // Lock again after a minute away.
-                if Date().timeIntervalSince(since) > 60 { locked = true }
-            }
-        }
+        .onChange(of: phase) { _, new in lock.phaseChanged(new, enabled: lockEnabled) }
+        .onChange(of: lockEnabled) { _, on in lock.setEnabled(on) }
     }
 }
 
@@ -65,7 +111,8 @@ struct MainTabs: View {
         .tabBarMinimizeBehavior(.onScrollDown)
         .tabViewStyle(.sidebarAdaptable)
         .environment(nav)
-        .task {
+        .task(id: AppLock.shared.locked) {
+            guard !AppLock.shared.locked || !(UserDefaults.standard.object(forKey: "faceIDLock") as? Bool ?? true) else { return }
             await Push.shared.start(session)
             if let v: Verifications = try? await API(session: session).get("/api/admin/monitor", query: ["view": "verifications"]) { badge = v.pending.count }
         }
@@ -107,29 +154,18 @@ struct SignInView: View {
 }
 
 struct LockView: View {
-    let unlocked: () -> Void
-    @State private var failed = false
+    @State private var lock = AppLock.shared
     var body: some View {
         VStack(spacing: 18) {
             Image(systemName: "lock.fill").font(.system(size: 40)).foregroundStyle(.secondary)
             Text("SNOWD Admin is locked").font(.title3.bold())
-            Button("Unlock") { authenticate() }.buttonStyle(.glassProminent).controlSize(.large)
-            if failed { Text("Couldn't confirm it's you.").font(.footnote).foregroundStyle(.secondary) }
+            Button("Unlock") { lock.unlock() }
+                .buttonStyle(.glassProminent).controlSize(.large)
+                .disabled(lock.evaluating)
+            if lock.failed { Text("Couldn't confirm it's you. Tap Unlock to try again.").font(.footnote).foregroundStyle(.secondary) }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(.ultraThinMaterial)
-        .task { authenticate() }
-    }
-    private func authenticate() {
-        #if DEBUG
-        if Fixtures.enabled { unlocked(); return }
-        #endif
-        let context = LAContext()
-        var error: NSError?
-        // No passcode or biometrics set up: nothing to check against.
-        guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else { unlocked(); return }
-        context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "Unlock SNOWD Admin") { ok, _ in
-            Task { @MainActor in if ok { unlocked() } else { failed = true } }
-        }
+        .onAppear { lock.autoUnlock() }
     }
 }
