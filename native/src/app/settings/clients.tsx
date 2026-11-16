@@ -3,23 +3,23 @@ import * as Clipboard from "expo-clipboard";
 import { Contact, ContactField, ContactsSortOrder, requestPermissionsAsync } from "expo-contacts";
 import * as Haptics from "expo-haptics";
 import { Stack, useRouter } from "expo-router";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Linking, Modal, Pressable, Share, StyleSheet, Text, TextInput, View } from "react-native";
-import QRCode from "react-native-qrcode-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ShovelIcon } from "~/components/MapStyle";
+import { SnowdCode } from "~/components/SnowdCode";
 import { TabHeader } from "~/components/TabHeader";
 import { Avatar, Icon, Screen } from "~/components/ui";
 import { useAuth } from "~/context/auth";
 import { useAppTheme } from "~/lib/appearance";
 import { inviteLink } from "~/lib/invite";
+import { scanPenguinCode } from "~/lib/penguinScan";
 import { colors, radius, space, type } from "~/lib/theme";
 
 /** Pulls the person's id out of a scanned SNOWD code (https://…/i/<uid> or snowd://invite/<uid>). */
 const uidFromCode = (data: string) => data.match(/\/i\/([^/?#]+)/)?.[1] || data.match(/^snowd:\/\/invite\/([^/?#]+)/)?.[1] || "";
 
 /**
- * Invite people to SNOWD, Snapchat-style: your SNOWD code (a QR with your photo in the middle) to
+ * Invite people to SNOWD, Snapchat-style: your SNOWD code (a QR with the moving penguin in the middle) to
  * be scanned, quick buttons to copy, text, share or scan, and your phone's contacts with an Invite
  * button each. Only invites out of the app: it never lists or adds people who are already on SNOWD.
  */
@@ -32,11 +32,11 @@ export default function Invite() {
   const operator = profile?.role === "operator";
   const link = inviteLink(uid);
   const name = (operator && profile?.businessName) || profile?.displayName || "Me";
-  const photo = (operator && profile?.logoUrl) || profile?.avatar || "";
   const [copied, setCopied] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
   const handled = useRef(false);
+  const camera = useRef<CameraView>(null);
 
   // Your phone's contacts, read on the phone only (nothing is uploaded), to text an invite.
   const [contacts, setContacts] = useState<{ id: string; name: string; phone: string }[] | null>(null);
@@ -90,21 +90,29 @@ export default function Invite() {
     setScanning(false);
     router.push(`/invite/${scanned}`);
   };
+  // While the scanner is open, also look for SNOWD penguin codes (the camera only finds QRs itself).
+  useEffect(() => {
+    if (!scanning) return;
+    let alive = true;
+    void (async () => {
+      await new Promise((r) => setTimeout(r, 600)); // let the camera start
+      while (alive && !handled.current) {
+        const id = camera.current ? await scanPenguinCode(camera.current).catch(() => "") : "";
+        if (id && alive) onScanned(inviteLink(id));
+        else await new Promise((r) => setTimeout(r, 200));
+      }
+    })();
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scanning]);
   return (
     <>
       <Stack.Screen options={{ headerShown: false, title: "Invite friends" }} />
       <Screen contentInsetAdjustmentBehavior="never" contentStyle={{ padding: 0, gap: space.lg, paddingBottom: insets.bottom + 40 }}>
-        <TabHeader title="Invite to SNOWD" subtitle={operator ? "Customers scan your code to book you." : "Friends scan your code to add you."} onBack={() => (router.canGoBack() ? router.back() : router.replace("/profile"))}>
-          {/* Your SNOWD code: a QR with your photo in the middle, on a white card. */}
-          <View style={styles.codeCard}>
-            <View style={styles.qr}>
-              {uid ? <QRCode value={link} size={196} color={theme.deep} backgroundColor="#fff" ecl="H" /> : null}
-              <View style={[styles.qrCenter, { backgroundColor: theme.accent }]}>
-                {photo ? <Avatar uri={photo} name={name} size={50} /> : <ShovelIcon size={26} />}
-              </View>
-            </View>
-            <Text style={[type.headline, { fontSize: 20, textAlign: "center" }]}>{name}</Text>
-            <Text style={[type.caption, { textAlign: "center" }]} numberOfLines={1}>{link.replace(/^https:\/\//, "")}</Text>
+        <TabHeader title="Invite to SNOWD" onBack={() => (router.canGoBack() ? router.back() : router.replace("/profile"))}>
+          {/* Your SNOWD code, drawn as the logo and always moving. */}
+          <View style={styles.code}>
+            {uid ? <SnowdCode uid={uid} link={link} size={260} tint={theme.deep} /> : null}
           </View>
         </TabHeader>
 
@@ -171,14 +179,13 @@ export default function Invite() {
               </>
             )}
           </View>
-          <Text style={type.caption}>Your link opens SNOWD if they have it, or lets them get the app or use SNOWD on the web, with you already saved.</Text>
         </View>
       </Screen>
 
       {/* Scan someone else's SNOWD code with the camera. */}
       <Modal visible={scanning} animationType="slide" presentationStyle="fullScreen" onRequestClose={() => setScanning(false)}>
         <View style={{ flex: 1, backgroundColor: "#000" }}>
-          <CameraView style={StyleSheet.absoluteFill} facing="back" barcodeScannerSettings={{ barcodeTypes: ["qr"] }} onBarcodeScanned={(r) => onScanned(r.data)} />
+          <CameraView ref={camera} style={StyleSheet.absoluteFill} facing="back" barcodeScannerSettings={{ barcodeTypes: ["qr"] }} onBarcodeScanned={(r) => onScanned(r.data)} />
           <View style={styles.scanFrameWrap} pointerEvents="none">
             <View style={[styles.scanFrame, { borderColor: "#fff" }]} />
             <Text style={styles.scanHint}>Point at a SNOWD code</Text>
@@ -193,9 +200,7 @@ export default function Invite() {
 }
 
 const styles = StyleSheet.create({
-  codeCard: { alignSelf: "center", alignItems: "center", gap: 6, width: "100%", maxWidth: 320, paddingVertical: space.lg, paddingHorizontal: space.md, marginTop: space.sm, borderRadius: 28, backgroundColor: "#fff" },
-  qr: { padding: 10, borderRadius: radius.lg, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
-  qrCenter: { position: "absolute", width: 58, height: 58, borderRadius: 18, alignItems: "center", justifyContent: "center", borderWidth: 4, borderColor: "#fff", overflow: "hidden" },
+  code: { alignItems: "center", paddingTop: space.xl, paddingBottom: 56 },
   actions: { flexDirection: "row", justifyContent: "space-between" },
   action: { width: "25%", alignItems: "center", gap: 8 },
   actionCircle: { width: 58, height: 58, borderRadius: 29, alignItems: "center", justifyContent: "center", boxShadow: "0px 6px 16px rgba(35,80,255,0.25)" },

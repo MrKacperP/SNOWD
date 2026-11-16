@@ -17,7 +17,7 @@ export const ORDER_STEPS: { status: JobStatus; label: string; icon: Parameters<t
 export const stepIndex = (job: Pick<Job, "status">) => ORDER_STEPS.findIndex((step) => step.status === job.status);
 
 /** One segment of the bar: fills in its step's colour, and the current one shimmers like the website's. */
-function Segment({ status, state, completed, index, tint }: { status: JobStatus; state: "done" | "current" | "todo"; completed: boolean; index: number; tint?: string }) {
+export function Segment({ status, state, completed, index, tint }: { status: JobStatus; state: "done" | "current" | "todo"; completed: boolean; index: number; tint?: string }) {
   const reduce = useReducedMotion();
   const fill = useSharedValue(reduce || state === "todo" ? (state === "todo" ? 0 : 1) : 0);
   const shine = useSharedValue(0);
