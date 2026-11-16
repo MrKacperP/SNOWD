@@ -35,7 +35,7 @@
     "android": {
       "package": "ca.snowd.app",
       "adaptiveIcon": {
-        "backgroundColor": "#2350ff",
+        "backgroundColor": "#5c88fd",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -114,6 +114,9 @@
         "projectId": "f211d81f-fe89-4fc3-a1c7-156f4fd71f9b"
       }
     },
-    "owner": "lil_bolek"
+    "owner": "lil_bolek",
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
   }
 }

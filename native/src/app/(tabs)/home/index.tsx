@@ -85,8 +85,9 @@ export default function Home() {
     if (key === "finish" || key === "cash") setCelebration({ jobId, message });
   }, []);
 
-  const jobsLine = open.length ? `${plural(open.length, operator ? "job" : "order")} on the go` : operator ? "No jobs right now" : "Nothing booked";
-  const status = operator ? jobsLine : featured ? ORDER_STEPS[stepIndex(featured)]?.client.replace(/\.$/, "") || jobsLine : jobsLine;
+  // Only say something under the greeting when there's work on the go; "nothing booked" lives in the widget.
+  const jobsLine = open.length ? `${plural(open.length, operator ? "job" : "order")} on the go` : "";
+  const status = !operator && featured ? ORDER_STEPS[stepIndex(featured)]?.client.replace(/\.$/, "") || jobsLine : jobsLine;
 
   const controls: Control[] = operator
     ? [
@@ -154,7 +155,7 @@ export default function Home() {
               pictureLabel={operator ? "Your business profile" : "Your properties"}
               onProfile={() => (operator || !properties.length ? router.navigate("/profile") : router.push("/settings/properties"))}
             />
-            <HomeTitle title={firstName ? `Hi, ${firstName}` : greeting()} status={status} />
+            <HomeTitle title={firstName ? `${greeting()}, ${firstName}` : greeting()} status={status} />
           </BlueHeader>
 
           <Animated.View layout={LinearTransition.duration(240)} entering={FadeIn.duration(300)} style={{ gap: gap.x4, paddingHorizontal: gap.x4, paddingTop: gap.x4 }}>

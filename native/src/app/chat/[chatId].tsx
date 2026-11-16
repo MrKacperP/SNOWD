@@ -6,7 +6,7 @@ import { collection, doc, increment, Timestamp, updateDoc, writeBatch } from "fi
 import { useEffect, useMemo, useRef, useState, type ComponentRef } from "react";
 import { ActivityIndicator, Alert, FlatList, Linking, Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useReanimatedKeyboardAnimation } from "react-native-keyboard-controller";
-import Animated, { interpolate, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withSpring, withTiming } from "react-native-reanimated";
+import Animated, { FadeIn, interpolate, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withSpring, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { ChatMessage, Job } from "@/lib/types";
 import { dateMillis, isOpenOrder, orderLabel, orderNumber } from "@/lib/workOrders";
@@ -57,6 +57,12 @@ export default function ChatScreen() {
     } else {
       await voice.start().catch(() => false);
     }
+  };
+  // Throws away the note, or the one being recorded, without sending anything.
+  const discardVoice = async () => {
+    if (voice.recording) await voice.stop().catch(() => null);
+    setNote(null);
+    void Haptics.selectionAsync();
   };
   const sendVoice = async () => {
     if (!note) return;
@@ -274,24 +280,35 @@ export default function ChatScreen() {
           ) : null}
           {/* One composer row: attach, type, and a mic that turns into stop while recording. */}
           <View style={styles.composer}>
-            {voice.recording ? (
-              // Recording: a live waveform and timer until stop is tapped.
-              <View style={styles.recordStrip}>
-                <RecDot />
-                <Text style={{ fontWeight: "700", color: colors.ink, fontVariant: ["tabular-nums"], minWidth: 34 }}>{clock(voice.durationMs)}</Text>
-                <View style={{ flex: 1 }}>
-                  <LiveWaveform samples={voice.live} />
-                </View>
-              </View>
-            ) : note ? (
-              // Review: listen back (scrub, speed), then delete or send.
+            {voice.recording || note ? (
+              // Recording and review live inside the same pill as the text field, with a discard button
+              // where the paperclip sits, so nothing jumps around between typing, recording and reviewing.
               <>
-                <Pressable accessibilityRole="button" accessibilityLabel="Delete recording" hitSlop={6} onPress={() => setNote(null)} style={styles.roundButton}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={voice.recording ? "Cancel recording" : "Delete recording"}
+                  hitSlop={6}
+                  disabled={uploading !== null}
+                  onPress={() => void discardVoice()}
+                  style={styles.roundButton}
+                >
                   <Icon name="trash" size={18} color={colors.danger} />
                 </Pressable>
-                <View style={styles.reviewBox}>
-                  <VoicePlayer uri={note.uri} durationMs={note.durationMs} peaks={note.peaks} />
-                </View>
+                {voice.recording ? (
+                  <Animated.View key="recording" entering={FadeIn.duration(160)} style={styles.voiceField}>
+                    <RecDot />
+                    <Text style={styles.recTime}>{clock(voice.durationMs)}</Text>
+                    <View style={{ flex: 1 }}>
+                      <LiveWaveform samples={voice.live} height={22} accent={colors.accent} />
+                    </View>
+                  </Animated.View>
+                ) : note ? (
+                  <Animated.View key="review" entering={FadeIn.duration(160)} style={[styles.voiceField, { paddingLeft: 8, paddingRight: 8 }]}>
+                    <View style={{ flex: 1 }}>
+                      <VoicePlayer compact uri={note.uri} durationMs={note.durationMs} peaks={note.peaks} />
+                    </View>
+                  </Animated.View>
+                ) : null}
               </>
             ) : (
               <>
@@ -505,11 +522,12 @@ const styles = StyleSheet.create({
   replyBar: { flexDirection: "row", alignItems: "center", gap: 10, marginHorizontal: space.md, marginBottom: 8, padding: 8, borderRadius: radius.sm, backgroundColor: colors.bg },
   prompt: { alignItems: "center", gap: 10, margin: space.md, padding: space.lg, borderRadius: radius.xl, backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
   promptIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: colors.accentSoft, alignItems: "center", justifyContent: "center" },
-  recordStrip: { flex: 1, minHeight: 44, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, borderRadius: 22, backgroundColor: colors.bg, borderWidth: 1.5, borderColor: colors.borderStrong },
+  // Same shape, border and fill as `input`, so a voice note reads as part of the message field.
+  voiceField: { flex: 1, height: 44, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, borderRadius: 22, backgroundColor: colors.bg, borderWidth: 1.5, borderColor: colors.borderStrong },
+  recTime: { fontSize: 15, fontWeight: "600", color: colors.ink, fontVariant: ["tabular-nums"], minWidth: 36 },
   recDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.danger },
   voiceBubble: { backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
   micLive: { backgroundColor: colors.danger, transform: [{ scale: 1.15 }] },
-  reviewBox: { flex: 1, minHeight: 44, justifyContent: "center", paddingHorizontal: 10, borderRadius: 22, backgroundColor: colors.bg, borderWidth: 1.5, borderColor: colors.borderStrong },
   scrim: { flex: 1, backgroundColor: "rgba(10,20,30,0.35)", justifyContent: "flex-end" },
   sheet: { backgroundColor: colors.surface, margin: space.md, marginBottom: 40, borderRadius: radius.xl, padding: space.lg, gap: space.md },
   reaction: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },

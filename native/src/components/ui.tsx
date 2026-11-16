@@ -88,12 +88,14 @@ export function usePenguinRefresh(onRefresh?: () => unknown, scrollY?: SharedVal
   const tick = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   const scroll = useAnimatedScrollHandler({
     onBeginDrag: (e) => {
-      if (rest.value === null || e.contentOffset.y < rest.value) rest.value = e.contentOffset.y;
+      // Pages under a title bar rest at a negative offset; learn it, but not while the page is held open.
+      if (!edgeToEdge && busy.value === 0 && (rest.value === null || e.contentOffset.y < rest.value)) rest.value = e.contentOffset.y;
     },
     onScroll: (e) => {
       if (scrollY) scrollY.value = e.contentOffset.y;
-      if (rest.value === null) rest.value = e.contentOffset.y;
-      const distance = rest.value - e.contentOffset.y;
+      if (!edgeToEdge && rest.value === null) rest.value = e.contentOffset.y;
+      // Full-bleed pages always rest at 0; measuring from there keeps the logo pinned after a refresh.
+      const distance = (edgeToEdge ? 0 : (rest.value ?? 0)) - e.contentOffset.y;
       dist.value = Math.max(0, distance);
       pull.value = Math.max(0, Math.min(1, distance / PULL));
       if (distance > PULL && !armed.value) {

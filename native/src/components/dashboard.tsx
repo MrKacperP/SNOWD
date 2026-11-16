@@ -89,7 +89,7 @@ export function HomeTopBar({ unread, onBell, avatar, name, onProfile, pictureLab
         </ScalePress>
         {/* The business logo (shovelers) or the home's photo (customers), big enough to recognise. */}
         <ScalePress haptic="light" accessibilityLabel={pictureLabel} onPress={onProfile} style={styles.picture}>
-          {avatar ? <Image source={{ uri: avatar }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} /> : <Avatar name={name} size={56} />}
+          {avatar ? <Image source={{ uri: avatar }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} /> : <Avatar name={name} size={68} />}
         </ScalePress>
       </View>
     </View>
@@ -97,14 +97,14 @@ export function HomeTopBar({ unread, onBell, avatar, name, onProfile, pictureLab
 }
 
 /** One big title and a single status line, with a dot that says on or off duty (words too, not just colour). */
-export function HomeTitle({ title, status, live }: { title: string; status: string; live?: boolean }) {
+export function HomeTitle({ title, status, live }: { title: string; status?: string; live?: boolean }) {
   return (
     <View style={{ gap: 4 }}>
       <Text accessibilityRole="header" style={styles.title} maxFontSizeMultiplier={1.5}>{title}</Text>
-      <View style={styles.statusLine}>
+      {status ? <View style={styles.statusLine}>
         {live !== undefined ? <View style={[styles.statusDot, { backgroundColor: live ? brand.liveBright : "rgba(255,255,255,0.45)" }]} /> : null}
         <Text style={styles.statusText} maxFontSizeMultiplier={1.6}>{status}</Text>
-      </View>
+      </View> : null}
     </View>
   );
 }
@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
   wordmark: { fontFamily: family.heading, fontSize: 17, letterSpacing: 3, color: "#fff" },
   topActions: { flexDirection: "row", alignItems: "center", gap: 2 },
   topButton: { width: tap, height: tap, alignItems: "center", justifyContent: "center" },
-  picture: { width: 56, height: 56, borderRadius: 18, overflow: "hidden", marginLeft: 6, backgroundColor: "rgba(255,255,255,0.18)", borderWidth: 2, borderColor: "rgba(255,255,255,0.85)", alignItems: "center", justifyContent: "center" },
+  picture: { width: 68, height: 68, borderRadius: 22, overflow: "hidden", marginLeft: 8, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
   unreadDot: { position: "absolute", top: 10, right: 11, width: 9, height: 9, borderRadius: 5, backgroundColor: ds.sun, borderWidth: 1.5, borderColor: brand.royal },
   title: { fontFamily: family.heading, fontSize: 34, lineHeight: 40, letterSpacing: -1, color: "#fff" },
   statusLine: { flexDirection: "row", alignItems: "center", gap: 8 },

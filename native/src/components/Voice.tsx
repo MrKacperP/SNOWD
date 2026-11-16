@@ -47,8 +47,9 @@ function Bar({ level, height, speech, dim, accent }: { level: number; height: nu
  * are used while recording, when reviewing and in the chat, so a note looks the way it sounded.
  * With `progress`, the part not yet played is faded; drag or tap along it to jump anywhere.
  */
-export function Waveform({ peaks, progress, onSeek, height = 30, count = BARS }: { peaks: number[]; progress?: number; onSeek?: (fraction: number) => void; height?: number; count?: number }) {
+export function Waveform({ peaks, progress, onSeek, height = 30, count = BARS, accent }: { peaks: number[]; progress?: number; onSeek?: (fraction: number) => void; height?: number; count?: number; accent?: string }) {
   const theme = useAppTheme();
+  const tint = accent || theme.accent;
   const [width, setWidth] = useState(0);
   const bars = toBars(peaks, count);
   const seek = (x: number) => width && onSeek?.(Math.max(0, Math.min(1, x / width)));
@@ -63,7 +64,7 @@ export function Waveform({ peaks, progress, onSeek, height = 30, count = BARS }:
     <GestureDetector gesture={pan}>
       <View onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)} style={[styles.wave, { height }]} hitSlop={{ top: 10, bottom: 10 }}>
         {bars.map((v, i) => (
-          <Bar key={i} level={v} height={height} speech={v >= SPEECH} dim={progress !== undefined && (i + 0.5) / bars.length > progress} accent={theme.accent} />
+          <Bar key={i} level={v} height={height} speech={v >= SPEECH} dim={progress !== undefined && (i + 0.5) / bars.length > progress} accent={tint} />
         ))}
       </View>
     </GestureDetector>
@@ -71,8 +72,9 @@ export function Waveform({ peaks, progress, onSeek, height = 30, count = BARS }:
 }
 
 /** The bars while you're recording: the newest sample enters on the right and the rest scroll left. */
-export function LiveWaveform({ samples, height = 26 }: { samples: number[]; height?: number }) {
+export function LiveWaveform({ samples, height = 26, accent }: { samples: number[]; height?: number; accent?: string }) {
   const theme = useAppTheme();
+  const tint = accent || theme.accent;
   const latest = samples.slice(-LIVE_BARS);
   const first = samples.length - latest.length;
   return (
@@ -82,7 +84,7 @@ export function LiveWaveform({ samples, height = 26 }: { samples: number[]; heig
       ))}
       {latest.map((v, i) => (
         // Keyed by the sample's position in the whole recording, so each bar keeps its spring as it scrolls.
-        <Bar key={first + i} level={Math.max(0.06, v)} height={height} speech={v >= SPEECH} dim={false} accent={theme.accent} />
+        <Bar key={first + i} level={Math.max(0.06, v)} height={height} speech={v >= SPEECH} dim={false} accent={tint} />
       ))}
     </View>
   );
@@ -92,7 +94,7 @@ export function LiveWaveform({ samples, height = 26 }: { samples: number[]; heig
  * A voice note you can play, scrub through and speed up (tap 1× → 1.5× → 2×), like WhatsApp.
  * Used in chat bubbles and for reviewing a recording before it's sent.
  */
-export function VoicePlayer({ uri, durationMs, peaks = [] }: { uri: string; durationMs?: number; peaks?: number[] }) {
+export function VoicePlayer({ uri, durationMs, peaks = [], compact = false }: { uri: string; durationMs?: number; peaks?: number[]; compact?: boolean }) {
   const theme = useAppTheme();
   const player = useAudioPlayer(uri, { updateInterval: 50 });
   const status = useAudioPlayerStatus(player);
@@ -128,6 +130,26 @@ export function VoicePlayer({ uri, durationMs, peaks = [] }: { uri: string; dura
     player.setPlaybackRate(next);
     void Haptics.selectionAsync();
   };
+
+  // Compact: one tidy row sized to sit inside the message field while you review before sending.
+  if (compact) {
+    return (
+      <View style={styles.compact}>
+        <Pressable accessibilityRole="button" accessibilityLabel={status.playing ? "Pause recording" : "Play recording"} hitSlop={8} onPress={toggle}>
+          <Animated.View style={[styles.playSmall, { backgroundColor: colors.accent }, pulseStyle]}>
+            <Icon name={status.playing ? "pause.fill" : "play.fill"} size={12} color="#fff" />
+          </Animated.View>
+        </Pressable>
+        <View style={{ flex: 1 }}>
+          <Waveform peaks={peaks} height={22} count={30} accent={colors.accent} progress={started ? progress : 1} onSeek={total ? (f) => void player.seekTo((f * total) / 1000) : undefined} />
+        </View>
+        <Text style={[styles.time, { minWidth: 32, textAlign: "right" }]}>{clock(started ? position : total)}</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Playback speed ${speed}x. Change`} hitSlop={8} onPress={cycleSpeed} style={styles.speedSmall}>
+          <Text style={{ fontSize: 11, fontWeight: "800", color: speed === 1 ? colors.muted : colors.accent }}>{speed}×</Text>
+        </Pressable>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.player}>
@@ -218,5 +240,8 @@ const styles = StyleSheet.create({
   player: { flexDirection: "row", alignItems: "center", gap: 10, minWidth: 230 },
   play: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
   time: { fontSize: 12, color: colors.muted, fontVariant: ["tabular-nums"] },
+  compact: { flexDirection: "row", alignItems: "center", gap: 8 },
+  playSmall: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  speedSmall: { minWidth: 30, height: 22, paddingHorizontal: 5, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceAlt },
   speed: { minWidth: 38, height: 26, paddingHorizontal: 6, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceAlt },
 });
