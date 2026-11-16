@@ -6,7 +6,7 @@ import ts from 'typescript';
 function load(path, mocks = {}) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(path, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText, {
-    exports, require: name => { if (name === '@/lib/emailNotifications') return { sendWorkOrderEmail: async () => ({ sent: true }) }; if (name in mocks) return mocks[name]; throw Error(name); }, console: { error() {} },
+    exports, require: name => { if (name === '@/lib/emailNotifications') return { sendWorkOrderEmail: async () => ({ sent: true }) }; if (name === '@/lib/adminPush') return { pushToAdmins: async () => 0 }; if (name in mocks) return mocks[name]; throw Error(name); }, console: { error() {} },
   });
   return exports;
 }

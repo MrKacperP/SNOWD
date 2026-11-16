@@ -7,7 +7,7 @@
  */
 
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { db, canWriteAdminNotifications } from "@/lib/firebase";
+import { auth, db, canWriteAdminNotifications } from "@/lib/firebase";
 
 export type AdminNotifType =
   | "signup"
@@ -40,6 +40,19 @@ export interface AdminNotifPayload {
 }
 
 export async function sendAdminNotif(payload: AdminNotifPayload) {
+  // The server records the event and alerts the admin's phone; it takes the uid from the sign-in token.
+  try {
+    const token = await auth?.currentUser?.getIdToken().catch(() => undefined);
+    const response = await fetch("/api/admin/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify(payload),
+      keepalive: true,
+    });
+    if (response.ok) return;
+  } catch {
+    // Fall back to writing the dashboard record directly.
+  }
   try {
     if (!canWriteAdminNotifications || !db) {
       console.warn("[adminNotifications] Skipped write: Firebase is not configured.", payload.type);

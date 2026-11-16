@@ -10,7 +10,7 @@ function load(path, mocks = {}, env = {}) {
   }).outputText;
   const exports = {};
   vm.runInNewContext(code, {
-    exports, require: (name) => { if (name === '@/lib/admin/refunds') return mocks[name] || { syncAdminRefund: async () => { throw new Error('Unexpected refund event in payment fixture'); } }; if (name === './admin/pricing') return load('src/lib/admin/pricing.ts'); if (name === '@/lib/marketplacePricing') return load('src/lib/marketplacePricing.ts'); if (name === '@/lib/stripeAccountState' && !(name in mocks)) return load('src/lib/stripeAccountState.ts', mocks); if (name === '@/lib/emailNotifications') return { sendWorkOrderEmail: async () => ({ sent: true }) }; if (name in mocks) return mocks[name]; throw new Error(`Unexpected import: ${name}`); },
+    exports, require: (name) => { if (name === '@/lib/admin/refunds') return mocks[name] || { syncAdminRefund: async () => { throw new Error('Unexpected refund event in payment fixture'); } }; if (name === './admin/pricing') return load('src/lib/admin/pricing.ts'); if (name === '@/lib/marketplacePricing') return load('src/lib/marketplacePricing.ts'); if (name === '@/lib/stripeAccountState' && !(name in mocks)) return load('src/lib/stripeAccountState.ts', mocks); if (name === '@/lib/emailNotifications') return { sendWorkOrderEmail: async () => ({ sent: true }) }; if (name === '@/lib/adminPush') return { pushToAdmins: async () => 0 }; if (name in mocks) return mocks[name]; throw new Error(`Unexpected import: ${name}`); },
     process: { env: { STRIPE_SECRET_KEY: 'sk_test_fixture', NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: 'pk_test_fixture', ...env } },
     console: { error() {} },
   });

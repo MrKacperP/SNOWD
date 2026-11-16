@@ -3,6 +3,7 @@ import SwiftUI
 
 @main
 struct SNOWDAdminApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @State private var session = Session()
     var body: some Scene {
         WindowGroup {
@@ -14,7 +15,10 @@ struct SNOWDAdminApp: App {
 enum AppTab: Hashable { case overview, logins, payments, verify, manage }
 
 /// Lets any screen jump to another tab, e.g. the overview's pending-verification tile.
-@MainActor @Observable final class Navigator { var tab: AppTab = .overview }
+@MainActor @Observable final class Navigator {
+    static let shared = Navigator()
+    var tab: AppTab = .overview
+}
 
 struct RootView: View {
     @Environment(Session.self) private var session
@@ -45,7 +49,7 @@ struct RootView: View {
 }
 
 struct MainTabs: View {
-    @State private var nav = Navigator()
+    @State private var nav = Navigator.shared
     @State private var badge = 0
     @Environment(Session.self) private var session
 
@@ -62,6 +66,7 @@ struct MainTabs: View {
         .tabViewStyle(.sidebarAdaptable)
         .environment(nav)
         .task {
+            await Push.shared.start(session)
             if let v: Verifications = try? await API(session: session).get("/api/admin/monitor", query: ["view": "verifications"]) { badge = v.pending.count }
         }
     }

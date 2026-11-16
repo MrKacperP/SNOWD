@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { requireStripeUser } from "@/lib/stripeConnectAuth";
 import { getAdminDb } from "@/lib/firebaseAdmin";
+import { pushToAdmins } from "@/lib/adminPush";
 
 export async function GET(req: NextRequest) {
   const user = await requireStripeUser(req).catch(() => null);
@@ -18,8 +19,8 @@ export async function POST(req: NextRequest) {
   if (body?.confirmation !== "DELETE") return NextResponse.json({ error: "Confirm deletion to continue." }, { status: 400 });
   const db = getAdminDb();
   const request = db.doc(`accountDeletionRequests/${user.uid}`);
-  await db.runTransaction(async tx => {
-    if ((await tx.get(request)).exists) return;
+  const created = await db.runTransaction(async tx => {
+    if ((await tx.get(request)).exists) return false;
     // This is client-reported SDK completion, not server proof of revocation.
     // The fulfilment action separately requires an administrator's review.
     tx.create(request, { uid: user.uid, email: user.email || null, status: "requested", requestedAt: FieldValue.serverTimestamp(), dueAt: Timestamp.fromMillis(Date.now() + 30 * 86400000), source: "self-service", appleRevocationReported: body.appleRevocationReported === true });
@@ -28,6 +29,8 @@ export async function POST(req: NextRequest) {
       uid: user.uid, actionRequired: true, read: false, priority: "high",
       meta: { path: "/admin/account-deletions", uid: user.uid }, createdAt: FieldValue.serverTimestamp(),
     });
+    return true;
   });
+  if (created) await pushToAdmins({ category: "accounts", title: "Account deletion requested", body: `${user.email || "A user"} asked to delete their account.`, excludeUid: user.uid });
   return NextResponse.json({ status: "requested" }, { status: 202, headers: { "Cache-Control": "no-store" } });
 }
