@@ -45,10 +45,13 @@ export const metadata: Metadata = {
     images: ["/landing/snowd-neighborhood-hero-v2.png"],
   },
   icons: {
-    icon: "/icon.png",
-    apple: "/icon.png",
-    shortcut: "/icon.png",
+    icon: [
+      { url: "/icons/snowd.svg", type: "image/svg+xml" },
+      { url: "/icons/snowd-192.png", type: "image/png", sizes: "192x192" },
+    ],
+    shortcut: "/favicon.ico",
   },
+  appleWebApp: { capable: true, title: "SNOWD", statusBarStyle: "default" },
 };
 
 export default function RootLayout({
@@ -58,11 +61,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" data-scroll-behavior="smooth" className={`${instrumentSans.variable} ${spaceGrotesk.variable}`}>
-      <head>
-        <link rel="icon" href="/icon.png" sizes="any" />
-        <link rel="icon" type="image/png" href="/icon.png" />
-        <link rel="apple-touch-icon" href="/icon.png" />
-      </head>
       <body className="antialiased snowd-glass">
         <SnowHaze />
         <ThemeProvider><AuthProvider>

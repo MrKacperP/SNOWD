@@ -86,6 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let profileUnsubscribe: (() => void) | null = null;
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setLoading(true);
       setUser(firebaseUser);
       setProfileError(false);
       
@@ -210,16 +211,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (!user) throw new Error("No user logged in");
 
-    const accountHistoryRef = doc(db, "accountHistory", encodeURIComponent((user.email || "").trim().toLowerCase()));
-    await setDoc(
-      accountHistoryRef,
-      {
-        email: (user.email || "").trim().toLowerCase(),
-        deletedAccountIds: arrayUnion(user.uid),
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
+    if (user.email) {
+      const accountHistoryRef = doc(db, "accountHistory", encodeURIComponent((user.email || "").trim().toLowerCase()));
+      await setDoc(
+        accountHistoryRef,
+        {
+          email: (user.email || "").trim().toLowerCase(),
+          deletedAccountIds: arrayUnion(user.uid),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+    }
 
     // Remove the private profile before Auth deletion while the user's credentials
     // still authorize the Firestore delete.
