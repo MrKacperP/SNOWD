@@ -63,13 +63,15 @@ export function ClientHomeView({ locationLabel, activeJobs, profile, operatorNam
           <div className="col-span-2 sm:col-span-1"><span className="text-xs text-[var(--text-muted)]">When</span>{nextJob.status === "en-route" ? <strong className="eta-live mt-1"><span className="eta-live-badge"><span aria-hidden="true" />Live</span>{arrival}</strong> : <strong className="mt-1 block">{nextJob.status === "cancelled" ? "Cancelled" : nextJob.status === "in-progress" ? "Clearing now" : isAsap(nextJob) ? "As soon as possible" : scheduleText(nextJob)}</strong>}</div>
           <PaymentSummary job={nextJob} />
         </div>
-        <div className="mt-5 flex flex-wrap items-center gap-3">
-          {orderActionNeeded(nextJob, nextJob.clientId) ? <>
-            <OrderActions job={nextJob} compact navigateOnUpdate={false} />
-            <Link className="inline-flex min-h-11 items-center px-2 font-semibold text-[var(--text-secondary)]" href={`/dashboard/jobs/${nextJob.id}`}>View work order</Link>
-          </> : <Link className="btn-primary min-h-12" href={`/dashboard/jobs/${nextJob.id}`}><IconSwap icon={<ArrowRight size={18} />}>{next.nextAction || "View visit"}<ArrowRight size={18} /></IconSwap></Link>}
-
-        </div>
+        {orderActionNeeded(nextJob, nextJob.clientId) ? <>
+          {/* Payment and approval actions are full-width forms, so they get their own row instead of shrinking inside the link row. */}
+          <OrderActions job={nextJob} compact navigateOnUpdate={false} />
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <Link className="inline-flex min-h-12 items-center px-2 font-semibold text-[var(--text-secondary)]" href={`/dashboard/jobs/${nextJob.id}`}>View work order</Link>
+          </div>
+        </> : <div className="mt-5 flex flex-wrap items-center gap-3">
+          <Link className="btn-primary min-h-12" href={`/dashboard/jobs/${nextJob.id}`}><IconSwap icon={<ArrowRight size={18} />}>{next.nextAction || "View visit"}<ArrowRight size={18} /></IconSwap></Link>
+        </div>}
       </section> : <BookingAction location={locationLabel} />}
 
       {(!loading && !loadError && activeJobs.length > 1) && <section className="client-orders-panel" aria-labelledby="jobs-heading">
