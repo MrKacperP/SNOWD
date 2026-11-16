@@ -1,6 +1,7 @@
 import type Stripe from "stripe";
 import { FieldValue } from "firebase-admin/firestore";
 import { getAdminDb } from "@/lib/firebaseAdmin";
+import { pushToAdmins } from "@/lib/adminPush";
 
 // The browser can close during checkout. Persist payment results on the server,
 // both from API responses and signed webhooks, with one record per intent.
@@ -14,7 +15,9 @@ export async function syncStripePayment(payment: Stripe.PaymentIntent, stripeAcc
     : payment.status === "canceled" ? "refunded" : "pending";
   const db = getAdminDb();
   const jobRef = db.doc(`jobs/${jobId}`);
+  let paidAlert: string | null = null;
   await db.runTransaction(async (transaction) => {
+    paidAlert = null;
     const snapshot = await transaction.get(jobRef);
     const job = snapshot.data();
     if (!job || job.stripePaymentIntentId !== payment.id) return;
@@ -64,7 +67,9 @@ export async function syncStripePayment(payment: Stripe.PaymentIntent, stripeAcc
         meta: { path: "/admin/transactions", jobId },
         createdAt: now,
       });
+      paidAlert = `${(payment.amount / 100).toLocaleString("en-CA", { style: "currency", currency: "CAD" })} card payment for order #${job.orderNumber || jobId}.`;
     }
   });
+  if (paidAlert) await pushToAdmins({ category: "payments", title: "Payment received", body: paidAlert });
   return { status: payment.status, paymentStatus: status };
 }

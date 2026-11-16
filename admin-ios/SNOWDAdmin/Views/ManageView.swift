@@ -25,6 +25,7 @@ struct ManageView: View {
                 }
                 Section("Settings") {
                     NavigationLink { PricingView() } label: { Label("Fees & discounts", systemImage: "tag.fill") }
+                    NavigationLink { NotificationsView() } label: { Label("Notifications", systemImage: "bell.badge.fill") }
                     Toggle(isOn: $lockEnabled) { Label("Lock with Face ID", systemImage: "faceid") }
                     Link(destination: Config.webAdmin) { Label("Open web admin", systemImage: "safari") }
                 }
@@ -36,7 +37,7 @@ struct ManageView: View {
             }
             .navigationTitle("Manage")
             .confirmationDialog("Sign out of SNOWD Admin?", isPresented: $confirmSignOut, titleVisibility: .visible) {
-                Button("Sign out", role: .destructive) { session.signOut() }
+                Button("Sign out", role: .destructive) { Task { await Push.shared.unregister(); session.signOut() } }
             }
         }
     }

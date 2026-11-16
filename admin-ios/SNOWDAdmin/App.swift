@@ -3,6 +3,7 @@ import SwiftUI
 
 @main
 struct SNOWDAdminApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @State private var session = Session()
     var body: some Scene {
         WindowGroup {
@@ -14,7 +15,10 @@ struct SNOWDAdminApp: App {
 enum AppTab: Hashable { case overview, logins, payments, verify, manage }
 
 /// Lets any screen jump to another tab, e.g. the overview's pending-verification tile.
-@MainActor @Observable final class Navigator { var tab: AppTab = .overview }
+@MainActor @Observable final class Navigator {
+    static let shared = Navigator()
+    var tab: AppTab = .overview
+}
 
 struct RootView: View {
     @Environment(Session.self) private var session
@@ -33,15 +37,19 @@ struct RootView: View {
             if session.state == .signedIn && lockEnabled && locked { LockView { locked = false } }
         }
         .onChange(of: phase) { _, new in
-            if new == .background { backgroundedAt = Date() }
-            // Lock again after a minute away.
-            if new == .active, let since = backgroundedAt, Date().timeIntervalSince(since) > 60 { locked = true }
+            // The Face ID sheet itself moves the app out of .active, so only time away while unlocked counts.
+            if new == .background && !locked { backgroundedAt = Date() }
+            if new == .active, let since = backgroundedAt {
+                backgroundedAt = nil
+                // Lock again after a minute away.
+                if Date().timeIntervalSince(since) > 60 { locked = true }
+            }
         }
     }
 }
 
 struct MainTabs: View {
-    @State private var nav = Navigator()
+    @State private var nav = Navigator.shared
     @State private var badge = 0
     @Environment(Session.self) private var session
 
@@ -58,6 +66,7 @@ struct MainTabs: View {
         .tabViewStyle(.sidebarAdaptable)
         .environment(nav)
         .task {
+            await Push.shared.start(session)
             if let v: Verifications = try? await API(session: session).get("/api/admin/monitor", query: ["view": "verifications"]) { badge = v.pending.count }
         }
     }

@@ -1,3 +1,4 @@
+import { pushToAdmins } from "@/lib/adminPush";
 import { NextRequest, NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { getAdminAuth, getAdminDb } from "@/lib/firebaseAdmin";
@@ -47,11 +48,12 @@ export async function POST(request: NextRequest) {
         meta: { path: "/admin/transactions", jobId },
         createdAt: now,
       });
-      return { alreadyConfirmed: false, email: { uid: job.clientId, title: `Order #${job.orderNumber || job.id} · Cash payment received`, eventId: "cash-confirmed" } };
+      return { alreadyConfirmed: false, alert: `${(amount / 100).toLocaleString("en-CA", { style: "currency", currency: "CAD" })} cash received for order #${job.orderNumber || jobId}.`, email: { uid: job.clientId, title: `Order #${job.orderNumber || job.id} · Cash payment received`, eventId: "cash-confirmed" } };
     });
     if ("error" in result) return NextResponse.json({ error: result.error }, { status: result.status });
+    if (result.alert) await pushToAdmins({ category: "payments", title: "Payment received", body: result.alert });
     if (result.email) await sendWorkOrderEmail(result.email.uid, jobId as string, result.email.title, result.email.eventId).catch(error => console.error("Cash confirmation email failed", error));
-    const { email: _email, ...response } = result;
+    const { email: _email, alert: _alert, ...response } = result;
     return NextResponse.json({ confirmed: true, ...response });
   } catch (error) {
     console.error("Cash confirmation failed:", error);
