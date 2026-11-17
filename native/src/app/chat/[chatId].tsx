@@ -17,6 +17,7 @@ import { useAuth } from "~/context/auth";
 import { api } from "~/lib/api";
 import { personName, useChat, useJobs, useMessages, usePeople } from "~/lib/data";
 import { db } from "~/lib/firebase";
+import { useClearChatNotifications } from "~/lib/notifications";
 import { clockTime, dayLabel } from "~/lib/format";
 import { chooseUpload, storageName, uploadFile } from "~/lib/uploads";
 import { colors, radius, space, stepColor, type } from "~/lib/theme";
@@ -118,6 +119,8 @@ export default function ChatScreen() {
     unread.forEach((m) => void updateDoc(doc(db, "messages", m.id), { read: true }).catch(() => {}));
     if (chat?.unreadCount?.[uid]) void updateDoc(doc(db, "chats", chatId), { [`unreadCount.${uid}`]: 0 }).catch(() => {});
   }, [messages, chat?.unreadCount, uid, chatId]);
+  const chatIds = useMemo(() => [chatId, ...(chat?.mergedFrom || [])], [chatId, chat?.mergedFrom]);
+  useClearChatNotifications(uid, chatIds);
 
   const send = async (content: string, kind: ChatMessage["type"] = "text", metadata?: ChatMessage["metadata"]) => {
     if (!uid || !chatId || (kind === "text" && !content.trim())) return false;

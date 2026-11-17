@@ -93,3 +93,10 @@ export function citiesNear(point: { lat: number; lng: number }, count = 8, withi
     .sort((a, b) => a.km - b.km)
     .slice(0, count);
 }
+
+/** The centre of a listed city, by name and province, or null if it isn't in the list. */
+export function cityCentre(city: string, provinceCode: string): { lat: number; lng: number } | null {
+  const name = city.trim().toLowerCase();
+  const hit = CITIES.find(([c, code]) => c.toLowerCase() === name && code === provinceCode);
+  return hit ? { lat: hit[2], lng: hit[3] } : null;
+}

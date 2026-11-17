@@ -5,6 +5,8 @@ import { RefreshControl, Text, View } from "react-native";
 import { Badge, Button, Card, Empty, Group, Icon, Notice, Row, Screen } from "~/components/ui";
 import { useAuth } from "~/context/auth";
 import { api } from "~/lib/api";
+import { applePayAvailable } from "~/lib/orders";
+import { idState } from "~/lib/verification";
 import { colors, space, type } from "~/lib/theme";
 
 type StripeStatus = {
@@ -24,6 +26,7 @@ export default function PaymentSettings() {
   const { user, profile } = useAuth();
   const operator = profile?.role === "operator";
   const accountId = profile?.stripeConnectAccountId;
+  const id = idState(profile);
   const [status, setStatus] = useState<StripeStatus | null>(null);
   const [checking, setChecking] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -49,7 +52,10 @@ export default function PaymentSettings() {
     void check();
   }, [check]);
 
-  /** Stripe collects identity and bank details on its own secure pages; the app opens them and checks again on return. */
+  /**
+   * Stripe collects identity and bank details on its own secure pages; the app opens them and checks again on return.
+   * A finished account opens its Stripe Express dashboard instead, where payouts and the bank account are managed.
+   */
   const connect = async () => {
     setConnecting(true);
     setError("");
@@ -60,10 +66,12 @@ export default function PaymentSettings() {
         businessName: profile?.businessName || profile?.displayName,
       });
       if (created.configured === false || !created.accountId) throw new Error(created.error || "Card payments aren’t available right now.");
-      const link = await api<{ onboardingUrl?: string; error?: string }>("/api/stripe/account-link", { accountId: created.accountId, native: true });
+      const link = await api<{ onboardingUrl?: string; error?: string }>("/api/stripe/account-link", { accountId: created.accountId, native: true, ...(status?.fullyReady ? { mode: "manage" } : {}) });
       const url = link.onboardingUrl ? new URL(link.onboardingUrl) : null;
       if (!url || url.protocol !== "https:" || !["connect.stripe.com", "onboarding.stripe.com"].includes(url.hostname)) throw new Error(link.error || "Stripe returned an unexpected setup address.");
-      await WebBrowser.openAuthSessionAsync(url.href, "snowd://connect-return", { preferEphemeralSession: false });
+      // A private session skips iOS's "wants to use stripe.com to Sign In" alert, which reads as a login
+      // to someone setting up payouts. Each Stripe link is already signed in, so no shared cookies are needed.
+      await WebBrowser.openAuthSessionAsync(url.href, "snowd://connect-return", { preferEphemeralSession: true });
       const data = await api<StripeStatus>("/api/stripe/account-status", { accountId: created.accountId });
       setStatus(data);
     } catch (e) {
@@ -88,7 +96,19 @@ export default function PaymentSettings() {
                 <Text style={[type.headline, { flex: 1 }]}>Stripe Connect</Text>
                 <Badge label={status?.fullyReady ? "Connected" : status?.detailsSubmitted ? "In review" : accountId ? "Setup needed" : "Not connected"} tone={status?.fullyReady ? "green" : status?.detailsSubmitted ? "orange" : "gray"} />
               </View>
-              <Text style={type.callout}>Connect your verified Stripe account to accept card and Apple Pay payments and get paid to your Canadian bank account. You can take cash jobs without it.</Text>
+              <Text style={type.callout}>{`Set up Stripe to accept ${applePayAvailable ? "card and Apple Pay" : "card"} payments and get paid to your Canadian bank account. You can take cash jobs without it.`}</Text>
+              {id !== "verified" ? (
+                <Notice
+                  tone={id === "rejected" ? "orange" : "blue"}
+                  text={
+                    id === "pending"
+                      ? "Your ID is in review. You can set up Stripe now; customers can pay you by card once SNOWD verifies your ID."
+                      : id === "rejected"
+                        ? "SNOWD couldn’t verify your ID. Upload a new photo in ID verification so customers can pay you by card."
+                        : "Customers can pay you by card once SNOWD verifies your ID. Upload it in ID verification; you can set up Stripe in the meantime."
+                  }
+                />
+              ) : null}
               {status?.fullyReady ? (
                 <View style={{ backgroundColor: colors.mintSoft, borderRadius: 14, padding: space.md, gap: 8 }}>
                   <Text style={{ color: colors.mint, fontWeight: "800" }}>Card payments and bank payouts are on.</Text>
@@ -108,7 +128,14 @@ export default function PaymentSettings() {
                 loading={connecting}
                 onPress={connect}
               />
-              <Text style={type.caption}>Stripe opens in a secure sheet to verify your identity and bank. When you finish, tap “Return to SNOWD”.</Text>
+              {id === "missing" || id === "rejected" ? (
+                <Button title="Verify my ID" icon="person.text.rectangle.fill" variant="secondary" onPress={() => router.push("/settings/verification")} />
+              ) : null}
+              <Text style={type.caption}>
+                {status?.fullyReady
+                  ? "Your Stripe dashboard opens in a secure sheet, where you can change your bank account and see payouts."
+                  : "Stripe, SNOWD’s payment partner, opens in a secure sheet to confirm your identity and bank account. You come back here when you finish."}
+              </Text>
             </Card>
           </>
         ) : (
@@ -128,7 +155,7 @@ export default function PaymentSettings() {
                 </View>
               ))
             ) : (
-              <Empty icon="creditcard" title="No saved cards" body="You choose Apple Pay or enter a card securely when you book. Nothing is charged until the work is done." />
+              <Empty icon="creditcard" title="No saved cards" body={`You ${applePayAvailable ? "choose Apple Pay or enter a card" : "enter a card"} securely when you book. Nothing is charged until the work is done.`} />
             )}
           </Card>
         )}

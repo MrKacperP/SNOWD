@@ -34,7 +34,7 @@ UserProfile,
 isShovelingService,
 type ServiceType,
 } from "@/lib/types";
-import { deleteField,doc,updateDoc } from "firebase/firestore";
+import { deleteField,doc,serverTimestamp,updateDoc } from "firebase/firestore";
 import { getDownloadURL,ref,uploadBytes } from "firebase/storage";
 import {
 AlertCircle,
@@ -326,12 +326,12 @@ export default function SettingsPage() {
       const photo = await prepareImageUpload(file, 3200);
       await uploadBytes(storageRef, photo, { contentType: photo.type });
       const url = await getDownloadURL(storageRef);
+      // Only fields users may change themselves: idVerified, accountApproved and verificationNote
+      // belong to the review team, and writing them is refused by the Firestore rules.
       await updateDoc(doc(db, "users", profile.uid), {
         idPhotoUrl: url,
-        idVerified: false,
-        accountApproved: false,
         verificationStatus: "pending",
-        verificationNote: "",
+        idSubmittedAt: serverTimestamp(),
       });
       setIdPhotoUrl(url);
       await refreshProfile();
@@ -356,7 +356,7 @@ export default function SettingsPage() {
       const storageRef = ref(storage, `verification/${profile.uid}/transcript`);
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
-      await updateDoc(doc(db, "users", profile.uid), { studentTranscriptUrl: url });
+      await updateDoc(doc(db, "users", profile.uid), { studentTranscriptUrl: url, transcriptSubmittedAt: serverTimestamp() });
       setStudentTranscriptUrl(url);
       await refreshProfile();
       sendAdminNotif({
@@ -637,7 +637,7 @@ export default function SettingsPage() {
           walkway: pricing.walkway,
           sidewalk: pricing.sidewalk,
           backyardPatio: pricing.backyardPatio,
-          // Front porch is always billed at the sidewalk rate.
+          // The walkway is always billed at the sidewalk rate.
           porch: pricing.sidewalk,
         };
         updates.logoUrl = logoUrl;
@@ -711,7 +711,7 @@ export default function SettingsPage() {
       ? [{ key: "service-areas" as const, label: "Service areas", icon: MapPin }]
       : [{ key: "properties" as const, label: "Properties", icon: Home }]),
     { key: "payment" as const, label: "Payment", icon: CreditCard },
-    { key: "verification" as const, label: "Verification", icon: ShieldCheck },
+    { key: "verification" as const, label: "ID & student", icon: ShieldCheck },
     { key: "notifications" as const, label: "Notifications", icon: Bell },
     ...(isOperator ? [{ key: "branding" as const, label: "Branding", icon: Palette }] : []),
   ];
@@ -729,7 +729,8 @@ export default function SettingsPage() {
   const activeTabMeta = TABS.find((tab) => tab.key === activeTab);
   const accountComplete = savedMissingFields.length === 0;
   const completionPercent = Math.round((savedRequiredFields.length - savedMissingFields.length) / savedRequiredFields.length * 100);
-  const verificationLabel = profile?.idVerified ? "Verified" : verificationStatus === "rejected" ? "Action needed" : profile?.idPhotoUrl ? "In review" : "Not submitted";
+  // Customer accounts start approved without an ID on file, so "Verified" also needs the photo.
+  const verificationLabel = verificationStatus === "rejected" ? "Action needed" : !profile?.idPhotoUrl ? "Not submitted" : profile?.idVerified && verificationStatus !== "pending" ? "Verified" : "In review";
   const paymentLabel = isOperator ? stripeStatus?.fullyReady ? "Connected" : stripeConfigError ? "Check connection" : stripeStatus ? "Setup needed" : "Check status" : "At checkout";
   const LOCATION_FIELDS = ["address", "city", "province", "postalCode"];
   const locationSection: Section = isOperator ? "service-areas" : "properties";
@@ -847,7 +848,7 @@ export default function SettingsPage() {
           {isOperator && (
             <section className={styles.card}>
               <h2 className={styles.cardTitle}>Areas and prices</h2>
-              <p className={styles.sectionDescription}>Pick the areas you shovel, then set what you receive for each. Front porch and sidewalk share one price. Existing orders keep their agreed price.</p>
+              <p className={styles.sectionDescription}>Pick the areas you shovel, then set what you receive for each. Walkway and sidewalk share one price. Existing orders keep their agreed price.</p>
               <div className={styles.areaChips} role="group" aria-label="Areas you shovel">
                 {SHOVELING_SERVICES.map(([value, label]) => {
                   const on = offeredServices.includes(value);
@@ -863,7 +864,7 @@ export default function SettingsPage() {
                   ["small", "1-car driveway", "driveway"],
                   ["medium", "2-car driveway", "driveway"],
                   ["large", "3+ car driveway", "driveway"],
-                  ["sidewalk", "Front porch & sidewalk", "porch|sidewalk"],
+                  ["sidewalk", "Walkway & sidewalk", "porch|sidewalk"],
                   ["backyardPatio", "Backyard patio", "backyard-patio"],
                 ] as const).filter(([, , areas]) => areas.split("|").some(area => offeredServices.includes(area as ServiceType))).map(([key, label]) => (
                   <Field key={key} label={`${label} ($ CAD)`} type="number" inputMode="decimal" min="0.01" max="10000" step="0.01" value={pricing[key]} onChange={event => setPricing(current => ({ ...current, [key]: Number(event.target.value), ...(key === "sidewalk" ? { porch: Number(event.target.value) } : {}) }))} />
@@ -1162,12 +1163,14 @@ export default function SettingsPage() {
             </h3>
             <p className="text-xs text-[var(--text-muted)] mb-4">
               Upload a clear photo of your government-issued ID (driver&apos;s license, passport, etc.)
-              {isOperator ? " — required for your account to go public." : " to get verified and build trust with other users."}
+              {isOperator
+                ? " — required for your account to go public, and it lets SNOWD confirm who did a job if a case is ever opened."
+                : " — it confirms your address for operators and lets SNOWD help quickly if anything goes wrong."}
             </p>
 
             {/* Current status */}
             <div className="flex items-center gap-2 mb-4">
-              {profile?.idVerified ? (
+              {profile?.idVerified && idPhotoUrl && verificationStatus !== "pending" && verificationStatus !== "rejected" ? (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-50 text-green-700 text-xs font-medium">
                   <ShieldCheck className="w-3.5 h-3.5" /> Verified
                 </span>
@@ -1186,9 +1189,7 @@ export default function SettingsPage() {
               )}
             </div>
 
-            {(profile as OperatorProfile)?.idVerified && (profile as OperatorProfile)?.isAvailable === false
-                          ? "Your ID is verified. Turn on availability from Home to appear in nearby searches."
-                          : verificationStatus === "rejected" && verificationNote && (
+            {verificationStatus === "rejected" && verificationNote && (
               <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4">
                 <p className="text-xs font-semibold text-red-900 uppercase tracking-wide mb-1">Admin feedback</p>
                 <p className="text-sm text-red-700">{verificationNote}</p>
@@ -1227,23 +1228,29 @@ export default function SettingsPage() {
             </label>
           </div>
 
-          {/* Student Transcript - operators only */}
-          {isOperator && (
-            <div className={styles.card}>
+          {/* Students: a transcript confirms it and unlocks student promotions. Open to everyone. */}
+          {(
+            <div className={styles.card} style={{ borderColor: "var(--accent)", background: studentTranscriptUrl ? undefined : "color-mix(in srgb, var(--accent) 6%, var(--bg-primary, #fff))" }}>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--accent)] mb-1">For students</p>
               <h3 className="text-lg font-semibold text-[var(--ink)] mb-1 flex items-center gap-2">
                 <GraduationCap className="w-5 h-5 text-[var(--accent)]" />
-                Student Transcript / Report Card
+                {studentTranscriptUrl ? "Student transcript sent" : "Are you a student? Upload your transcript"}
               </h3>
-              <p className="text-xs text-[var(--text-muted)] mb-4">
-                Upload your student transcript or most recent report card to verify student status.
-                This helps clients identify student operators and may qualify you for student promotions.
+              <p className="text-sm text-[var(--text-muted)] mb-3">
+                A photo or PDF of your transcript, latest report card or student card confirms you&apos;re a student
+                {isOperator ? " to customers" : ""} and gets you better promotions.
               </p>
+              <ul className="mb-4 space-y-1.5 text-sm text-[var(--ink)]">
+                <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-[var(--accent)]" /> Student promotions and lower fees</li>
+                {isOperator && <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-[var(--accent)]" /> A Student badge on your profile</li>}
+                {isOperator && <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-[var(--accent)]" /> Shown first to customers who want to hire students</li>}
+              </ul>
 
               {/* Current status */}
               <div className="flex items-center gap-2 mb-4">
                 {studentTranscriptUrl ? (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-50 text-green-700 text-xs font-medium">
-                    <CheckCircle className="w-3.5 h-3.5" /> Uploaded
+                    <CheckCircle className="w-3.5 h-3.5" /> Uploaded · in review
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--border)] text-[var(--text-muted)] text-xs font-medium">

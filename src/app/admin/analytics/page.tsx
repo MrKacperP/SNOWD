@@ -9,13 +9,13 @@ import { useAdminData } from "@/components/admin/AdminProvider";
 const donutColors = ["#061321", "#E5E7EB"];
 
 export default function AdminAnalyticsPage() {
-  const { users, jobs, transactions, supportTickets } = useAdminData();
+  const { users, jobs, revenueTransactions, supportTickets } = useAdminData();
   const [range, setRange] = useState("Last 30 days");
   const days = Number(range.match(/\d+/)?.[0] || 30);
   const start = new Date(); start.setUTCHours(0, 0, 0, 0); start.setUTCDate(start.getUTCDate() - days + 1);
   const inRange = (date: string) => !!date && new Date(date) >= start && new Date(date) <= new Date();
   const analyticsUsers = dailySeries(users.map(u => ({ date: u.joinDate, value: 1 })), days);
-  const analyticsRevenue = dailySeries(transactions.filter(t => t.status === "Completed" && t.type === "Payment").map(t => ({ date: t.date, value: t.amount })), days);
+  const analyticsRevenue = dailySeries(revenueTransactions.filter(t => t.status === "Completed" && t.type === "Payment").map(t => ({ date: t.date, value: t.amount })), days);
   const categories = jobs.filter(j => inRange(j.datePosted)).reduce<Record<string, number>>((acc, j) => { acc[j.category] = (acc[j.category] || 0) + 1; return acc; }, {});
   const analyticsCategories = Object.entries(categories).map(([category, value]) => ({ category, value }));
   const tickets = supportTickets.filter(t => inRange(t.createdAt || ""));

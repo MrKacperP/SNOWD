@@ -15,13 +15,23 @@ export async function POST(req: NextRequest) {
     }
 
     const stripe = getStripe();
-    const { accountId, native } = await req.json();
+    const { accountId, native, mode } = await req.json();
 
     if (!accountId) {
       return NextResponse.json({ error: "Missing accountId" }, { status: 400 });
     }
 
     await requireStripeOperator(req, accountId);
+
+    // A finished account is managed in its Stripe Express dashboard (payouts, bank, tax forms);
+    // sending it through onboarding again would only show the setup steps it already completed.
+    if (mode === "manage") {
+      const account = await stripe.accounts.retrieve(accountId);
+      if (account.details_submitted) {
+        const login = await stripe.accounts.createLoginLink(accountId);
+        return NextResponse.json({ onboardingUrl: login.url, kind: "dashboard" });
+      }
+    }
 
     // Create a new account link (refresh or re-onboard)
     const origin = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;

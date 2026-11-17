@@ -1,8 +1,9 @@
 import { collection, doc, onSnapshot, query, updateDoc, where, writeBatch } from "firebase/firestore";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { presentNotification, type NotificationRecord } from "@/lib/notificationPresentation";
 import { dateMillis } from "@/lib/workOrders";
 import { db } from "./firebase";
+import { dismissChatPushes } from "./push";
 
 export type AppNotification = NotificationRecord & { id: string; uid: string; read?: boolean; createdAt?: unknown };
 
@@ -37,6 +38,29 @@ export function useNotifications(uid?: string) {
     await batch.commit();
   }, [items]);
   return { items, unread: items.filter((item) => !item.read).length, loading, error, markRead, markAllRead };
+}
+
+/**
+ * While a chat is open, marks its "New message" updates read (the Updates bell and the app icon
+ * badge count them) and clears its phone notifications from Notification Centre, including ones
+ * that arrive while the chat stays open. `chatIds` is the chat plus any older chats merged into it.
+ */
+export function useClearChatNotifications(uid: string | undefined, chatIds: string[]) {
+  const { items } = useNotifications(uid);
+  const key = chatIds.filter(Boolean).join(",");
+  const stale = useMemo(() => {
+    const ids = new Set(key.split(","));
+    return items.filter((item) => !item.read && !!item.chatId && ids.has(item.chatId)).map((item) => item.id).join(",");
+  }, [items, key]);
+  useEffect(() => {
+    if (!stale) return;
+    const batch = writeBatch(db);
+    stale.split(",").slice(0, 450).forEach((id) => batch.update(doc(db, "notifications", id), { read: true }));
+    void batch.commit().catch(() => {});
+  }, [stale]);
+  useEffect(() => {
+    if (key) void dismissChatPushes(key.split(","));
+  }, [key, stale]);
 }
 
 /** Turns the website link a notification points at into the matching app screen. */

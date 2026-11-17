@@ -29,14 +29,14 @@ export type ServiceType =
 /** The only areas clients can book and operators can offer. Older orders may still carry retired types. */
 export const SHOVELING_SERVICES = [
   ["driveway", "Driveway"],
-  ["porch", "Front porch"],
+  ["porch", "Walkway"],
   ["sidewalk", "Sidewalk"],
   ["backyard-patio", "Backyard patio"],
 ] as const satisfies readonly (readonly [ServiceType, string])[];
 
 export const SERVICE_LABELS: Record<ServiceType, string> = {
   driveway: "Driveway",
-  porch: "Front porch",
+  porch: "Walkway",
   sidewalk: "Sidewalk",
   "backyard-patio": "Backyard patio",
   walkway: "Walkway",
@@ -49,6 +49,9 @@ export const isShovelingService = (service: string): service is ServiceType =>
   SHOVELING_SERVICES.some(([value]) => value === service);
 
 export type PropertySize = "small" | "medium" | "large" | "commercial";
+export type DrivewayLayout = "side-by-side" | "end-to-end" | "mixed";
+/** The kind of home, so the plan of what to clear matches it: its own lot, sharing a wall, or on a corner. */
+export type HomeStyle = "detached" | "attached" | "corner";
 
 export type PropertyUse = "home" | "rental" | "business" | "cottage" | "other";
 export const PROPERTY_USES = [
@@ -139,6 +142,10 @@ export interface ClientProfile extends UserProfile {
     photos?: string[];
     use?: PropertyUse;
     areaSqft?: number;
+    /** How the cars park: side by side (a wide drive), end to end (a long one), or two and one. */
+    drivewayLayout?: DrivewayLayout;
+    /** Detached, semi or town (attached), or on a corner lot with a sidewalk along two sides. */
+    homeStyle?: HomeStyle;
   };
   savedOperators: string[]; // operator UIDs
   favoriteOperatorId?: string; // primary favorite operator UID

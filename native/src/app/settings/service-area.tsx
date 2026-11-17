@@ -1,47 +1,41 @@
-import * as Location from "expo-location";
+import * as Haptics from "expo-haptics";
 import { Stack } from "expo-router";
 import { doc, updateDoc } from "firebase/firestore";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
-import MapView, { Circle, Marker, Polygon } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { CANADIAN_PROVINCES, type OperatorServiceArea } from "@/lib/types";
-import { AddressFields, addressProblem, currentAddress, geocodeAddress, type AddressValue } from "~/components/AddressFields";
-import { Button, Chip, Icon, Notice, AutosaveStatus, useAutosave } from "~/components/ui";
-import { ShovelPin, SNOWD_MAP, useMarkerRedraw } from "~/components/MapStyle";
-import { cityBoundary, type CityBoundary } from "~/lib/boundaries";
+import type { OperatorServiceArea } from "@/lib/types";
+import { addressProblem, geocodeAddress, type AddressValue } from "~/components/AddressFields";
+import { CityPicker, HomeMap } from "~/components/onboarding/MapInputs";
+import { AutosaveStatus, Icon, Notice, useAutosave } from "~/components/ui";
 import { useAuth } from "~/context/auth";
 import { notifyAdmin } from "~/lib/admin";
 import { db } from "~/lib/firebase";
-import { colors, radius, shadow, space, type } from "~/lib/theme";
+import { cityCentre, distanceKm } from "~/lib/canadianCities";
+import { ds, family, tap } from "~/lib/theme";
 
 const RADII = [5, 10, 15, 20, 30, 50];
 
-/** Base location plus the travel radius or cities served — the website's Settings → Service areas. */
+/**
+ * Settings → Area: the same pieces as onboarding. Cities near your base are suggested as pins on a
+ * mini map and as chips under it; tap to pick them and their borders are drawn. With no city
+ * picked, you get jobs within a travel distance of your base instead. Saves on its own.
+ */
 export default function ServiceAreaSettings() {
   const insets = useSafeAreaInsets();
   const { user, profile } = useAuth();
   const initial = () => ({
     home: { address: profile?.address || "", city: profile?.city || "", province: profile?.province || "ON", postalCode: profile?.postalCode || "", lat: profile?.lat ?? null, lng: profile?.lng ?? null } as AddressValue,
-    mode: (profile?.serviceAreaMode || (profile?.serviceAreas?.length ? "cities" : "radius")) as "radius" | "cities",
-    radiusKm: profile?.serviceRadius || 10,
-    cities: (profile?.serviceAreas || []) as OperatorServiceArea[],
+    radiusKm: profile?.serviceRadius || 15,
+    cities: (profile?.serviceAreaMode === "radius" ? [] : profile?.serviceAreas || []) as OperatorServiceArea[],
   });
   const [home, setHome] = useState(initial().home);
-  const [mode, setMode] = useState(initial().mode);
   const [radiusKm, setRadiusKm] = useState(initial().radiusKm);
   const [cities, setCities] = useState(initial().cities);
-  const [cityName, setCityName] = useState("");
-  const [cityProvince, setCityProvince] = useState(profile?.province || "ON");
-  const [adding, setAdding] = useState(false);
-  const [typing, setTyping] = useState(false);
-  const [locating, setLocating] = useState(false);
-  const [radiusText, setRadiusText] = useState(String(initial().radiusKm));
-  const [outlines, setOutlines] = useState<Record<string, CityBoundary | null>>({});
+  const [editingBase, setEditingBase] = useState(!initial().home.address);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [done, setDone] = useState("");
 
   const owner = useRef<string | null>(null);
   useEffect(() => {
@@ -49,83 +43,24 @@ export default function ServiceAreaSettings() {
     owner.current = profile.uid;
     const s = initial();
     setHome(s.home);
-    setMode(s.mode);
     setRadiusKm(s.radiusKm);
-    setRadiusText(String(s.radiusKm));
     setCities(s.cities);
+    setEditingBase(!s.home.address);
   }, [profile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const o = initial();
+  const mode = cities.length ? "cities" : "radius";
   const dirty =
-    home.address !== o.home.address || home.city !== o.home.city || home.province !== o.home.province || home.postalCode !== o.home.postalCode ||
-    mode !== o.mode || radiusKm !== o.radiusKm || JSON.stringify(cities) !== JSON.stringify(o.cities);
-
-  // Cities are found by name; their outline is drawn on the map.
-  const addCity = async () => {
-    setError("");
-    const city = cityName.trim();
-    if (!city) return setError("Type a city name to add it.");
-    if (cities.some((c) => c.city.toLowerCase() === city.toLowerCase() && c.provinceCode === cityProvince)) return setError(`${city} is already in your list.`);
-    setAdding(true);
-    try {
-      const province = CANADIAN_PROVINCES.find((p) => p.code === cityProvince)!;
-      const boundary = await cityBoundary(city, province.name);
-      const point = boundary ? { latitude: boundary.lat, longitude: boundary.lng } : (await Location.geocodeAsync(`${city}, ${province.name}, Canada`).catch(() => []))[0];
-      if (!point) throw new Error(`We couldn’t find ${city}, ${province.code}. Check the spelling.`);
-      const placeId = `app-${city.toLowerCase().replace(/\s+/g, "-")}-${province.code.toLowerCase()}`;
-      setOutlines((o) => ({ ...o, [placeId]: boundary }));
-      setCities((list) => [...list, { placeId, city, province: province.name, provinceCode: province.code, country: "Canada", lat: point.latitude, lng: point.longitude }]);
-      setCityName("");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn’t add that city.");
-    } finally {
-      setAdding(false);
-    }
-  };
-
-  // Outlines for cities saved earlier, looked up one at a time (the map service asks for that).
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      for (const c of cities) {
-        if (cancelled || c.placeId in outlines) continue;
-        const b = await cityBoundary(c.city, c.province);
-        if (!cancelled) setOutlines((o) => ({ ...o, [c.placeId]: b }));
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [cities]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const locate = async () => {
-    setError("");
-    setLocating(true);
-    try {
-      setHome(await currentAddress());
-      setTyping(false);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn’t find your location.");
-    } finally {
-      setLocating(false);
-    }
-  };
-
-  const setRadius = (km: number) => {
-    const clamped = Math.max(1, Math.min(100, Math.round(km)));
-    setRadiusKm(clamped);
-    setRadiusText(String(clamped));
-  };
+    home.address !== o.home.address || home.city !== o.home.city || home.province !== o.home.province || home.postalCode !== o.home.postalCode || home.lat !== o.home.lat ||
+    radiusKm !== o.radiusKm || JSON.stringify(cities.map((c) => c.placeId)) !== JSON.stringify(o.cities.map((c) => c.placeId));
 
   const save = async () => {
     setError("");
-    setDone("");
     const problem = addressProblem(home);
     if (problem) return setError(problem);
-    if (mode === "cities" && !cities.length) return setError("Add at least one service city, or choose a travel radius.");
     setSaving(true);
     try {
-      const point = await geocodeAddress(home);
+      const point = Number.isFinite(home.lat) && Number.isFinite(home.lng) ? { lat: home.lat!, lng: home.lng! } : await geocodeAddress(home);
       await updateDoc(doc(db, "users", user!.uid), {
         address: home.address.trim(),
         city: home.city.trim(),
@@ -135,11 +70,10 @@ export default function ServiceAreaSettings() {
         lng: point?.lng ?? null,
         serviceAreaMode: mode,
         serviceRadius: radiusKm,
-        serviceAreas: mode === "cities" ? cities : [],
+        // Stored without the distance the suggestions carry, in the same shape onboarding writes.
+        serviceAreas: cities.map(({ placeId, city, province, provinceCode, country, lat, lng }) => ({ placeId, city, province, provinceCode, country, lat, lng })),
       });
-      if (point) setHome((h) => ({ ...h, ...point }));
       notifyAdmin({ type: "profile_saved", message: `Service area updated by ${profile?.displayName || profile?.email} (${home.city}, ${home.province})`, uid: user!.uid, meta: { city: home.city, province: home.province } });
-      setDone("Service area saved.");
     } catch {
       setError("Couldn’t save your service area. Check your connection and try again.");
     } finally {
@@ -147,164 +81,120 @@ export default function ServiceAreaSettings() {
     }
   };
 
-  const center = Number.isFinite(home.lat) && Number.isFinite(home.lng) ? { latitude: home.lat!, longitude: home.lng! } : null;
-  // The map follows what you pick: the radius circle, or all your cities.
-  const region = useMemo(() => {
-    if (mode === "cities" && cities.length) {
-      const lats = cities.map((c) => c.lat);
-      const lngs = cities.map((c) => c.lng);
-      const span = Math.max(0.25, Math.max(...lats) - Math.min(...lats) + 0.25, Math.max(...lngs) - Math.min(...lngs) + 0.25);
-      return { latitude: (Math.max(...lats) + Math.min(...lats)) / 2, longitude: (Math.max(...lngs) + Math.min(...lngs)) / 2, latitudeDelta: span, longitudeDelta: span };
-    }
-    if (!center) return null;
-    const d = mode === "radius" ? (radiusKm / 111) * 2.6 : 0.6;
-    return { ...center, latitudeDelta: d, longitudeDelta: d };
-  }, [mode, cities, center?.latitude, center?.longitude, radiusKm]); // eslint-disable-line react-hooks/exhaustive-deps
-  const homeLine = [home.address, home.city, home.province].filter(Boolean).join(", ");
+  useAutosave({ home, radiusKm, cities }, { dirty, save });
 
-  // Saves on its own a moment after each change; no save button.
-  useAutosave({ home, mode, radiusKm, cities }, { dirty, save });
-  const pinTracks = useMarkerRedraw(center?.latitude, center?.longitude);
+  // Older profiles can have an address without map coordinates: look them up so nearby cities are
+  // still suggested. Only used for the map; nothing is saved until something actually changes.
+  const [lookedUp, setLookedUp] = useState<{ key: string; lat: number; lng: number } | null>(null);
+  const homeKey = [home.address, home.city, home.province, home.postalCode].join("|");
+  const missingPoint = !(Number.isFinite(home.lat) && Number.isFinite(home.lng)) && !!home.address.trim() && !!home.city.trim();
+  useEffect(() => {
+    if (!missingPoint || lookedUp?.key === homeKey) return;
+    let cancelled = false;
+    void geocodeAddress(home)
+      .then((found) => {
+        if (cancelled) return;
+        // A street the map doesn't know can land in the wrong city; then use the city's centre.
+        const centre = cityCentre(home.city, home.province);
+        const p = found && (!centre || distanceKm(found, centre) < 60) ? found : centre;
+        if (p) setLookedUp({ key: homeKey, lat: p.lat, lng: p.lng });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [missingPoint, homeKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const base = Number.isFinite(home.lat) && Number.isFinite(home.lng) ? { lat: home.lat!, lng: home.lng! } : lookedUp?.key === homeKey ? { lat: lookedUp.lat, lng: lookedUp.lng } : null;
+  const homeLine = [home.address, home.city].filter(Boolean).join(", ");
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <View style={{ flex: 1, backgroundColor: ds.bg }}>
       <Stack.Screen options={{ title: "Service area" }} />
-      <KeyboardAwareScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" bottomOffset={90} contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 120 }}>
-        {/* The map first: your base, and the circle or city outlines customers are matched to. */}
-        <View style={styles.mapWrap}>
-          {region ? (
-            <MapView {...SNOWD_MAP} style={StyleSheet.absoluteFill} pointerEvents="none" region={region}>
-              {center ? (
-                <Marker coordinate={center} anchor={{ x: 0.5, y: 1 }} tracksViewChanges={pinTracks}>
-                  <ShovelPin size={34} />
-                </Marker>
+      <KeyboardAwareScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" bottomOffset={90} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, gap: 16, paddingBottom: insets.bottom + 90 }}>
+        {/* Where you head out from. */}
+        <View style={{ gap: 8 }}>
+          <Text style={styles.label}>YOUR BASE</Text>
+          {editingBase ? (
+            <>
+              <HomeMap value={home} onChange={setHome} radiusKm={mode === "radius" ? radiusKm : undefined} />
+              {home.address ? (
+                <Pressable accessibilityRole="button" onPress={() => setEditingBase(false)} style={({ pressed }) => [styles.done, pressed && { opacity: 0.8 }]}>
+                  <Text style={styles.doneText}>Done</Text>
+                </Pressable>
               ) : null}
-              {mode === "radius" && center ? <Circle center={center} radius={radiusKm * 1000} strokeColor={colors.accent} strokeWidth={2} fillColor="rgba(35,80,255,0.12)" /> : null}
-              {mode === "cities"
-                ? cities.map((c) =>
-                    outlines[c.placeId]?.rings.length ? (
-                      outlines[c.placeId]!.rings.map((ring, i) => <Polygon key={`${c.placeId}-${i}`} coordinates={ring} strokeColor={colors.accent} strokeWidth={2} fillColor="rgba(35,80,255,0.14)" />)
-                    ) : (
-                      <Marker key={c.placeId} coordinate={{ latitude: c.lat, longitude: c.lng }} pinColor={colors.sun} />
-                    ),
-                  )
-                : null}
-            </MapView>
+            </>
           ) : (
-            <View style={styles.mapEmpty}>
-              <Icon name="map" size={28} color={colors.faint} />
-              <Text style={[type.caption, { textAlign: "center" }]}>Set your base location to see your area.</Text>
+            <View style={styles.baseRow}>
+              <View style={styles.baseIcon}>
+                <Icon name="house.fill" size={16} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.baseTitle} numberOfLines={1}>{homeLine || "Set your base"}</Text>
+                <Text style={styles.baseSub}>Customers never see your exact address.</Text>
+              </View>
+              <Pressable accessibilityRole="button" accessibilityLabel="Change your base location" hitSlop={8} onPress={() => setEditingBase(true)}>
+                <Text style={styles.link}>Change</Text>
+              </Pressable>
             </View>
           )}
-          <View style={styles.mapBadge}>
-            <Text style={{ fontWeight: "800", color: colors.ink, fontSize: 13 }}>{mode === "radius" ? `${radiusKm} km around you` : `${cities.length} ${cities.length === 1 ? "city" : "cities"}`}</Text>
-          </View>
         </View>
 
-        {/* Base location: one tap for where you are now, or type it in. */}
-        <View style={styles.card}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-            <Icon name="house.fill" size={16} color={colors.accent} />
-            <Text style={[type.headline, { flex: 1 }]} numberOfLines={1}>{homeLine || "Your base location"}</Text>
+        {/* Which cities: suggested around the base, picked on the mini map or the chips. */}
+        <View style={{ gap: 8 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <Text style={styles.label}>WHERE YOU WORK</Text>
+            <AutosaveStatus inline saving={saving} dirty={dirty} error={error} />
           </View>
-          <View style={{ flexDirection: "row", gap: 8 }}>
-            <Button title="My location" icon="location.fill" small loading={locating} style={{ flex: 1 }} onPress={() => void locate()} />
-            <Button title={typing ? "Done" : "Type it in"} icon={typing ? "checkmark" : "keyboard"} variant="secondary" small style={{ flex: 1 }} onPress={() => setTyping((t) => !t)} />
-          </View>
-          {typing ? <AddressFields value={home} onChange={setHome} showLocate={false} /> : null}
+          <Text style={styles.sub}>{cities.length ? `${cities.length} picked. Tap more, or tap one again to remove it.` : "Tap the cities near you."}</Text>
+          <CityPicker base={base} value={cities} onChange={setCities} />
         </View>
 
-        {/* Radius or cities. */}
-        <View accessibilityRole="tablist" style={styles.segment}>
-          {(
-            [
-              ["radius", "Distance"],
-              ["cities", "Cities"],
-            ] as const
-          ).map(([value, label]) => (
-            <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: mode === value }} onPress={() => setMode(value)} style={[styles.segmentItem, mode === value && styles.segmentOn]}>
-              <Text style={{ fontWeight: "800", fontSize: 15, color: mode === value ? colors.ink : colors.muted }}>{label}</Text>
-            </Pressable>
-          ))}
-        </View>
-
-        {mode === "radius" ? (
-          <View style={styles.card}>
+        {/* No city picked: a travel distance around the base instead. */}
+        {!cities.length ? (
+          <View style={styles.radius}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-              <Pressable accessibilityRole="button" accessibilityLabel="Smaller radius" onPress={() => setRadius(radiusKm - 1)} style={styles.stepper}>
-                <Icon name="minus" size={16} color={colors.ink} weight="bold" />
-              </Pressable>
-              <View style={styles.radiusBox}>
-                <TextInput
-                  accessibilityLabel="Travel radius in kilometres"
-                  value={radiusText}
-                  keyboardType="number-pad"
-                  selectTextOnFocus
-                  onChangeText={(t) => {
-                    const v = t.replace(/[^\d]/g, "").slice(0, 3);
-                    setRadiusText(v);
-                    if (Number(v) >= 1) setRadiusKm(Math.min(100, Number(v)));
-                  }}
-                  onBlur={() => setRadius(Number(radiusText) || radiusKm)}
-                  style={{ fontSize: 26, fontWeight: "900", color: colors.ink, minWidth: 44, textAlign: "center", fontVariant: ["tabular-nums"], paddingVertical: 0 }}
-                />
-                <Text style={{ fontSize: 17, fontWeight: "700", color: colors.muted }}>km</Text>
-              </View>
-              <Pressable accessibilityRole="button" accessibilityLabel="Bigger radius" onPress={() => setRadius(radiusKm + 1)} style={[styles.stepper, { backgroundColor: colors.accent }]}>
-                <Icon name="plus" size={16} color="#fff" weight="bold" />
-              </Pressable>
+              <Icon name="scope" size={18} color={ds.accent} />
+              <Text style={[styles.baseTitle, { flex: 1 }]}>{`Jobs within ${radiusKm} km of your base`}</Text>
             </View>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, justifyContent: "center" }}>
-              {RADII.map((r) => (
-                <Chip key={r} label={`${r} km`} selected={radiusKm === r} onPress={() => setRadius(r)} />
-              ))}
-            </View>
-          </View>
-        ) : (
-          <View style={styles.card}>
-            <View style={{ flexDirection: "row", gap: 8 }}>
-              <View style={styles.cityInput}>
-                <Icon name="magnifyingglass" size={15} color={colors.muted} />
-                <TextInput value={cityName} onChangeText={setCityName} placeholder="Type a city, e.g. Brampton" placeholderTextColor={colors.faint} returnKeyType="done" onSubmitEditing={() => void addCity()} accessibilityLabel="City name" style={{ flex: 1, fontSize: 16, color: colors.ink, paddingVertical: 10 }} />
-              </View>
-              <Button title="Add" icon="plus" small loading={adding} onPress={() => void addCity()} />
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
-              {["ON", "QC", "BC", "AB", "MB", "SK", "NS", "NB", "NL", "PE"].map((code) => (
-                <Chip key={code} label={code} selected={cityProvince === code} onPress={() => setCityProvince(code)} />
-              ))}
-            </ScrollView>
-            {cities.length ? (
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                {cities.map((c) => (
-                  <Pressable key={c.placeId} accessibilityRole="button" accessibilityLabel={`Remove ${c.city}`} onPress={() => setCities((list) => list.filter((x) => x.placeId !== c.placeId))} style={styles.cityChip}>
-                    <Text style={{ fontWeight: "700", color: colors.accentDark }}>{c.city}, {c.provinceCode}</Text>
-                    <Icon name="xmark.circle.fill" size={16} color={colors.accent} />
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+              {RADII.map((r) => {
+                const on = r === radiusKm;
+                return (
+                  <Pressable
+                    key={r}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: on }}
+                    onPress={() => {
+                      void Haptics.selectionAsync();
+                      setRadiusKm(r);
+                    }}
+                    style={({ pressed }) => [styles.chip, on && styles.chipOn, pressed && { transform: [{ scale: 0.96 }] }]}
+                  >
+                    <Text style={[styles.chipText, on && { color: "#fff" }]}>{`${r} km`}</Text>
                   </Pressable>
-                ))}
-              </View>
-            ) : (
-              <Text style={type.caption}>Add the cities you serve. Their borders show on the map.</Text>
-            )}
+                );
+              })}
+            </View>
           </View>
-        )}
+        ) : null}
         <Notice text={error} />
       </KeyboardAwareScrollView>
-      <AutosaveStatus saving={saving} dirty={dirty} error={error} bottomInset={insets.bottom} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  mapWrap: { height: 240, borderRadius: radius.lg, overflow: "hidden", backgroundColor: colors.surfaceAlt },
-  mapEmpty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8, padding: space.lg },
-  mapBadge: { position: "absolute", left: 10, top: 10, paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill, backgroundColor: "#fff", ...shadow },
-  card: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: space.lg, gap: space.md, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
-  segment: { flexDirection: "row", padding: 4, borderRadius: 14, backgroundColor: colors.surfaceAlt },
-  segmentItem: { flex: 1, minHeight: 40, borderRadius: 11, alignItems: "center", justifyContent: "center" },
-  segmentOn: { backgroundColor: colors.surface, ...shadow, shadowOpacity: 0.08 },
-  stepper: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceAlt },
-  radiusBox: { flex: 1, flexDirection: "row", alignItems: "baseline", justifyContent: "center", gap: 4, minHeight: 56, paddingTop: 10, borderRadius: radius.md, backgroundColor: colors.bg },
-  cityInput: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, borderRadius: radius.md, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border },
-  cityChip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, minHeight: 36, borderRadius: radius.pill, backgroundColor: colors.accentSoft },
+  label: { fontSize: 12, letterSpacing: 0.8, color: ds.ink3, fontFamily: family.bodyBold, paddingHorizontal: 4 },
+  sub: { fontSize: 15, lineHeight: 20, color: ds.ink3, fontFamily: family.body, paddingHorizontal: 4 },
+  baseRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 18, backgroundColor: ds.card, borderWidth: 1, borderColor: ds.borderSoft },
+  baseIcon: { width: 36, height: 36, borderRadius: 12, backgroundColor: ds.accent, alignItems: "center", justifyContent: "center" },
+  baseTitle: { fontSize: 16, lineHeight: 21, color: ds.ink, fontFamily: family.bodySemi },
+  baseSub: { fontSize: 13, lineHeight: 18, color: ds.ink3, fontFamily: family.body },
+  link: { fontSize: 15, color: ds.accent, fontFamily: family.bodyBold },
+  done: { alignSelf: "flex-end", minHeight: 40, paddingHorizontal: 18, borderRadius: 12, backgroundColor: ds.ink, alignItems: "center", justifyContent: "center" },
+  doneText: { fontSize: 15, color: "#fff", fontFamily: family.bodySemi },
+  radius: { gap: 12, padding: 14, borderRadius: 18, backgroundColor: ds.card, borderWidth: 1, borderColor: ds.borderSoft },
+  chip: { minHeight: tap, paddingHorizontal: 16, borderRadius: 999, backgroundColor: ds.card, borderWidth: 1.5, borderColor: ds.border, alignItems: "center", justifyContent: "center" },
+  chipOn: { backgroundColor: ds.accent, borderColor: ds.accent },
+  chipText: { fontSize: 16, color: ds.ink, fontFamily: family.bodySemi },
 });

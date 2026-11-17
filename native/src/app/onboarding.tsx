@@ -1,50 +1,45 @@
 import * as Haptics from "expo-haptics";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
+import { Image } from "expo-image";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { KeyboardAwareScrollView, KeyboardStickyView } from "react-native-keyboard-controller";
-import Animated, { FadeIn, FadeInDown, useReducedMotion, ZoomIn } from "react-native-reanimated";
+import Animated, { FadeIn, useReducedMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { OperatorServiceArea, PropertySize, ServiceType } from "@/lib/types";
 import { addressProblem, geocodeAddress, type AddressValue } from "~/components/AddressFields";
-import { Snowfall } from "~/components/brand";
+import { PENGUIN } from "~/components/brand";
 import { BigButton, ScalePress } from "~/components/kit";
 import { ShovelIcon } from "~/components/MapStyle";
-import { CAR_COLOURS, carsForSize, Driveway, sizeForCars, type ParkedCar } from "~/components/onboarding/Driveway";
+import { carsForSize, Driveway, fitLayout, sizeForCars, type CarCount, type DrivewayLayout } from "~/components/onboarding/Driveway";
 import { CityPicker, HomeMap } from "~/components/onboarding/MapInputs";
-import { DIAL_MAX, DIAL_MIN, PriceDial } from "~/components/onboarding/PriceDial";
-import { Mascot, OnboardingProgress, StepBody } from "~/components/onboarding/Shell";
+import { clampPrice, OFFERS, PriceSheet, type OfferKey, type SheetPriceKey as PriceKey } from "~/components/onboarding/PriceSheet";
+import { OnboardingProgress, StepBody, StepTitle } from "~/components/onboarding/Shell";
 import { YardPicker } from "~/components/onboarding/YardPicker";
 import { Icon } from "~/components/ui";
 import { useAuth } from "~/context/auth";
 import { api } from "~/lib/api";
 import { db } from "~/lib/firebase";
 import { usePriceAdvice } from "~/lib/priceAdvice";
-import { ds, family, tap } from "~/lib/theme";
+import { ds, family } from "~/lib/theme";
 
 type Role = "client" | "operator";
 type StepId = "role" | "you" | "home" | "driveway" | "clear" | "base" | "cities" | "prices";
-/** Five screens each, one per colour of the work-order bar. */
+/** Five screens each. The place and the work come first; name and phone are the last thing asked. */
 const FLOW: Record<Role, StepId[]> = {
-  client: ["role", "you", "home", "driveway", "clear"],
-  operator: ["role", "you", "base", "cities", "prices"],
+  client: ["role", "home", "driveway", "clear", "you"],
+  operator: ["role", "base", "cities", "prices", "you"],
 };
 const LABELS: Record<StepId, string> = { role: "Getting started", you: "About you", home: "Your home", driveway: "Your driveway", clear: "What to clear", base: "Your base", cities: "Where you work", prices: "Your prices" };
 
-type PriceKey = "small" | "medium" | "large" | "sidewalk" | "porch" | "backyardPatio";
-type OfferKey = "driveway" | "porch" | "sidewalk" | "backyard-patio";
-const OFFERS: { key: OfferKey; label: string }[] = [
+const RADIUS_KM = 15;
+const LAYOUT_WORDS: Record<DrivewayLayout, string> = { "side-by-side": "side by side", "end-to-end": "in a line", mixed: "two + one" };
+const AREA_WORDS: { key: ServiceType; label: string }[] = [
   { key: "driveway", label: "Driveway" },
-  { key: "porch", label: "Porch" },
+  { key: "porch", label: "Walkway" },
   { key: "sidewalk", label: "Sidewalk" },
   { key: "backyard-patio", label: "Patio" },
 ];
-const CAR_SIZES: { key: "small" | "medium" | "large"; cars: number; label: string }[] = [
-  { key: "small", cars: 1, label: "1 car" },
-  { key: "medium", cars: 2, label: "2 cars" },
-  { key: "large", cars: 3, label: "3+ cars" },
-];
-const RADIUS_KM = 15;
 
 const formatPhone = (raw: string) => {
   const d = raw.replace(/\D/g, "").replace(/^1(?=\d{10})/, "").slice(0, 10);
@@ -62,15 +57,18 @@ export default function Onboarding() {
   const [name, setName] = useState(user?.displayName || "");
   const [phone, setPhone] = useState("");
   const [home, setHome] = useState<AddressValue>({ address: "", city: "", province: "ON", postalCode: "", lat: null, lng: null });
-  const [cars, setCars] = useState<ParkedCar[]>(() => Array.from({ length: carsForSize("medium") }, (_, i) => ({ id: i, colour: CAR_COLOURS[i] })));
+  const [cars, setCars] = useState<CarCount>(carsForSize("medium"));
+  const [layout, setLayout] = useState<DrivewayLayout>("side-by-side");
   const [services, setServices] = useState<ServiceType[]>(["driveway"]);
   const [cities, setCities] = useState<OperatorServiceArea[]>([]);
   const [prices, setPrices] = useState<Record<PriceKey, number>>({ small: 35, medium: 50, large: 70, sidewalk: 20, porch: 20, backyardPatio: 25 });
   const [offer, setOffer] = useState<Record<OfferKey, boolean>>({ driveway: true, porch: true, sidewalk: true, "backyard-patio": false });
-  const [priceTab, setPriceTab] = useState<OfferKey>("driveway");
-  const [carSize, setCarSize] = useState<"small" | "medium" | "large">("medium");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  // Which way the last move went, so the next screen slides in from that side.
+  const [dir, setDir] = useState<1 | -1>(1);
+  // Name and phone show their own complaints, under each box, once Continue has been tried.
+  const [checkFields, setCheckFields] = useState(false);
   const phoneRef = useRef<React.ComponentRef<typeof TextInput>>(null);
 
   // Any change to an answer clears the last complaint.
@@ -78,7 +76,7 @@ export default function Onboarding() {
 
   const flow = FLOW[role || "client"];
   const id = flow[step];
-  const size: PropertySize = sizeForCars(cars.length);
+  const size: PropertySize = sizeForCars(cars);
 
   // Local price suggestions, once we know where the operator is based. Used as the starting prices
   // until the operator turns the dial themselves.
@@ -90,20 +88,18 @@ export default function Onboarding() {
   }, [advice]);
   const suggestedFor = (key: PriceKey) => (advice ? (key === "porch" ? advice.prices.sidewalk : advice.prices[key]) : undefined);
 
-  const priceKey: PriceKey = priceTab === "driveway" ? carSize : priceTab === "porch" ? "porch" : priceTab === "sidewalk" ? "sidewalk" : "backyardPatio";
   const setPrice = (key: PriceKey, v: number) => {
     touchedPrices.current = true;
-    setPrices((p) => (p[key] === v ? p : { ...p, [key]: Math.min(DIAL_MAX, Math.max(DIAL_MIN, v)) }));
+    setPrices((p) => (p[key] === v ? p : { ...p, [key]: clampPrice(v) }));
   };
 
-  const first = name.trim().split(/\s+/)[0];
+
+  const nameProblem = name.trim() ? "" : "Tell us your name.";
+  const phoneProblem = phone.replace(/\D/g, "").length === 10 ? "" : "Enter a 10-digit phone number.";
 
   const problemFor = (s: StepId): string => {
     if (s === "role" && !role) return "Pick one to get started.";
-    if (s === "you") {
-      if (!name.trim()) return "Tell us your name.";
-      if (phone.replace(/\D/g, "").length < 10) return "Enter a 10-digit phone number.";
-    }
+    if (s === "you") return nameProblem || phoneProblem;
     if (s === "home" || s === "base") return addressProblem(home);
     if (s === "clear" && !services.length) return "Tap at least one spot to clear.";
     if (s === "prices" && !Object.values(offer).some(Boolean)) return "Offer at least one service.";
@@ -114,24 +110,37 @@ export default function Onboarding() {
     const problem = problemFor(id);
     if (problem) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      // The contact boxes say what's wrong themselves; other screens get one line under the content.
+      if (id === "you") return setCheckFields(true);
       return setError(problem);
     }
     setError("");
     if (step === flow.length - 1) return void finish();
+    setDir(1);
     setStep(step + 1);
   };
 
   const back = () => {
     setError("");
-    if (step > 0) setStep(step - 1);
-    else void signOut();
+    if (step === 0) return void signOut();
+    setDir(-1);
+    setStep(step - 1);
   };
 
+  /** Jumps back to an earlier answer from the summary on the last screen. */
+  const edit = (target: StepId) => {
+    const i = flow.indexOf(target);
+    if (i < 0) return;
+    void Haptics.selectionAsync();
+    setError("");
+    setDir(-1);
+    setStep(i);
+  };
+
+  /** Picks a role. Nothing moves on until Continue confirms it. */
   const pickRole = (value: Role) => {
     setRole(value);
     setError("");
-    // A friendly beat, then on to the next question.
-    setTimeout(() => setStep(1), reduce ? 0 : 420);
   };
 
   const finish = async () => {
@@ -171,7 +180,7 @@ export default function Onboarding() {
       await setDoc(
         doc(db, "users", user.uid),
         role === "client"
-          ? { ...base, accountApproved: true, idVerified: true, verificationStatus: "approved", simplifiedMode: false, propertyDetails: { propertySize: size, serviceTypes: services, specialInstructions: "" }, savedOperators: [], jobHistory: [] }
+          ? { ...base, accountApproved: true, idVerified: true, verificationStatus: "approved", simplifiedMode: false, propertyDetails: { propertySize: size, drivewayLayout: fitLayout(cars, layout), serviceTypes: services, specialInstructions: "" }, savedOperators: [], jobHistory: [] }
           : {
               ...base,
               accountApproved: false,
@@ -209,224 +218,304 @@ export default function Onboarding() {
   };
 
   const say: Record<StepId, [string, string?]> = {
-    role: ["Welcome to SNOWD! How will you use it?", "Pick one. Setup takes about a minute."],
-    you: first ? [`Nice to meet you, ${first}!`, "What’s the best number to reach you?"] : ["Hi there! What’s your name?", "This is how people will know you."],
-    home: ["Where should we clear snow?", "Move the map to your door, or type your address."],
+    role: ["How will you use SNOWD?", "Pick one. Setup takes about a minute."],
+    you: ["Almost done", role === "operator" ? "So customers know who’s coming." : "So your shoveler can reach you."],
+    home: ["Where should we clear snow?"],
     base: ["Where do you head out from?", "Customers never see your exact address."],
-    driveway: ["How many cars fit in your driveway?", "Park them to match. This sets your price."],
-    clear: ["What should we clear?", "Tap each snowy spot you want cleared."],
-    cities: ["Which cities will you work in?", cities.length ? `${cities.length} picked. Tap more, or tap one again to remove it.` : `Tap the cities near you. Skip to take jobs within ${RADIUS_KM} km of home.`],
-    prices: ["What do you charge?", advice?.local ? `Shovelers near you charge about $${suggestedFor(priceKey)} for this.` : "Turn the dial to set a price. You can change it any time."],
+    driveway: ["How big is your driveway?"],
+    clear: ["What should we clear?", "You can change this for any booking."],
+    cities: ["Where will you work?", cities.length ? undefined : `Or skip to take jobs within ${RADIUS_KM} km.`],
+    prices: ["Your prices", "Per visit. You can change these later."],
   };
+  // The last screen recaps every earlier answer, each one a tap away from being changed.
+  const offeredNow = OFFERS.filter((o) => offer[o.key]);
+  const summary: SummaryRow[] =
+    role === "operator"
+      ? [
+          { step: "base", icon: "mappin.and.ellipse", label: "Base", value: [home.address, home.city].filter(Boolean).join(", ") || "Not set" },
+          { step: "cities", icon: "map.fill", label: "Area", value: cities.length ? `${cities.slice(0, 2).map((c) => c.city).join(", ")}${cities.length > 2 ? ` +${cities.length - 2}` : ""}` : `Within ${RADIUS_KM} km` },
+          { step: "prices", icon: "dollarsign.circle.fill", label: "Services", value: `${offeredNow.map((o) => o.label).join(", ") || "None"}${offer.driveway ? ` · from $${prices.small}` : ""}` },
+        ]
+      : [
+          { step: "home", icon: "house.fill", label: "Home", value: [home.address, home.city].filter(Boolean).join(", ") || "Not set" },
+          { step: "driveway", icon: "car.fill", label: "Driveway", value: `${cars === 3 ? "3+" : cars} ${cars === 1 ? "car" : "cars"}${cars > 1 ? ` · ${LAYOUT_WORDS[fitLayout(cars, layout)]}` : ""}` },
+          { step: "clear", icon: "snowflake", label: "Clearing", value: AREA_WORDS.filter((a) => services.includes(a.key)).map((a) => a.label).join(", ") || "Nothing yet" },
+        ];
   const last = step === flow.length - 1;
-  const cta = last ? "Finish setup" : id === "cities" && !cities.length ? "Skip for now" : "Continue";
+  const cta = last
+    ? "Finish setup"
+    : id === "role" && role
+      ? `Continue as ${role === "operator" ? "a shoveler" : "a homeowner"}`
+      : id === "cities" && !cities.length
+        ? "Skip for now"
+        : "Continue";
 
   return (
     <View style={{ flex: 1, backgroundColor: ds.bg }}>
-      <View pointerEvents="none" style={[StyleSheet.absoluteFill, { height: 360 }]}>
-        <Snowfall count={12} height={360} color="#d6e3ff" />
-      </View>
       <View style={{ paddingTop: insets.top + 8, paddingHorizontal: 24, paddingBottom: 6 }}>
-        <OnboardingProgress segment={step} label={LABELS[id]} onBack={back} backLabel={step > 0 ? "Back to the previous question" : "Sign out"} />
+        <OnboardingProgress segment={step} total={flow.length} label={LABELS[id]} onBack={back} backLabel={step > 0 ? "Back to the previous question" : "Sign out"} />
       </View>
       <KeyboardAwareScrollView
         bottomOffset={110}
         keyboardShouldPersistTaps="handled"
-        scrollEnabled={id !== "prices"}
-        contentContainerStyle={{ flexGrow: 1, paddingTop: 18, paddingHorizontal: 24, paddingBottom: id === "prices" ? 0 : 28 }}
+        contentContainerStyle={{ flexGrow: 1, paddingTop: 22, paddingHorizontal: 24, paddingBottom: 28 }}
       >
-        <StepBody id={`${role}-${id}`}>
-          <Mascot say={say[id][0]} sub={say[id][1]} />
+        <StepBody id={`${role}-${id}`} dir={dir}>
+          {/* The first question comes from the penguin, in a speech bubble; the rest are plain titles. */}
+          {id === "role" ? (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
+              <Image source={PENGUIN} style={{ width: 84, height: 90 }} contentFit="contain" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />
+              <View style={styles.bubble}>
+                <View style={styles.bubbleTail} />
+                <Text accessibilityRole="header" style={styles.bubbleTitle} maxFontSizeMultiplier={1.4}>{say.role[0]}</Text>
+                <Text style={styles.bubbleSub} maxFontSizeMultiplier={1.5}>{say.role[1]}</Text>
+              </View>
+            </View>
+          ) : (
+            <StepTitle title={say[id][0]} sub={say[id][1]} />
+          )}
 
           {id === "role" ? (
-            <View accessibilityRole="radiogroup" style={{ gap: 14 }}>
-              <RoleTile selected={role === "client"} title="I need snow cleared" body="Book a trusted local shoveler for your home." art={<Icon name="house.fill" size={34} color={ds.accent} />} onPress={() => pickRole("client")} />
-              <RoleTile selected={role === "operator"} title="I clear snow" body="Get jobs nearby and get paid for every one." art={<ShovelIcon size={36} color={ds.accent} />} onPress={() => pickRole("operator")} />
+            <View accessibilityRole="radiogroup" style={{ flexDirection: "row", gap: 12 }}>
+              <RoleCard
+                selected={role === "client"}
+                title="I need snow cleared"
+                art={<Icon name="house.fill" size={46} color={ds.accent} />}
+                tint={ds.accentSoft}
+                points={["Local shovelers", "Live updates", "Rate every job"]}
+                onPress={() => pickRole("client")}
+              />
+              <RoleCard
+                selected={role === "operator"}
+                title="I clear snow"
+                art={<ShovelIcon size={48} color={ds.sunText} />}
+                tint={ds.sunSoft}
+                points={["Jobs near you", "Your own prices", "Paid per job"]}
+                onPress={() => pickRole("operator")}
+              />
             </View>
           ) : null}
 
           {id === "you" ? (
-            <View style={{ gap: 16 }}>
-              <BigInput label="Your name" value={name} onChangeText={setName} placeholder="First and last name" textContentType="name" autoComplete="name" returnKeyType="next" onSubmitEditing={() => phoneRef.current?.focus()} autoFocus={!name} />
-              {first ? (
-                <Animated.View entering={reduce ? FadeIn : FadeInDown.springify().damping(16)}>
-                  <BigInput ref={phoneRef} label="Phone" value={phone} onChangeText={(t) => setPhone(formatPhone(t))} placeholder="416 555 0100" keyboardType="phone-pad" textContentType="telephoneNumber" autoComplete="tel" prefix="+1" />
-                </Animated.View>
-              ) : null}
+            <View style={{ gap: 14 }}>
+              <BigInput
+                label="Your name"
+                value={name}
+                onChangeText={setName}
+                placeholder="First and last name"
+                textContentType="name"
+                autoComplete="name"
+                autoCapitalize="words"
+                returnKeyType="next"
+                onSubmitEditing={() => phoneRef.current?.focus()}
+                autoFocus={!name}
+                valid={!nameProblem}
+                problem={checkFields ? nameProblem : ""}
+              />
+              <BigInput
+                ref={phoneRef}
+                label="Phone"
+                value={phone}
+                onChangeText={(t) => setPhone(formatPhone(t))}
+                placeholder="416 555 0100"
+                keyboardType="phone-pad"
+                textContentType="telephoneNumber"
+                autoComplete="tel"
+                prefix="🇨🇦 +1"
+                returnKeyType="done"
+                onSubmitEditing={next}
+                valid={!phoneProblem}
+                problem={checkFields ? phoneProblem : ""}
+              />
+              <Summary rows={summary} onEdit={edit} />
             </View>
           ) : null}
 
           {id === "home" || id === "base" ? <HomeMap value={home} onChange={setHome} /> : null}
 
-          {id === "driveway" ? <Driveway cars={cars} onChange={setCars} /> : null}
+          {id === "driveway" ? <Driveway
+              cars={cars}
+              layout={layout}
+              onChange={(n, l) => {
+                setCars(n);
+                setLayout(l);
+              }}
+            /> : null}
 
-          {id === "clear" ? <YardPicker value={services} onChange={setServices} /> : null}
+          {id === "clear" ? <YardPicker value={services} onChange={setServices} cars={cars} layout={fitLayout(cars, layout)} /> : null}
 
           {id === "cities" ? <CityPicker base={Number.isFinite(home.lat) ? { lat: home.lat!, lng: home.lng! } : null} value={cities} onChange={setCities} /> : null}
 
           {id === "prices" ? (
-            <View style={{ flex: 1, gap: 16 }}>
-              <View style={styles.tabs}>
-                {OFFERS.map((o) => {
-                  const on = priceTab === o.key;
-                  const amount = o.key === "driveway" ? prices[carSize] : o.key === "porch" ? prices.porch : o.key === "sidewalk" ? prices.sidewalk : prices.backyardPatio;
-                  return (
-                    <Pressable key={o.key} accessibilityRole="tab" accessibilityState={{ selected: on }} accessibilityLabel={`${o.label}, ${offer[o.key] ? `$${amount}` : "not offered"}`} onPress={() => { void Haptics.selectionAsync(); setPriceTab(o.key); }} style={[styles.tab, on && styles.tabOn]}>
-                      <Text style={[styles.tabLabel, on && { color: "#fff" }]} numberOfLines={1}>{o.label}</Text>
-                      <Text style={[styles.tabPrice, on && { color: "rgba(255,255,255,0.85)" }, !offer[o.key] && { textDecorationLine: "line-through" }]}>{offer[o.key] ? `$${amount}` : "Off"}</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-              {priceTab === "driveway" ? (
-                <View style={styles.sizes}>
-                  {CAR_SIZES.map((s) => (
-                    <ScalePress key={s.key} accessibilityLabel={`${s.label}, $${prices[s.key]}`} accessibilityState={{ selected: carSize === s.key }} onPress={() => setCarSize(s.key)} style={[styles.size, carSize === s.key && styles.sizeOn]}>
-                      <View style={{ flexDirection: "row", gap: 2, height: 20, alignItems: "center" }}>
-                        {Array.from({ length: s.cars }, (_, i) => (
-                          <Icon key={i} name="car.fill" size={15} color={carSize === s.key ? ds.accent : "#9fb0bb"} />
-                        ))}
-                      </View>
-                      <Text style={[styles.sizeText, carSize === s.key && { color: ds.accent }]}>{s.label}</Text>
-                    </ScalePress>
-                  ))}
-                </View>
-              ) : null}
-
-              <View style={styles.priceRow}>
-                <RoundButton icon="minus" label="Lower the price by $1" disabled={!offer[priceTab]} onPress={() => setPrice(priceKey, prices[priceKey] - 1)} />
-                <View style={{ flex: 1, alignItems: "center" }}>
-                  {offer[priceTab] ? (
-                    <Animated.Text key={priceTab + carSize} entering={reduce ? undefined : ZoomIn.springify().damping(14)} style={styles.bigPrice} maxFontSizeMultiplier={1.2}>
-                      ${prices[priceKey]}
-                    </Animated.Text>
-                  ) : (
-                    <Text style={[styles.bigPrice, { color: ds.ink3, fontSize: 30, lineHeight: 72 }]}>Not offered</Text>
-                  )}
-                  {offer[priceTab] ? <Text style={styles.perVisit}>per visit</Text> : null}
-                </View>
-                <RoundButton icon="plus" label="Raise the price by $1" disabled={!offer[priceTab]} onPress={() => setPrice(priceKey, prices[priceKey] + 1)} />
-              </View>
-
-              <View style={styles.offerRow}>
-                {offer[priceTab] && suggestedFor(priceKey) && suggestedFor(priceKey) !== prices[priceKey] ? (
-                  <Pill icon="sparkles" label={`Use $${suggestedFor(priceKey)}`} onPress={() => setPrice(priceKey, suggestedFor(priceKey)!)} />
-                ) : null}
-                <Pill
-                  icon={offer[priceTab] ? "xmark" : "plus"}
-                  label={offer[priceTab] ? "I don’t offer this" : "Offer this"}
-                  tone={offer[priceTab] ? "plain" : "accent"}
-                  onPress={() => {
-                    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setOffer((o) => ({ ...o, [priceTab]: !o[priceTab] }));
-                  }}
-                />
-              </View>
-
-              <View style={{ marginTop: "auto" }}>
-                <PriceDial value={prices[priceKey]} onChange={(v) => setPrice(priceKey, v)} suggested={suggestedFor(priceKey)} disabled={!offer[priceTab]} />
-              </View>
-            </View>
+            <PriceSheet
+              compact
+              prices={prices}
+              offer={offer}
+              suggested={advice?.local ? suggestedFor : undefined}
+              nearby={advice?.local ? advice.count : 0}
+              onPrice={setPrice}
+              onOffer={(key) => setOffer((o) => ({ ...o, [key]: !o[key] }))}
+              onUseSuggested={() => {
+                if (!advice) return;
+                void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                touchedPrices.current = true;
+                setPrices({ ...advice.prices, porch: advice.prices.sidewalk });
+              }}
+            />
           ) : null}
 
           {error ? (
-            <Animated.Text key={error} entering={reduce ? FadeIn : FadeInDown.springify()} accessibilityRole="alert" style={styles.error}>
+            <Animated.Text key={error} entering={reduce ? undefined : FadeIn.duration(180)} accessibilityRole="alert" style={styles.error}>
               {error}
             </Animated.Text>
           ) : null}
         </StepBody>
       </KeyboardAwareScrollView>
 
-      {id !== "role" ? (
-        <KeyboardStickyView offset={{ opened: insets.bottom - 12 }}>
-          <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
-            <BigButton title={cta} icon={last ? "checkmark" : undefined} variant={last ? "primary" : "dark"} loading={saving} onPress={next} />
-          </View>
-        </KeyboardStickyView>
+      {/* Every step, the first one included, moves on only when Continue is pressed. */}
+      <KeyboardStickyView offset={{ opened: insets.bottom - 12 }}>
+        <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
+          <BigButton title={cta} icon={last ? "checkmark" : undefined} variant={last ? "primary" : "dark"} loading={saving} onPress={next} />
+        </View>
+      </KeyboardStickyView>
+    </View>
+  );
+}
+
+/**
+ * One of the two choices on the first question: a tinted panel with big art, the choice in a few
+ * words, and three short reasons. Tapping selects it (blue ring and tick); Continue confirms.
+ */
+function RoleCard({ selected, title, art, tint, points, onPress }: { selected: boolean; title: string; art: React.ReactNode; tint: string; points: string[]; onPress: () => void }) {
+  return (
+    <ScalePress haptic="selection" accessibilityRole="radio" accessibilityState={{ selected }} accessibilityLabel={`${title}. ${points.join(", ")}`} onPress={onPress} style={[styles.roleCard, selected && styles.roleCardOn]}>
+      <View style={[styles.roleArt, { backgroundColor: tint }]}>
+        {art}
+        <View style={[styles.roleCheck, !selected && styles.roleCheckOff]}>{selected ? <Icon name="checkmark" size={13} color="#fff" weight="bold" /> : null}</View>
+      </View>
+      <View style={{ gap: 10, padding: 14, paddingTop: 12 }}>
+        <Text style={styles.roleTitle} numberOfLines={2} maxFontSizeMultiplier={1.3}>{title}</Text>
+        <View style={{ gap: 6 }} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+          {points.map((point) => (
+            <View key={point} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Icon name="checkmark.circle.fill" size={14} color={selected ? ds.accent : ds.mint} />
+              <Text style={styles.rolePoint} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} maxFontSizeMultiplier={1.3}>{point}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+    </ScalePress>
+  );
+}
+
+type BigInputProps = React.ComponentProps<typeof TextInput> & {
+  label: string;
+  prefix?: string;
+  /** The answer is good: a green tick shows at the end of the box. */
+  valid?: boolean;
+  /** What's wrong, shown under the box in red. Empty when there's nothing to say yet. */
+  problem?: string;
+  ref?: React.Ref<React.ComponentRef<typeof TextInput>>;
+};
+
+/**
+ * A large text box: the label sits small above, the words you type are big. The border turns blue
+ * while you type, red with a reason underneath when the answer won't do, and a green tick appears
+ * at the end once it's good.
+ */
+function BigInput({ label, prefix, valid, problem, ref, ...props }: BigInputProps) {
+  const reduce = useReducedMotion();
+  const [focused, setFocused] = useState(false);
+  const border = problem ? "#d92d20" : focused ? ds.accent : ds.borderSoft;
+  return (
+    <View style={{ gap: 6 }}>
+      <View style={[styles.bigInput, { borderColor: border }, focused && !problem && { backgroundColor: "#fbfcff" }]}>
+        <Text style={[styles.bigLabel, problem ? { color: "#b42318" } : focused && { color: ds.accent }]}>{label}</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          {prefix ? <Text style={[styles.bigText, { color: ds.ink3 }]}>{prefix}</Text> : null}
+          <TextInput
+            ref={ref}
+            accessibilityLabel={label}
+            accessibilityHint={problem || undefined}
+            placeholderTextColor="#a3b1ba"
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            style={[styles.bigText, { flex: 1, paddingVertical: 2 }]}
+            {...props}
+          />
+          {valid ? (
+            <Animated.View entering={reduce ? undefined : FadeIn.duration(160)} style={styles.tick}>
+              <Icon name="checkmark" size={12} color="#fff" weight="bold" />
+            </Animated.View>
+          ) : null}
+        </View>
+      </View>
+      {problem ? (
+        <Animated.Text entering={reduce ? undefined : FadeIn.duration(160)} accessibilityRole="alert" style={styles.fieldProblem}>
+          {problem}
+        </Animated.Text>
       ) : null}
     </View>
   );
 }
 
-/** A big choice card for the first question. */
-function RoleTile({ selected, title, body, art, onPress }: { selected: boolean; title: string; body: string; art: React.ReactNode; onPress: () => void }) {
-  return (
-    <ScalePress haptic="medium" accessibilityRole="radio" accessibilityState={{ selected }} accessibilityLabel={`${title}. ${body}`} onPress={onPress} style={[styles.roleTile, selected && styles.roleTileOn]}>
-      <View style={[styles.roleArt, selected && { backgroundColor: "#fff" }]}>{art}</View>
-      <View style={{ flex: 1, gap: 4 }}>
-        <Text style={styles.roleTitle}>{title}</Text>
-        <Text style={styles.roleBody}>{body}</Text>
-      </View>
-      {selected ? (
-        <Animated.View entering={ZoomIn.springify().damping(12)} style={styles.roleCheck}>
-          <Icon name="checkmark" size={14} color="#fff" weight="bold" />
-        </Animated.View>
-      ) : (
-        <Icon name="chevron.right" size={16} color={ds.ink3} weight="bold" />
-      )}
-    </ScalePress>
-  );
-}
+type SummaryRow = { step: StepId; icon: React.ComponentProps<typeof Icon>["name"]; label: string; value: string };
 
-type BigInputProps = React.ComponentProps<typeof TextInput> & { label: string; prefix?: string; ref?: React.Ref<React.ComponentRef<typeof TextInput>> };
-
-/** A large, calm text box: the label sits small above, the words you type are big. */
-function BigInput({ label, prefix, ref, ...props }: BigInputProps) {
-  const [focused, setFocused] = useState(false);
+/** Everything answered so far, one row each. Tap a row to go back and change it. */
+function Summary({ rows, onEdit }: { rows: SummaryRow[]; onEdit: (step: StepId) => void }) {
   return (
-    <View style={[styles.bigInput, focused && { borderColor: ds.accent, backgroundColor: "#fbfcff" }]}>
-      <Text style={styles.bigLabel}>{label}</Text>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        {prefix ? <Text style={[styles.bigText, { color: ds.ink3 }]}>{prefix}</Text> : null}
-        <TextInput ref={ref} accessibilityLabel={label} placeholderTextColor="#a3b1ba" onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} style={[styles.bigText, { flex: 1, paddingVertical: 2 }]} {...props} />
+    <View style={{ gap: 8, marginTop: 10 }}>
+      <Text style={styles.summaryLabel}>YOUR SETUP</Text>
+      <View style={styles.summary}>
+        {rows.map((r, i) => (
+          <Pressable
+            key={r.step}
+            accessibilityRole="button"
+            accessibilityLabel={`${r.label}: ${r.value}`}
+            accessibilityHint="Go back and change this"
+            onPress={() => onEdit(r.step)}
+            style={({ pressed }) => [styles.summaryRow, i > 0 && styles.summarySep, pressed && { backgroundColor: ds.bgAlt }]}
+          >
+            <View style={styles.summaryIcon}>
+              <Icon name={r.icon} size={16} color={ds.accent} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.summaryKey}>{r.label}</Text>
+              <Text style={styles.summaryValue} numberOfLines={1}>{r.value}</Text>
+            </View>
+            <Text style={styles.summaryEdit}>Edit</Text>
+          </Pressable>
+        ))}
       </View>
     </View>
-  );
-}
-
-function RoundButton({ icon, label, onPress, disabled }: { icon: "plus" | "minus"; label: string; onPress: () => void; disabled?: boolean }) {
-  return (
-    <ScalePress accessibilityLabel={label} disabled={disabled} depthScale={0.9} onPress={onPress} style={styles.round}>
-      <Icon name={icon} size={18} color={ds.ink} weight="bold" />
-    </ScalePress>
-  );
-}
-
-function Pill({ icon, label, onPress, tone = "plain" }: { icon: "sparkles" | "xmark" | "plus"; label: string; onPress: () => void; tone?: "plain" | "accent" }) {
-  return (
-    <ScalePress accessibilityLabel={label} onPress={onPress} style={[styles.pill, tone === "accent" && { backgroundColor: ds.accent, borderColor: ds.accent }]}>
-      <Icon name={icon} size={13} color={tone === "accent" ? "#fff" : ds.ink2} weight="bold" />
-      <Text style={[styles.pillText, tone === "accent" && { color: "#fff" }]}>{label}</Text>
-    </ScalePress>
   );
 }
 
 const styles = StyleSheet.create({
   footer: { paddingHorizontal: 24, paddingTop: 12, backgroundColor: ds.bg },
   error: { fontSize: 16, lineHeight: 21, color: "#b42318", fontFamily: family.bodySemi, textAlign: "center" },
-  roleTile: { flexDirection: "row", alignItems: "center", gap: 16, padding: 18, borderRadius: 24, backgroundColor: ds.card, borderWidth: 2, borderColor: ds.borderSoft, ...ds.cardShadow },
-  roleTileOn: { borderColor: ds.accent, backgroundColor: ds.accentSoft },
-  roleArt: { width: 68, height: 68, borderRadius: 22, backgroundColor: ds.accentSoft, alignItems: "center", justifyContent: "center" },
-  roleTitle: { fontSize: 20, lineHeight: 25, color: ds.ink, fontFamily: family.heading, letterSpacing: -0.3 },
-  roleBody: { fontSize: 15, lineHeight: 20, color: ds.ink3, fontFamily: family.body },
-  roleCheck: { width: 28, height: 28, borderRadius: 14, backgroundColor: ds.accent, alignItems: "center", justifyContent: "center" },
+  bubble: { flex: 1, gap: 4, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 20, backgroundColor: ds.card, borderWidth: 2, borderColor: ds.borderSoft },
+  bubbleTail: { position: "absolute", left: -8, top: "50%", marginTop: -7, width: 14, height: 14, backgroundColor: ds.card, borderLeftWidth: 2, borderBottomWidth: 2, borderColor: ds.borderSoft, transform: [{ rotate: "45deg" }] },
+  bubbleTitle: { fontSize: 21, lineHeight: 26, color: ds.ink, fontFamily: family.heading, letterSpacing: -0.4 },
+  bubbleSub: { fontSize: 15, lineHeight: 20, color: ds.ink3, fontFamily: family.body },
+  roleCard: { flex: 1, overflow: "hidden", borderRadius: 24, backgroundColor: ds.card, borderWidth: 2, borderColor: ds.borderSoft, ...ds.cardShadow },
+  roleCardOn: { borderColor: ds.accent, ...ds.accentShadow },
+  roleArt: { height: 150, alignItems: "center", justifyContent: "center" },
+  roleTitle: { fontSize: 18, lineHeight: 22, minHeight: 44, color: ds.ink, fontFamily: family.heading, letterSpacing: -0.3 },
+  rolePoint: { flexShrink: 1, fontSize: 14, lineHeight: 18, color: ds.ink2, fontFamily: family.bodyMedium },
+  roleCheck: { position: "absolute", top: 10, right: 10, width: 24, height: 24, borderRadius: 12, backgroundColor: ds.accent, alignItems: "center", justifyContent: "center" },
+  roleCheckOff: { backgroundColor: "rgba(255,255,255,0.7)", borderWidth: 2, borderColor: ds.border },
   bigInput: { borderRadius: 22, borderWidth: 2, borderColor: ds.borderSoft, backgroundColor: ds.card, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 12, gap: 2 },
   bigLabel: { fontSize: 14, lineHeight: 18, color: ds.ink3, fontFamily: family.bodySemi },
+  tick: { width: 24, height: 24, borderRadius: 12, backgroundColor: "#23955a", alignItems: "center", justifyContent: "center" },
+  fieldProblem: { fontSize: 15, lineHeight: 20, color: "#b42318", fontFamily: family.bodySemi, paddingHorizontal: 6 },
+  summaryLabel: { fontSize: 12, letterSpacing: 0.8, color: ds.ink3, fontFamily: family.bodyBold, paddingHorizontal: 4 },
+  summary: { backgroundColor: ds.card, borderRadius: 20, borderWidth: 1, borderColor: ds.borderSoft, overflow: "hidden" },
+  summaryRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 14, paddingVertical: 12, minHeight: 60 },
+  summarySep: { borderTopWidth: 1, borderTopColor: ds.borderSoft },
+  summaryIcon: { width: 34, height: 34, borderRadius: 11, backgroundColor: ds.accentSoft, alignItems: "center", justifyContent: "center" },
+  summaryKey: { fontSize: 13, lineHeight: 17, color: ds.ink3, fontFamily: family.bodySemi },
+  summaryValue: { fontSize: 16, lineHeight: 21, color: ds.ink, fontFamily: family.bodySemi },
+  summaryEdit: { fontSize: 15, color: ds.accent, fontFamily: family.bodyBold },
   bigText: { fontSize: 26, lineHeight: 34, color: ds.ink, fontFamily: family.headingSemi, letterSpacing: -0.3 },
-  tabs: { flexDirection: "row", gap: 8 },
-  tab: { flex: 1, minHeight: 58, borderRadius: 18, backgroundColor: ds.card, borderWidth: 1.5, borderColor: ds.border, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
-  tabOn: { backgroundColor: ds.ink, borderColor: ds.ink },
-  tabLabel: { fontSize: 14, lineHeight: 18, color: ds.ink, fontFamily: family.bodySemi },
-  tabPrice: { fontSize: 13, lineHeight: 17, color: ds.ink3, fontFamily: family.bodyMedium, fontVariant: ["tabular-nums"] },
-  sizes: { flexDirection: "row", gap: 8, alignSelf: "center" },
-  size: { alignItems: "center", gap: 2, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 14, borderWidth: 1.5, borderColor: "transparent", minWidth: 84, minHeight: tap },
-  sizeOn: { borderColor: ds.accentBorder, backgroundColor: ds.accentSoft },
-  sizeText: { fontSize: 14, color: ds.ink3, fontFamily: family.bodySemi },
-  priceRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  bigPrice: { fontSize: 68, lineHeight: 72, color: ds.ink, fontFamily: family.heading, letterSpacing: -2, fontVariant: ["tabular-nums"] },
-  perVisit: { fontSize: 15, color: ds.ink3, fontFamily: family.bodyMedium },
-  round: { width: 52, height: 52, borderRadius: 26, backgroundColor: ds.card, borderWidth: 1.5, borderColor: ds.border, alignItems: "center", justifyContent: "center" },
-  offerRow: { flexDirection: "row", justifyContent: "center", gap: 10, flexWrap: "wrap" },
-  pill: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 40, paddingHorizontal: 14, borderRadius: 999, backgroundColor: ds.card, borderWidth: 1.5, borderColor: ds.border },
-  pillText: { fontSize: 15, color: ds.ink2, fontFamily: family.bodySemi },
 });

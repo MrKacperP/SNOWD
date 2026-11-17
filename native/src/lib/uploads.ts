@@ -21,7 +21,20 @@ function readBlob(uri: string) {
   });
 }
 
-export type UploadOptions = { name?: string; contentType?: string; onProgress?: (fraction: number) => void };
+export type UploadOptions = {
+  name?: string;
+  contentType?: string;
+  onProgress?: (fraction: number) => void;
+  /**
+   * Give up when no data has gone up for this long (ms). Firebase otherwise keeps retrying quietly
+   * for up to an hour, which is right for big files on a weak signal but leaves a short upload, like
+   * an ID photo, spinning with no answer when the phone has no connection.
+   */
+  stallMs?: number;
+};
+
+/** Thrown when an upload made no progress for `stallMs`. */
+export const UPLOAD_STALLED = "We couldn’t reach SNOWD to upload that. Check your connection and try again.";
 
 /**
  * Uploads a file from the phone to Firebase Storage and returns its download URL.
@@ -32,12 +45,42 @@ export async function uploadFile(folder: string, uri: string, options: UploadOpt
   const contentType = options.contentType || "image/jpeg";
   const file = ref(storage, `${folder}/${options.name || `${Crypto.randomUUID()}${contentType === "image/jpeg" ? ".jpg" : ""}`}`);
   const blob = await readBlob(uri);
+  let stalled = false;
   try {
     await new Promise<void>((resolve, reject) => {
       const task = uploadBytesResumable(file, blob, { contentType });
-      task.on("state_changed", (snap) => options.onProgress?.(snap.totalBytes ? snap.bytesTransferred / snap.totalBytes : 0), reject, () => resolve());
+      let sent = -1;
+      let lastMove = Date.now();
+      // Every few seconds: if nothing has moved for `stallMs`, stop retrying and say so.
+      const watch = options.stallMs
+        ? setInterval(() => {
+            if (Date.now() - lastMove < options.stallMs!) return;
+            stalled = true;
+            task.cancel();
+          }, 3000)
+        : null;
+      const done = () => watch && clearInterval(watch);
+      task.on(
+        "state_changed",
+        (snap) => {
+          if (snap.bytesTransferred !== sent) {
+            sent = snap.bytesTransferred;
+            lastMove = Date.now();
+          }
+          options.onProgress?.(snap.totalBytes ? snap.bytesTransferred / snap.totalBytes : 0);
+        },
+        (e) => {
+          done();
+          reject(e);
+        },
+        () => {
+          done();
+          resolve();
+        },
+      );
     });
   } catch (e) {
+    if (stalled) throw new Error(UPLOAD_STALLED);
     const code = (e as { code?: string }).code || "";
     throw new Error(code === "storage/unauthorized" ? "SNOWD couldn’t accept that upload. Try again in a moment; if it keeps happening, let us know." : "The upload didn’t finish. Check your connection and try again.");
   } finally {

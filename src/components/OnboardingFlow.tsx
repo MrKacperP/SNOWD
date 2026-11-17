@@ -45,7 +45,7 @@ export type OnboardingDraft = {
   pricingSmall: string;
   pricingMedium: string;
   pricingLarge: string;
-  /** One price for both the front porch and the sidewalk. */
+  /** One price for both the walkway and the sidewalk. */
   pricingSidewalk: string;
   pricingBackyardPatio: string;
   isStudent: boolean;
@@ -93,7 +93,7 @@ const serviceIcons: Record<(typeof SHOVELING_SERVICES)[number][0], LucideIcon> =
 };
 const serviceHints: Record<(typeof SHOVELING_SERVICES)[number][0], string> = {
   driveway: "Priced by size",
-  porch: "Steps and landing",
+  porch: "Front path and steps",
   sidewalk: "Along the street",
   "backyard-patio": "Deck or patio out back",
 };
@@ -107,7 +107,7 @@ const priceFields: { key: PriceKey; label: string; detail?: string; offered: (se
   { key: "pricingSmall", label: "1-car driveway", offered: (s) => s.includes("driveway") },
   { key: "pricingMedium", label: "2-car driveway", offered: (s) => s.includes("driveway") },
   { key: "pricingLarge", label: "3+ car driveway", offered: (s) => s.includes("driveway") },
-  { key: "pricingSidewalk", label: "Front porch & sidewalk", detail: "One price for either area", offered: (s) => s.includes("porch") || s.includes("sidewalk") },
+  { key: "pricingSidewalk", label: "Walkway & sidewalk", detail: "One price for either area", offered: (s) => s.includes("porch") || s.includes("sidewalk") },
   { key: "pricingBackyardPatio", label: "Backyard patio", detail: "Set your own rate", offered: (s) => s.includes("backyard-patio") },
 ];
 const validPrice = (value: string) =>
@@ -363,7 +363,7 @@ export default function OnboardingFlow({
                     <section className={styles.card}>
                       <div className={styles.cardHead}>
                         <h2>Your prices · CAD per visit</h2>
-                        <p>Front porch and sidewalk share one price. You can change prices any time in settings.</p>
+                        <p>Walkway and sidewalk share one price. You can change prices any time in settings.</p>
                       </div>
                       <div className={styles.prices}>
                         {visiblePrices.map(({ key, label, detail }) => (

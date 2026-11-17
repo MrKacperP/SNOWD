@@ -315,27 +315,16 @@ export function MessageCard({ title, body, tone = "white", action, hop }: { titl
   );
 }
 
-/**
- * A customer's main call to action when nothing is booked: one clear "Book a shoveler" button,
- * with the penguin and three short reassurances.
- */
+/** A customer's main call to action when nothing is booked: one clear "Book a shoveler" button and the penguin. */
 export function BookCard({ city, onBook }: { city?: string; onBook: () => void }) {
   return (
     <Surface style={[styles.card, { gap: gap.x4 }]}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: gap.x3 }}>
         <View style={{ flex: 1, gap: 4 }}>
           <Text accessibilityRole="header" style={[styles.name, { fontSize: 26, lineHeight: 31 }]}>Need snow cleared?</Text>
-          <Text style={styles.detail}>Book a trusted shoveler near {city || "you"}. You only pay when it’s done.</Text>
+          <Text style={styles.detail}>Book a trusted shoveler near {city || "you"}.</Text>
         </View>
         <Image source={PENGUIN} style={{ width: 58, height: 62 }} contentFit="contain" accessibilityIgnoresInvertColors />
-      </View>
-      <View style={{ gap: 8 }}>
-        {["Pick a shoveler and see the price first", "Follow every step live, right here", "Card is only charged after the photo of the work"].map((line) => (
-          <View key={line} style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-            <Icon name="checkmark.circle.fill" size={18} color={ds.mint} />
-            <Text style={[styles.detail, { color: ds.ink2, flex: 1 }]}>{line}</Text>
-          </View>
-        ))}
       </View>
       <BigButton title="Book a shoveler" icon="snowflake" onPress={onBook} />
     </Surface>

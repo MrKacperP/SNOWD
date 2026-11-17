@@ -1,82 +1,40 @@
 import { Image } from "expo-image";
 import { Stack } from "expo-router";
-import { doc, updateDoc } from "firebase/firestore";
-import { useState } from "react";
 import { Text, View } from "react-native";
 import { isOperatorPublic } from "@/lib/operatorDiscovery";
 import type { OperatorProfile } from "@/lib/types";
 import { Badge, Button, Card, Icon, Notice, Screen } from "~/components/ui";
 import { useAuth } from "~/context/auth";
-import { notifyAdmin } from "~/lib/admin";
-import { db } from "~/lib/firebase";
-import { chooseUpload, storageName, uploadFile } from "~/lib/uploads";
+import { idState, useVerificationUpload } from "~/lib/verification";
 import { colors, radius, space, type } from "~/lib/theme";
+
+const isPdf = (url: string) => /\.pdf|application%2Fpdf/i.test(url);
+
+/** Why a student should send their transcript: shown as a short list on the Students card. */
+const STUDENT_PERKS: { icon: Parameters<typeof Icon>[0]["name"]; text: string }[] = [
+  { icon: "tag.fill", text: "Student promotions and lower fees" },
+  { icon: "checkmark.seal.fill", text: "A Student badge on your profile" },
+  { icon: "star.fill", text: "Shown first to customers who want to hire students" },
+];
 
 /** Government ID and student transcript uploads — the website's Settings → Verification. */
 export default function VerificationSettings() {
-  const { user, profile } = useAuth();
-  const uid = user?.uid || "";
+  const { profile } = useAuth();
   const operator = profile?.role === "operator";
-  const status = profile?.verificationStatus;
-  const [busy, setBusy] = useState<"" | "id" | "transcript">("");
-  const [error, setError] = useState("");
+  const state = idState(profile);
+  const { busy, error, failed, uploadId, uploadTranscript } = useVerificationUpload();
   const isPublic = operator && isOperatorPublic(profile as OperatorProfile);
+  const transcript = profile?.studentTranscriptUrl || "";
 
-  // Photos go up as JPEGs; documents (PDF, Word…) keep their own type and name.
-  const uploadPicked = (picked: NonNullable<Awaited<ReturnType<typeof chooseUpload>>>, base: string) =>
-    picked.kind === "photo"
-      ? uploadFile(`verification/${uid}`, picked.uri, { name: `${base}.jpg` })
-      : uploadFile(`verification/${uid}`, picked.file.uri, { name: `${base}-${storageName(picked.file.name)}`, contentType: picked.file.mimeType });
-
-  const uploadId = async () => {
-    setError("");
-    try {
-      // A full-size photo keeps the fine print readable; a scan or PDF from Files works too.
-      const picked = await chooseUpload("Government ID", { files: true });
-      if (!picked) return;
-      setBusy("id");
-      const url = await uploadPicked(picked, "id-photo");
-      await updateDoc(doc(db, "users", uid), { idPhotoUrl: url, idVerified: false, accountApproved: false, verificationStatus: "pending", verificationNote: "" });
-      notifyAdmin({ type: "document_uploaded", message: `ID document uploaded by ${profile?.displayName || profile?.email}`, uid, meta: { name: profile?.displayName || "", email: profile?.email || "" } });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Your ID couldn’t be uploaded. Please try again.");
-    } finally {
-      setBusy("");
-    }
-  };
-
-  const uploadTranscript = async () => {
-    setError("");
-    try {
-      const picked = await chooseUpload("Transcript or report card", { files: true });
-      if (!picked) return;
-      setBusy("transcript");
-      const url = await uploadPicked(picked, "transcript");
-      await updateDoc(doc(db, "users", uid), { studentTranscriptUrl: url });
-      notifyAdmin({ type: "document_uploaded", message: `Student transcript uploaded by ${profile?.displayName || profile?.email}`, uid, meta: { name: profile?.displayName || "", email: profile?.email || "" } });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Your transcript couldn’t be uploaded. Please try again.");
-    } finally {
-      setBusy("");
-    }
-  };
-
-  const idBadge = profile?.idVerified ? (
-    <Badge label="Verified" tone="green" />
-  ) : status === "rejected" ? (
-    <Badge label="Rejected" tone="red" />
-  ) : profile?.idPhotoUrl ? (
-    <Badge label="Pending review" tone="orange" />
-  ) : (
-    <Badge label="Not submitted" />
-  );
+  const idBadge =
+    state === "verified" ? <Badge label="Verified" tone="green" /> : state === "rejected" ? <Badge label="Rejected" tone="red" /> : state === "pending" ? <Badge label="Pending review" tone="orange" /> : <Badge label="Not submitted" />;
 
   const publicNote =
-    profile?.idVerified && profile?.isAvailable === false
+    state === "verified" && profile?.isAvailable === false
       ? "Your ID is verified. Turn on availability from Home to appear in nearby searches."
-      : status === "rejected"
+      : state === "rejected"
         ? "Your previous submission was rejected. Review the feedback below and upload a new ID photo."
-        : !profile?.idPhotoUrl
+        : state === "missing"
           ? "Upload your government ID below to start verification."
           : "Your ID is under review. Once approved, your account goes public.";
 
@@ -97,40 +55,59 @@ export default function VerificationSettings() {
         <Card>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
             <Icon name="person.text.rectangle.fill" size={20} color={colors.accent} />
-            <Text style={[type.headline, { flex: 1 }]}>Government ID</Text>
+            <Text style={[type.headline, { flex: 1 }]}>ID verification</Text>
             {idBadge}
           </View>
-          <Text style={type.callout}>
-            A clear photo of your driver’s licence, passport or other government ID{operator ? " — required for your account to go public." : " to get verified and build trust."}
-          </Text>
-          {status === "rejected" && profile?.verificationNote ? (
+          <Text style={type.callout}>A photo of your driver’s licence, passport or other government ID. It’s only used to verify your address and identity{operator ? ", and is needed before customers can book you" : ""}.</Text>
+          {state === "rejected" && profile?.verificationNote ? (
             <View style={{ backgroundColor: colors.dangerSoft, borderRadius: radius.md, padding: space.md, gap: 4 }}>
               <Text style={[type.overline, { color: colors.danger }]}>Feedback from SNOWD</Text>
               <Text style={{ color: colors.danger, fontSize: 15 }}>{profile.verificationNote}</Text>
             </View>
           ) : null}
-          {profile?.idPhotoUrl ? <Image source={{ uri: profile.idPhotoUrl }} style={{ width: "100%", aspectRatio: 1.6, borderRadius: radius.md, backgroundColor: colors.surfaceAlt }} contentFit="cover" /> : null}
-          {!profile?.idVerified ? (
-            <Button title={status === "rejected" ? "Upload a new ID photo" : profile?.idPhotoUrl ? "Replace photo" : "Upload ID photo"} icon="camera.fill" loading={busy === "id"} disabled={!!busy} onPress={uploadId} />
+          {profile?.idPhotoUrl && !isPdf(profile.idPhotoUrl) ? <Image source={{ uri: profile.idPhotoUrl }} style={{ width: "100%", aspectRatio: 1.6, borderRadius: radius.md, backgroundColor: colors.surfaceAlt }} contentFit="cover" /> : null}
+          {state !== "verified" ? (
+            <Button title={state === "rejected" ? "Upload a new ID photo" : state === "pending" ? "Replace photo" : "Upload ID photo"} icon="camera.fill" loading={busy === "id"} disabled={!!busy} onPress={() => void uploadId()} />
           ) : null}
-          <Text style={type.caption}>Only SNOWD’s verification team sees your ID.</Text>
+          {failed === "id" ? <Notice text={error} /> : null}
         </Card>
 
-        {operator ? (
-          <Card>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-              <Icon name="graduationcap.fill" size={20} color={colors.accent} />
-              <Text style={[type.headline, { flex: 1 }]}>Student transcript</Text>
-              <Badge label={profile?.studentTranscriptUrl ? "Uploaded" : "Optional"} tone={profile?.studentTranscriptUrl ? "green" : "gray"} />
+        {/* Students: a transcript proves it, and unlocks student promotions. */}
+        <Card style={{ backgroundColor: transcript ? colors.mintSoft : colors.accentSoft, borderColor: transcript ? "#bfe3d5" : "#d6defe" }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: transcript ? colors.mint : colors.accent, alignItems: "center", justifyContent: "center" }}>
+              <Icon name="graduationcap.fill" size={22} color="#fff" />
             </View>
-            <Text style={type.callout}>A photo of your transcript or latest report card shows customers you’re a student and may qualify you for student promotions.</Text>
-            {profile?.studentTranscriptUrl && !/\.pdf|application%2Fpdf/.test(profile.studentTranscriptUrl) ? (
-              <Image source={{ uri: profile.studentTranscriptUrl }} style={{ width: "100%", aspectRatio: 0.8, borderRadius: radius.md, backgroundColor: colors.surfaceAlt }} contentFit="cover" />
-            ) : null}
-            <Button title={profile?.studentTranscriptUrl ? "Replace transcript" : "Upload transcript"} icon="doc.viewfinder" variant="secondary" loading={busy === "transcript"} disabled={!!busy} onPress={uploadTranscript} />
-          </Card>
-        ) : null}
-        <Notice text={error} />
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={type.overline}>For students</Text>
+              <Text style={type.headline}>{transcript ? "Transcript sent" : "Are you a student? Upload your transcript"}</Text>
+            </View>
+            {transcript ? <Badge label="In review" tone="green" /> : null}
+          </View>
+          <Text style={type.callout}>
+            {transcript
+              ? "Thanks. Once SNOWD confirms you’re a student, your student promotions turn on automatically."
+              : `A photo of your transcript, latest report card or student card confirms you’re a student${operator ? " to customers" : ""} and gets you better promotions.`}
+          </Text>
+          <View style={{ gap: 8 }}>
+            {STUDENT_PERKS.filter((p) => operator || p.icon === "tag.fill").map((p) => (
+              <View key={p.text} style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                <Icon name={p.icon} size={15} color={transcript ? colors.mint : colors.accent} />
+                <Text style={[type.body, { flex: 1 }]}>{p.text}</Text>
+              </View>
+            ))}
+          </View>
+          {transcript && !isPdf(transcript) ? <Image source={{ uri: transcript }} style={{ width: "100%", aspectRatio: 0.8, borderRadius: radius.md, backgroundColor: colors.surfaceAlt }} contentFit="cover" /> : null}
+          {transcript && isPdf(transcript) ? (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <Icon name="doc.fill" size={16} color={colors.muted} />
+              <Text style={type.caption}>PDF uploaded</Text>
+            </View>
+          ) : null}
+          <Button title={transcript ? "Replace transcript" : "Upload transcript"} icon="doc.viewfinder" variant={transcript ? "secondary" : "primary"} loading={busy === "transcript"} disabled={!!busy} onPress={() => void uploadTranscript()} />
+          {failed === "transcript" ? <Notice text={error} /> : null}
+          <Text style={type.caption}>Photos, scans and PDFs all work. Only SNOWD’s team sees it.</Text>
+        </Card>
       </Screen>
     </>
   );

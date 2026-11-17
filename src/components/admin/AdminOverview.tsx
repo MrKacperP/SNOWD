@@ -8,12 +8,12 @@ import { AdminCard, EmptyState, StatusTag } from "@/components/admin/AdminUI";
 import type { useAdminData } from "@/components/admin/AdminProvider";
 import { relativeTime } from "@/lib/admin/utils";
 
-type OverviewData = Pick<ReturnType<typeof useAdminData>, "users" | "jobs" | "pendingVerificationCount" | "transactions" | "activityChart" | "activityEvents" | "notifications" | "openSupportCount" | "chats">;
+type OverviewData = Pick<ReturnType<typeof useAdminData>, "users" | "jobs" | "pendingVerificationCount" | "revenueTransactions" | "activityChart" | "activityEvents" | "notifications" | "openSupportCount" | "chats">;
 
 export default function AdminOverview({ data }: { data: OverviewData }) {
-  const { users, jobs, pendingVerificationCount, transactions, activityChart, activityEvents, notifications, openSupportCount, chats } = data;
+  const { users, jobs, pendingVerificationCount, revenueTransactions, activityChart, activityEvents, notifications, openSupportCount, chats } = data;
 
-  const revenueThisMonth = transactions
+  const revenueThisMonth = revenueTransactions
     .filter((t) => t.status === "Completed" && t.type === "Payment" && t.date.slice(0, 7) === new Date().toISOString().slice(0, 7))
     .reduce((sum, t) => sum + t.amount, 0);
 

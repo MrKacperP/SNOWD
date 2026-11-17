@@ -15,8 +15,8 @@
       "usesAppleSignIn": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "SNOWD uses your location to show nearby shovelers and to share your ETA with customers.",
-        "NSCameraUsageDescription": "SNOWD uses the camera to send photos in chat and to confirm finished jobs.",
-        "NSPhotoLibraryUsageDescription": "SNOWD lets you choose photos to send in chat and to confirm finished jobs.",
+        "NSCameraUsageDescription": "SNOWD uses the camera to photograph your government ID for verification, take your profile photo, send photos in chat and confirm finished jobs.",
+        "NSPhotoLibraryUsageDescription": "SNOWD lets you choose a photo of your government ID for verification, your profile photo, and photos to send in chat or confirm finished jobs.",
         "ITSAppUsesNonExemptEncryption": false,
         "UIBackgroundModes": [
           "remote-notification"
@@ -67,8 +67,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "SNOWD lets you choose photos to send in chat and to confirm finished jobs.",
-          "cameraPermission": "SNOWD uses the camera to send photos in chat and to confirm finished jobs."
+          "photosPermission": "SNOWD lets you choose a photo of your government ID for verification, your profile photo, and photos to send in chat or confirm finished jobs.",
+          "cameraPermission": "SNOWD uses the camera to photograph your government ID for verification, take your profile photo, send photos in chat and confirm finished jobs."
         }
       ],
       [

@@ -9,10 +9,13 @@ import Animated, { interpolate, useAnimatedStyle } from "react-native-reanimated
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon, Loading } from "~/components/ui";
 import { useAuth } from "~/context/auth";
+import { useJobs } from "~/lib/data";
 import { db } from "~/lib/firebase";
 import { clockTime, dayLabel, shortTime } from "~/lib/format";
 import { chooseUpload, uploadFile } from "~/lib/uploads";
 import { colors, radius, space, type } from "~/lib/theme";
+import { readSupportJobRef, supportJobChoices, supportJobLine, supportJobRef, type SupportJobRef } from "@/lib/supportJob";
+import type { Job } from "@/lib/types";
 
 // Same IDs and phone number the website's support chat uses, so both sides see one conversation.
 const SUPPORT_ID = "SNOWD_ADMIN";
@@ -30,7 +33,7 @@ const TOPICS = [
 type TopicId = (typeof TOPICS)[number]["id"];
 const topicOf = (id?: string) => TOPICS.find((t) => t.id === id);
 
-type SupportMessage = { id: string; senderId: string; content: string; read: boolean; createdAt: unknown; type?: string; imageUrl?: string };
+type SupportMessage = { id: string; senderId: string; content: string; read: boolean; createdAt: unknown; type?: string; imageUrl?: string; jobRef?: SupportJobRef | null };
 type ChatInfo = { exists: boolean; status: string; topic: string; lastMessage: string; lastMessageTime: unknown };
 type Item = { kind: "day"; id: string; label: string } | { kind: "message"; id: string; message: SupportMessage; first: boolean; last: boolean };
 
@@ -67,7 +70,7 @@ export default function Support() {
         setMessages(
           snap.docs.map((d) => {
             const data = d.data({ serverTimestamps: "estimate" });
-            return { id: d.id, senderId: String(data.senderId || ""), content: String(data.content || ""), read: !!data.read, createdAt: data.createdAt, type: data.type, imageUrl: data.metadata?.imageUrl };
+            return { id: d.id, senderId: String(data.senderId || ""), content: String(data.content || ""), read: !!data.read, createdAt: data.createdAt, type: data.type, imageUrl: data.metadata?.imageUrl, jobRef: readSupportJobRef(data.metadata?.jobRef) };
           }),
         );
         setLoading(false);
@@ -245,6 +248,14 @@ function Conversation({ uid, chatId, messages, chat, topic, name, role }: { uid:
   // Reuse the same message ID when a failed send is retried, so a flaky connection can't post it twice.
   const attempt = useRef<{ text: string; id: string } | null>(null);
   const chosen = topicOf(topic);
+  const { jobs } = useJobs(uid, role);
+  // The job the person chose to attach to their next message, if any.
+  const [attached, setAttached] = useState<Job | null>(null);
+  const referenced = useMemo(() => new Set(messages.map((m) => m.jobRef?.jobId).filter(Boolean)), [messages]);
+  const choices = useMemo(() => {
+    const { jobs: list, active } = supportJobChoices(jobs);
+    return { active, jobs: list.filter((j) => !referenced.has(j.id)) };
+  }, [jobs, referenced]);
 
   const { height: keyboardHeight, progress } = useReanimatedKeyboardAnimation();
   const lift = useAnimatedStyle(() => ({ paddingBottom: Math.max(0, -keyboardHeight.value) }));
@@ -274,26 +285,34 @@ function Conversation({ uid, chatId, messages, chat, topic, name, role }: { uid:
   }, [messages]);
 
   const send = async (content: string, imageUrl?: string) => {
-    if (!content.trim() && !imageUrl) return false;
+    const job = imageUrl ? null : attached;
+    const jobRef = job ? supportJobRef(job) : null;
+    if (!content.trim() && !imageUrl && !jobRef) return false;
     if (sending) return false;
-    const text = content.trim() || "Photo";
+    const text = content.trim() || (jobRef ? supportJobLine(jobRef) : "Photo");
     setSending(true);
     try {
       const chatRef = doc(db, "supportChats", chatId);
       if (attempt.current?.text !== text) attempt.current = { text, id: doc(collection(chatRef, "messages")).id };
       const preview = imageUrl ? "📷 Photo" : text;
       const batch = writeBatch(db);
-      // Writing again reopens a conversation support had marked resolved.
-      batch.set(chatRef, { userId: uid, userName: name, userRole: role, status: "open", lastMessage: preview, lastMessageTime: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true });
-      batch.set(doc(chatRef, "messages", attempt.current.id), { senderId: uid, senderName: name, content: text, type: imageUrl ? "image" : "text", ...(imageUrl ? { metadata: { imageUrl } } : {}), createdAt: serverTimestamp(), read: false });
-      if (!imageUrl) setDraft("");
+      // Writing again reopens a conversation support had marked resolved. An attached job becomes the ticket's linked job.
+      batch.set(chatRef, { userId: uid, userName: name, userRole: role, status: "open", lastMessage: preview, lastMessageTime: serverTimestamp(), updatedAt: serverTimestamp(), ...(jobRef ? { linkedJobId: jobRef.jobId, linkedJob: jobRef } : {}) }, { merge: true });
+      batch.set(doc(chatRef, "messages", attempt.current.id), { senderId: uid, senderName: name, content: text, type: imageUrl ? "image" : "text", ...(imageUrl ? { metadata: { imageUrl } } : jobRef ? { metadata: { jobRef } } : {}), createdAt: serverTimestamp(), read: false });
+      if (!imageUrl) {
+        setDraft("");
+        setAttached(null);
+      }
       await batch.commit();
       attempt.current = null;
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      notifyAdmins(uid, chatId, name, preview, topicOf(chat.topic)?.label || "Support chat");
+      notifyAdmins(uid, chatId, name, jobRef && text !== supportJobLine(jobRef) ? `${supportJobLine(jobRef)}\n${preview}` : preview, topicOf(chat.topic)?.label || "Support chat");
       return true;
     } catch {
-      if (!imageUrl) setDraft(content);
+      if (!imageUrl) {
+        setDraft(content);
+        setAttached(job);
+      }
       Alert.alert("Message not sent", "Check your connection and try again. Your message is still in the box.");
       return false;
     } finally {
@@ -356,7 +375,29 @@ function Conversation({ uid, chatId, messages, chat, topic, name, role }: { uid:
         />
 
         <Animated.View style={[styles.composerWrap, composerPadding]}>
-          {chosen && !draft ? <Text style={styles.hint}>Helpful to include: {chosen.hint.toLowerCase()}.</Text> : null}
+          {attached ? (
+            <View style={styles.attachedRow}>
+              <JobChip job={attached} attached onPress={() => setAttached(null)} />
+            </View>
+          ) : choices.jobs.length ? (
+            <View style={styles.attachedRow}>
+              <Text style={styles.suggestLabel}>{choices.active ? (choices.jobs.length > 1 ? "Add one of your current jobs?" : "Add your current job?") : "Is this about your last job?"}</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 8 }}>
+                {choices.jobs.map((j) => (
+                  <JobChip
+                    key={j.id}
+                    job={j}
+                    onPress={() => {
+                      void Haptics.selectionAsync();
+                      setAttached(j);
+                    }}
+                  />
+                ))}
+              </ScrollView>
+            </View>
+          ) : chosen && !draft ? (
+            <Text style={styles.hint}>Helpful to include: {chosen.hint.toLowerCase()}.</Text>
+          ) : null}
           <View style={styles.composer}>
             <Pressable hitSlop={4} accessibilityRole="button" accessibilityLabel={uploading !== null ? `Uploading, ${Math.round(uploading * 100)} percent` : "Send a photo"} disabled={uploading !== null || sending} onPress={() => void attachPhoto()} style={styles.roundButton}>
               {uploading !== null ? (
@@ -370,12 +411,12 @@ function Conversation({ uid, chatId, messages, chat, topic, name, role }: { uid:
               hitSlop={4}
               accessibilityRole="button"
               accessibilityLabel="Send message"
-              accessibilityState={{ disabled: !draft.trim() || sending }}
-              disabled={!draft.trim() || sending}
+              accessibilityState={{ disabled: !(draft.trim() || attached) || sending }}
+              disabled={!(draft.trim() || attached) || sending}
               onPress={() => void send(draft)}
-              style={[styles.send, { backgroundColor: draft.trim() ? colors.accent : colors.surfaceAlt }]}
+              style={[styles.send, { backgroundColor: draft.trim() || attached ? colors.accent : colors.surfaceAlt }]}
             >
-              {sending ? <ActivityIndicator color="#fff" /> : <Icon name="arrow.up" size={19} color={draft.trim() ? "#fff" : colors.faint} weight="bold" />}
+              {sending ? <ActivityIndicator color="#fff" /> : <Icon name="arrow.up" size={19} color={draft.trim() || attached ? "#fff" : colors.faint} weight="bold" />}
             </Pressable>
           </View>
         </Animated.View>
@@ -401,9 +442,10 @@ function Bubble({ item, mine, onOpenImage }: { item: Extract<Item, { kind: "mess
       {!mine && first ? <Text style={styles.sender}>{auto ? "SNOWD Support · automatic reply" : "SNOWD Support"}</Text> : null}
       <Pressable disabled={!message.imageUrl} onPress={() => message.imageUrl && onOpenImage(message.imageUrl)} style={{ maxWidth: "82%" }}>
         <View style={[styles.bubble, mine ? styles.mine : styles.theirs, mine ? { borderBottomRightRadius: last ? 6 : 20 } : { borderBottomLeftRadius: last ? 6 : 20 }, message.imageUrl ? { padding: 4 } : null]}>
+          {message.jobRef ? <JobRefCard jobRef={message.jobRef} mine={mine} /> : null}
           {message.imageUrl ? (
             <Image source={{ uri: message.imageUrl }} style={{ width: 220, height: 220, borderRadius: 16 }} contentFit="cover" transition={150} />
-          ) : (
+          ) : message.jobRef && message.content === supportJobLine(message.jobRef) ? null : (
             <Text selectable style={{ color: mine ? "#fff" : colors.ink, fontSize: 17, lineHeight: 23 }}>{message.content}</Text>
           )}
         </View>
@@ -414,6 +456,41 @@ function Bubble({ item, mine, onOpenImage }: { item: Extract<Item, { kind: "mess
           {mine ? (message.read ? " · Read" : " · Delivered") : ""}
         </Text>
       ) : null}
+    </View>
+  );
+}
+
+/** A job someone can attach to their next message, or the one they already attached (tap to remove). */
+function JobChip({ job, attached, onPress }: { job: Job; attached?: boolean; onPress: () => void }) {
+  const ref = supportJobRef(job);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={attached ? `Order ${ref.orderNumber} attached. Remove it` : `Attach order ${ref.orderNumber}, ${ref.title}, ${ref.statusLabel}`}
+      onPress={onPress}
+      style={({ pressed }) => [styles.jobChip, attached && styles.jobChipOn, pressed && { opacity: 0.8 }]}
+    >
+      <Icon name={attached ? "paperclip" : "plus.circle.fill"} size={15} color={colors.accent} />
+      <View style={{ flexShrink: 1 }}>
+        <Text style={styles.jobChipTitle} numberOfLines={1}>Order #{ref.orderNumber} · {ref.statusLabel}</Text>
+        <Text style={styles.jobChipSub} numberOfLines={1}>{ref.title}{ref.address ? ` · ${ref.address}` : ""}</Text>
+      </View>
+      {attached ? <Icon name="xmark.circle.fill" size={17} color={colors.faint} /> : null}
+    </Pressable>
+  );
+}
+
+/** The job a message is about, shown at the top of its bubble. */
+function JobRefCard({ jobRef, mine }: { jobRef: SupportJobRef; mine: boolean }) {
+  const ink = mine ? "#fff" : colors.ink;
+  const sub = mine ? "rgba(255,255,255,0.8)" : colors.muted;
+  return (
+    <View style={[styles.jobRef, { backgroundColor: mine ? "rgba(255,255,255,0.16)" : colors.surfaceAlt }]}>
+      <Icon name="snowflake" size={14} color={ink} />
+      <View style={{ flexShrink: 1 }}>
+        <Text style={{ color: ink, fontSize: 14, fontWeight: "700" }} numberOfLines={1}>Order #{jobRef.orderNumber}{jobRef.statusLabel ? ` · ${jobRef.statusLabel}` : ""}</Text>
+        <Text style={{ color: sub, fontSize: 13 }} numberOfLines={1}>{[jobRef.title, jobRef.address].filter(Boolean).join(" · ")}</Text>
+      </View>
     </View>
   );
 }
@@ -435,6 +512,13 @@ const styles = StyleSheet.create({
   theirs: { backgroundColor: colors.bubbleTheirs, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
   meta: { fontSize: 13, color: colors.muted, marginTop: 4 },
   hint: { fontSize: 13, color: colors.muted, paddingHorizontal: space.md, paddingBottom: 6 },
+  attachedRow: { paddingHorizontal: space.md, paddingBottom: 8, gap: 6 },
+  suggestLabel: { fontSize: 13, fontWeight: "600", color: colors.muted },
+  jobChip: { flexDirection: "row", alignItems: "center", gap: 8, maxWidth: 300, minHeight: 44, paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.bg },
+  jobChipOn: { alignSelf: "flex-start", borderColor: colors.accent, backgroundColor: colors.accentSoft },
+  jobChipTitle: { fontSize: 14, fontWeight: "700", color: colors.ink },
+  jobChipSub: { fontSize: 12, color: colors.muted },
+  jobRef: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 14, marginBottom: 6, minWidth: 200 },
   composerWrap: { backgroundColor: colors.surface, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, paddingTop: 8 },
   composer: { flexDirection: "row", alignItems: "flex-end", gap: 8, paddingHorizontal: space.md },
   roundButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surfaceAlt, alignItems: "center", justifyContent: "center" },

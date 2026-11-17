@@ -68,6 +68,17 @@ export function usePushNotifications(uid?: string, ready?: boolean) {
   }, [ready, router]);
 }
 
+/** Removes this chat's message notifications from Notification Centre once it has been opened. */
+export async function dismissChatPushes(chatIds: string[]) {
+  const ids = new Set(chatIds);
+  const shown = await Notifications.getPresentedNotificationsAsync().catch(() => []);
+  await Promise.all(
+    shown
+      .filter((n) => ids.has(String(n.request.content.data?.chatId || "")))
+      .map((n) => Notifications.dismissNotificationAsync(n.request.identifier).catch(() => {})),
+  );
+}
+
 /** Keeps the app icon's badge equal to the number of unread updates and messages. */
 export function useBadge(count: number) {
   useEffect(() => {

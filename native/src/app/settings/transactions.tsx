@@ -5,6 +5,7 @@ import { Pressable, Text, View } from "react-native";
 import { activitySummary } from "@/lib/activitySummary";
 import { estimatedTimeSaved, timeSavedLabel } from "@/lib/clientValue";
 import { jobDisplayPrice, transactionDisplayAmount } from "@/lib/marketplacePricing";
+import { applePayAvailable } from "~/lib/orders";
 import { canAcceptPlatformPayments } from "@/lib/operatorDiscovery";
 import type { Job, OperatorProfile, Transaction } from "@/lib/types";
 import { dateMillis } from "@/lib/workOrders";
@@ -113,7 +114,7 @@ export default function Transactions() {
               <Text style={[type.title, { fontVariant: ["tabular-nums"] }]}>{summary.active}</Text>
               <Icon name="chevron.right" size={13} color={colors.faint} />
             </Card>
-            {cashOnly ? <Notice tone="blue" text="You’re taking cash jobs. Connect Stripe in Payouts to also accept cards and Apple Pay." /> : null}
+            {cashOnly ? <Notice tone="blue" text={`You’re taking cash jobs. Connect Stripe in Payouts to also accept ${applePayAvailable ? "cards and Apple Pay" : "card payments"}.`} /> : null}
           </>
         ) : (
           <Card style={{ backgroundColor: colors.accentSoft, borderColor: colors.accentBorder }}>

@@ -74,3 +74,6 @@ xcuserdata/
 **/public/
 mobile/node_modules/
 Pods/
+
+# image-generation scratch output
+/generated_images/

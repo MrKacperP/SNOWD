@@ -28,6 +28,8 @@ export async function completeWithPhoto(job: Job, completionPhotoUrl: string) {
 
 const publishableKey = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || "";
 const merchantIdentifier = process.env.EXPO_PUBLIC_APPLE_PAY_MERCHANT_ID || "";
+/** Apple Pay appears in checkout only once a merchant ID (and its entitlement) is in the build, so copy must not promise it before then. */
+export const applePayAvailable = Boolean(merchantIdentifier);
 
 /**
  * Native Stripe checkout with Apple Pay (when a merchant ID is configured) and cards.

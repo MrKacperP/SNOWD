@@ -62,7 +62,11 @@
     ".next-settings/types/**/*.ts",
     ".next-settings/dev/types/**/*.ts",
     ".next-popups/types/**/*.ts",
-    ".next-popups/dev/types/**/*.ts"
+    ".next-popups/dev/types/**/*.ts",
+    ".next-support/types/**/*.ts",
+    ".next-support/dev/types/**/*.ts",
+    ".next-design-sync/types/**/*.ts",
+    ".next-design-sync/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

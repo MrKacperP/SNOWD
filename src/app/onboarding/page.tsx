@@ -132,7 +132,7 @@ function OnboardingPageInner() {
           walkway: pricingSidewalk,
           sidewalk: pricingSidewalk,
           backyardPatio: pricingBackyardPatio,
-          // Front porch and sidewalk share one price.
+          // Walkway and sidewalk share one price.
           porch: pricingSidewalk,
         },
         rating: 0,

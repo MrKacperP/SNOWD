@@ -83,7 +83,7 @@ export function JobMiniMap({ job, operator, target, onPress, label }: { job: Job
   }, [job.status, confirmed, minutes, trip, operator]);
 
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={`${badge?.text || "Map"}. ${label}`} onPress={onPress} style={[styles.wrap, { height: from ? 150 : 112 }]}>
+    <Pressable accessibilityRole="button" accessibilityLabel={`${badge?.text || "Map"}. ${label}`} onPress={onPress} style={[styles.wrap, { height: from ? 132 : 104 }]}>
       <MapView ref={map} {...SNOWD_MAP} pointerEvents="none" style={{ flex: 1 }} initialRegion={{ ...target, latitudeDelta: 0.012, longitudeDelta: 0.012 }} scrollEnabled={false} zoomEnabled={false} pitchEnabled={false} rotateEnabled={false}>
         {operator && from ? (
           route?.points.length ? (

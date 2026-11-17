@@ -59,7 +59,7 @@
 		<string>_expo._tcp</string>
 	</array>
 	<key>NSCameraUsageDescription</key>
-	<string>SNOWD uses the camera to send photos in chat and to confirm finished jobs.</string>
+	<string>SNOWD uses the camera to photograph your government ID for verification, take your profile photo, send photos in chat and confirm finished jobs.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Expo Dev Launcher uses the local network to discover and connect to development servers running on your computer.</string>
 	<key>NSContactsUsageDescription</key>
@@ -80,7 +80,7 @@
 	<key>NSMotionUsageDescription</key>
 	<string>Allow $(PRODUCT_NAME) to detect your current motion activity</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>SNOWD lets you choose photos to send in chat and to confirm finished jobs.</string>
+	<string>SNOWD lets you choose a photo of your government ID for verification, your profile photo, and photos to send in chat or confirm finished jobs.</string>
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>

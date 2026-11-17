@@ -101,7 +101,7 @@ export default function OperatorScreen() {
             <Text style={type.headline}>Prices</Text>
             {[
               ["Driveway (your size)", operator.pricing?.driveway?.[size]],
-              ["Sidewalk / front porch", operator.pricing?.sidewalk],
+              ["Sidewalk / walkway", operator.pricing?.sidewalk],
               ["Backyard patio", operator.pricing?.backyardPatio],
             ]
               .filter(([, value]) => Number(value) > 0)

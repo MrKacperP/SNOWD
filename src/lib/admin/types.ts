@@ -126,6 +126,10 @@ export interface SupportTicket {
   lastMessageAgo: string;
   unreadReplies: number;
   thread: Array<{ id: string; sender: "user" | "admin"; text: string; time: string }>;
+  /** The job the customer attached in the chat, if any. */
+  linkedJobId?: string;
+  linkedOrderNumber?: string;
+  linkedJobSummary?: string;
 }
 
 export interface CallItem {

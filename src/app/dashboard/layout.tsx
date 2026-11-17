@@ -78,12 +78,12 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
       const photo = await prepareImageUpload(file, 3200);
       await uploadBytes(storageRef, photo, { contentType: photo.type });
       const downloadURL = await getDownloadURL(storageRef);
+      // Only fields users may change themselves: idVerified, accountApproved and verificationNote
+      // belong to the review team, and writing them is refused by the Firestore rules.
       await updateDoc(doc(db, "users", user.uid), {
         idPhotoUrl: downloadURL,
-        idVerified: false,
-        accountApproved: false,
         verificationStatus: "pending",
-        verificationNote: "",
+        idSubmittedAt: new Date(),
         updatedAt: new Date(),
       });
       sendAdminNotif({
@@ -106,9 +106,12 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
   const hasIdPhoto = !!(profile as unknown as Record<string, unknown>).idPhotoUrl;
   const isAdmin = profile.role === "admin" || profile.role === "employee";
-  const requiresVerification = profile.role === "operator" && profile.idVerified !== true;
+  const isClient = profile.role === "client";
   const verificationRejected = profile.verificationStatus === "rejected";
   const verificationPending = hasIdPhoto && !verificationRejected;
+  // Operators need a reviewed ID to go public. Customers start approved, but everyone is asked to
+  // put a government ID on file (it confirms their address), until one has been sent.
+  const requiresVerification = isClient ? !hasIdPhoto || verificationRejected : profile.role === "operator" && (profile.idVerified !== true || verificationRejected);
 
   return (
     <WeatherProvider><NotificationProvider><ServiceLocationProvider><OperatorLocationTracker>
@@ -143,14 +146,16 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                   </div>
                   <div className="min-w-0 flex-1">
                     <h2 className="font-bold">
-                      {verificationRejected ? "Verification needs attention" : verificationPending ? "Verification submitted" : "Complete verification to use Snowd"}
+                      {verificationRejected ? "Verification needs attention" : verificationPending ? "Verification submitted" : isClient ? "ID verification" : "Complete verification to use Snowd"}
                     </h2>
                     <p className="mt-1 text-sm leading-relaxed text-[var(--ink-3)]">
                       {verificationRejected
                         ? profile.verificationNote || "Review the feedback and submit a new government ID."
                         : verificationPending
                           ? "Your government ID is waiting for review. We’ll update your account after it has been checked."
-                          : "Submit a clear government-issued ID before your profile can appear to customers or receive work orders."}
+                          : isClient
+                            ? "Only used to verify your address and identity."
+                            : "Submit a clear government-issued ID before your profile can appear to customers or receive work orders."}
                     </p>
                     <div className="mt-3 flex flex-wrap items-center gap-3">
                       {!verificationPending && (

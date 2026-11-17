@@ -2,6 +2,7 @@
 
 import { Conversation } from "@/components/admin/Conversation";
 import { useAdminSelection } from "@/hooks/useAdminSelection";
+import Link from "next/link";
 import React, { useMemo, useState } from "react";
 import { Send } from "lucide-react";
 import { AdminCard, EmptyState, StatusTag } from "@/components/admin/AdminUI";
@@ -50,7 +51,7 @@ export default function AdminSupportPage() {
                     <p className="text-sm font-semibold text-[var(--ink)] truncate">{ticket.userName}</p>
                     <p className="text-[11px] text-[var(--text-muted)]">{ticket.lastMessageAgo}</p>
                   </div>
-                  <p className="text-xs text-[var(--text-secondary)] truncate">{ticket.subject}</p>
+                  <p className="text-xs text-[var(--text-secondary)] truncate">{ticket.subject}{ticket.linkedOrderNumber ? ` · #${ticket.linkedOrderNumber}` : ""}</p>
                   <div className="mt-1 flex items-center gap-1.5">
                     <StatusTag label={ticket.status} tone={ticket.status === "Open" ? "red" : ticket.status === "Waiting" ? "yellow" : "green"} />
                     <StatusTag label={ticket.urgency} tone={ticket.urgency === "High" ? "red" : ticket.urgency === "Medium" ? "yellow" : "blue"} />
@@ -70,6 +71,11 @@ export default function AdminSupportPage() {
               <div>
                 <p className="font-semibold text-[var(--ink)]">{selected.subject}</p>
                 <p className="text-xs text-[var(--text-muted)]">From {selected.userName}</p>
+                {selected.linkedJobId && (
+                  <Link href={`/admin/jobs?id=${encodeURIComponent(selected.linkedJobId)}`} className="mt-1 inline-block text-xs font-semibold text-[var(--accent)] underline">
+                    Order #{selected.linkedOrderNumber || selected.linkedJobId}{selected.linkedJobSummary ? ` · ${selected.linkedJobSummary}` : ""} — open job ↗
+                  </Link>
+                )}
               </div>
               <select aria-label="Support ticket status"
                 value={selected.status}

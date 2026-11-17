@@ -7,10 +7,12 @@ import { useAuth } from "@/context/AuthContext";
 import { sendAdminNotif } from "@/lib/adminNotifications";
 import { db } from "@/lib/firebase";
 import { format } from "date-fns";
-import { addDoc,collection,doc,onSnapshot,orderBy,query,setDoc,updateDoc } from "firebase/firestore";
+import { addDoc,collection,doc,onSnapshot,orderBy,query,setDoc,updateDoc,where } from "firebase/firestore";
 import { AnimatePresence,motion } from "framer-motion";
-import { AlertTriangle,ChevronRight,Headphones,MessageSquare,Phone,Send,X,CreditCard,Shovel,User,ClipboardList,Shield } from "lucide-react";
-import { useEffect,useRef,useState } from "react";
+import { AlertTriangle,ChevronRight,Headphones,MessageSquare,Phone,Send,X,CreditCard,Shovel,User,ClipboardList,Shield,Paperclip,Plus,Snowflake } from "lucide-react";
+import { useEffect,useMemo,useRef,useState } from "react";
+import { readSupportJobRef,supportJobChoices,supportJobLine,supportJobRef,type SupportJobRef } from "@/lib/supportJob";
+import type { Job } from "@/lib/types";
 import { createPortal } from "react-dom";
 import { useDialogFocus } from "@/hooks/useDialogFocus";
 
@@ -26,6 +28,7 @@ interface SupportMessage {
   read: boolean;
   type?: string;
   statusValue?: string;
+  jobRef?: SupportJobRef | null;
 }
 
 const PROBLEM_CATEGORIES = [
@@ -48,6 +51,9 @@ export default function SupportChatButton({ inline = false }: { inline?: boolean
   const [sending, setSending] = useState(false);
   const [supportChatId, setSupportChatId] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  // The job the person chose to attach to their next message, if any.
+  const [attached, setAttached] = useState<Job | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState<{ top: number; left: number; width: number; height: number }>();
@@ -87,13 +93,31 @@ export default function SupportChatButton({ inline = false }: { inline?: boolean
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const msgs = snapshot.docs.map((d) => {
         const data = d.data();
-        return { id: d.id, ...data, createdAt: data.createdAt?.toDate?.() || new Date() } as SupportMessage;
+        return { id: d.id, ...data, createdAt: data.createdAt?.toDate?.() || new Date(), jobRef: readSupportJobRef(data.metadata?.jobRef) } as SupportMessage;
       });
       setMessages(msgs);
       setUnreadCount(msgs.filter(m => m.senderId === ADMIN_UID && !m.read).length);
     }, () => {});
     return () => unsubscribe();
   }, [user?.uid]);
+
+  // The person's jobs, so they can attach the current (or last) one to a message. Only read while the chat is open.
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    if (!isOpen || !user?.uid || !profile?.role) return;
+    return onSnapshot(
+      query(collection(db, "jobs"), where(profile.role === "operator" ? "operatorId" : "clientId", "==", user.uid)),
+      snap => setJobs(snap.docs.map(d => ({ ...d.data(), id: d.id }) as Job)),
+      () => {},
+    );
+  }, [isOpen, user?.uid, profile?.role]);
+
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const jobChoices = useMemo(() => {
+    const referenced = new Set(messages.map(m => m.jobRef?.jobId).filter(Boolean));
+    const { jobs: list, active } = supportJobChoices(jobs);
+    return { active, jobs: list.filter(j => !referenced.has(j.id)) };
+  }, [jobs, messages]);
 
   // Mark messages as read when chat opened
   // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -177,32 +201,44 @@ export default function SupportChatButton({ inline = false }: { inline?: boolean
   };
 
   const handleSend = async () => {
-    if (!newMessage.trim() || !user?.uid || !supportChatId || sending) return;
+    const job = attached;
+    const jobRef = job ? supportJobRef(job) : null;
+    if ((!newMessage.trim() && !jobRef) || !user?.uid || !supportChatId || sending) return;
     setSending(true);
-    const content = newMessage.trim();
+    const typed = newMessage;
+    const content = newMessage.trim() || supportJobLine(jobRef!);
+    const notice = jobRef && content !== supportJobLine(jobRef) ? `${supportJobLine(jobRef)}\n${content}` : content;
     setNewMessage("");
+    setAttached(null);
     try {
+      // An attached job becomes the ticket's linked job, so the team can open it from the inbox.
       await setDoc(doc(db, "supportChats", supportChatId), {
         userId: user.uid, userName: profile?.displayName || "User",
         userRole: profile?.role || "client", lastMessage: content,
         lastMessageTime: new Date(), updatedAt: new Date(),
+        ...(jobRef ? { linkedJobId: jobRef.jobId, linkedJob: jobRef } : {}),
       }, { merge: true });
       await addDoc(collection(db, "supportChats", supportChatId, "messages"), {
         senderId: user.uid, senderName: profile?.displayName || "User",
         content, createdAt: new Date(), read: false,
+        ...(jobRef ? { metadata: { jobRef } } : {}),
       });
       void sendAdminNotif({
         type: "support",
         title: "New support message",
-        message: content,
+        message: notice,
         senderName: profile?.displayName || "User",
         chatLabel: "Support chat",
-        preview: content,
+        preview: notice,
         chatId: supportChatId,
         uid: user.uid,
         meta: { path: "/admin/support-chats" },
       });
-    } catch (error) { console.error(error); }
+    } catch (error) {
+      console.error(error);
+      setNewMessage(typed);
+      setAttached(job);
+    }
     finally { setSending(false); }
   };
 
@@ -388,7 +424,16 @@ export default function SupportChatButton({ inline = false }: { inline?: boolean
                           <div className={`max-w-[80%] px-3 py-2 rounded-2xl shadow-[var(--surface-shadow)] text-sm ${
                             isMe ? "bg-[var(--accent)] text-white rounded-tr-sm" : "bg-white text-gray-900 rounded-tl-sm"
                           }`}>
-                            <p className="break-words whitespace-pre-line leading-relaxed">{msg.content}</p>
+                            {msg.jobRef && (
+                              <div className={`mb-1.5 flex items-center gap-2 rounded-xl px-2.5 py-2 ${isMe ? "bg-white/15" : "bg-gray-100"}`}>
+                                <Snowflake className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                                <div className="min-w-0">
+                                  <p className="truncate text-xs font-bold">Order #{msg.jobRef.orderNumber}{msg.jobRef.statusLabel ? ` · ${msg.jobRef.statusLabel}` : ""}</p>
+                                  <p className={`truncate text-[11px] ${isMe ? "text-white/75" : "text-gray-500"}`}>{[msg.jobRef.title, msg.jobRef.address].filter(Boolean).join(" · ")}</p>
+                                </div>
+                              </div>
+                            )}
+                            {!(msg.jobRef && msg.content === supportJobLine(msg.jobRef)) && <p className="break-words whitespace-pre-line leading-relaxed">{msg.content}</p>}
                             <p className={`text-[10px] mt-0.5 text-right ${isMe ? "text-white/50" : "text-gray-400"}`}>
                               {format(msg.createdAt, "h:mm a")}
                             </p>
@@ -399,12 +444,24 @@ export default function SupportChatButton({ inline = false }: { inline?: boolean
                     <div ref={messagesEndRef} />
                   </div>
                   <div className="p-3 border-t border-gray-100 bg-white shrink-0">
+                    {attached ? (
+                      <div className="mb-2">
+                        <JobChip job={attached} attached onClick={() => setAttached(null)} />
+                      </div>
+                    ) : jobChoices.jobs.length > 0 && (
+                      <div className="mb-2">
+                        <p className="mb-1.5 text-xs font-semibold text-gray-500">{jobChoices.active ? (jobChoices.jobs.length > 1 ? "Add one of your current jobs?" : "Add your current job?") : "Is this about your last job?"}</p>
+                        <div className="flex gap-2 overflow-x-auto pb-0.5">
+                          {jobChoices.jobs.map(j => <JobChip key={j.id} job={j} onClick={() => setAttached(j)} />)}
+                        </div>
+                      </div>
+                    )}
                     <div className="flex items-center gap-2">
                       <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
                         placeholder="Type your message..."
                         className="min-w-0 flex-1 px-3.5 py-2.5 bg-gray-50 border border-[var(--border-color)] rounded-xl text-base text-gray-900 placeholder:text-gray-400 outline-none focus:border-[var(--accent)]/40 focus:bg-white transition" />
-                      <button aria-label={sending ? "Sending support message" : "Send support message"} onClick={handleSend} disabled={!newMessage.trim() || sending}
+                      <button aria-label={sending ? "Sending support message" : "Send support message"} onClick={handleSend} disabled={!(newMessage.trim() || attached) || sending}
                         className="p-2.5 bg-[var(--accent)] hover:bg-[var(--accent-dark)] text-white rounded-xl transition disabled:opacity-40 shrink-0">
                         <Send className="w-4 h-4" />
                       </button>
@@ -418,5 +475,22 @@ export default function SupportChatButton({ inline = false }: { inline?: boolean
         )}
       </>
     </>
+  );
+}
+
+/** A job someone can attach to their next support message, or the one they attached (click to remove). */
+function JobChip({ job, attached = false, onClick }: { job: Job; attached?: boolean; onClick: () => void }) {
+  const ref = supportJobRef(job);
+  return (
+    <button type="button" onClick={onClick}
+      aria-label={attached ? `Order ${ref.orderNumber} attached. Remove it` : `Attach order ${ref.orderNumber}, ${ref.title}, ${ref.statusLabel}`}
+      className={`flex min-h-11 max-w-[280px] shrink-0 items-center gap-2 rounded-xl border px-3 py-1.5 text-left transition ${attached ? "border-[var(--accent)] bg-[var(--accent-soft)]" : "border-[var(--border-color)] bg-gray-50 hover:border-[var(--accent)]"}`}>
+      {attached ? <Paperclip className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" aria-hidden="true" /> : <Plus className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" aria-hidden="true" />}
+      <span className="min-w-0">
+        <span className="block truncate text-xs font-bold text-gray-900">Order #{ref.orderNumber} · {ref.statusLabel}</span>
+        <span className="block truncate text-[11px] text-gray-500">{ref.title}{ref.address ? ` · ${ref.address}` : ""}</span>
+      </span>
+      {attached && <X className="h-3.5 w-3.5 shrink-0 text-gray-400" aria-hidden="true" />}
+    </button>
   );
 }

@@ -1,9 +1,9 @@
 import * as Haptics from "expo-haptics";
 import * as Location from "expo-location";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Keyboard, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import MapView, { Circle, Marker, Polygon, type Region } from "react-native-maps";
-import Animated, { FadeIn, FadeInDown, useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
+import Animated, { cancelAnimation, Easing, FadeIn, FadeOut, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
 import { CANADIAN_PROVINCES, type OperatorServiceArea } from "@/lib/types";
 import { POSTAL_CODE, type AddressValue } from "~/components/AddressFields";
 import { ShovelPin, SNOWD_MAP, useMarkerRedraw } from "~/components/MapStyle";
@@ -32,7 +32,8 @@ async function addressAt(latitude: number, longitude: number): Promise<AddressVa
 /**
  * Pick your home on a map: the pin stays in the middle and you move the map under it (it lifts
  * while you drag and drops when you let go), or type your address in the box and the map flies
- * there. The address found shows on a card under the map.
+ * there. While you type, up to three matching addresses are listed under the box to tap. The address
+ * found shows on a card under the map.
  */
 export function HomeMap({ value, onChange, radiusKm }: { value: AddressValue; onChange: (value: AddressValue) => void; /** Draw a travel circle around the pin (operators). */ radiusKm?: number }) {
   const reduce = useReducedMotion();
@@ -42,6 +43,13 @@ export function HomeMap({ value, onChange, radiusKm }: { value: AddressValue; on
   const [problem, setProblem] = useState("");
   const skipNext = useRef(false);
   const dragging = useRef(false);
+  const input = useRef<React.ComponentRef<typeof TextInput>>(null);
+  // Addresses matching what's typed so far. Only text the person typed is looked up, not text we fill in.
+  const [suggestions, setSuggestions] = useState<AddressValue[]>([]);
+  const typed = useRef(false);
+  const lookup = useRef(0);
+  // Each look-up gets a number; "Enter it manually" bumps it so a late answer is ignored.
+  const locateRun = useRef(0);
   const lift = useSharedValue(0);
   const pin = useAnimatedStyle(() => ({ transform: [{ translateY: -lift.value * 14 }, { scale: 1 + lift.value * 0.08 }] }));
   const shadow = useAnimatedStyle(() => ({ opacity: 0.25 - lift.value * 0.12, transform: [{ scaleX: 1 - lift.value * 0.35 }] }));
@@ -54,36 +62,81 @@ export function HomeMap({ value, onChange, radiusKm }: { value: AddressValue; on
   };
 
   const locate = async () => {
+    const run = ++locateRun.current;
     setProblem("");
     setBusy("locate");
     try {
-      const here = await currentLocation().catch(() => {
-        throw new Error("We couldn’t find you just now. Move the map or type your address instead.");
+      const here = await currentLocation().catch(async () => {
+        const { granted } = await Location.getForegroundPermissionsAsync().catch(() => ({ granted: false }));
+        throw new Error(granted ? "We couldn’t find you just now. Move the map or type your address instead." : "Location is off for SNOWD, so type your address below instead.");
       });
+      if (run !== locateRun.current) return;
       const found = await addressAt(here.coords.latitude, here.coords.longitude);
+      if (run !== locateRun.current) return;
       onChange(found);
-      setQuery([found.address, found.city].filter(Boolean).join(", "));
+      fill([found.address, found.city].filter(Boolean).join(", "));
       flyTo(here.coords.latitude, here.coords.longitude);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e) {
-      setProblem(e instanceof Error ? e.message : "We couldn’t find you. Type your address instead.");
+      if (run === locateRun.current) setProblem(e instanceof Error ? e.message : "We couldn’t find you. Type your address instead.");
     } finally {
-      setBusy("");
+      if (run === locateRun.current) setBusy("");
     }
   };
 
-  // If location is already allowed, start where the phone is.
+  /** Stops looking for the phone's location and puts the cursor in the address box. */
+  const enterManually = () => {
+    locateRun.current++;
+    setBusy("");
+    void Haptics.selectionAsync();
+    setTimeout(() => input.current?.focus(), 50);
+  };
+
+  // No address yet: find where the phone is straight away (asking for location access if needed).
   useEffect(() => {
     if (hasPoint) return;
-    void Location.getForegroundPermissionsAsync().then((p) => {
-      if (p.granted) void locate();
-    });
+    void locate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /** Puts text in the box without treating it as typing, and closes the list. */
+  const fill = (text: string) => {
+    typed.current = false;
+    lookup.current++;
+    setSuggestions([]);
+    setQuery(text);
+  };
+
+  // Look up matches a moment after typing stops.
+  useEffect(() => {
+    const text = query.trim();
+    if (!typed.current || text.length < 4) {
+      setSuggestions([]);
+      return;
+    }
+    const run = ++lookup.current;
+    const t = setTimeout(async () => {
+      const hits = await Location.geocodeAsync(/canada/i.test(text) ? text : `${text}, Canada`).catch(() => []);
+      const found = await Promise.all(hits.slice(0, 3).map((h) => addressAt(h.latitude, h.longitude)));
+      if (run !== lookup.current) return;
+      const seen = new Set<string>();
+      setSuggestions(found.filter((f) => f.address && !seen.has(`${f.address}|${f.city}`) && seen.add(`${f.address}|${f.city}`)));
+    }, 450);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  const pick = (found: AddressValue) => {
+    void Haptics.selectionAsync();
+    Keyboard.dismiss();
+    onChange(found);
+    fill([found.address, found.city].filter(Boolean).join(", "));
+    if (Number.isFinite(found.lat) && Number.isFinite(found.lng)) flyTo(found.lat!, found.lng!);
+  };
 
   const search = async () => {
     const text = query.trim();
     if (!text) return;
+    if (suggestions[0]) return pick(suggestions[0]);
     setProblem("");
     setBusy("search");
     try {
@@ -91,6 +144,7 @@ export function HomeMap({ value, onChange, radiusKm }: { value: AddressValue; on
       if (!hit) throw new Error("We couldn’t find that address. Try adding the city.");
       const found = await addressAt(hit.latitude, hit.longitude);
       onChange(found);
+      fill([found.address, found.city].filter(Boolean).join(", ") || text);
       flyTo(hit.latitude, hit.longitude);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e) {
@@ -101,7 +155,7 @@ export function HomeMap({ value, onChange, radiusKm }: { value: AddressValue; on
   };
 
   const settled = async (region: Region) => {
-    lift.value = reduce ? 0 : withSpring(0, { damping: 10, stiffness: 260 });
+    lift.value = reduce ? 0 : withTiming(0, { duration: 180 });
     if (skipNext.current) {
       skipNext.current = false;
       return;
@@ -112,7 +166,7 @@ export function HomeMap({ value, onChange, radiusKm }: { value: AddressValue; on
     const found = await addressAt(region.latitude, region.longitude);
     setBusy("");
     onChange(found);
-    setQuery([found.address, found.city].filter(Boolean).join(", "));
+    fill([found.address, found.city].filter(Boolean).join(", "));
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
@@ -147,7 +201,8 @@ export function HomeMap({ value, onChange, radiusKm }: { value: AddressValue; on
         <Pressable accessibilityRole="button" accessibilityLabel="Use my current location" onPress={() => void locate()} style={({ pressed }) => [styles.locate, pressed && { opacity: 0.7 }]}>
           {busy === "locate" ? <ActivityIndicator color={ds.accent} /> : <Icon name="location.fill" size={18} color={ds.accent} />}
         </Pressable>
-        {!hasPoint ? (
+        {busy === "locate" && !hasPoint ? <Locating onManual={enterManually} /> : null}
+        {!hasPoint && busy !== "locate" ? (
           <View pointerEvents="none" style={styles.dragHint}>
             <Icon name="hand.draw.fill" size={14} color={ds.ink2} />
             <Text style={styles.dragHintText}>Move the map to your door</Text>
@@ -158,8 +213,13 @@ export function HomeMap({ value, onChange, radiusKm }: { value: AddressValue; on
       <View style={styles.search}>
         <Icon name="magnifyingglass" size={17} color={ds.ink3} />
         <TextInput
+          ref={input}
           value={query}
-          onChangeText={setQuery}
+          onChangeText={(t) => {
+            typed.current = true;
+            setQuery(t);
+          }}
+          onFocus={() => busy === "locate" && enterManually()}
           placeholder="Or type your address"
           placeholderTextColor={ds.ink3}
           returnKeyType="search"
@@ -178,8 +238,28 @@ export function HomeMap({ value, onChange, radiusKm }: { value: AddressValue; on
         ) : null}
       </View>
 
-      {value.address ? (
-        <Animated.View key={`${value.address}${value.city}`} entering={reduce ? FadeIn : FadeInDown.springify().damping(16)} style={styles.found}>
+      {suggestions.length ? (
+        <Animated.View entering={reduce ? undefined : FadeIn.duration(160)} style={styles.suggestions}>
+          {suggestions.map((sug, i) => (
+            <Pressable
+              key={`${sug.address}|${sug.city}`}
+              accessibilityRole="button"
+              accessibilityLabel={`${sug.address}, ${sug.city}`}
+              onPress={() => pick(sug)}
+              style={({ pressed }) => [styles.suggestion, i > 0 && styles.suggestionSep, pressed && { backgroundColor: ds.bgAlt }]}
+            >
+              <Icon name="mappin" size={16} color={ds.ink3} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.foundTitle} numberOfLines={1}>{sug.address}</Text>
+                <Text style={styles.foundSub} numberOfLines={1}>{[sug.city, sug.province, sug.postalCode].filter(Boolean).join(" · ")}</Text>
+              </View>
+              <Icon name="arrow.up.left" size={14} color={ds.ink3} />
+            </Pressable>
+          ))}
+        </Animated.View>
+      ) : null}
+      {value.address && !suggestions.length ? (
+        <Animated.View key={`${value.address}${value.city}`} entering={reduce ? undefined : FadeIn.duration(200)} style={styles.found}>
           <View style={styles.foundIcon}>
             <Icon name="house.fill" size={16} color="#fff" />
           </View>
@@ -212,6 +292,42 @@ export function HomeMap({ value, onChange, radiusKm }: { value: AddressValue; on
   );
 }
 
+/**
+ * Covers the mini map while the phone's location is being found: a sweeping bar under
+ * "Finding your current location", and a way out to type the address instead.
+ */
+function Locating({ onManual }: { onManual: () => void }) {
+  const reduce = useReducedMotion();
+  const sweep = useSharedValue(0);
+  useEffect(() => {
+    if (reduce) return;
+    sweep.value = withRepeat(withTiming(1, { duration: 1100, easing: Easing.inOut(Easing.quad) }), -1, false);
+    return () => cancelAnimation(sweep);
+  }, [reduce, sweep]);
+  const bar = useAnimatedStyle(() => ({ transform: [{ translateX: -80 + sweep.value * 240 }] }));
+  return (
+    <Animated.View entering={reduce ? undefined : FadeIn.duration(180)} exiting={reduce ? undefined : FadeOut.duration(220)} style={styles.locating}>
+      <View accessible accessibilityRole="progressbar" accessibilityLabel="Finding your current location" style={styles.locatingCard}>
+        <View style={styles.locatingIcon}>
+          <Icon name="location.fill" size={18} color="#fff" />
+        </View>
+        <Text style={styles.locatingText}>Finding your current location…</Text>
+        <View style={styles.track}>
+          <Animated.View style={[styles.trackBar, reduce ? { width: "100%", opacity: 0.5 } : bar]} />
+        </View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Enter your address manually instead" hitSlop={8} onPress={onManual} style={({ pressed }) => [styles.manual, pressed && { opacity: 0.7 }]}>
+          <Icon name="keyboard" size={15} color={ds.accent} />
+          <Text style={styles.manualText}>Enter it manually</Text>
+        </Pressable>
+      </View>
+    </Animated.View>
+  );
+}
+
+/** The same city, whether it was suggested nearby or saved earlier under another id. */
+const sameCity = (a: OperatorServiceArea, b: OperatorServiceArea) =>
+  a.placeId === b.placeId || (!!a.city && a.city.toLowerCase() === (b.city || "").toLowerCase() && (a.provinceCode || a.province) === (b.provinceCode || b.province));
+
 /** One city's pin on the map: a pill with its name, filled blue once it's picked. */
 function CityPin({ name, on }: { name: string; on: boolean }) {
   return (
@@ -233,20 +349,37 @@ export function CityPicker({ base, value, onChange }: { base: { lat: number; lng
   const map = useRef<MapView>(null);
   const near = base ? citiesNear(base) : [];
   // Typed-in cities join the nearby ones so they show on the map too.
-  const all = [...near, ...value.filter((v) => !near.some((n) => n.placeId === v.placeId))];
+  const all = [...near, ...value.filter((v) => !near.some((n) => sameCity(n, v)))];
   const [outlines, setOutlines] = useState<Record<string, CityBoundary | null>>({});
   const [typed, setTyped] = useState("");
   const [adding, setAdding] = useState(false);
   const [problem, setProblem] = useState("");
-  const picked = (id: string) => value.some((v) => v.placeId === id);
+  const pickedCity = (city: OperatorServiceArea) => value.some((v) => sameCity(v, city));
+  const picked = (id: string) => pickedCity(all.find((c) => c.placeId === id) || ({ placeId: id } as OperatorServiceArea));
   const redraw = useMarkerRedraw(value.map((v) => v.placeId).join(","));
 
   const toggle = (city: OperatorServiceArea) => {
     void Haptics.impactAsync(picked(city.placeId) ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium);
-    if (picked(city.placeId)) return onChange(value.filter((v) => v.placeId !== city.placeId));
+    if (picked(city.placeId)) return onChange(value.filter((v) => !sameCity(v, city)));
     onChange([...value, city]);
     if (!(city.placeId in outlines)) void cityBoundary(city.city, city.province).then((b) => setOutlines((o) => ({ ...o, [city.placeId]: b })));
   };
+
+  // Borders for cities picked earlier (Settings opens with them), looked up one at a time.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      for (const c of value) {
+        if (cancelled || c.placeId in outlines) continue;
+        const b = await cityBoundary(c.city, c.province);
+        if (!cancelled) setOutlines((o) => (c.placeId in o ? o : { ...o, [c.placeId]: b }));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value.length]);
 
   useEffect(() => {
     if (!all.length) return;
@@ -301,10 +434,10 @@ export function CityPicker({ base, value, onChange }: { base: { lat: number; lng
       </View>
 
       <View style={styles.chips}>
-        {all.map((c, i) => {
+        {all.map((c) => {
           const on = picked(c.placeId);
           return (
-            <Animated.View key={c.placeId} entering={reduce ? undefined : FadeInDown.delay(i * 40).springify().damping(16)}>
+            <Animated.View key={c.placeId} entering={reduce ? undefined : FadeIn.duration(180)}>
               <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: on }} accessibilityLabel={c.city} onPress={() => toggle(c)} style={({ pressed }) => [styles.chip, on && styles.chipOn, pressed && { transform: [{ scale: 0.96 }] }]}>
                 {on ? <Icon name="checkmark" size={12} color="#fff" weight="bold" /> : null}
                 <Text style={[styles.chipText, on && { color: "#fff" }]}>{c.city}</Text>
@@ -334,10 +467,21 @@ const styles = StyleSheet.create({
   pinShadow: { width: 22, height: 7, borderRadius: 4, backgroundColor: "#0b2233", marginTop: 2 },
   locate: { position: "absolute", right: 12, bottom: 12, width: tap, height: tap, borderRadius: tap / 2, backgroundColor: ds.card, alignItems: "center", justifyContent: "center", boxShadow: "0px 4px 14px rgba(17,43,59,0.18)" },
   dragHint: { position: "absolute", top: 12, alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(255,255,255,0.94)", paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999 },
+  locating: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(246,248,251,0.72)", padding: 20 },
+  locatingCard: { width: "100%", maxWidth: 300, alignItems: "center", gap: 12, paddingVertical: 18, paddingHorizontal: 18, borderRadius: 22, backgroundColor: ds.card, boxShadow: "0px 8px 24px rgba(17,43,59,0.16)" },
+  locatingIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: ds.accent, alignItems: "center", justifyContent: "center" },
+  locatingText: { fontSize: 17, lineHeight: 22, color: ds.ink, fontFamily: family.bodySemi, textAlign: "center" },
+  track: { width: 160, height: 4, borderRadius: 2, backgroundColor: ds.accentSoft, overflow: "hidden" },
+  trackBar: { width: 80, height: 4, borderRadius: 2, backgroundColor: ds.accent },
+  manual: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 36, paddingHorizontal: 14, borderRadius: 999, backgroundColor: ds.accentSoft },
+  manualText: { fontSize: 15, color: ds.accent, fontFamily: family.bodyBold },
   dragHintText: { fontSize: 14, color: ds.ink2, fontFamily: family.bodySemi },
   search: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: 56, paddingHorizontal: 16, borderRadius: 18, backgroundColor: ds.card, borderWidth: 1.5, borderColor: ds.border },
   searchInput: { flex: 1, fontSize: 17, color: ds.ink, fontFamily: family.body, paddingVertical: 14 },
   go: { width: 32, height: 32, borderRadius: 16, backgroundColor: ds.accent, alignItems: "center", justifyContent: "center" },
+  suggestions: { marginTop: -4, backgroundColor: ds.card, borderRadius: 18, borderWidth: 1.5, borderColor: ds.border, overflow: "hidden" },
+  suggestion: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 12, minHeight: 56 },
+  suggestionSep: { borderTopWidth: 1, borderTopColor: ds.borderSoft },
   found: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 18, backgroundColor: ds.accentSoft, borderWidth: 1, borderColor: ds.accentBorder },
   foundIcon: { width: 36, height: 36, borderRadius: 12, backgroundColor: ds.accent, alignItems: "center", justifyContent: "center" },
   foundTitle: { fontSize: 17, lineHeight: 22, color: ds.ink, fontFamily: family.bodySemi },

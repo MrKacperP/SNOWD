@@ -20,6 +20,7 @@ import {
   type InfoItem,
 } from "~/components/dashboard";
 import { EarningsChart } from "~/components/EarningsChart";
+import { IdPrompt } from "~/components/IdPrompt";
 import { ORDER_STEPS, stepIndex } from "~/components/OrderProgress";
 import { Screen, SwipeTabs } from "~/components/ui";
 import { useAuth } from "~/context/auth";
@@ -29,6 +30,7 @@ import { db } from "~/lib/firebase";
 import { useNotifications } from "~/lib/notifications";
 import { useAppTheme } from "~/lib/appearance";
 import { useProperties } from "~/lib/properties";
+import { idState } from "~/lib/verification";
 import { brand, ds, gap, stepColor } from "~/lib/theme";
 
 const greeting = () => {
@@ -107,9 +109,8 @@ export default function Home() {
     ? [
         { key: "jobs", icon: "checkmark.circle", label: "Jobs", value: `${done.length} done${requests ? ` · ${requests} new` : ""}`, onPress: () => router.navigate("/jobs") },
         ...(others.length ? [{ key: "more", icon: "list.bullet" as const, label: "Up next", value: plural(others.length, "job"), onPress: () => router.navigate("/jobs") }] : []),
-        ...(!profile?.idVerified
-          ? [{ key: "id", icon: "person.badge.shield.checkmark" as const, label: profile?.verificationStatus === "pending" ? "ID in review" : "Verify your ID", value: "", iconColor: brand.gold, onPress: profile?.verificationStatus === "pending" ? undefined : () => router.push("/settings/verification") }]
-          : []),
+        // Uploading the ID is the card at the top of Home; once sent, this row says it's being checked.
+        ...(idState(profile) === "pending" ? [{ key: "id", icon: "person.badge.shield.checkmark" as const, label: "ID in review", value: "", iconColor: brand.gold }] : []),
       ]
     : [
         { key: "orders", icon: "list.clipboard", label: "Orders", value: `${open.length} open · ${done.length} done`, onPress: () => router.navigate("/jobs") },
@@ -159,6 +160,8 @@ export default function Home() {
           </BlueHeader>
 
           <Animated.View layout={LinearTransition.duration(240)} entering={FadeIn.duration(300)} style={{ gap: gap.x4, paddingHorizontal: gap.x4, paddingTop: gap.x4 }}>
+            {/* A new account's first step: get a government ID on file. */}
+            {!loading ? <IdPrompt /> : null}
             {/* Quick controls come after the job: the work itself is the priority. */}
             <ControlRow items={controls} />
             {operator && !loading ? <EarningsChart compact jobs={jobs} onPress={() => router.push("/settings/transactions")} /> : null}

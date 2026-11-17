@@ -152,8 +152,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       },
       signOut: async () => {
-        await unregisterPush();
-        if (user) await updateDoc(doc(db, "users", user.uid), { isOnline: false }).catch(() => {});
+        // Tidy-up is best effort. Firestore writes only finish once the server confirms them, so with no
+        // signal or an expired session they never did, and sign-out hung on them. Give them two seconds.
+        const tidyUp = Promise.all([unregisterPush(), user ? updateDoc(doc(db, "users", user.uid), { isOnline: false }).catch(() => {}) : null]);
+        await Promise.race([tidyUp, new Promise((resolve) => setTimeout(resolve, 2000))]);
         await firebaseSignOut(auth);
       },
     }),

@@ -4,6 +4,7 @@ import type { UserRecord } from 'firebase-admin/auth';
 import { requireAdministrator } from '@/lib/admin/server';
 import { getAdminAuth } from '@/lib/firebaseAdmin';
 import { OrderError, orderFailure } from '@/lib/workOrderServer';
+import { involvesTestAccount, isTestAccountEmail } from '@/lib/admin/testAccounts';
 
 // Read-only monitoring feed for the admin web pages and the SNOWD Admin iOS app.
 // Every timestamp is returned as epoch milliseconds so clients never parse Firestore's wire format.
@@ -79,9 +80,12 @@ export async function GET(request: NextRequest) {
         bump(signIns, last); bump(signUps, created);
         providers[provider(user)] = (providers[provider(user)] || 0) + 1;
       }
+      // Test accounts' payments are not real revenue.
+      const testIds = new Set(auth.filter(u => isTestAccountEmail(u.email)).map(u => u.uid));
       let revenue30d = 0, payments30d = 0, refunded30d = 0, held = 0;
       for (const doc of recentPayments.docs) {
         const payment = doc.data(), amount = Number(payment.amount) || 0;
+        if (involvesTestAccount(payment, testIds)) continue;
         if (payment.status === 'refunded') { refunded30d += amount; continue; }
         if (payment.status === 'held') { held += amount; continue; }
         if (payment.status !== 'paid') continue;

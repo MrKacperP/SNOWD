@@ -5,8 +5,9 @@ import { doc, getDoc } from "firebase/firestore";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { calculateServicePrice } from "@/lib/marketplacePricing";
 import { formatServiceAddress, profileLocation, type ServiceLocation } from "@/lib/serviceLocations";
-import { SHOVELING_SERVICES, type ClientProfile, type OperatorProfile, type ServiceType } from "@/lib/types";
+import { SERVICE_LABELS, SHOVELING_SERVICES, type ClientProfile, type OperatorProfile, type ServiceType } from "@/lib/types";
 import { Avatar, Button, Chip, Icon, Loading, Notice } from "~/components/ui";
 import type { SymbolViewProps } from "expo-symbols";
 import { useAuth } from "~/context/auth";
@@ -118,18 +119,25 @@ export default function Book() {
 
   const name = operator.businessName || operator.displayName;
   const cardPrice = quote.credit != null ? currentQuote(quote.base, "credit").price : null;
+  const cashOnly = cardPrice == null;
   const toggle = (value: ServiceType) => setServices((list) => (list.includes(value) ? list.filter((s) => s !== value) : [...list, value]));
 
-  // Everything fits on one screen: short labels, single-row pickers that scroll sideways,
-  // and payment side by side, so a customer can book without scrolling down.
+  // What the company charges for each area, so the total is never a mystery. If their prices
+  // don't add up to the quote (an area with no price falls back to a default), show one line.
+  const size = ((place ? location?.propertySize : profile?.propertyDetails?.propertySize) || "medium") as "small" | "medium" | "large";
+  const lines = services.map((s) => ({ label: SERVICE_LABELS[s], price: calculateServicePrice(operator.pricing, [s], size) }));
+  const itemised = lines.length > 1 && Math.abs(lines.reduce((sum, l) => sum + l.price, 0) - quote.base) < 0.005;
+  const fee = method === "credit" ? Math.round((total - quote.base) * 100) / 100 : 0;
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" alwaysBounceVertical={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: space.lg, paddingTop: space.sm, gap: space.md, paddingBottom: 150 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-          <Avatar uri={operator.logoUrl || operator.avatar} name={name} size={40} />
-          <View style={{ flex: 1 }}>
-            <Text style={type.caption}>Requesting</Text>
-            <Text style={type.headline} numberOfLines={1}>{name}</Text>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" alwaysBounceVertical={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: space.lg, paddingTop: space.sm, gap: space.md + 2, paddingBottom: 120 }}>
+        {/* Who you're asking, in a card so it never blends into the nav bar. */}
+        <View style={{ flexDirection: "row", alignItems: "center", gap: space.md, paddingVertical: space.sm + 2, paddingHorizontal: space.md, borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+          <Avatar uri={operator.logoUrl || operator.avatar} name={name} size={42} />
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={type.caption}>You’re requesting</Text>
+            <Text style={[type.headline, { fontSize: 18, fontWeight: "700" }]} numberOfLines={1}>{name}</Text>
           </View>
         </View>
 
@@ -142,21 +150,26 @@ export default function Book() {
               ))}
             </Strip>
           ) : null}
-          <Text style={type.callout} numberOfLines={1}>{formatServiceAddress(location) || "No address yet. Add one in Profile → Properties."}</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: space.md }}>
+            <Bubble icon="mappin.and.ellipse" />
+            <Text style={[type.body, { flex: 1, color: location ? colors.ink : colors.muted }]} numberOfLines={2}>
+              {formatServiceAddress(location) || "No address yet. Add one in Profile → Properties."}
+            </Text>
+          </View>
         </Part>
 
-        <Part title="Clear">
+        <Part title="What to clear" hint={offered.length > 1 ? "Pick one or more" : undefined}>
           <Strip>
             {offered.map(([value, label]) => (
-              <Chip key={value} label={label} selected={services.includes(value)} onPress={() => toggle(value)} />
+              <Chip key={value} label={label} icon={services.includes(value) ? "checkmark" : undefined} selected={services.includes(value)} onPress={() => toggle(value)} />
             ))}
           </Strip>
         </Part>
 
         <Part title="When">
           <View accessibilityRole="radiogroup" style={{ flexDirection: "row", gap: space.sm }}>
-            <Tile icon="bolt.fill" title="ASAP" selected={asap} onPress={() => setAsap(true)} />
-            <Tile icon="calendar" title="Schedule" selected={!asap} onPress={() => setAsap(false)} />
+            <Tile icon="bolt.fill" title="ASAP" body="Next available" selected={asap} onPress={() => setAsap(true)} />
+            <Tile icon="calendar" title="Schedule" body={!asap && hour != null ? `${dayName(day)}, ${hourName(hour)}` : "Pick a day"} selected={!asap} onPress={() => setAsap(false)} />
           </View>
           {!asap ? (
             <>
@@ -178,7 +191,7 @@ export default function Book() {
               {hoursForDay.length ? (
                 <Strip>
                   {hoursForDay.map((h) => (
-                    <Chip key={h} label={new Date(2000, 0, 1, h).toLocaleTimeString("en-CA", { hour: "numeric" })} selected={hour === h} onPress={() => setHour(h)} />
+                    <Chip key={h} label={hourName(h)} selected={hour === h} onPress={() => setHour(h)} />
                   ))}
                 </Strip>
               ) : (
@@ -188,37 +201,79 @@ export default function Book() {
           ) : null}
         </Part>
 
-        <Part title="Pay">
-          <View accessibilityRole="radiogroup" style={{ flexDirection: "row", gap: space.sm }}>
-            <Tile icon="creditcard.fill" title="Card" trailing={cardPrice != null ? money(cardPrice) : "Not offered"} disabled={cardPrice == null} selected={method === "credit"} onPress={() => setMethod("credit")} />
-            <Tile icon="banknote.fill" title="Cash" trailing={money(quote.cash)} selected={method === "cash"} onPress={() => setMethod("cash")} />
-          </View>
+        <Part title="Payment">
+          {cashOnly ? (
+            // Only one way to pay: say so plainly instead of showing a dead "Card" option.
+            <View style={{ flexDirection: "row", alignItems: "center", gap: space.md }}>
+              <Bubble icon="banknote.fill" />
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={type.headline}>Cash when the work is done</Text>
+                <Text style={type.caption}>{name} only takes cash.</Text>
+              </View>
+            </View>
+          ) : (
+            <View accessibilityRole="radiogroup" style={{ flexDirection: "row", gap: space.sm }}>
+              <Tile icon="creditcard.fill" title="Card" body={money(cardPrice)} selected={method === "credit"} onPress={() => setMethod("credit")} />
+              <Tile icon="banknote.fill" title="Cash" body={money(quote.cash)} selected={method === "cash"} onPress={() => setMethod("cash")} />
+            </View>
+          )}
         </Part>
+
+        {/* One place that adds it all up, so the price only appears where it's explained. */}
+        <View accessible accessibilityLabel={`Price. ${(itemised ? lines : [{ label: services.map((s) => SERVICE_LABELS[s]).join(" and "), price: quote.base }]).map((l) => `${l.label} ${money(l.price)}`).join(", ")}${fee > 0 ? `, card and booking fee ${money(fee)}` : ""}. Total ${money(total)}, ${method === "cash" ? "cash" : "card"}.`} style={{ borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, paddingHorizontal: space.lg, paddingVertical: space.md, gap: 6 }}>
+          <Text style={type.overline}>Price</Text>
+          {itemised ? lines.map((l) => <Line key={l.label} label={l.label} value={money(l.price)} />) : (
+            <Line label={services.map((s) => SERVICE_LABELS[s]).join(" + ") || "Nothing chosen"} value={money(quote.base)} />
+          )}
+          {fee > 0 ? <Line label="Card & booking fee" value={money(fee)} /> : null}
+          <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 4 }} />
+          <View style={{ flexDirection: "row", alignItems: "baseline" }}>
+            <Text style={[type.headline, { flex: 1 }]}>Total{method === "cash" ? " · cash" : " · card"}</Text>
+            <Text style={[type.title, { fontVariant: ["tabular-nums"] }]}>{money(total)}</Text>
+          </View>
+          <Text style={type.caption}>
+            {method === "cash" ? "" : "Charged only after the work is done. "}Free to cancel before they head out.
+          </Text>
+        </View>
       </ScrollView>
 
       {/* Problems show right above the button that caused them, never off-screen. */}
       <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: insets.bottom + space.sm, backgroundColor: colors.surface, borderTopWidth: 0.5, borderTopColor: colors.border, gap: space.sm }}>
         <Notice text={error} />
-        <Text style={[type.caption, { textAlign: "center" }]} numberOfLines={2}>
-          {method === "cash" ? `You’ll pay ${money(quote.cash)} cash when the work is done. ` : "Nothing is charged until the work is done. "}
-          Free to cancel before they leave.
-        </Text>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: space.lg }}>
-          <View accessible accessibilityLabel={`Total ${money(total)}, ${method === "cash" ? "cash" : "card"}`} style={{ flex: 1 }}>
-            <Text style={type.caption}>Total · {method === "cash" ? "cash" : "card"}</Text>
-            <Text style={[type.title, { fontSize: 24, fontVariant: ["tabular-nums"] }]}>{money(total)}</Text>
-          </View>
-          <Button title="Send request" icon="paperplane.fill" loading={busy} style={{ flex: 1.4 }} onPress={submit} />
-        </View>
+        <Button title={`Send request · ${money(total)}`} icon="paperplane.fill" loading={busy} onPress={submit} />
       </View>
     </View>
   );
 }
 
-function Part({ title, children }: { title: string; children: ReactNode }) {
+const dayName = (i: number) => (i === 0 ? "Today" : i === 1 ? "Tomorrow" : DAYS[i].toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" }));
+const hourName = (h: number) => new Date(2000, 0, 1, h).toLocaleTimeString("en-CA", { hour: "numeric" });
+
+/** A round icon that leads a line of plain information (not a choice). */
+function Bubble({ icon }: { icon: SymbolName }) {
   return (
-    <View style={{ gap: 6 }}>
-      <Text accessibilityRole="header" style={type.overline}>{title}</Text>
+    <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.accentSoft, alignItems: "center", justifyContent: "center" }}>
+      <Icon name={icon} size={17} color={colors.accent} />
+    </View>
+  );
+}
+
+function Line({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={{ flexDirection: "row", gap: space.md }}>
+      <Text style={[type.callout, { flex: 1 }]} numberOfLines={1}>{label}</Text>
+      <Text style={{ fontSize: 16, fontWeight: "600", color: colors.ink, fontVariant: ["tabular-nums"] }} numberOfLines={1}>{value}</Text>
+    </View>
+  );
+}
+
+function Part({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
+  return (
+    <View style={{ gap: space.sm }}>
+      <View style={{ flexDirection: "row", alignItems: "baseline", gap: space.sm }}>
+        <Text accessibilityRole="header" style={type.overline}>{title}</Text>
+        {hint ? <Text style={[type.caption, { fontSize: 13 }]}>{hint}</Text> : null}
+      </View>
       {children}
     </View>
   );
@@ -233,20 +288,21 @@ function Strip({ children }: { children: ReactNode }) {
   );
 }
 
-/** A half-width radio choice, so two options sit side by side. */
-function Tile({ icon, title, trailing, selected, disabled, onPress }: { icon: SymbolName; title: string; trailing?: string; selected: boolean; disabled?: boolean; onPress: () => void }) {
+/** A half-width radio choice, so two options sit side by side. The second line says what picking it means. */
+function Tile({ icon, title, body, selected, onPress }: { icon: SymbolName; title: string; body?: string; selected: boolean; onPress: () => void }) {
   return (
     <Pressable
       accessibilityRole="radio"
-      accessibilityLabel={[title, trailing].filter(Boolean).join(", ")}
-      accessibilityState={{ selected, disabled: !!disabled }}
-      disabled={disabled}
+      accessibilityLabel={[title, body].filter(Boolean).join(", ")}
+      accessibilityState={{ selected }}
       onPress={() => { void Haptics.selectionAsync(); onPress(); }}
-      style={({ pressed }) => ({ flex: 1, flexDirection: "row", alignItems: "center", gap: 8, minHeight: 52, paddingHorizontal: space.md, borderRadius: radius.md, borderWidth: 2, borderColor: selected ? colors.accent : colors.border, backgroundColor: colors.surface, opacity: disabled ? 0.5 : pressed ? 0.8 : 1 })}
+      style={({ pressed }) => ({ flex: 1, flexDirection: "row", alignItems: "center", gap: 10, minHeight: 56, paddingHorizontal: space.md, paddingVertical: 10, borderRadius: radius.md, borderWidth: 2, borderColor: selected ? colors.accent : colors.border, backgroundColor: selected ? colors.accentSoft : colors.surface, opacity: pressed ? 0.8 : 1 })}
     >
       <Icon name={icon} size={18} color={selected ? colors.accent : colors.muted} />
-      <Text style={[type.headline, { flex: 1 }]} numberOfLines={1}>{title}</Text>
-      {trailing ? <Text style={{ fontSize: 15, fontWeight: "700", color: disabled ? colors.muted : colors.ink, fontVariant: ["tabular-nums"] }} numberOfLines={1}>{trailing}</Text> : null}
+      <View style={{ flex: 1 }}>
+        <Text style={type.headline} numberOfLines={1}>{title}</Text>
+        {body ? <Text style={[type.caption, { fontVariant: ["tabular-nums"], color: selected ? colors.accentDark : colors.muted }]} numberOfLines={1}>{body}</Text> : null}
+      </View>
     </Pressable>
   );
 }

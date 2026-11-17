@@ -27,10 +27,10 @@ const secret = `whsec_${randomUUID()}`;
 const base = 'http://127.0.0.1:3002';
 const server = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '--port', '3002'], {
   env: { ...process.env, NODE_OPTIONS: `${process.env.NODE_OPTIONS || ''} --no-experimental-require-module`, NEXT_PUBLIC_FIREBASE_PROJECT_ID: projectId, STRIPE_WEBHOOK_SECRET: secret, STRIPE_CONNECT_WEBHOOK_SECRET: secret },
-  stdio: ['ignore', 'ignore', 'ignore'],
+  stdio: ['ignore', 'ignore', process.env.QA_SERVER_LOGS ? 'inherit' : 'ignore'],
 });
 const intents = [];
-const stripeScope = account.controller?.losses?.payments === 'stripe' ? { stripeAccount: account.id } : {};
+const stripeScope = account.controller?.losses?.payments === 'stripe' ? { stripeAccount: account.id } : { stripeAccount: undefined };
 try {
   for (let i = 0; i < 100; i++) {
     try { if ((await fetch(base)).ok) break; } catch {}
@@ -58,6 +58,16 @@ try {
   assert.equal(onboarding.status, 200, JSON.stringify(onboarding));
   assert(onboarding.data.clientSecret);
   console.log('PASS: authenticated account readiness and embedded onboarding session');
+  // The iOS app uses hosted Stripe pages: onboarding while setting up, the Express dashboard once ready.
+  const hosted = await api('account-link', { accountId: account.id, native: true }, operatorToken);
+  assert.equal(hosted.status, 200, JSON.stringify(hosted));
+  assert.equal(new URL(hosted.data.onboardingUrl).hostname, 'connect.stripe.com');
+  const manage = await api('account-link', { accountId: account.id, native: true, mode: 'manage' }, operatorToken);
+  assert.equal(manage.status, 200, JSON.stringify(manage));
+  assert.equal(manage.data.kind, 'dashboard');
+  assert.equal(new URL(manage.data.onboardingUrl).hostname, 'connect.stripe.com');
+  assert((await api('account-link', { accountId: account.id, native: true, mode: 'manage' }, clientToken)).status >= 400);
+  console.log('PASS: app onboarding link, Express dashboard link for a ready operator, and ownership');
   for (const action of ['capture', 'cancel']) {
     const jobId = `qa-${action}-${randomUUID()}`;
     await db.doc(`jobs/${jobId}`).set({ clientId, operatorId, price: 10, pricingVersion: 2, operatorAmount: 700, platformFeeAmount: 300, status: 'accepted', paymentStatus: 'pending', address: 'Emulator QA fixture' });
@@ -68,7 +78,7 @@ try {
     const id = checkout.data.paymentIntentId;
     intents.push(id);
     const retry = await api('create-payment-intent', { jobId });
-    assert.equal(retry.data.paymentIntentId, id);
+    assert.equal(retry.data.paymentIntentId, id, JSON.stringify(retry));
     const held = await stripe.paymentIntents.confirm(id, { payment_method: 'pm_card_visa', return_url: 'http://localhost:3002' }, stripeScope);
     assert.equal(held.status, 'requires_capture');
     assert.equal(held.application_fee_amount, 300);
@@ -110,9 +120,12 @@ try {
   console.log('PASS: Accounts v2 creation, retry, managed risk, ownership and embedded onboarding');
   console.log('All sandbox integration checks passed. No real money or production Firebase records used.');
 } finally {
-  for (const id of intents) {
-    const p = await stripe.paymentIntents.retrieve(id, {}, stripeScope);
-    if (!['succeeded', 'canceled'].includes(p.status)) await stripe.paymentIntents.cancel(id, {}, stripeScope);
-  }
+  // Stop the QA server first so a cleanup failure cannot leave it holding the port.
   server.kill('SIGTERM');
+  for (const id of intents) {
+    try {
+      const p = await stripe.paymentIntents.retrieve(id, {}, stripeScope);
+      if (!['succeeded', 'canceled'].includes(p.status)) await stripe.paymentIntents.cancel(id, {}, stripeScope);
+    } catch (error) { console.error(`Cleanup could not cancel ${id}:`, error.message); }
+  }
 }

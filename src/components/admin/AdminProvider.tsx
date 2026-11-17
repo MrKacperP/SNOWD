@@ -13,6 +13,7 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { notificationHref, dailySeries } from "@/lib/admin/metrics";
+import { involvesTestAccount, isTestAccountEmail } from "@/lib/admin/testAccounts";
 import { db, isFirebaseConfigured } from "@/lib/firebase";
 import { adminJobRequest } from "@/lib/admin/client";
 import {
@@ -112,6 +113,8 @@ interface AdminContextValue {
   supportTickets: SupportTicket[];
   calls: CallItem[];
   transactions: TransactionItem[];
+  /** `transactions` minus anything touching a test account; use for revenue totals. */
+  revenueTransactions: TransactionItem[];
   claims: ClaimItem[];
   activityEvents: ActivityEvent[];
   employees: EmployeeItem[];
@@ -333,7 +336,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       setSupportTickets(prev => snap.docs.map(d => {
         const data = d.data();
         const existing = prev.find(t => t.id === d.id);
-        return { id: d.id, userId: String(data.userId || data.uid || d.id.replace(/^support_/, "")), userName: String(data.userName || "User"), userAvatar: initials(String(data.userName || "U")), subject: String(data.subject || data.problemCategory || "Support conversation"), status: ["resolved", "closed"].includes(data.status) ? "Resolved" : data.status === "in-progress" ? "Waiting" : "Open", urgency: ["High", "Medium", "Low"].includes(data.urgency) ? data.urgency : "Medium", lastMessageAgo: toRelativeLabel(data.lastMessageTime || data.updatedAt), lastMessageAt: toIsoDate(data.lastMessageTime || data.updatedAt), createdAt: toIsoDate(data.createdAt), unreadReplies: existing?.unreadReplies || 0, thread: existing?.thread || [] } as SupportTicket;
+        return { id: d.id, userId: String(data.userId || data.uid || d.id.replace(/^support_/, "")), userName: String(data.userName || "User"), userAvatar: initials(String(data.userName || "U")), subject: String(data.subject || data.problemCategory || "Support conversation"), status: ["resolved", "closed"].includes(data.status) ? "Resolved" : data.status === "in-progress" ? "Waiting" : "Open", urgency: ["High", "Medium", "Low"].includes(data.urgency) ? data.urgency : "Medium", lastMessageAgo: toRelativeLabel(data.lastMessageTime || data.updatedAt), lastMessageAt: toIsoDate(data.lastMessageTime || data.updatedAt), createdAt: toIsoDate(data.createdAt), unreadReplies: existing?.unreadReplies || 0, thread: existing?.thread || [], linkedJobId: data.linkedJobId ? String(data.linkedJobId) : undefined, linkedOrderNumber: data.linkedJob?.orderNumber ? String(data.linkedJob.orderNumber) : undefined, linkedJobSummary: data.linkedJob ? [data.linkedJob.title, data.linkedJob.statusLabel, data.linkedJob.address].filter(Boolean).join(" · ") : undefined } as SupportTicket;
       }));
       snap.docs.forEach(d => {
         if (supportListeners.has(d.id)) return;
@@ -629,7 +632,12 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
   const activityChart = useMemo(() => dailySeries(activityEvents.map(e => ({ date: e.timestamp, value: 1 })), 30), [activityEvents]);
   const analyticsUsers = useMemo(() => dailySeries(users.map(u => ({ date: u.joinDate, value: 1 })), 90), [users]);
-  const analyticsRevenue = useMemo(() => dailySeries(transactions.filter(t => t.status === "Completed" && t.type === "Payment").map(t => ({ date: t.date, value: t.type === "Refund" ? -t.amount : t.amount })), 90), [transactions]);
+  // Transactions that count toward revenue: everything except payments involving the owner's test accounts.
+  const revenueTransactions = useMemo(() => {
+    const testIds = new Set(users.filter(u => isTestAccountEmail(u.email)).map(u => u.id));
+    return transactions.filter(t => !involvesTestAccount(t, testIds));
+  }, [transactions, users]);
+  const analyticsRevenue = useMemo(() => dailySeries(revenueTransactions.filter(t => t.status === "Completed" && t.type === "Payment").map(t => ({ date: t.date, value: t.amount })), 90), [revenueTransactions]);
 
   const analyticsCategories = useMemo(() => {
     const counts = jobs.reduce<Record<string, number>>((acc, job) => {
@@ -659,6 +667,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     supportTickets,
     calls,
     transactions,
+    revenueTransactions,
     claims,
     activityEvents,
     employees,
