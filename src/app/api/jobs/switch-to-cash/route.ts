@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     if (original.paymentMethod === "cash") return NextResponse.json({ success: true });
     if (original.stripePaymentIntentId) {
       const stripe = getStripe();
-      const options = original.stripePaymentAccountId ? { stripeAccount: original.stripePaymentAccountId } : {};
+      const options = { stripeAccount: original.stripePaymentAccountId || undefined };
       const payment = await stripe.paymentIntents.retrieve(original.stripePaymentIntentId, {}, options);
       if (payment.metadata.jobId !== body.jobId || payment.metadata.clientId !== uid) throw new OrderError("Payment does not match this work order.");
       if (!["requires_payment_method", "requires_confirmation", "requires_action", "canceled"].includes(payment.status)) throw new OrderError("Your card payment is processing or authorized. Check its status before changing payment.");

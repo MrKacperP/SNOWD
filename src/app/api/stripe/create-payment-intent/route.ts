@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
     // Resume a previous checkout; a released authorization needs a fresh intent.
     let previousId = "initial";
     if (job.stripePaymentIntentId) {
-      const previous = await stripe.paymentIntents.retrieve(job.stripePaymentIntentId, {}, job.stripePaymentAccountId ? { stripeAccount: job.stripePaymentAccountId } : {});
+      const previous = await stripe.paymentIntents.retrieve(job.stripePaymentIntentId, {}, { stripeAccount: job.stripePaymentAccountId || undefined });
       if (previous.status !== "canceled") {
         const previousDestination = job.stripePaymentAccountId || (typeof previous.transfer_data?.destination === "string"
           ? previous.transfer_data.destination : previous.transfer_data?.destination?.id);
