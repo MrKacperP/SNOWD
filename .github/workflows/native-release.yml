@@ -34,8 +34,10 @@ jobs:
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
     steps:
+      # Runs before checkout, so native/ (the job's default directory) doesn't exist yet.
       - name: Check for the Expo token
         id: token
+        working-directory: .
         run: |
           if [ -z "$EXPO_TOKEN" ]; then
             echo "::notice::EXPO_TOKEN is not set, so no update was published. See native/RELEASE.md."
@@ -77,7 +79,9 @@ jobs:
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
     steps:
+      # Runs before checkout, so native/ (the job's default directory) doesn't exist yet.
       - name: Check for the Expo token
+        working-directory: .
         run: |
           if [ -z "$EXPO_TOKEN" ]; then
             echo "::error::EXPO_TOKEN is not set. See native/RELEASE.md."
