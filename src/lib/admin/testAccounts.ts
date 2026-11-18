@@ -3,6 +3,8 @@ export const TEST_ACCOUNT_EMAILS: readonly string[] = [
   'adamcosza@gmail.com',
   'henrymurski@gmail.com',
   'prymiczkacper@gmail.com',
+  // Apple's App Review demo login.
+  'appreview@snowd.ca',
 ];
 
 export const isTestAccountEmail = (email: unknown) =>
