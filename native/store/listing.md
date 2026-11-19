@@ -29,7 +29,7 @@ CLEAR SNOW FOR MONEY?
 BUILT ON TRUST
 Members verify their government ID, and every job is rated, so you know who's coming to your door. Shovelers' home addresses are never shown to customers.
 
-Questions? Reach us at support@snowd.ca.
+Questions? Reach us at service.mississauga@gmail.com.
 
 ## Keywords (100)
 snow,removal,shovel,plow,driveway,winter,clearing,shoveling,snowplow,sidewalk,local,jobs,gig
