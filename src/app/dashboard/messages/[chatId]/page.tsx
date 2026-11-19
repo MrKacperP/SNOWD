@@ -880,44 +880,13 @@ export default function ChatPage() {
     setSubmittingReview(true);
 
     try {
-      await addDoc(collection(db, "reviews"), {
-        jobId: job.id,
-        reviewerId: user.uid,
-        revieweeId: otherUser.uid,
-        clientId: isOperator ? otherUser.uid : user.uid,
-        operatorId: isOperator ? user.uid : otherUser.uid,
-        reviewerRole: profile?.role || "client",
-        rating: reviewRating,
-        comment: reviewComment,
-        createdAt: Timestamp.now(),
-      });
-
-      // Update the reviewee's rating/reviewCount
-      const revieweeDoc = await getDoc(doc(db, "users", otherUser.uid));
-      if (revieweeDoc.exists()) {
-        const data = revieweeDoc.data();
-        const currentRating = data.rating || 0;
-        const currentCount = data.reviewCount || 0;
-        const newCount = currentCount + 1;
-        const newRating = (currentRating * currentCount + reviewRating) / newCount;
-
-        await updateDoc(doc(db, "users", otherUser.uid), {
-          rating: Math.round(newRating * 10) / 10,
-          reviewCount: newCount,
-        });
-      }
-
-      // Send a system message about the review
-      await sendMessage(
-        `${profile?.displayName} left a ${reviewRating}-star review.`,
-        "system"
-      );
-
+      // The server saves the review, updates the reviewee's average rating and posts a note in the chat.
+      await orderRequest("/api/jobs/review", { jobId: job.id, rating: reviewRating, comment: reviewComment.trim() });
       setReviewSubmitted(true);
       setReviewRating(0);
       setReviewComment("");
     } catch (error) {
-      console.error("Review submission error:", error);
+      notify(error instanceof Error ? error.message : "Your review wasn’t sent. Please try again.");
     } finally {
       setSubmittingReview(false);
     }

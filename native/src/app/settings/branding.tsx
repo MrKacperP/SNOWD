@@ -9,7 +9,7 @@ import { Snowfall } from "~/components/brand";
 import { Avatar, Button, Card, Field, Icon, Notice, PhotoGrid, AutosaveStatus, useAutosave } from "~/components/ui";
 import { useAuth } from "~/context/auth";
 import { db } from "~/lib/firebase";
-import { isObjectionable, OBJECTIONABLE_NOTE } from "~/lib/moderation";
+import { isObjectionable, OBJECTIONABLE_NOTE } from "@/lib/moderation";
 import { chooseUpload, uploadFile } from "~/lib/uploads";
 import { colors, hero, radius, shadow, space, type } from "~/lib/theme";
 

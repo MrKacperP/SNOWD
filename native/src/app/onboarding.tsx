@@ -1,5 +1,5 @@
 import * as Haptics from "expo-haptics";
-import { isObjectionable } from "~/lib/moderation";
+import { isObjectionable } from "@/lib/moderation";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
 import { Image } from "expo-image";

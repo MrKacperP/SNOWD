@@ -8,7 +8,7 @@ import { Avatar, Card, Field, Icon, Notice, AutosaveStatus, useAutosave } from "
 import { useAuth } from "~/context/auth";
 import { db } from "~/lib/firebase";
 import { notifyAdmin } from "~/lib/admin";
-import { isObjectionable, OBJECTIONABLE_NOTE } from "~/lib/moderation";
+import { isObjectionable, OBJECTIONABLE_NOTE } from "@/lib/moderation";
 import { chooseUpload, uploadFile } from "~/lib/uploads";
 import { colors, space, type } from "~/lib/theme";
 

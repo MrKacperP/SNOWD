@@ -20,7 +20,7 @@ import { db } from "~/lib/firebase";
 import { useClearChatNotifications } from "~/lib/notifications";
 import { clockTime, dayLabel } from "~/lib/format";
 import { useBlocked, useSafety } from "~/lib/safety";
-import { isObjectionable, OBJECTIONABLE_NOTE } from "~/lib/moderation";
+import { isObjectionable, OBJECTIONABLE_NOTE } from "@/lib/moderation";
 import { chooseUpload, storageName, uploadFile } from "~/lib/uploads";
 import { colors, radius, space, stepColor, type } from "~/lib/theme";
 

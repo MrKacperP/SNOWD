@@ -1,22 +1,23 @@
 import * as Haptics from "expo-haptics";
-import { addDoc, collection, getDocs, query, Timestamp, where, writeBatch, doc, increment } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import type { Job } from "@/lib/types";
 import { useAuth } from "~/context/auth";
+import { api } from "~/lib/api";
 import { db } from "~/lib/firebase";
-import { isObjectionable, OBJECTIONABLE_NOTE } from "~/lib/moderation";
+import { isObjectionable, OBJECTIONABLE_NOTE } from "@/lib/moderation";
 import { Button, Card, Icon, Notice } from "./ui";
 import { colors, radius, space, type } from "~/lib/theme";
 
 const LABELS = ["", "Poor", "Fair", "Good", "Great", "Excellent"];
 
 /**
- * Lets the customer rate a finished job, once. Saved to `reviews` exactly like the website, so it shows
- * on the shoveler's public profile, with a note in the chat so both sides see it.
+ * Lets the customer rate a finished job, once, through the same /api/jobs/review route as the website,
+ * so it shows on the shoveler's public profile and updates their rating, with a note in the chat.
  */
 export function RateJob({ job, name }: { job: Job; name: string }) {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const uid = user?.uid || "";
   const [done, setDone] = useState<number | null | undefined>(undefined);
   const [rating, setRating] = useState(0);
@@ -47,28 +48,12 @@ export function RateJob({ job, name }: { job: Job; name: string }) {
     if (isObjectionable(comment)) return setError(OBJECTIONABLE_NOTE);
     setBusy(true);
     try {
-      await addDoc(collection(db, "reviews"), {
-        jobId: job.id,
-        reviewerId: uid,
-        revieweeId: job.operatorId,
-        clientId: job.clientId,
-        operatorId: job.operatorId,
-        reviewerRole: "client",
-        rating,
-        comment: comment.trim(),
-        createdAt: Timestamp.now(),
-      });
-      if (job.chatId) {
-        const note = `${profile?.displayName?.split(" ")[0] || "Your customer"} left a ${rating}-star review.`;
-        const batch = writeBatch(db);
-        batch.set(doc(collection(db, "messages")), { chatId: job.chatId, jobId: job.id, senderId: "system", senderName: "SNOWD", type: "system", content: note, read: false, createdAt: Timestamp.now() });
-        batch.update(doc(db, "chats", job.chatId), { lastMessage: note, lastMessageTime: Timestamp.now(), [`unreadCount.${job.operatorId}`]: increment(1) });
-        await batch.commit().catch(() => {});
-      }
+      // The server saves the review, updates the shoveler's average rating and posts a note in the chat.
+      await api("/api/jobs/review", { jobId: job.id, rating, comment: comment.trim() });
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setDone(rating);
-    } catch {
-      setError("Your rating wasn’t sent. Check your connection and try again.");
+    } catch (e) {
+      setError(e instanceof Error && e.message ? e.message : "Your rating wasn’t sent. Check your connection and try again.");
     } finally {
       setBusy(false);
     }
