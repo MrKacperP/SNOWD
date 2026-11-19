@@ -8,6 +8,7 @@ import LandingFeedback from "@/components/LandingFeedback";
 import LandingNav from "@/components/LandingNav";
 import LandingSteps from "@/components/LandingSteps";
 import ScrollReveal from "@/components/ScrollReveal";
+import { supportEmail } from "@/lib/mobilePolicies";
 import styles from "./landing.module.css";
 
 export const metadata: Metadata = {
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
   description: "Find local help for your driveway, walkway, and steps. Compare snow clearing prices, request a visit, and get a completion photo with SNOWD.",
 };
 
-const SUPPORT_EMAIL = "support@snowd.ca";
+const SUPPORT_EMAIL = supportEmail;
 const SUPPORT_PHONE = "437-922-3895";
 
 const faqGroups = [

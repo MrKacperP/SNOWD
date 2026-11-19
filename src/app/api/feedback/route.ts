@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "node:crypto";
 import { getAdminDb } from "@/lib/firebaseAdmin";
+import { supportEmail } from "@/lib/mobilePolicies";
 
 const HOUR = 60 * 60 * 1000;
 const LIMIT_PER_HOUR = 5;
@@ -38,8 +39,8 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json({ ok: true });
   } catch (error) {
-    if (error instanceof Error && error.message === "rate-limited") return NextResponse.json({ error: "Thanks! You’ve sent a few already. Please try again in an hour or email support@snowd.ca." }, { status: 429 });
+    if (error instanceof Error && error.message === "rate-limited") return NextResponse.json({ error: `Thanks! You’ve sent a few already. Please try again in an hour or email ${supportEmail}.` }, { status: 429 });
     console.error("Feedback submit failed", error);
-    return NextResponse.json({ error: "We couldn’t send that right now. Please email support@snowd.ca." }, { status: 500 });
+    return NextResponse.json({ error: `We couldn’t send that right now. Please email ${supportEmail}.` }, { status: 500 });
   }
 }

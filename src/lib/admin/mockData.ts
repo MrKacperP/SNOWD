@@ -249,7 +249,7 @@ export const analyticsSupportResolutionSeed = [
 
 export const settingsSeed: AdminSettingsState = {
   siteName: "Snowd",
-  supportEmail: "support@snowd.ca",
+  supportEmail: "service.mississauga@gmail.com",
   timezone: "America/Toronto",
   notifications: {
     newVerification: true,

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, ChevronDown } from "lucide-react";
 import styles from "@/app/landing.module.css";
+import { supportEmail } from "@/lib/mobilePolicies";
 
 type MenuItem = { label: string; href: string; note: string };
 const menus: { label: string; items: MenuItem[] }[] = [
@@ -19,7 +20,7 @@ const menus: { label: string; items: MenuItem[] }[] = [
   { label: "Help", items: [
     { label: "Help centre", href: "#faq", note: "Answers to common questions" },
     { label: "Ask a question", href: "#ask", note: "No account needed" },
-    { label: "Contact us", href: "mailto:support@snowd.ca", note: "support@snowd.ca" },
+    { label: "Contact us", href: `mailto:${supportEmail}`, note: supportEmail },
   ] },
 ];
 
