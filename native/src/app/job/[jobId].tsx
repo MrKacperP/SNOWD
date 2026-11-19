@@ -11,6 +11,7 @@ import { workOrderPresentation } from "@/lib/workOrderPresentation";
 import { JobActionButtons, useJobActions } from "~/components/JobActions";
 import { CurrentStep } from "~/components/OrderProgress";
 import { JobMiniMap } from "~/components/JobMiniMap";
+import { RateJob } from "~/components/RateJob";
 import { paymentActions } from "~/lib/jobActions";
 import { TabHeader } from "~/components/TabHeader";
 import { Avatar, Badge, Button, Card, Empty, Icon, Loading, Notice, Screen } from "~/components/ui";
@@ -136,7 +137,7 @@ export default function JobScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack.Screen options={{ title: `Order #${orderNumber(job)}`, headerShown: false }} />
-      <Screen contentInsetAdjustmentBehavior="never" contentStyle={{ padding: 0, gap: space.md, paddingBottom: hasBar ? (barState.actions.length && payState.actions.length ? 172 : 104) + insets.bottom : space.xl }} onRefresh={() => undefined}>
+      <Screen contentInsetAdjustmentBehavior="never" automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentStyle={{ padding: 0, gap: space.md, paddingBottom: hasBar ? (barState.actions.length && payState.actions.length ? 172 : 104) + insets.bottom : space.xl }} onRefresh={() => undefined}>
         {/* The order number on a coloured band: back on the left, the "…" menu on the right. */}
         <TabHeader
           tone={headerTone}
@@ -202,6 +203,8 @@ export default function JobScreen() {
             ) : null}
           </Card>
 
+          {/* The customer rates a finished job once; it shows on the shoveler's profile. */}
+          {job.status === "completed" && !operator ? <RateJob job={job} name={personName(other)} /> : null}
           {!closed ? (
             <Pressable accessibilityRole="button" disabled={busy === "cancel"} onPress={confirmCancel} hitSlop={6} style={{ alignSelf: "center", paddingVertical: 4, paddingHorizontal: 12 }}>
               <Text style={{ color: colors.danger, fontWeight: "700", fontSize: 15 }}>{busy === "cancel" ? "Cancelling…" : "Cancel this order"}</Text>

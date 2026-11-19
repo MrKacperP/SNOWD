@@ -8,6 +8,7 @@ import { Avatar, Card, Field, Icon, Notice, AutosaveStatus, useAutosave } from "
 import { useAuth } from "~/context/auth";
 import { db } from "~/lib/firebase";
 import { notifyAdmin } from "~/lib/admin";
+import { isObjectionable, OBJECTIONABLE_NOTE } from "~/lib/moderation";
 import { chooseUpload, uploadFile } from "~/lib/uploads";
 import { colors, space, type } from "~/lib/theme";
 
@@ -49,8 +50,12 @@ export default function AccountSettings() {
   const save = async () => {
     setError("");
     setSaved("");
-    if (!name.trim()) return setError("Enter your full name.");
-    if (phone.replace(/\D/g, "").length < 10) return setError("Enter a 10-digit phone number.");
+    // Same rules as signup: Sign in with Apple members needn't give a name, and only shovelers must give a phone.
+    const appleUser = !!user?.providerData.some((p) => p.providerId === "apple.com");
+    const digits = phone.replace(/\D/g, "").length;
+    if (!name.trim() && !appleUser) return setError("Enter your full name.");
+    if ((operator || digits > 0) && digits < 10) return setError("Enter a 10-digit phone number.");
+    if ([name, businessName, bio].some(isObjectionable)) return setError(OBJECTIONABLE_NOTE);
     if (!operator && ageNumber !== null && (Number.isNaN(ageNumber) || ageNumber < 13 || ageNumber > 120)) return setError("Enter an age from 13 to 120, or leave it blank.");
     if (operator && !businessName.trim()) return setError("Enter your business name. Customers see it on your profile.");
     if (operator && !bio.trim()) return setError("Add a short bio so customers know who you are.");

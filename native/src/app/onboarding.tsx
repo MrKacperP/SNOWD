@@ -1,4 +1,5 @@
 import * as Haptics from "expo-haptics";
+import { isObjectionable } from "~/lib/moderation";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
 import { Image } from "expo-image";
@@ -94,8 +95,14 @@ export default function Onboarding() {
   };
 
 
-  const nameProblem = name.trim() ? "" : "Tell us your name.";
-  const phoneProblem = phone.replace(/\D/g, "").length === 10 ? "" : "Enter a 10-digit phone number.";
+  // Sign in with Apple already offers a name, so it's never asked for again as a requirement (App Review 4.8).
+  const appleUser = !!user?.providerData.some((p) => p.providerId === "apple.com");
+  const nameOptional = appleUser;
+  // Customers can reach their shoveler in chat, so a phone number is only required from shovelers.
+  const phoneOptional = role !== "operator";
+  const digits = phone.replace(/\D/g, "").length;
+  const nameProblem = isObjectionable(name) ? "Please use your real name." : name.trim() || nameOptional ? "" : "Tell us your name.";
+  const phoneProblem = digits === 10 || (phoneOptional && digits === 0) ? "" : "Enter a 10-digit phone number.";
 
   const problemFor = (s: StepId): string => {
     if (s === "role" && !role) return "Pick one to get started.";
@@ -299,7 +306,7 @@ export default function Onboarding() {
           {id === "you" ? (
             <View style={{ gap: 14 }}>
               <BigInput
-                label="Your name"
+                label={nameOptional ? "Your name (optional)" : "Your name"}
                 value={name}
                 onChangeText={setName}
                 placeholder="First and last name"
@@ -308,13 +315,13 @@ export default function Onboarding() {
                 autoCapitalize="words"
                 returnKeyType="next"
                 onSubmitEditing={() => phoneRef.current?.focus()}
-                autoFocus={!name}
+                autoFocus={!name && !nameOptional}
                 valid={!nameProblem}
                 problem={checkFields ? nameProblem : ""}
               />
               <BigInput
                 ref={phoneRef}
-                label="Phone"
+                label={phoneOptional ? "Phone (optional)" : "Phone"}
                 value={phone}
                 onChangeText={(t) => setPhone(formatPhone(t))}
                 placeholder="416 555 0100"

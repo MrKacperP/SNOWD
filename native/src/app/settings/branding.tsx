@@ -9,6 +9,7 @@ import { Snowfall } from "~/components/brand";
 import { Avatar, Button, Card, Field, Icon, Notice, PhotoGrid, AutosaveStatus, useAutosave } from "~/components/ui";
 import { useAuth } from "~/context/auth";
 import { db } from "~/lib/firebase";
+import { isObjectionable, OBJECTIONABLE_NOTE } from "~/lib/moderation";
 import { chooseUpload, uploadFile } from "~/lib/uploads";
 import { colors, hero, radius, shadow, space, type } from "~/lib/theme";
 
@@ -64,6 +65,7 @@ export default function BrandingSettings() {
   const save = async () => {
     setError("");
     setDone("");
+    if ([tagline, about].some(isObjectionable)) return setError(OBJECTIONABLE_NOTE);
     setSaving(true);
     try {
       await updateDoc(doc(db, "users", uid), { avatar, logoUrl: logo, tagline: tagline.trim(), brandDescription: about.trim(), portfolioPhotos: portfolio });

@@ -2,7 +2,7 @@ import { useRouter } from "expo-router";
 import { Text, View } from "react-native";
 import { jobDisplayPrice } from "@/lib/marketplacePricing";
 import { SERVICE_LABELS, type Job } from "@/lib/types";
-import { orderActionNeeded, orderLabel, orderNumber, scheduleText } from "@/lib/workOrders";
+import { orderActionNeeded, orderLabel, orderNumber, scheduleText, terminalOrderDateText } from "@/lib/workOrders";
 import { personName, type Person } from "~/lib/data";
 import { money } from "~/lib/format";
 import { brand, colors, depth, font } from "~/lib/theme";
@@ -34,7 +34,7 @@ export function JobCard({ job, uid, other }: { job: Job; uid: string; other?: Pe
       </View>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         <Icon name="calendar" size={16} color={brand.slate} />
-        <Text style={[font.label, { flex: 1, fontWeight: "500" }]}>{scheduleText(job)}</Text>
+        <Text style={[font.label, { flex: 1, fontWeight: "500" }]}>{terminalOrderDateText(job) || scheduleText(job)}</Text>
         {/* Open orders say their status in the progress line below; a second label here only gets cut off. */}
         {open ? null : <Badge label={orderLabel(job)} tone={statusTone(job, uid)} />}
       </View>

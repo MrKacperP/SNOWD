@@ -20,6 +20,7 @@ import { db } from "~/lib/firebase";
 import { useClearChatNotifications } from "~/lib/notifications";
 import { clockTime, dayLabel } from "~/lib/format";
 import { useBlocked, useSafety } from "~/lib/safety";
+import { isObjectionable, OBJECTIONABLE_NOTE } from "~/lib/moderation";
 import { chooseUpload, storageName, uploadFile } from "~/lib/uploads";
 import { colors, radius, space, stepColor, type } from "~/lib/theme";
 
@@ -129,6 +130,11 @@ export default function ChatScreen() {
 
   const send = async (content: string, kind: ChatMessage["type"] = "text", metadata?: ChatMessage["metadata"]) => {
     if (!uid || !chatId || (kind === "text" && !content.trim())) return false;
+    // Objectionable text never leaves the phone; the draft stays so it can be reworded.
+    if (kind === "text" && isObjectionable(content)) {
+      Alert.alert("Message not sent", OBJECTIONABLE_NOTE);
+      return false;
+    }
     setSending(true);
     try {
       const message: Record<string, unknown> = { chatId, senderId: uid, senderName: profile?.displayName || "User", type: kind, content, read: false, createdAt: Timestamp.now() };

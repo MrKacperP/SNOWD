@@ -59,26 +59,24 @@
 		<string>_expo._tcp</string>
 	</array>
 	<key>NSCameraUsageDescription</key>
-	<string>SNOWD uses the camera to photograph your government ID for verification, take your profile photo, send photos in chat and confirm finished jobs.</string>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>Expo Dev Launcher uses the local network to discover and connect to development servers running on your computer.</string>
+	<string>SNOWD uses the camera to scan SNOWD codes (to sign in on the website or add a friend), photograph your government ID for verification, take your profile photo, send photos in chat and confirm finished jobs.</string>
 	<key>NSContactsUsageDescription</key>
 	<string>SNOWD uses your contacts so you can text friends an invite. Your contacts stay on your phone.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Expo Dev Launcher uses the local network to discover and connect to development servers running on your computer.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Allow $(PRODUCT_NAME) to access your location</string>
+	<string>SNOWD only uses your location while you're using the app, to show nearby shovelers and share a shoveler's ETA with customers. It doesn't track you in the background.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
-	<string>Allow $(PRODUCT_NAME) to access your location</string>
+	<string>SNOWD only uses your location while you're using the app, to show nearby shovelers and share a shoveler's ETA with customers. It doesn't track you in the background.</string>
 	<key>NSLocationTemporaryUsageDescriptionDictionary</key>
 	<dict>
 		<key>ExpoLocationFullAccuracy</key>
-		<string>Allow $(PRODUCT_NAME) to access your precise location</string>
+		<string>SNOWD needs your precise location to find the right driveway and show an accurate ETA.</string>
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>SNOWD uses your location to show nearby shovelers and to share your ETA with customers.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>SNOWD uses the microphone to record voice messages in chat.</string>
-	<key>NSMotionUsageDescription</key>
-	<string>Allow $(PRODUCT_NAME) to detect your current motion activity</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>SNOWD lets you choose a photo of your government ID for verification, your profile photo, and photos to send in chat or confirm finished jobs.</string>
 	<key>NSUserActivityTypes</key>

@@ -5,6 +5,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
+  Keyboard,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -167,6 +168,27 @@ export function Screen({ children, contentStyle, onRefresh, scrollY, topKey, ...
       return () => timers.forEach(clearTimeout);
     }, [edgeToEdge, ref]),
   );
+  // Tab pages stay mounted in the background; only the one on screen reacts to the keyboard.
+  const inView = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      inView.current = true;
+      return () => {
+        inView.current = false;
+      };
+    }, []),
+  );
+  // When the keyboard opens over a text field on this page, scroll the field (and a button's worth
+  // of space below it) above the keyboard, so forms near the bottom stay usable.
+  useEffect(() => {
+    const sub = Keyboard.addListener("keyboardDidShow", () => {
+      if (!inView.current) return;
+      const input = TextInput.State.currentlyFocusedInput();
+      const scroller = ref.current as unknown as { scrollResponderScrollNativeHandleToKeyboard?: (node: unknown, offset: number, preventNegative: boolean) => void } | null;
+      if (input && scroller?.scrollResponderScrollNativeHandleToKeyboard) scroller.scrollResponderScrollNativeHandleToKeyboard(input, 96, true);
+    });
+    return () => sub.remove();
+  }, [ref]);
   // Content that arrives after the first paint can leave the page part-way down; bring it back up.
   useEffect(() => {
     if (topKey === undefined) return;

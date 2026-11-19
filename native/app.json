@@ -15,7 +15,7 @@
       "usesAppleSignIn": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "SNOWD uses your location to show nearby shovelers and to share your ETA with customers.",
-        "NSCameraUsageDescription": "SNOWD uses the camera to photograph your government ID for verification, take your profile photo, send photos in chat and confirm finished jobs.",
+        "NSCameraUsageDescription": "SNOWD uses the camera to scan SNOWD codes (to sign in on the website or add a friend), photograph your government ID for verification, take your profile photo, send photos in chat and confirm finished jobs.",
         "NSPhotoLibraryUsageDescription": "SNOWD lets you choose a photo of your government ID for verification, your profile photo, and photos to send in chat or confirm finished jobs.",
         "ITSAppUsesNonExemptEncryption": false,
         "UIBackgroundModes": [
@@ -61,14 +61,18 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "SNOWD uses your location to show nearby shovelers and to share your ETA with customers."
+          "locationWhenInUsePermission": "SNOWD uses your location to show nearby shovelers and to share your ETA with customers.",
+          "locationAlwaysAndWhenInUsePermission": "SNOWD only uses your location while you're using the app, to show nearby shovelers and share a shoveler's ETA with customers. It doesn't track you in the background.",
+          "locationAlwaysPermission": "SNOWD only uses your location while you're using the app, to show nearby shovelers and share a shoveler's ETA with customers. It doesn't track you in the background.",
+          "motionUsagePermission": false,
+          "locationFullAccuracyPermission": "SNOWD needs your precise location to find the right driveway and show an accurate ETA."
         }
       ],
       [
         "expo-image-picker",
         {
           "photosPermission": "SNOWD lets you choose a photo of your government ID for verification, your profile photo, and photos to send in chat or confirm finished jobs.",
-          "cameraPermission": "SNOWD uses the camera to photograph your government ID for verification, take your profile photo, send photos in chat and confirm finished jobs."
+          "cameraPermission": "SNOWD uses the camera to scan SNOWD codes (to sign in on the website or add a friend), photograph your government ID for verification, take your profile photo, send photos in chat and confirm finished jobs."
         }
       ],
       [
