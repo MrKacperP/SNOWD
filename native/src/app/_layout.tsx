@@ -54,7 +54,8 @@ function RootNavigator() {
           <Stack.Screen name="operator/[uid]" options={{ title: "", headerTransparent: true }} />
           <Stack.Screen name="person/[uid]" options={{ title: "", headerShown: false }} />
           <Stack.Screen name="invite/[uid]" options={{ title: "", headerShown: false }} />
-          <Stack.Screen name="book/[uid]" options={{ title: "Request service", presentation: "modal" }} />
+          {/* The sheet draws its own title row: iOS floats a native header over the first card in a sheet. */}
+          <Stack.Screen name="book/[uid]" options={{ title: "Request service", presentation: "modal", headerShown: false }} />
           <Stack.Screen name="notifications" options={{ title: "Updates" }} />
           {SETTINGS_SCREENS.map((name) => (
             <Stack.Screen key={name} name={`settings/${name}`} options={{ title: "" }} />

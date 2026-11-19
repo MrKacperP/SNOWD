@@ -131,7 +131,14 @@ export default function Book() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" alwaysBounceVertical={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: space.lg, paddingTop: space.sm, gap: space.md + 2, paddingBottom: 120 }}>
+      {/* The sheet's title row, with a plain way out. */}
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", minHeight: 52, paddingHorizontal: space.lg, paddingTop: space.sm }}>
+        <Pressable accessibilityRole="button" hitSlop={10} onPress={() => router.back()} style={{ position: "absolute", left: space.lg, top: space.sm, bottom: 0, justifyContent: "center" }}>
+          <Text style={{ color: colors.accent, fontSize: 17 }}>Cancel</Text>
+        </Pressable>
+        <Text accessibilityRole="header" style={[type.headline, { fontSize: 17 }]}>Request service</Text>
+      </View>
+      <ScrollView contentInsetAdjustmentBehavior="never" alwaysBounceVertical={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: space.lg, paddingTop: space.sm, gap: space.md + 2, paddingBottom: 120 }}>
         {/* Who you're asking, in a card so it never blends into the nav bar. */}
         <View style={{ flexDirection: "row", alignItems: "center", gap: space.md, paddingVertical: space.sm + 2, paddingHorizontal: space.md, borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
           <Avatar uri={operator.logoUrl || operator.avatar} name={name} size={42} />
