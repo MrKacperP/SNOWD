@@ -22,6 +22,8 @@ const INK = "#0b1117";
 
 const GOOGLE_IOS_CLIENT_ID = "119102068229-6fd835k0ef8a72mur4lcbn19rgf5lflc.apps.googleusercontent.com";
 const GOOGLE_IOS_REDIRECT = `com.googleusercontent.apps.${GOOGLE_IOS_CLIENT_ID.replace(".apps.googleusercontent.com", "")}:/oauthredirect`;
+/** The full terms and privacy policy, readable before signing in. */
+const openPolicy = (name: "terms" | "privacy") => void WebBrowser.openBrowserAsync(`https://www.snowd.ca/policies/${name}`).catch(() => {});
 const GOOGLE_ANDROID_CLIENT_ID = "119102068229-rm9gs0ucc7lpac4cfutg2rl76ldhq0p5.apps.googleusercontent.com";
 
 export default function Login() {
@@ -241,7 +243,7 @@ export default function Login() {
               />
             ) : null}
 
-            <Text style={styles.fine}>By continuing, you agree to SNOWD’s terms and privacy policy. We’ll only use your email to sign you in and send updates about your orders.</Text>
+            <Text style={styles.fine}>By continuing, you agree to SNOWD’s <Text style={styles.link} accessibilityRole="link" onPress={() => openPolicy("terms")}>terms</Text> and <Text style={styles.link} accessibilityRole="link" onPress={() => openPolicy("privacy")}>privacy policy</Text>. We’ll only use your email to sign you in and send updates about your orders.</Text>
           </>
         ) : (
           <>
@@ -363,7 +365,7 @@ function Welcome({ onPick }: { onPick: (mode: "signin" | "signup", buttonY: numb
         <View onLayout={(e) => center(1)(e.nativeEvent.layout.y, e.nativeEvent.layout.height)}>
           <BigButton title="I already have an account" variant="secondary" onPress={() => onPick("signin", actionsY + centers[1])} />
         </View>
-        <Text style={[styles.fine, { marginTop: 4, textAlign: "center" }]}>By continuing you agree to SNOWD’s terms and privacy policy.</Text>
+        <Text style={[styles.fine, { marginTop: 4, textAlign: "center" }]}>By continuing you agree to SNOWD’s <Text style={styles.link} accessibilityRole="link" onPress={() => openPolicy("terms")}>terms</Text> and <Text style={styles.link} accessibilityRole="link" onPress={() => openPolicy("privacy")}>privacy policy</Text>.</Text>
       </View>
     </View>
   );
@@ -404,4 +406,5 @@ const styles = StyleSheet.create({
   next: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 52, paddingHorizontal: 22, borderRadius: 999, backgroundColor: INK },
   nextText: { fontSize: 17, color: "#fff", fontFamily: family.bodyBold },
   fine: { fontSize: 13, lineHeight: 18, color: "#5e5e5e", fontFamily: family.body, marginTop: "auto" },
+  link: { color: "#2350ff", textDecorationLine: "underline" },
 });

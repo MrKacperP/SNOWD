@@ -19,6 +19,7 @@ import { personName, useChat, useJobs, useMessages, usePeople } from "~/lib/data
 import { db } from "~/lib/firebase";
 import { useClearChatNotifications } from "~/lib/notifications";
 import { clockTime, dayLabel } from "~/lib/format";
+import { useBlocked, useSafety } from "~/lib/safety";
 import { chooseUpload, storageName, uploadFile } from "~/lib/uploads";
 import { colors, radius, space, stepColor, type } from "~/lib/theme";
 
@@ -45,6 +46,10 @@ export default function ChatScreen() {
   const openJob = chatJobs.filter(isOpenOrder).at(-1);
   // The order this conversation is about: the open one, or else the most recent one (done or cancelled).
   const latestJob = openJob || chatJobs[0];
+  // Blocking works both ways: the Firestore rules refuse messages either way while a block stands.
+  const iBlocked = useBlocked(otherId);
+  const safety = useSafety();
+  const target = { uid: otherId, name: personName(other), chatId, jobId: latestJob?.id };
   // Upload progress 0–1 while a photo or file goes up, null when idle.
   const [uploading, setUploading] = useState<number | null>(null);
   // Voice messages: tap the mic to start, tap stop to finish, then review (play, scrub, speed) and send.
@@ -207,12 +212,20 @@ export default function ChatScreen() {
               </View>
             </Pressable>
           ),
-          headerRight: () =>
-            other?.phone ? (
-              <Pressable hitSlop={12} accessibilityRole="button" accessibilityLabel={`Call ${personName(other)}`} onPress={() => void Linking.openURL(`tel:${other.phone!.replace(/[^\d+]/g, "")}`)} style={{ minHeight: 36, paddingHorizontal: 6, justifyContent: "center" }}>
-                <Icon name="phone.fill" size={21} color={colors.accent} />
-              </Pressable>
-            ) : null,
+          headerRight: () => (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+              {other?.phone && !iBlocked ? (
+                <Pressable hitSlop={12} accessibilityRole="button" accessibilityLabel={`Call ${personName(other)}`} onPress={() => void Linking.openURL(`tel:${other.phone!.replace(/[^\d+]/g, "")}`)} style={{ minHeight: 36, paddingHorizontal: 6, justifyContent: "center" }}>
+                  <Icon name="phone.fill" size={21} color={colors.accent} />
+                </Pressable>
+              ) : null}
+              {otherId ? (
+                <Pressable hitSlop={12} accessibilityRole="button" accessibilityLabel="More options" accessibilityHint="Report or block this person" onPress={() => safety.menu(target, iBlocked)} style={{ minHeight: 36, paddingHorizontal: 6, justifyContent: "center" }}>
+                  <Icon name="ellipsis.circle" size={22} color={colors.accent} />
+                </Pressable>
+              ) : null}
+            </View>
+          ),
         }}
       />
       <Animated.View style={[{ flex: 1, backgroundColor: colors.bg }, lift]}>
@@ -281,7 +294,15 @@ export default function ChatScreen() {
               </Pressable>
             </View>
           ) : null}
-          {/* One composer row: attach, type, and a mic that turns into stop while recording. */}
+          {iBlocked ? (
+            <View style={{ alignItems: "center", gap: 6, paddingHorizontal: space.lg, paddingVertical: 6 }}>
+              <Text style={[type.callout, { textAlign: "center" }]}>You blocked {personName(other)}. Neither of you can send messages here.</Text>
+              <Pressable accessibilityRole="button" hitSlop={8} onPress={() => safety.toggleBlock(target, true)}>
+                <Text style={{ color: colors.accent, fontWeight: "700", fontSize: 15 }}>Unblock</Text>
+              </Pressable>
+            </View>
+          ) : (
+          /* One composer row: attach, type, and a mic that turns into stop while recording. */
           <View style={styles.composer}>
             {voice.recording || note ? (
               // Recording and review live inside the same pill as the text field, with a discard button
@@ -368,6 +389,7 @@ export default function ChatScreen() {
               </Pressable>
             )}
           </View>
+          )}
           {voice.error ? <Text style={[type.caption, { color: colors.danger, paddingHorizontal: space.md, paddingTop: 6 }]}>{voice.error}</Text> : null}
         </Animated.View>
       </Animated.View>
@@ -393,6 +415,21 @@ export default function ChatScreen() {
               <Icon name="arrowshape.turn.up.left" size={18} color={colors.ink} />
               <Text style={type.body}>Reply</Text>
             </Pressable>
+            {selected && selected.senderId !== uid ? (
+              <Pressable
+                style={styles.sheetRow}
+                accessibilityRole="button"
+                onPress={() => {
+                  const message = selected;
+                  setSelected(null);
+                  // Let the sheet close before the reason picker opens.
+                  setTimeout(() => safety.report({ ...target, message }), 300);
+                }}
+              >
+                <Icon name="exclamationmark.bubble" size={18} color={colors.danger} />
+                <Text style={[type.body, { color: colors.danger }]}>Report message</Text>
+              </Pressable>
+            ) : null}
           </View>
         </Pressable>
       </Modal>

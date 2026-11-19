@@ -8,6 +8,7 @@ import { Avatar, Button, Group, Loading, Row, Screen, SectionTitle } from "~/com
 import { useAuth } from "~/context/auth";
 import { personName, useJobs, type Person } from "~/lib/data";
 import { db } from "~/lib/firebase";
+import { useBlocked, useSafety } from "~/lib/safety";
 import { colors, space, type } from "~/lib/theme";
 
 /** A customer's profile, opened from the top of a chat: who they are and your jobs together. */
@@ -19,6 +20,8 @@ export default function PersonScreen() {
   const [person, setPerson] = useState<(Person & { createdAt?: unknown; phone?: string; city?: string; province?: string }) | null>(null);
   const [loading, setLoading] = useState(true);
   const { jobs } = useJobs(uid, profile?.role);
+  const safety = useSafety();
+  const blocked = useBlocked(personId || "");
 
   useEffect(() => {
     if (!personId) return;
@@ -69,6 +72,13 @@ export default function PersonScreen() {
           ) : (
             <Text style={[type.callout, { color: colors.muted }]}>No jobs together yet.</Text>
           )}
+
+          {personId && personId !== uid ? (
+            <Group>
+              <Row icon="exclamationmark.bubble.fill" label={`Report ${name}`} tint={colors.danger} onPress={() => safety.report({ uid: personId, name, chatId })} />
+              <Row icon="hand.raised.fill" label={blocked ? `Unblock ${name}` : `Block ${name}`} tint={colors.danger} onPress={() => safety.toggleBlock({ uid: personId, name, chatId }, blocked)} last />
+            </Group>
+          ) : null}
         </View>
       </Screen>
     </>

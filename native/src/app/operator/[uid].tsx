@@ -11,7 +11,7 @@ import { SERVICE_LABELS, type ClientProfile, type OperatorProfile } from "@/lib/
 import { Avatar, Badge, Button, Card, Icon, Loading, Notice } from "~/components/ui";
 import { useAuth } from "~/context/auth";
 import { db } from "~/lib/firebase";
-import { money } from "~/lib/format";
+import { useBlocked, useSafety } from "~/lib/safety";import { money } from "~/lib/format";
 import { quoteFor } from "~/lib/operators";
 import { Snowfall } from "~/components/brand";
 import { colors, hero, radius, space, type } from "~/lib/theme";
@@ -24,6 +24,8 @@ export default function OperatorScreen() {
   const { policy } = useMarketplacePolicy(API_URL);
   const [operator, setOperator] = useState<OperatorProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const safety = useSafety();
+  const blocked = useBlocked(uid || "");
 
   useEffect(() => {
     if (!uid) return;
@@ -70,7 +72,7 @@ export default function OperatorScreen() {
             <Text style={type.largeTitle}>{name}</Text>
             {operator.tagline ? <Text style={type.callout}>{operator.tagline}</Text> : null}
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
-              <Badge tone="green" label="ID verified" />
+              {operator.idVerified === true ?<Badge tone="green" label="ID verified" /> : null}
               {operator.isStudent ? <Badge tone="blue" label="Student" /> : null}
               {quote.card ? <Badge tone="gray" label="Takes cards" /> : <Badge tone="gray" label="Cash only" />}
             </View>
@@ -122,6 +124,17 @@ export default function OperatorScreen() {
                   <Image key={uri} source={{ uri }} style={{ width: 160, height: 120, borderRadius: radius.md }} contentFit="cover" />
                 ))}
               </ScrollView>
+            </View>
+          ) : null}
+
+          {user && operator.uid !== user.uid ? (
+            <View style={{ flexDirection: "row", justifyContent: "center", gap: space.xl, paddingVertical: space.sm }}>
+              <Pressable accessibilityRole="button" hitSlop={8} onPress={() => safety.report({ uid: operator.uid, name })}>
+                <Text style={{ color: colors.danger, fontWeight: "600", fontSize: 15 }}>Report</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" hitSlop={8} onPress={() => safety.toggleBlock({ uid: operator.uid, name }, blocked)}>
+                <Text style={{ color: colors.danger, fontWeight: "600", fontSize: 15 }}>{blocked ? "Unblock" : "Block"}</Text>
+              </Pressable>
             </View>
           ) : null}
         </View>
