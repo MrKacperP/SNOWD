@@ -177,7 +177,7 @@ export default function Navbar() {
         </div>
       </aside>
 
-      <MobileNavigation role={profile?.role} pathname={pathname} unreadMessages={unreadCount} pendingJobs={pendingJobCount} unreadNotifications={unreadNotifications} menuOpen={drawerOpen} onOpenMenu={() => setDrawerOpen(true)} />
+      <MobileNavigation role={profile?.role} pathname={pathname} unreadMessages={unreadCount} pendingJobs={pendingJobCount} unreadNotifications={unreadNotifications} menuOpen={drawerOpen} onOpenMenu={() => setDrawerOpen(true)} onOpenNotifications={() => setCenterOpen(true)} />
 
       {drawerOpen ? (
         <div className="fixed inset-0 z-40 bg-black/35 lg:hidden" onClick={() => setDrawerOpen(false)}>

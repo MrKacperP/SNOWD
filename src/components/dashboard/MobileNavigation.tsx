@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { Bell, ChevronLeft, Menu } from "lucide-react";
-import { useNotifications } from "@/context/NotificationContext";
 import { primaryNavigation } from "@/lib/appNavigation";
 import { NativeHaptics } from "@/lib/native";
 import { nativeBackDestination } from "@/lib/nativeNavigation";
@@ -42,7 +41,7 @@ function scrollsSideways(target: EventTarget | null) {
   return false;
 }
 
-export default function MobileNavigation({ pathname, role, unreadMessages = 0, pendingJobs = 0, unreadNotifications = 0, menuOpen, onOpenMenu }: {
+export default function MobileNavigation({ pathname, role, unreadMessages = 0, pendingJobs = 0, unreadNotifications = 0, menuOpen, onOpenMenu, onOpenNotifications }: {
   pathname: string;
   role?: UserRole;
   unreadMessages?: number;
@@ -50,9 +49,9 @@ export default function MobileNavigation({ pathname, role, unreadMessages = 0, p
   unreadNotifications?: number;
   menuOpen: boolean;
   onOpenMenu: () => void;
+  onOpenNotifications?: () => void;
 }) {
   const router = useRouter();
-  const { setCenterOpen } = useNotifications();
   const tick = () => { void NativeHaptics.impact({ style: "LIGHT" }).catch(() => { /* Web has no haptics. */ }); };
   const navRef = useRef<HTMLElement>(null);
   const press = useRef<{ id: number; startX: number; dragging: boolean; index: number } | null>(null);
@@ -217,7 +216,7 @@ export default function MobileNavigation({ pathname, role, unreadMessages = 0, p
           <Image src="/logo.png" alt="" width={22} height={22} priority />
           <span>SNOWD</span>
         </Link>
-        <button type="button" className={styles.brandBell} onClick={() => setCenterOpen(true)} aria-label={unreadNotifications ? `Notifications, ${unreadNotifications} unread` : "Notifications"}>
+        <button type="button" className={styles.brandBell} onClick={onOpenNotifications} aria-label={unreadNotifications ? `Notifications, ${unreadNotifications} unread` : "Notifications"}>
           <Bell size={21} strokeWidth={1.9} aria-hidden="true" />
           {unreadNotifications > 0 && <span className={styles.brandBellDot} aria-hidden="true" />}
         </button>
